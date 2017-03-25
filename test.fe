@@ -1,0 +1,45 @@
+
+tr entity_transform {
+	from {
+		<constructor> = <type><argument-list>
+
+		@t = <id(type = ECS)> entity:
+			(@c = <constructor>)*
+	}
+	to {
+		e = @t.createEntity()
+		e.addComponent(@c.type, @c.args)
+	}
+}
+
+tr execute-all-ifs {
+	from {
+		if @a = <expression(type = bool)>
+			@c = <expression>
+	}
+	to {
+		if (true) @c
+	}
+}
+
+tr profiler {
+	from {
+		@a = <function> 
+	}
+	to {
+		@a.before_body
+
+		{
+			profile_before
+			@a.body.inner
+			profile_after
+		}
+	}
+}
+
+
+fn main :: () -> i32 {
+	ecs entity:
+		Position2D(1.0f, 0.0f)
+		Scale2D(0.3f, 0.1f)
+}
