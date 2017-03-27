@@ -124,11 +124,12 @@
   <ItemGroup>
     <ClCompile Include="src\ast.cpp" />
     <ClCompile Include="src\main.cpp" />
-    <ClCompile Include="src\tokenizer.cpp" />
+    <ClCompile Include="src\parser.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\ast.h" />
-    <ClInclude Include="include\tokenizer.h" />
+    <ClInclude Include="include\fe_parser.h" />
+    <ClInclude Include="include\parser.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

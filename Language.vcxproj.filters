@@ -23,10 +23,10 @@
     <ClCompile Include="src\main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\tokenizer.cpp">
+    <ClCompile Include="src\ast.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\ast.cpp">
+    <ClCompile Include="src\parser.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -34,7 +34,10 @@
     <ClInclude Include="include\ast.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\tokenizer.h">
+    <ClInclude Include="include\parser.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\fe_parser.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
