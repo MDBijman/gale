@@ -1,7 +1,12 @@
 #pragma once
+#include <vector>
 
-class ast_node
+namespace ast
 {
-public:
-	ast_node();
-};
+	class node
+	{
+	public:
+		void add_child(node* node);
+		std::vector<node*> children;
+	};
+}
