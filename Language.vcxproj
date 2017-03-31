@@ -119,17 +119,26 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <None Include="test.fe" />
+    <None Include="snippets\example.fe" />
+    <None Include="snippets\test.fe" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\ast.cpp" />
+    <ClCompile Include="src\lexer.cpp" />
+    <ClCompile Include="src\lexer_generator.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\parser.cpp" />
+    <ClCompile Include="src\state_machine.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\ast.h" />
-    <ClInclude Include="include\fe_parser.h" />
+    <ClInclude Include="include\lexer.h" />
+    <ClInclude Include="include\lexer_generator.h" />
     <ClInclude Include="include\parser.h" />
+    <ClInclude Include="include\state_machine.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="snippets\lexer_specification.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
