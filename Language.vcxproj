@@ -124,7 +124,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\ast.cpp" />
-    <ClCompile Include="src\lexer.cpp" />
+    <ClCompile Include="src\ebnf_lexer.cpp" />
     <ClCompile Include="src\lexer_generator.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\parser.cpp" />
@@ -132,6 +132,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\ast.h" />
+    <ClInclude Include="include\ebnf.h" />
+    <ClInclude Include="include\ebnf_lexer.h" />
     <ClInclude Include="include\lexer.h" />
     <ClInclude Include="include\lexer_generator.h" />
     <ClInclude Include="include\parser.h" />

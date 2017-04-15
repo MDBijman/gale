@@ -1,156 +1,159 @@
 #include "lexer_generator.h"
+#include "parser.h"
+#include "ebnf_lexer.h"
+#include "lexer.h"
+#include <functional>
 
 #include <algorithm>
 #include <iostream>
 #include <fstream>
 #include <string_view>
 
-namespace lexer
+namespace lexer_generator
 {
 
-	void state_decider::run(state_machine& machine)
+	language_lexer generate(const std::string& specification_location)
 	{
-		while (iterator != line.end() && isspace(*iterator)) iterator++;
-		if (iterator == line.end())
+		// Parse rules
+		std::ifstream in(specification_location, std::ios::in | std::ios::binary);
+		if (!in) throw std::exception("Could not open file");
+
+		std::string contents;
+		in.seekg(0, std::ios::end);
+		contents.resize(in.tellg());
+		in.seekg(0, std::ios::beg);
+		in.read(&contents[0], contents.size());
+		in.close();
+		std::string_view contents_view = contents;
+
+		lexer::lexer lexer{
+			lexer::lexer_rules{{
+					"(", ")", "+", "*", "-", "\'", "::=", "|", 
+			}}
+		};
+
+		auto res = lexer.parse("()+*");
+
+		std::vector<ebnf::terminal> tokens;
+		state_machine machine(new ebnf::state_decider(contents_view, contents_view.begin(), &tokens));
+		while (!machine.is_finished())
 		{
-			machine.exit();
-			return;
+			machine.current_state()->run(machine);
 		}
 
-		if (*iterator == '|')
-			machine.transition(new alternation_state(line, iterator, tokens));
-		else if (*iterator == '.')
-			machine.transition(new end_of_rule_state(line, iterator, tokens));
-		else if (*iterator == '\'')
-			machine.transition(new string_state(line, iterator, tokens));
-		else if (isalpha(*iterator))
-			machine.transition(new identifier_state(line, iterator, tokens));
-		else if (*iterator == '+' || *iterator == '*' || *iterator == '?')
-			machine.transition(new quantifier_state(line, iterator, tokens));
-		else if (*iterator == '(' || *iterator == ')')
-			machine.transition(new group_state(line, iterator, tokens));
-		else if (isalpha(*iterator))
-			machine.transition(new identifier_state(line, iterator, tokens));
-		else if (*iterator == ':')
-			machine.transition(new assignment_state(line, iterator, tokens));
-		else if (*iterator == '-')
-			machine.transition(new exception_state(line, iterator, tokens));
-		else
+
+		ebnf::rules mapping;
 		{
-			std::cerr << "Error: unknown symbol: \'" << *iterator << "\'." << std::endl;
-			throw std::exception("Unknown symbol.");
-		}
-	}
-
-	////////////
-
-	std::string_view trim(std::string_view content)
-	{
-		auto before = content.begin();
-		while (before != content.end() && isspace(*before)) before++;
-		std::string_view::reverse_iterator after = content.rbegin();
-		while (after != content.rend() && isspace(*after)) after++;
-
-		if (std::distance(before, after.base()) < 0) return "";
-
-		return std::string_view(&*before, after.base() - before);
-	}
-
-	std::vector<std::string_view> trim_n(std::vector<std::string_view>&& content)
-	{
-		std::vector<std::string_view> res;
-		std::transform(content.begin(), content.end(), std::back_inserter(res), [](auto string) {
-			return trim(string);
-		});
-		return std::move(res);
-	}
-
-	std::vector<std::string_view> split(std::string_view content, char delim)
-	{
-		auto before = content.begin();
-		auto after = content.begin();
-
-		std::vector<std::string_view> splits;
-
-		while (after != content.end())
-		{
-			while (after != content.end() && *after != delim) after++;
-
-			splits.push_back(std::string_view(&*before, std::distance(before, after)));
-
-			if (after == content.end()) break;
-
-			after++;
-			before = after;
-		}
-
-		return std::move(splits);
-	}
-
-	ebnf_xor::ebnf_xor(const std::vector<ebnf_node*>& content) {}
-
-	//ebnf_rule::ebnf_rule(std::string_view line) 
-	//{
-	//	/*auto position = line.find_first_of("::=");
-
-	//	name = trim(std::string_view(&*line.begin(), position));
-	//	auto content = trim(std::string_view(&line.at(position + 3), line.end() - line.begin() - position - 3));
-	//	rule = parse(content);*/
-	//}
-
-	//ebnf_node* ebnf_rule::parse(std::string_view line)
-	//{
-	//	// XOR
-	//	auto xor_components = split(line, '|');
-	//	if (xor_components.size() != 1)
-	//	{
-	//		std::vector<ebnf_node*> atoms;
-	//		std::transform(xor_components.begin(), xor_components.end(), std::back_inserter(atoms), [this](auto x) {
-	//			return parse(x);
-	//		});
-	//		return new ebnf_xor(std::move(atoms));
-	//	}
-	//}
-
-	ebnf_file::ebnf_file(std::string_view file)
-	{
-		auto iterator = file.begin();
-
-		auto string_rules = trim_n(split(file, '.'));
-		//std::for_each(string_rules.begin(), string_rules.end() - 1, [this](auto x) {
-		//	rules.push_back(ebnf_rule(x));
-		//});
-	}
-
-	namespace generator
-	{
-		language_lexer generate(const std::string& specification)
-		{
-			// Parse rules
-			std::ifstream in(specification, std::ios::in | std::ios::binary);
-			if (!in) throw std::exception("Could not open file");
-
-			std::string contents;
-			in.seekg(0, std::ios::end);
-			contents.resize(in.tellg());
-			in.seekg(0, std::ios::beg);
-			in.read(&contents[0], contents.size());
-			in.close();
-			std::string_view contents_view = contents;
-
-			std::vector<ebnf_terminal> tokens;
-			state_machine machine(new state_decider(contents_view, contents_view.begin(), &tokens));
-			while (!machine.is_finished())
+			mapping.insert(
 			{
-				machine.current_state()->run(machine);
-			}
+				ebnf::non_terminal::RULE,
+				{
+					{ebnf::terminal::IDENTIFIER,ebnf::terminal::ASSIGNMENT, ebnf::non_terminal::RHS_ALTERNATION,ebnf::terminal::END_OF_RULE }
+				}
+			});
 
-			std::cout << tokens.size() << std::endl;
-			/*lexical_definition* rules = new combination;
-			language_lexer generated_lexer(rules);
+			mapping.insert(
+			{
+				ebnf::non_terminal::RULESET,
+				{
+					{ ebnf::non_terminal::RULE, ebnf::non_terminal::RULESET },
+					{ebnf::terminal::END_OF_INPUT }
+				}
+			});
 
-			ebnf_file rule_file(contents);*/
-			//return generated_lexer;
+			mapping.insert(
+			{
+				ebnf::non_terminal::TERMINAL,
+				{
+					{ebnf::terminal::STRING },
+					{ebnf::terminal::IDENTIFIER }
+				}
+			});
+
+			mapping.insert(
+			{
+				ebnf::non_terminal::PRIMARY,
+				{
+					{ ebnf::non_terminal::TERMINAL, ebnf::non_terminal::OPTIONAL_MULTIPLIER  },
+					{ebnf::terminal::BEGIN_GROUP, ebnf::non_terminal::RHS_ALTERNATION,ebnf::terminal::END_GROUP  },
+				}
+			});
+
+			mapping.insert({
+				ebnf::non_terminal::RHS_EXCEPTION,
+				{
+					{ ebnf::non_terminal::PRIMARY, ebnf::non_terminal::OPTIONAL_EXCEPTION, },
+				}
+			});
+
+			mapping.insert({
+				ebnf::non_terminal::OPTIONAL_EXCEPTION,
+				{
+					{ebnf::terminal::EXCEPTION, ebnf::non_terminal::RHS_ALTERNATION },
+					{ebnf::terminal::EPSILON }
+				}
+			});
+
+			mapping.insert({
+				ebnf::non_terminal::RHS_ALTERNATION,
+				{
+					{ ebnf::non_terminal::RHS_EXCEPTION, ebnf::non_terminal::OPTIONAL_ALTERNATION, },
+				}
+			});
+
+			mapping.insert({
+				ebnf::non_terminal::OPTIONAL_MULTIPLIER,
+				{
+					{ebnf::terminal::ZERO_OR_MORE },
+					{ebnf::terminal::ONE_OR_MORE },
+					{ebnf::terminal::EPSILON },
+				}
+			});
+
+			mapping.insert({
+				ebnf::non_terminal::OPTIONAL_ALTERNATION,
+				{
+					{ebnf::terminal::ALTERNATION_SIGN, ebnf::non_terminal::RHS_ALTERNATION },
+					{ebnf::terminal::EPSILON }
+				}
+			});
+
+			mapping.insert({
+				ebnf::non_terminal::ZERO_OR_MORE_ALTERNATION,
+				{
+					{ebnf::terminal::ALTERNATION_SIGN, ebnf::non_terminal::PRIMARY, ebnf::non_terminal::ZERO_OR_MORE_ALTERNATION },
+					{ebnf::terminal::EPSILON },
+				}
+			});
+		}
+
+
+		ebnf::parser parser(mapping);
+
+		try
+		{
+			auto ast = parser.parse(tokens);
+
+		
+			std::function<void(int, ast::node<ebnf::symbol>*)> print = [&print](int indentation, ast::node<ebnf::symbol>* node) -> void {
+				for (int i = 0; i < indentation; i++)
+					std::cout << ' ';
+				if (node->t.is_terminal())
+					std::cout << (int)node->t.get_terminal() << '\n';
+				else
+					std::cout << (int)node->t.get_non_terminal() << '\n';
+				for(auto child : node->children)
+					print(indentation + 1, child);
+				return;
+			};
+			print(0, ast);
+
+			
+			delete ast;
+		}
+		catch (std::runtime_error e)
+		{
+			std::cerr << e.what() << std::endl;
 		}
 	}
 }
