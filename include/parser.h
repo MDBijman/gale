@@ -1,19 +1,24 @@
 #pragma once
+#include <unordered_map>
+#include <stack>
+#include <algorithm>
 #include <string>
-#include <vector>
+#include <variant>
 #include <iostream>
-#include <string_view>
-#include "lexer.h"
+#include "ebnf.h"
 #include "ast.h"
 
-namespace parser
+namespace ebnf
 {
-	using token = std::string;
-
 	class parser
 	{
 	public:
-		parser(lexer::file_lexer& lexer);
-		ast::node parse();
+		parser(rules mapping) : mapping(mapping) {}
+
+		ast::node<symbol>* parse(std::vector<terminal> input);
+
+	private:
+		rules mapping;
+		std::stack<ast::node<symbol>*> stack;
 	};
 }
