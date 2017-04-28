@@ -1,17 +1,16 @@
 #include "lexer_generator.h"
-#include "parser.h"
-#include "ebnf_lexer.h"
+#include "bnf_parser.h"
 #include "lexer.h"
 #include <functional>
-
 #include <algorithm>
 #include <iostream>
 #include <fstream>
 #include <string_view>
+#include <variant>
+#include <iostream>
 
 namespace lexer_generator
 {
-
 	language_lexer generate(const std::string& specification_location)
 	{
 		// Parse rules
@@ -26,134 +25,88 @@ namespace lexer_generator
 		in.close();
 		std::string_view contents_view = contents;
 
-		lexer::lexer lexer{
-			lexer::lexer_rules{{
-					"(", ")", "+", "*", "-", "\'", "::=", "|", 
-			}}
+		lexer::token_definitions ebnf_tokens{
+			{ "assignment", "::=" },
+			{ "alternation", "\\|" },
+			{ "end_of_rule", "\\." },
+			{ "zero_or_more", "\\*" },
+			{ "terminal_string", "\'.+?\'" },
+			{ "exception", "\\-" },
+			{ "begin_group", "\\(" },
+			{ "end_group", "\\)" },
+			{ "one_or_more", "\\+" },
+			{ "identifier", "[a-zA-Z]+" },
 		};
 
-		auto res = lexer.parse("()+*");
+		lexer::lexer lexer{ 
+			lexer::rules{
+				ebnf_tokens
+			}
+		};
 
-		std::vector<ebnf::terminal> tokens;
-		state_machine machine(new ebnf::state_decider(contents_view, contents_view.begin(), &tokens));
-		while (!machine.is_finished())
+		// Parse list of tokens
+		auto tokens_or_error = lexer.parse(contents);
+		if (std::holds_alternative<lexer::error_code>(tokens_or_error))
 		{
-			machine.current_state()->run(machine);
+			std::cerr << "Error while lexing: " << (int)std::get<lexer::error_code>(tokens_or_error);
+			std::cin.get();
 		}
+		auto tokens = std::get<std::vector<lexer::token_id>>(tokens_or_error);
+
+		// Parse ast from token output
+		bnf_parsing::symbol_definitions ebnf_symbols{ {
+			{ "rule", { "identifier", "assignment", "rhs_alternation", "end_of_rule" } },
+
+			{ "ruleset", { "rule", "ruleset" } },
+			{ "ruleset", { "end_of_input" } },
+
+			{ "terminal", { "terminal_string" } },
+			{ "terminal", { "identifier" } },
+
+			{ "primary", { "terminal", "optional_multiplier" } },
+			{ "primary", { "begin_group", "rhs_alternation", "end_group" } },
+
+			{ "rhs_exception", { "primary", "optional_exception" } },
+
+			{ "optional_exception", { "exception", "rhs_alternation" } },
+			{ "optional_exception", { "epsilon" } },
+
+			{ "rhs_alternation", { "rhs_exception", "optional_alternation" } },
+
+			{ "optional_multiplier", { "zero_or_more" } },
+			{ "optional_multiplier", { "one_or_more" } },
+			{ "optional_multiplier", { "epsilon" } },
+
+			{ "optional_alternation", { "alternation", "rhs_alternation" } },
+			{ "optional_alternation", { "epsilon" } },
+
+			{ "zero_or_more_alternation", { "alternation", "primary", "zero_or_more_alternation" } },
+			{ "zero_or_more_alternation", { "epsilon" } },
+		} };
 
 
-		ebnf::rules mapping;
-		{
-			mapping.insert(
+		bnf_parsing::rules rules{
+			ebnf_tokens, ebnf_symbols
+		};
+
+		bnf_parsing::parser parser{
+			rules		
+		};
+
+		auto ast = parser.parse("ruleset", tokens);
+
+		std::function<void(int, ast::node<bnf_parsing::symbol>*)> print_ast = [&](int indentation, ast::node<bnf_parsing::symbol>* node) {
+			for (int i = 0; i < indentation; i++)
+				std::cout << " ";
+			if (node->t.is_terminal())
+				std::cout << rules.to_string(node->t.get_terminal()) << std::endl;
+			else
 			{
-				ebnf::non_terminal::RULE,
-				{
-					{ebnf::terminal::IDENTIFIER,ebnf::terminal::ASSIGNMENT, ebnf::non_terminal::RHS_ALTERNATION,ebnf::terminal::END_OF_RULE }
-				}
-			});
-
-			mapping.insert(
-			{
-				ebnf::non_terminal::RULESET,
-				{
-					{ ebnf::non_terminal::RULE, ebnf::non_terminal::RULESET },
-					{ebnf::terminal::END_OF_INPUT }
-				}
-			});
-
-			mapping.insert(
-			{
-				ebnf::non_terminal::TERMINAL,
-				{
-					{ebnf::terminal::STRING },
-					{ebnf::terminal::IDENTIFIER }
-				}
-			});
-
-			mapping.insert(
-			{
-				ebnf::non_terminal::PRIMARY,
-				{
-					{ ebnf::non_terminal::TERMINAL, ebnf::non_terminal::OPTIONAL_MULTIPLIER  },
-					{ebnf::terminal::BEGIN_GROUP, ebnf::non_terminal::RHS_ALTERNATION,ebnf::terminal::END_GROUP  },
-				}
-			});
-
-			mapping.insert({
-				ebnf::non_terminal::RHS_EXCEPTION,
-				{
-					{ ebnf::non_terminal::PRIMARY, ebnf::non_terminal::OPTIONAL_EXCEPTION, },
-				}
-			});
-
-			mapping.insert({
-				ebnf::non_terminal::OPTIONAL_EXCEPTION,
-				{
-					{ebnf::terminal::EXCEPTION, ebnf::non_terminal::RHS_ALTERNATION },
-					{ebnf::terminal::EPSILON }
-				}
-			});
-
-			mapping.insert({
-				ebnf::non_terminal::RHS_ALTERNATION,
-				{
-					{ ebnf::non_terminal::RHS_EXCEPTION, ebnf::non_terminal::OPTIONAL_ALTERNATION, },
-				}
-			});
-
-			mapping.insert({
-				ebnf::non_terminal::OPTIONAL_MULTIPLIER,
-				{
-					{ebnf::terminal::ZERO_OR_MORE },
-					{ebnf::terminal::ONE_OR_MORE },
-					{ebnf::terminal::EPSILON },
-				}
-			});
-
-			mapping.insert({
-				ebnf::non_terminal::OPTIONAL_ALTERNATION,
-				{
-					{ebnf::terminal::ALTERNATION_SIGN, ebnf::non_terminal::RHS_ALTERNATION },
-					{ebnf::terminal::EPSILON }
-				}
-			});
-
-			mapping.insert({
-				ebnf::non_terminal::ZERO_OR_MORE_ALTERNATION,
-				{
-					{ebnf::terminal::ALTERNATION_SIGN, ebnf::non_terminal::PRIMARY, ebnf::non_terminal::ZERO_OR_MORE_ALTERNATION },
-					{ebnf::terminal::EPSILON },
-				}
-			});
-		}
-
-
-		ebnf::parser parser(mapping);
-
-		try
-		{
-			auto ast = parser.parse(tokens);
-
-		
-			std::function<void(int, ast::node<ebnf::symbol>*)> print = [&print](int indentation, ast::node<ebnf::symbol>* node) -> void {
-				for (int i = 0; i < indentation; i++)
-					std::cout << ' ';
-				if (node->t.is_terminal())
-					std::cout << (int)node->t.get_terminal() << '\n';
-				else
-					std::cout << (int)node->t.get_non_terminal() << '\n';
+				std::cout << rules.to_string(node->t.get_non_terminal()) << std::endl;
 				for(auto child : node->children)
-					print(indentation + 1, child);
-				return;
-			};
-			print(0, ast);
-
-			
-			delete ast;
-		}
-		catch (std::runtime_error e)
-		{
-			std::cerr << e.what() << std::endl;
-		}
+					print_ast(indentation + 1, child);
+			}
+		};
+		print_ast(0, ast);
 	}
 }

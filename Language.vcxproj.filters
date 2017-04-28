@@ -37,9 +37,6 @@
     <Filter Include="Source Files\util">
       <UniqueIdentifier>{a1b911c1-f236-4b8f-aaa9-909804e0ea89}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\ebnf">
-      <UniqueIdentifier>{bee00a0e-2b4e-4c6f-b8a1-c6abfe3fe807}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Header Files\ebnf">
       <UniqueIdentifier>{3cf81b06-053a-466a-9658-80d2ae9795da}</UniqueIdentifier>
     </Filter>
@@ -62,14 +59,11 @@
     <ClCompile Include="src\state_machine.cpp">
       <Filter>Source Files\util</Filter>
     </ClCompile>
-    <ClCompile Include="src\parser.cpp">
-      <Filter>Source Files\ebnf</Filter>
-    </ClCompile>
     <ClCompile Include="src\lexer_generator.cpp">
       <Filter>Source Files\lexer</Filter>
     </ClCompile>
-    <ClCompile Include="src\ebnf_lexer.cpp">
-      <Filter>Source Files\ebnf</Filter>
+    <ClCompile Include="src\bnf_parser.cpp">
+      <Filter>Source Files\parser</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -79,20 +73,14 @@
     <ClInclude Include="include\state_machine.h">
       <Filter>Header Files\util</Filter>
     </ClInclude>
-    <ClInclude Include="include\ebnf.h">
-      <Filter>Header Files\ebnf</Filter>
-    </ClInclude>
-    <ClInclude Include="include\parser.h">
-      <Filter>Header Files\ebnf</Filter>
-    </ClInclude>
     <ClInclude Include="include\lexer_generator.h">
       <Filter>Header Files\lexer</Filter>
     </ClInclude>
-    <ClInclude Include="include\ebnf_lexer.h">
-      <Filter>Header Files\ebnf</Filter>
-    </ClInclude>
     <ClInclude Include="include\lexer.h">
       <Filter>Header Files\lexer</Filter>
+    </ClInclude>
+    <ClInclude Include="include\bnf_parser.h">
+      <Filter>Header Files\parser</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

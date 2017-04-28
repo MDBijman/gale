@@ -13,9 +13,15 @@ namespace ast
 			for (node* node : children)
 				delete node;
 		}
+
 		void add_child(node* node)
 		{
 			children.push_back(node);
+		}
+
+		bool is_leaf()
+		{
+			return children.empty();
 		}
 
 		std::vector<node*> children;
