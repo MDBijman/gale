@@ -7,8 +7,9 @@
 #include <string_view>
 #include <stdint.h>
 #include <regex>
+#include <unordered_map>
 
-namespace lexer
+namespace lexing
 {
 	/*
 	* \brief 
@@ -22,15 +23,17 @@ namespace lexer
 	/*
 	* \brief A pair of <token name, regex string>
 	*/
-	using token_definitions = std::vector<std::pair<std::string, std::string>>;
+	using token_definitions = std::unordered_map<token_id, std::string>;
 
 	struct rules
 	{
 		rules(const token_definitions& rules) : token_definitions(rules)
 		{
 			std::string regex_string;
+			int subgroup = 0;
 			for (auto& rule : rules)
 			{
+				regex_group_to_token_id.insert({ subgroup++, rule.first });
 				regex_string.append("(").append(rule.second).append(")").append("|");
 			}
 			regex_string.pop_back();
@@ -44,12 +47,13 @@ namespace lexer
 			{
 				range = match.suffix();
 				for (int i = 1; i < match.size(); i++)
-					if (match[i].matched) return i - 1;
+					if (match[i].matched) return regex_group_to_token_id.at(i - 1);
 			}
 			return -1;
 		}
 
 	private:
+		std::unordered_map<size_t, token_id> regex_group_to_token_id;
 		const token_definitions token_definitions;
 
 		std::regex regex_object;

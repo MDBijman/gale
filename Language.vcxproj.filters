@@ -13,9 +13,6 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="Header Files\util">
-      <UniqueIdentifier>{5154e0ff-7ad2-46d6-81c6-c7c503317b5e}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source Files\lexer">
       <UniqueIdentifier>{1f5f131c-f15b-4674-9733-58cafffbdacb}</UniqueIdentifier>
     </Filter>
@@ -34,11 +31,11 @@
     <Filter Include="Source Files\codegen">
       <UniqueIdentifier>{28d1ee4c-d654-4a6e-a8e4-f40e85ea1887}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\util">
-      <UniqueIdentifier>{a1b911c1-f236-4b8f-aaa9-909804e0ea89}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Header Files\ebnf">
       <UniqueIdentifier>{3cf81b06-053a-466a-9658-80d2ae9795da}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\language">
+      <UniqueIdentifier>{d2a11b18-718d-4069-bc38-657297f75774}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -56,13 +53,10 @@
     <ClCompile Include="src\ast.cpp">
       <Filter>Source Files\parser</Filter>
     </ClCompile>
-    <ClCompile Include="src\state_machine.cpp">
-      <Filter>Source Files\util</Filter>
-    </ClCompile>
     <ClCompile Include="src\lexer_generator.cpp">
       <Filter>Source Files\lexer</Filter>
     </ClCompile>
-    <ClCompile Include="src\bnf_parser.cpp">
+    <ClCompile Include="src\parser.cpp">
       <Filter>Source Files\parser</Filter>
     </ClCompile>
   </ItemGroup>
@@ -70,17 +64,20 @@
     <ClInclude Include="include\ast.h">
       <Filter>Header Files\parser</Filter>
     </ClInclude>
-    <ClInclude Include="include\state_machine.h">
-      <Filter>Header Files\util</Filter>
-    </ClInclude>
     <ClInclude Include="include\lexer_generator.h">
       <Filter>Header Files\lexer</Filter>
     </ClInclude>
     <ClInclude Include="include\lexer.h">
       <Filter>Header Files\lexer</Filter>
     </ClInclude>
-    <ClInclude Include="include\bnf_parser.h">
+    <ClInclude Include="include\ebnf_parser.h">
       <Filter>Header Files\parser</Filter>
+    </ClInclude>
+    <ClInclude Include="include\parser.h">
+      <Filter>Header Files\parser</Filter>
+    </ClInclude>
+    <ClInclude Include="include\language.h">
+      <Filter>Header Files\language</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

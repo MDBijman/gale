@@ -1,11 +1,10 @@
 #pragma once
-#include "bnf_parser.h"
+#include "parser.h"
 
-namespace ebnf_parsing
+namespace parsing
 {
-	class parser
+	class ebnf_rules 
 	{
 	public:
-
 	};
 }
