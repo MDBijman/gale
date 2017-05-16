@@ -28,60 +28,52 @@ namespace lexer_generator
 		std::string_view contents_view = contents;
 
 		language::language ebnf_language{};
+		// Terminals
+		auto assignment      = ebnf_language.create_terminal("::=");
+		auto identifier      = ebnf_language.create_terminal("[a-zA-Z]+");
+		auto alternation     = ebnf_language.create_terminal("\\|");
+		auto exception       = ebnf_language.create_terminal("\\-");
+		auto zero_or_more    = ebnf_language.create_terminal("\\*");
+		auto one_or_more     = ebnf_language.create_terminal("\\+");
+		auto terminal_string = ebnf_language.create_terminal("\'.+?\'");
+		auto begin_group     = ebnf_language.create_terminal("\\(");
+		auto end_group       = ebnf_language.create_terminal("\\)");
+		auto end_of_rule     = ebnf_language.create_terminal("\\.");
+
+		// Non terminals
+		auto terminal       = ebnf_language.create_non_terminal("terminal");
+		auto rhs_plus       = ebnf_language.define_non_terminal("rhs_plus");
+		auto rhs_multiplier = ebnf_language.define_non_terminal("rhs_multiplier");
+		auto rhs_group      = ebnf_language.define_non_terminal("rhs_group");
+		auto rhs_exception  = ebnf_language.define_non_terminal("rhs_exception");
+		auto rhs            = ebnf_language.define_non_terminal("rhs");
+		auto rule           = ebnf_language.define_non_terminal("rule");
+		auto ruleset        = ebnf_language.define_non_terminal("ruleset");
+
+		auto end_of_input = ebnf_language.to_symbol("end_of_input").get_terminal();
+
+		using namespace language::ebnf;
 		ebnf_language
-			.define_terminal("assignment", "::=")
-			.define_terminal("alternation", "\\|")
-			.define_terminal("end_of_rule", "\\.")
-			.define_terminal("zero_or_more", "\\*")
-			.define_terminal("terminal_string", "\'.+?\'")
-			.define_terminal("exception", "\\-")
-			.define_terminal("begin_group", "\\(")
-			.define_terminal("end_group", "\\)")
-			.define_terminal("one_or_more", "\\+")
-			.define_terminal("identifier", "[a-zA-Z]+");
+			.define_rule({ terminal,       { terminal_string, alt, identifier } })
+			.define_rule({ rhs_plus,       { terminal, lsb, one_or_more, rsb } })
+			.define_rule({ rhs_multiplier, { rhs_plus, lsb, zero_or_more, rsb, } })
+			.define_rule({ rhs_group,      { rhs_multiplier, alt, begin_group, rhs_multiplier, end_group } })
+			.define_rule({ rhs_exception,  { rhs_group, lsb, exception, rhs, rsb } })
+			.define_rule({ rhs,            { rhs_exception, lsb, alternation, rhs, rsb, alt, terminal } })
+			.define_rule({ rule,           { identifier, assignment, rhs, end_of_rule, } })
+			.define_rule({ ruleset,        { rule, star, end_of_input } });
 
-		ebnf_language
-			.define_non_terminal("rule")
-			.define_non_terminal("ruleset")
-			.define_non_terminal("terminal")
-			.define_non_terminal("rhs_exception")
-			.define_non_terminal("rhs_group")
-			.define_non_terminal("rhs")
-			.define_non_terminal("rhs_multiplier")
-			.define_non_terminal("rhs_plus");
-
-		ebnf_language
-			.define_rule({ "terminal", { "terminal_string", '|', "identifier" } })
-			.define_rule({ "rhs_plus", {"terminal", '[', "one_or_more", ']' } })
-			.define_rule({ "rhs_multiplier", { "rhs_plus", '[', "zero_or_more", ']', } })
-			.define_rule({ "rhs_group", { "rhs_multiplier", '|', "begin_group", "rhs_multiplier", "end_group" } })
-			.define_rule({ "rhs_exception", { "rhs_group", '[', "exception", "rhs", ']' } })
-			.define_rule({ "rhs", { "rhs_exception", '[', "alternation", "rhs", ']', '|', "terminal" } })
-			.define_rule({ "rule", { "identifier", "assignment", "rhs", "end_of_rule", } })
-			.define_rule({ "ruleset", { "rule", '*', "end_of_input" } });
-
-		auto ebnf_lexer = ebnf_language.generate_lexer();
-		auto ebnf_parser = ebnf_language.generate_parser();
-
-		// Parse list of tokens
-		auto tokens_or_error = ebnf_lexer.parse(contents);
-		if (std::holds_alternative<lexing::error_code>(tokens_or_error))
-		{
-			std::cerr << "Error while lexing: " << (int)std::get<lexing::error_code>(tokens_or_error);
-			std::cin.get();
-		}
-		auto tokens = std::get<std::vector<lexing::token_id>>(tokens_or_error);
-
-		auto ast = ebnf_parser.parse(ebnf_language.to_symbol("ruleset").get_non_terminal(), tokens);
+		auto tokens = ebnf_language.lex(contents);
+		auto ast = ebnf_language.parse(ruleset, tokens);
 
 		std::function<void(int, ast::node<language::symbol>*)> print_ast = [&](int indentation, ast::node<language::symbol>* node) {
 			for (int i = 0; i < indentation; i++)
 				std::cout << " ";
 			if (node->t.is_terminal())
-				std::cout << ebnf_language.to_string(node->t.get_terminal()) << std::endl;
+				std::cout << node->t.get_terminal() << std::endl;
 			else
 			{
-				std::cout << ebnf_language.to_string(node->t.get_non_terminal()) << std::endl;
+				std::cout << node->t.get_non_terminal() << std::endl;
 				for (auto child : node->children)
 					print_ast(indentation + 1, child);
 			}

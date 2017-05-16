@@ -76,6 +76,7 @@ namespace language
 			std::variant<terminal, non_terminal> content;
 		};
 
+
 		class rules
 		{
 		public:
@@ -105,6 +106,17 @@ namespace language
 
 		private:
 			std::multimap<non_terminal, std::vector<symbol>> bnf_rules;
+
+			struct table_hash
+			{
+				std::size_t operator()(std::pair<non_terminal, terminal> const& s) const
+				{
+					std::size_t h1 = std::hash<non_terminal>{}(s.first);
+					std::size_t h2 = std::hash<terminal>{}(s.second);
+					return h1 ^ (h2 << 1);
+				}
+			};
+			std::unordered_map<std::pair<non_terminal, terminal>, std::vector<symbol>, table_hash> table;
 		};
 
 		class parser

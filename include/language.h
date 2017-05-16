@@ -10,35 +10,48 @@ namespace language
 	using non_terminal = parsing::non_terminal;
 	using symbol = parsing::symbol;
 
+	namespace ebnf {
+		enum meta_char {
+			alt,
+			lsb,
+			rsb,
+			lrb,
+			rrb,
+			star
+		};
+	}
+
+	using namespace ebnf;
+
 	struct bnf_rule
 	{
-		bnf_rule(const std::string& lhs, const std::vector<std::string>& rhs) : lhs(lhs), rhs(rhs) {}
+		bnf_rule(const non_terminal& lhs, const std::vector<symbol>& rhs) : lhs(lhs), rhs(rhs) {}
 
-		const std::string lhs;
-		const std::vector<std::string> rhs;
+		const non_terminal lhs;
+		const std::vector<symbol> rhs;
 	};
 
 	struct ebnf_rule
 	{
-		ebnf_rule(const std::string& lhs, const std::vector<std::variant<std::string, char>>& rhs) : lhs(lhs), rhs(rhs) {}
+		ebnf_rule(non_terminal lhs, const std::vector<std::variant<symbol, meta_char>>& rhs) : lhs(lhs), rhs(rhs) {}
 
-		bool contains_metatoken()
+		bool contains_metatoken() const
 		{
 			auto first_meta_token = std::find_if(rhs.begin(), rhs.end(), [](auto& segment) {
-				return std::holds_alternative<char>(segment);
+				return std::holds_alternative<meta_char>(segment);
 			});
 
 			return first_meta_token != rhs.end();
 		}
 
-		auto find(char token)
+		auto find(char token) const
 		{
 			return std::find_if(rhs.begin(), rhs.end(), [token](auto& segment) {
-				return std::holds_alternative<char>(segment) && (std::get<char>(segment) == token);
+				return std::holds_alternative<meta_char>(segment) && (std::get<meta_char>(segment) == token);
 			});
 		}
 
-		std::vector<bnf_rule> to_bnf(std::function<non_terminal(const std::string&)> nt_generator)
+		std::vector<bnf_rule> to_bnf(std::function<non_terminal()> nt_generator) const
 		{
 			// Turns a nested vector into single vector
 			auto flatten = [](std::vector<std::vector<bnf_rule>>& vec) {
@@ -54,9 +67,9 @@ namespace language
 			};
 
 			decltype(rhs)::const_iterator it;
-			if ((it = find('|')) != rhs.end())
+			if ((it = find(alt)) != rhs.end())
 			{
-				std::vector<ebnf_rule> split_alt = split_on('|');
+				std::vector<ebnf_rule> split_alt = split_on(alt);
 				std::vector<std::vector<bnf_rule>> simplified;
 				std::transform(split_alt.begin(), split_alt.end(), std::back_inserter(simplified), [&](auto& rule) {
 					return rule.to_bnf(nt_generator);
@@ -64,23 +77,23 @@ namespace language
 	
 				return flatten(simplified);
 			}
-			else if ((it = find('(')) != rhs.end())
+			else if ((it = find(lrb)) != rhs.end())
 			{
 				int stack = 1;
 				auto left_bracket_it = it;
 				// Find the matching bracket and replace the group with a new rule
 				while (it++ != rhs.end())
 				{
-					if (std::holds_alternative<char>(*it))
+					if (std::holds_alternative<meta_char>(*it))
 					{
-						auto current_char = std::get<char>(*it);
-						if (current_char == ')')
+						auto current_char = std::get<meta_char>(*it);
+						if (current_char == rrb)
 						{
 							stack--; 
 							if (stack == 0)
 								break;
 						}
-						else if(current_char == '(')
+						else if(current_char == lrb)
 							stack++;
 					}
 				}
@@ -93,19 +106,18 @@ namespace language
 				auto begin_group = left_bracket_it + 1;
 				auto end_group = it - 1;
 
-				auto rule_name = std::string(lhs).append("_g");
-				auto rule_rhs = std::vector<std::variant<std::string, char>>();
+				auto rule_lhs = nt_generator();
+				auto rule_rhs = std::vector<std::variant<symbol, meta_char>>();
 				std::copy(begin_group, end_group + 1, std::back_inserter(rule_rhs));
 
-				ebnf_rule additional_rule{rule_name, rule_rhs};
-				nt_generator(rule_name);
+				ebnf_rule additional_rule{rule_lhs, rule_rhs};
 
 				// Remove group from new rule and replace with the new rule identifier
 				auto modified_rhs{ rhs };
 				auto left_bracket_offset = std::distance(rhs.begin(), left_bracket_it);
 				auto right_bracket_offset = std::distance(rhs.begin(), it);
 				modified_rhs.erase(modified_rhs.begin() + left_bracket_offset, modified_rhs.begin() + right_bracket_offset + 1);
-				modified_rhs.insert(modified_rhs.begin() + left_bracket_offset, rule_name);
+				modified_rhs.insert(modified_rhs.begin() + left_bracket_offset, rule_lhs);
 				ebnf_rule modified_rule{ lhs, modified_rhs };
 
 				std::vector<std::vector<bnf_rule>> simplified_rules;
@@ -113,23 +125,23 @@ namespace language
 				simplified_rules.push_back(modified_rule.to_bnf(nt_generator));
 				return flatten(simplified_rules);
 			}
-			else if ((it = find('[')) != rhs.end())
+			else if ((it = find(lsb)) != rhs.end())
 			{
 				int stack = 1;
 				auto left_bracket_it = it;
 				// Find the matching bracket and replace the group with a new rule
-				while (it++ != rhs.end())
+				while (++it != rhs.end())
 				{
-					if (std::holds_alternative<char>(*it))
+					if (std::holds_alternative<meta_char>(*it))
 					{
-						auto current_char = std::get<char>(*it);
-						if (current_char == ']')
+						auto current_char = std::get<meta_char>(*it);
+						if (current_char == rsb)
 						{
 							stack--; 
 							if (stack == 0)
 								break;
 						}
-						else if(current_char == '[')
+						else if(current_char == lsb)
 							stack++;
 					}
 				}
@@ -145,20 +157,22 @@ namespace language
 				auto begin_group = left_bracket_it + 1;
 				auto end_group = it - 1;
 
-				auto rule_name = std::string(lhs).append("_o").append(std::get<std::string>(*(left_bracket_it + 1)));
-				auto rule_rhs = std::vector<std::variant<std::string, char>>();
+				auto symbol_after_left_bracket = std::get<symbol>(*(left_bracket_it + 1));
+
+				non_terminal rule_lhs = nt_generator();
+
+				auto rule_rhs = std::vector<std::variant<symbol, meta_char>>();
 				std::copy(begin_group, end_group + 1, std::back_inserter(rule_rhs));
 
-				ebnf_rule additional_rule{ rule_name, rule_rhs };
-				bnf_rule epsilon_rule{ rule_name, { "epsilon" } };
-				nt_generator(rule_name);
+				ebnf_rule additional_rule{ rule_lhs, rule_rhs };
+				bnf_rule epsilon_rule{ rule_lhs, { parsing::epsilon } };
 
 				// Remove optional from new rule and replace with the new rule identifier
 				auto modified_rhs{ rhs };
 				auto left_bracket_offset = std::distance(rhs.begin(), left_bracket_it);
 				auto right_bracket_offset = std::distance(rhs.begin(), it);
 				modified_rhs.erase(modified_rhs.begin() + left_bracket_offset, modified_rhs.begin() + right_bracket_offset + 1);
-				modified_rhs.insert(modified_rhs.begin() + left_bracket_offset, rule_name);
+				modified_rhs.insert(modified_rhs.begin() + left_bracket_offset, rule_lhs);
 				ebnf_rule modified_rule{ lhs, modified_rhs };
 
 				std::vector<std::vector<bnf_rule>> simplified_rules;
@@ -168,21 +182,20 @@ namespace language
 				result_rules.push_back(epsilon_rule);
 				return result_rules;
 			}
-			else if ((it = find('*')) != rhs.end())
+			else if ((it = find(star)) != rhs.end())
 			{
 				it--;
-				if (!std::holds_alternative<std::string>(*it))
+				if (!std::holds_alternative<symbol>(*it))
 					throw std::runtime_error("Can only multiply non terminals/terminal");
 
-				auto multiplied_symbol = std::get<std::string>(*it);
-				auto new_symbol_name = std::string(multiplied_symbol).append("_m");
+				auto multiplied_symbol = std::get<symbol>(*it);
+				non_terminal new_symbol = nt_generator();
 
 				// Create two new rules, and replace E* with X
 				// X -> epsilon
 				// X -> E, X
-				auto additional_rule = bnf_rule(new_symbol_name, { multiplied_symbol, new_symbol_name });
-				auto epsilon_rule = bnf_rule(new_symbol_name, { "epsilon" });
-				nt_generator(additional_rule.lhs);
+				auto additional_rule = bnf_rule(new_symbol, { multiplied_symbol, new_symbol });
+				auto epsilon_rule = bnf_rule(new_symbol, { parsing::epsilon });
 
 				// Remove multiplier from new rule and replace the identifier with the new rule identifier
 				auto multiplier_offset = std::distance(rhs.begin(), it) + 1;
@@ -206,29 +219,29 @@ namespace language
 			}
 			else
 			{
-				std::vector<std::string> new_rhs;
+				std::vector<symbol> new_rhs;
 				for (auto& segment : rhs)
 				{
-					new_rhs.push_back(std::get<std::string>(segment));
+					new_rhs.push_back(std::get<symbol>(segment));
 				}
 				return { bnf_rule{ lhs, new_rhs } };
 			}
 		}
 
-		const std::string lhs;
-		const std::vector<std::variant<std::string, char>> rhs;
+		const non_terminal lhs;
+		const std::vector<std::variant<symbol, meta_char>> rhs;
 
 	private:
-		std::vector<ebnf_rule> split_on(char token)
+		std::vector<ebnf_rule> split_on(meta_char token) const
 		{
 			std::vector<ebnf_rule> rules;
 
-			std::vector<std::variant<std::string, char>> new_rule;
+			std::vector<std::variant<symbol, meta_char>> new_rule;
 			for (auto it = rhs.begin(); it != rhs.end(); ++it)
 			{
 				auto variant = *it;
 
-				if (std::holds_alternative<char>(variant) && (std::get<char>(variant) == token))
+				if (std::holds_alternative<meta_char>(variant) && (std::get<meta_char>(variant) == token))
 				{
 					rules.push_back(ebnf_rule{ lhs, new_rule });
 					new_rule.clear();
@@ -243,6 +256,12 @@ namespace language
 		}
 	};
 
+	struct rule
+	{
+		ebnf_rule ebnf;
+		std::vector<bnf_rule> bnf;
+	};
+
 	class language
 	{
 	public:
@@ -252,37 +271,83 @@ namespace language
 			add_terminal("epsilon", parsing::epsilon);
 		}
 
-		lexing::lexer generate_lexer()
+		std::vector<lexing::token_id> lex(const std::string& input_string) const
 		{
-			return lexing::lexer{ token_rules };
+			auto lexer = lexing::lexer{ token_rules };
+			return std::get<std::vector<lexing::token_id>>(lexer.parse(input_string));
 		}
 
-		parsing::parser generate_parser()
+		ast::node<symbol>* parse(non_terminal init, std::vector<terminal> input) const
 		{
-			return parsing::parser{ parsing::rules{ bnf_rules } };
+			auto parser_compatible_rules = std::multimap<non_terminal, std::vector<symbol>>();
+			std::unordered_map<non_terminal, non_terminal> ebnf_ancestors;
+			for (auto& rule : rules)
+			{
+				for (auto& bnf_rule : rule.bnf)
+				{
+					parser_compatible_rules.insert({ bnf_rule.lhs, bnf_rule.rhs });
+					if (bnf_rule.lhs != rule.ebnf.lhs)
+						ebnf_ancestors.insert({ bnf_rule.lhs, rule.ebnf.lhs });
+				}
+			}
+
+			auto parser = parsing::parser{ parsing::rules{ parser_compatible_rules } };
+			auto ast = parser.parse(init, input);
+
+			std::function<void(ast::node<symbol>*)> bnf_to_ebnf = [&](ast::node<symbol>* node) {
+				if (node->t.is_terminal())
+					return;
+
+				std::vector<ast::node<symbol>*> new_children;
+				node->children.erase(std::remove_if(node->children.begin(), node->children.end(), [&](auto& child) {
+					bnf_to_ebnf(child);
+
+					if (!child->t.is_terminal() && !is_named(child->t.get_non_terminal()))
+					{
+						std::move(child->children.begin(), child->children.end(), std::back_inserter(new_children));
+						child->children.clear();
+						return true;
+					}
+
+					return false;
+				}), node->children.end());
+
+				std::move(new_children.begin(), new_children.end(), std::back_inserter(node->children));
+			};
+
+			bnf_to_ebnf(ast);
+
+			return ast;
 		}
 
-		language& define_terminal(const std::string& name, const std::string& rule)
+		terminal create_terminal(const std::string& rule)
+		{
+			terminal token = generate_terminal();
+			token_rules.insert({ token, rule });
+			return token;
+		}
+
+		non_terminal create_non_terminal()
+		{
+			return generate_non_terminal();
+		}
+
+		terminal define_terminal(const std::string& name, const std::string& rule)
 		{
 			terminal token = add_terminal(name);
 			token_rules.insert({ token, rule });
-			return *this;
+			return token;
 		}
 
-		language& define_non_terminal(const std::string& name)
+		non_terminal define_non_terminal(const std::string& name)
 		{
-			add_non_terminal(name);
-			return *this;
+			return add_non_terminal(name);
 		}
 
 		language& define_rule(ebnf_rule r)
 		{
-			auto bnf_converted_rules = r.to_bnf([&](const std::string& name) { return add_non_terminal(name); });
-			for (auto rule : bnf_converted_rules)
-			{
-				translation.insert({ rule.lhs, r });
-				add_rule(rule.lhs, rule.rhs);
-			}
+			auto bnf_converted_rules = r.to_bnf([&]() { return generate_non_terminal(); });
+			rules.push_back(rule{ r, bnf_converted_rules });
 			return *this;
 		}
 
@@ -334,59 +399,13 @@ namespace language
 			return value;
 		}
 
-		void add_rule(const std::string& lhs_string, const std::vector<std::string>& rhs_strings)
+		bool is_named(non_terminal nt) const
 		{
-			if (symbols.find(lhs_string) == symbols.end())
-				throw std::runtime_error("Non terminal does not exist");
-
-			non_terminal lhs;
-			{
-				auto lhs_symbol = symbols.at(lhs_string);
-
-				if (lhs_symbol.is_terminal())
-					throw std::runtime_error("Cannot have a terminal lhs");
-
-				lhs = lhs_symbol.get_non_terminal();
-			}
-
-			std::vector<symbol> rhs;
-
-			for (decltype(auto) rhs_segment_string : rhs_strings)
-			{
-				if (symbols.find(rhs_segment_string) != symbols.end())
-					rhs.push_back(symbols.at(rhs_segment_string));
-				else
-					throw std::runtime_error("Unknown identifier");
-			}
-
-			add_rule(lhs, std::move(rhs));
-		}
-
-		void add_rule(non_terminal nt, std::vector<symbol> rhs)
-		{
-			auto nt_rules = bnf_rules.equal_range(nt);
-			for (auto rule = nt_rules.first; rule != nt_rules.second; ++rule)
-			{
-				//if (rhs == rule->second)
-				//	throw std::runtime_error("Rule already exists");
-			}
-
-			bnf_rules.insert({ nt, rhs });
-		}
-
-		auto begin()
-		{
-			return bnf_rules.begin();
-		}
-
-		auto end()
-		{
-			return bnf_rules.end();
+			return std::find_if(symbols.begin(), symbols.end(), [nt](auto& x) { return (!x.second.is_terminal()) && (x.second.get_non_terminal() == nt); }) != symbols.end();
 		}
 
 	private:
-		std::multimap<non_terminal, std::vector<symbol>> bnf_rules;
-		std::unordered_map<std::string, ebnf_rule> translation;
+		std::vector<rule> rules;
 
 		std::unordered_map<std::string, symbol> symbols;
 
