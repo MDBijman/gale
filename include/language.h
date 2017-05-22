@@ -3,6 +3,7 @@
 #include "lexer.h"
 #include <algorithm>
 #include <functional>
+#include <set>
 
 namespace language
 {
@@ -265,11 +266,7 @@ namespace language
 	class language
 	{
 	public:
-		language()
-		{
-			add_terminal("end_of_input", parsing::end_of_input);
-			add_terminal("epsilon", parsing::epsilon);
-		}
+		language() {}
 
 		std::vector<lexing::token_id> lex(const std::string& input_string) const
 		{
@@ -302,7 +299,7 @@ namespace language
 				node->children.erase(std::remove_if(node->children.begin(), node->children.end(), [&](auto& child) {
 					bnf_to_ebnf(child);
 
-					if (!child->t.is_terminal() && !is_named(child->t.get_non_terminal()))
+					if (!child->t.is_terminal() && (ebnf_non_terminals.find(child->t.get_non_terminal()) == ebnf_non_terminals.end()))
 					{
 						std::move(child->children.begin(), child->children.end(), std::back_inserter(new_children));
 						child->children.clear();
@@ -332,82 +329,20 @@ namespace language
 			return generate_non_terminal();
 		}
 
-		terminal define_terminal(const std::string& name, const std::string& rule)
+		language& create_rule(ebnf_rule r)
 		{
-			terminal token = add_terminal(name);
-			token_rules.insert({ token, rule });
-			return token;
-		}
-
-		non_terminal define_non_terminal(const std::string& name)
-		{
-			return add_non_terminal(name);
-		}
-
-		language& define_rule(ebnf_rule r)
-		{
-			auto bnf_converted_rules = r.to_bnf([&]() { return generate_non_terminal(); });
+			auto bnf_converted_rules = r.to_bnf([&]() { return generate_anonymous_non_terminal(); });
 			rules.push_back(rule{ r, bnf_converted_rules });
 			return *this;
 		}
 
-		parsing::symbol to_symbol(const std::string& symbol_name) const
-		{
-			if (symbols.find(symbol_name) != symbols.end())
-				return symbols.at(symbol_name);
-
-			throw std::runtime_error("Unknown symbol");
-		}
-
-		std::string to_string(symbol symbol) const
-		{
-			for (auto pair : symbols)
-			{
-				if (pair.second == symbol)
-					return pair.first;
-			}
-
-			throw std::runtime_error("Unknown symbol");
-		}
-
-	protected:
-		terminal add_terminal(const std::string& name)
-		{
-			return add_terminal(name, generate_terminal());
-		}
-
-		terminal add_terminal(const std::string& name, terminal value)
-		{
-			if (symbols.find(name) != symbols.end())
-				throw std::runtime_error("Terminal or non terminal already exists with name");
-
-			symbols.insert({ name, value });
-			return value;
-		}
-
-		non_terminal add_non_terminal(const std::string& name)
-		{
-			return add_non_terminal(name, generate_non_terminal());
-		}
-
-		non_terminal add_non_terminal(const std::string& name, non_terminal value)
-		{
-			if (symbols.find(name) != symbols.end())
-				throw std::runtime_error("Terminal or non terminal already exists with name");
-
-			symbols.insert({ name, value });
-			return value;
-		}
-
-		bool is_named(non_terminal nt) const
-		{
-			return std::find_if(symbols.begin(), symbols.end(), [nt](auto& x) { return (!x.second.is_terminal()) && (x.second.get_non_terminal() == nt); }) != symbols.end();
-		}
+		const terminal end_of_input = parsing::end_of_input;
+		const terminal epsilon      = parsing::epsilon;
 
 	private:
 		std::vector<rule> rules;
 
-		std::unordered_map<std::string, symbol> symbols;
+		std::set<non_terminal> ebnf_non_terminals;
 
 		std::unordered_map<lexing::token_id, std::string> token_rules;
 
@@ -417,6 +352,12 @@ namespace language
 		}
 
 		non_terminal generate_non_terminal()
+		{
+			ebnf_non_terminals.insert(nt_generator);
+			return nt_generator++;
+		}
+
+		non_terminal generate_anonymous_non_terminal()
 		{
 			return nt_generator++;
 		}

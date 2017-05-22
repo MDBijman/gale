@@ -39,29 +39,36 @@ namespace lexer_generator
 		auto begin_group     = ebnf_language.create_terminal("\\(");
 		auto end_group       = ebnf_language.create_terminal("\\)");
 		auto end_of_rule     = ebnf_language.create_terminal("\\.");
+		auto import          = ebnf_language.create_terminal("import");
 
 		// Non terminals
-		auto terminal       = ebnf_language.create_non_terminal("terminal");
-		auto rhs_plus       = ebnf_language.define_non_terminal("rhs_plus");
-		auto rhs_multiplier = ebnf_language.define_non_terminal("rhs_multiplier");
-		auto rhs_group      = ebnf_language.define_non_terminal("rhs_group");
-		auto rhs_exception  = ebnf_language.define_non_terminal("rhs_exception");
-		auto rhs            = ebnf_language.define_non_terminal("rhs");
-		auto rule           = ebnf_language.define_non_terminal("rule");
-		auto ruleset        = ebnf_language.define_non_terminal("ruleset");
+		auto terminal       = ebnf_language.create_non_terminal();
+		auto rhs_plus       = ebnf_language.create_non_terminal();
+		auto rhs_multiplier = ebnf_language.create_non_terminal();
+		auto rhs_group      = ebnf_language.create_non_terminal();
+		auto rhs_exception  = ebnf_language.create_non_terminal();
+		auto rhs            = ebnf_language.create_non_terminal();
+		auto meta           = ebnf_language.create_non_terminal();
+		auto rule           = ebnf_language.create_non_terminal();
+		auto ruleset        = ebnf_language.create_non_terminal();
 
-		auto end_of_input = ebnf_language.to_symbol("end_of_input").get_terminal();
+		auto end_of_input = ebnf_language.end_of_input;
 
 		using namespace language::ebnf;
 		ebnf_language
-			.define_rule({ terminal,       { terminal_string, alt, identifier } })
-			.define_rule({ rhs_plus,       { terminal, lsb, one_or_more, rsb } })
-			.define_rule({ rhs_multiplier, { rhs_plus, lsb, zero_or_more, rsb, } })
-			.define_rule({ rhs_group,      { rhs_multiplier, alt, begin_group, rhs_multiplier, end_group } })
-			.define_rule({ rhs_exception,  { rhs_group, lsb, exception, rhs, rsb } })
-			.define_rule({ rhs,            { rhs_exception, lsb, alternation, rhs, rsb, alt, terminal } })
-			.define_rule({ rule,           { identifier, assignment, rhs, end_of_rule, } })
-			.define_rule({ ruleset,        { rule, star, end_of_input } });
+			.create_rule({ terminal,       { terminal_string, alt, identifier } })
+			.create_rule({ rhs_plus,       { terminal, lsb, one_or_more, rsb } })
+			.create_rule({ rhs_multiplier, { rhs_plus, lsb, zero_or_more, rsb, } })
+			.create_rule({ rhs_group,      { rhs_multiplier, alt, begin_group, rhs_multiplier, end_group } })
+			.create_rule({ rhs_exception,  { rhs_group, lsb, exception, rhs, rsb } })
+			.create_rule({ rhs,            { rhs_exception, lsb, alternation, rhs, rsb, alt, terminal } });
+
+		ebnf_language
+			.create_rule({ meta, { import, identifier } });
+
+		ebnf_language
+			.create_rule({ rule,    { identifier, assignment, rhs, end_of_rule, alt, meta } })
+			.create_rule({ ruleset, { rule, star, end_of_input } });
 
 		auto tokens = ebnf_language.lex(contents);
 		auto ast = ebnf_language.parse(ruleset, tokens);

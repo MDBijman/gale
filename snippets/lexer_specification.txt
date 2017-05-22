@@ -1,10 +1,26 @@
-symbol ::= keyword | identifier | delimiter | integer.
+assignment ::= '::=';
+identifier ::= '[a-zA-Z]+';
+alternation ::= '\\|';
+exception ::= '\\-';
+zero_or_more ::= '\\*';
+one_or_more ::= '\\+';
+terminal_string ::= '\'.+?\'';
+begin_group ::= '\\(';
+end_group ::= '\\)';
+end_of_rule ::= '\\.';
 
-identifier ::= (letter*) - keyword.
-letter ::= 'a' | 'b' | 'c' | 'd' | 'f' | 'g' | 'h' | 'i' | 'j' | 'k' | 'l' | 'm' | 'n' | 'o' | 'p' | 'q' | 'r' | 's' | 't' | 'u' | 'v' | 'w' | 'x' | 'y' | 'z'.
+terminal ::= terminal_string | identifier;
+group 'rhs' {
+	rhs_plus ::= terminal, [ one_or_more ];
+	rhs_multiplier ::= rhs_plus, [ zero_or_more ];
+	rhs_group ::= rhs_multiplier | begin_group, rhs_multiplier, end_group;
+	rhs_exception ::= rhs_group, [ exception, rhs ];
+	rhs ::= rhs_exception, [ alternation, rhs ] | terminal;
+}
 
-delimiter ::= ';'.
-keyword ::= 'int'.
+import ::= 'import', identifier;
+group_block ::= 'group', identifier, '{', ruleset, '}';
+meta ::= import | group_block;
 
-integer ::= number+.
-number ::= '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '0'.
+rule ::= identifier, assignment, rhs, end_of_rule | meta;
+ruleset ::= rule*, end_of_input;
