@@ -123,18 +123,16 @@
     <None Include="snippets\test.fe" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\ast.cpp" />
     <ClCompile Include="src\lexer_generator.cpp" />
     <ClCompile Include="src\main.cpp" />
-    <ClCompile Include="src\parser.cpp" />
+    <ClCompile Include="src\bnf_parser.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\ast.h" />
-    <ClInclude Include="include\ebnf_parser.h" />
+    <ClInclude Include="include\bnf_parser.h" />
     <ClInclude Include="include\language.h" />
     <ClInclude Include="include\lexer.h" />
     <ClInclude Include="include\lexer_generator.h" />
-    <ClInclude Include="include\parser.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="snippets\lexer_specification.txt" />
