@@ -1,8 +1,9 @@
-#include "parser.h"
+#include "bnf_parser.h"
 #include <stack>
 
-namespace language {
-	namespace parsing
+namespace language 
+{
+	namespace bnf
 	{
 		ast::node<symbol>* parser::parse(non_terminal initial, std::vector<terminal> input)
 		{

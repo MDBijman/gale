@@ -1,12 +1,10 @@
 #pragma once
 #include "lexer.h"
 #include "ast.h"
-#include <unordered_map>
-#include <stack>
 
 namespace language
 {
-	namespace parsing
+	namespace bnf
 	{
 		using terminal = lexing::token_id;
 		constexpr terminal epsilon = -1;
@@ -136,6 +134,8 @@ namespace language
 			void prune(ast::node<symbol>* tree) const;
 
 			rules rules;
+
 		};
 	}
+
 }
