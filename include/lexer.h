@@ -64,6 +64,14 @@ namespace lexing
 		UNRECOGNIZED_SYMBOL,
 	};
 
+	struct error
+	{
+		error(error_code t, std::string m) : type(t), message(m) {}
+
+		error_code type;
+		std::string message;
+	};
+
 	class lexer
 	{
 	public:
@@ -72,7 +80,7 @@ namespace lexing
 		// Takes a string (e.g. file contents) and returns a token vector or an error code
 		std::variant<
 			std::vector<token_id>,
-			error_code
+			error
 		> parse(const std::string& input_string)
 		{
 			std::vector<token_id> result;
@@ -88,7 +96,7 @@ namespace lexing
 
 				auto id = rules.match(range);
 
-				if (id == -1) return error_code::UNRECOGNIZED_SYMBOL;
+				if (id == -1) return error{ error_code::UNRECOGNIZED_SYMBOL, "Unrecognized symbol starting with: " + *range.first };
 
 				result.push_back(id);
 			}

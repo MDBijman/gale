@@ -31,9 +31,6 @@
     <ClCompile Include="src\main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\lexer_generator.cpp">
-      <Filter>Source Files\lexing</Filter>
-    </ClCompile>
     <ClCompile Include="src\bnf_parser.cpp">
       <Filter>Source Files\parsing</Filter>
     </ClCompile>
@@ -48,15 +45,18 @@
     <ClInclude Include="include\lexer.h">
       <Filter>Source Files\lexing</Filter>
     </ClInclude>
-    <ClInclude Include="include\lexer_generator.h">
-      <Filter>Source Files\lexing</Filter>
+    <ClInclude Include="include\ebnf_parser.h">
+      <Filter>Source Files\parsing</Filter>
     </ClInclude>
-    <ClInclude Include="include\language.h">
-      <Filter>Source Files</Filter>
+    <ClInclude Include="include\ebnfe_parser.h">
+      <Filter>Source Files\parsing</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="snippets\lexer_specification.txt">
+    <Text Include="snippets\language.ebnfe">
+      <Filter>Resource Files</Filter>
+    </Text>
+    <Text Include="snippets\identifier.ebnfe">
       <Filter>Resource Files</Filter>
     </Text>
   </ItemGroup>

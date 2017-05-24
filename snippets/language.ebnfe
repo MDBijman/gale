@@ -1,0 +1,24 @@
+import identifier;
+
+assignment ::= '::=';
+alternation ::= '\\|';
+exception ::= '\\-';
+zero_or_more ::= '\\*';
+one_or_more ::= '\\+';
+terminal_string ::= '".+?"';
+begin_group ::= '\\(';
+end_group ::= '\\)';
+end_of_rule ::= '\\.';
+
+terminal ::= terminal_string | identifier;
+rhs_plus ::= terminal, [ one_or_more ];
+rhs_multiplier ::= rhs_plus, [ zero_or_more ];
+rhs_group ::= rhs_multiplier | begin_group, rhs_multiplier, end_group;
+rhs_exception ::= rhs_group, [ exception, rhs ];
+rhs ::= rhs_exception, [ alternation, rhs ] | terminal;
+
+import ::= 'import', identifier;
+meta ::= import;
+
+rule ::= identifier, assignment, rhs, end_of_rule | meta;
+ruleset ::= rule*, end_of_input;

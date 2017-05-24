@@ -1,6 +1,7 @@
 #pragma once
 #include "lexer.h"
 #include "ast.h"
+#include <stack>
 
 namespace language
 {
@@ -74,6 +75,14 @@ namespace language
 			std::variant<terminal, non_terminal> content;
 		};
 
+
+		struct rule
+		{
+			rule(const non_terminal& lhs, const std::vector<symbol>& rhs) : lhs(lhs), rhs(rhs) {}
+
+			const non_terminal lhs;
+			const std::vector<symbol> rhs;
+		};
 
 		class rules
 		{
