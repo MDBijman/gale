@@ -96,7 +96,8 @@ namespace lexing
 
 				auto id = rules.match(range);
 
-				if (id == -1) return error{ error_code::UNRECOGNIZED_SYMBOL, "Unrecognized symbol starting with: " + *range.first };
+				if (id == -1) 
+					return error{ error_code::UNRECOGNIZED_SYMBOL, "Unrecognized symbol starting with: " + *range.first };
 
 				result.push_back(id);
 			}

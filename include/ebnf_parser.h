@@ -251,19 +251,23 @@ namespace language
 			}
 		};
 
+		enum class error_code
+		{
+			BNF_ERROR,
+		};
+
+		struct error
+		{
+			error_code type;
+			std::string message;
+		};
+
 		class parser
 		{
 		public:
 			parser() {}
 
-			std::vector<lexing::token_id> lex(const std::string& input_string) const
-			{
-				auto lexer = lexing::lexer{ token_rules };
-				auto output_or_error = lexer.parse(input_string);
-				return std::get<std::vector<lexing::token_id>>(output_or_error);
-			}
-
-			ast::node<symbol>* parse(non_terminal init, std::vector<terminal> input) const
+			std::variant<ast::node<symbol>*, error> parse(non_terminal init, std::vector<terminal> input) const
 			{
 				auto parser_compatible_rules = std::multimap<non_terminal, std::vector<symbol>>();
 				for (auto& rule : rules)
@@ -275,7 +279,12 @@ namespace language
 				}
 
 				auto parser = bnf::parser{ bnf::rules{ parser_compatible_rules } };
-				auto ast = parser.parse(init, input);
+				auto ast_or_error = parser.parse(init, input);
+
+				if (std::holds_alternative<bnf::error>(ast_or_error))
+					return error{ error_code::BNF_ERROR, std::get<bnf::error>(ast_or_error).message };
+
+				auto ast = std::get<ast::node<symbol>*>(ast_or_error);
 
 				std::function<void(ast::node<symbol>*)> bnf_to_ebnf = [&](ast::node<symbol>* node) {
 					if (node->t.is_terminal())
@@ -324,13 +333,11 @@ namespace language
 			const terminal end_of_input = bnf::end_of_input;
 			const terminal epsilon = bnf::epsilon;
 
+			std::unordered_map<lexing::token_id, std::string> token_rules;
 		private:
 			std::vector<rule> rules;
 
 			std::set<non_terminal> ebnf_non_terminals;
-
-			std::unordered_map<lexing::token_id, std::string> token_rules;
-
 			std::unordered_map<non_terminal, non_terminal> nt_child_parents;
 
 			terminal generate_terminal()

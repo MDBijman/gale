@@ -84,6 +84,20 @@ namespace language
 			const std::vector<symbol> rhs;
 		};
 
+		enum class error_code
+		{
+			TERMINAL_MISMATCH,
+			NO_MATCHING_RULE,
+			UNEXPECTED_END_OF_INPUT,
+			UNEXPECTED_NON_TERMINAL
+		};
+
+		struct error
+		{
+			error_code type;
+			std::string message;
+		};
+
 		class rules
 		{
 		public:
@@ -99,16 +113,16 @@ namespace language
 				return bnf_rules.equal_range(symbol);
 			}
 
-			auto& match(non_terminal symbol, terminal input_token) const
+			std::variant<const std::vector<symbol>*, error> match(non_terminal symbol, terminal input_token) const
 			{
 				auto rules = get_rules(symbol);
 
 				// Find a rule that matches
 				auto rule_location = std::find_if(rules.first, rules.second, [&](auto& rule) { return rule.second.at(0).matches(input_token, bnf_rules); });
 				if (rule_location == rules.second)
-					throw std::runtime_error(std::string("Unable to unify, no matching rule: ").append(std::to_string((int)input_token)));
+					return error{error_code::NO_MATCHING_RULE, std::to_string((int) input_token)};
 
-				return rule_location->second;
+				return &rule_location->second;
 			}
 
 		private:
@@ -136,14 +150,12 @@ namespace language
 			{
 				rules = std::move(other.rules);
 			}
-			ast::node<symbol>* parse(non_terminal initial, std::vector<terminal> input);
+			std::variant<ast::node<symbol>*, error> parse(non_terminal begin_symbol, std::vector<terminal> input) const;
 
 		private:
-			void parse(std::stack<ast::node<symbol>*>& stack, std::vector<terminal>& input) const;
 			void prune(ast::node<symbol>* tree) const;
 
 			rules rules;
-
 		};
 	}
 
