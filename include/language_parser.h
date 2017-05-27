@@ -51,9 +51,9 @@ namespace language
 				auto semicolon_token = lexing_rules.create_token(";");
 				lexer = lexing::lexer{ lexing_rules };
 
-				auto assignment = ebnfe_parser.new_terminal("assignment");
+				auto assignment = ebnfe_parser.new_terminal();
 				auto import = ebnfe_parser.new_terminal();
-				auto identifier = ebnfe_parser.new_terminal("identifier");
+				auto identifier = ebnfe_parser.new_terminal();
 				auto alternation = ebnfe_parser.new_terminal();
 				auto terminal_string = ebnfe_parser.new_terminal();
 				auto begin_group = ebnfe_parser.new_terminal();
