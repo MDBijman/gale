@@ -6,6 +6,12 @@ namespace language
 {
 	namespace fe
 	{
+		ebnfe::non_terminal
+			file, statement, assignment, print;
+
+		ebnfe::terminal
+			equals, identifier, number, print_keyword, semicolon;
+
 		class lexer_parser_mapper
 		{
 		public:
@@ -37,98 +43,45 @@ namespace language
 			{
 				// Terminals
 				auto lexing_rules = lexing::rules{};
-				auto assignment_token = lexing_rules.create_token("::=");
-				auto keyword_token = lexing_rules.create_token("[a-zA-Z][a-zA-Z_]*");
-				auto alt_token = lexing_rules.create_token("\\|");
-				auto string_token = lexing_rules.create_token("\'.+?\'");
-				auto lrb_token = lexing_rules.create_token("\\(");
-				auto rrb_token = lexing_rules.create_token("\\)");
-				auto lcb_token = lexing_rules.create_token("\\{");
-				auto rcb_token = lexing_rules.create_token("\\}");
-				auto lsb_token = lexing_rules.create_token("\\[");
-				auto rsb_token = lexing_rules.create_token("\\]");
-				auto comma_token = lexing_rules.create_token(",");
+				auto assignment_token = lexing_rules.create_token("=");
+				auto word_token = lexing_rules.create_token("[a-zA-Z][a-zA-Z_]*");
+				auto number_token = lexing_rules.create_token("[1-9][0-9]*");
 				auto semicolon_token = lexing_rules.create_token(";");
 				lexer = lexing::lexer{ lexing_rules };
 
-				auto assignment = ebnfe_parser.new_terminal();
-				auto import = ebnfe_parser.new_terminal();
-				auto identifier = ebnfe_parser.new_terminal();
-				auto alternation = ebnfe_parser.new_terminal();
-				auto terminal_string = ebnfe_parser.new_terminal();
-				auto begin_group = ebnfe_parser.new_terminal();
-				auto end_group = ebnfe_parser.new_terminal();
-				auto begin_repetition = ebnfe_parser.new_terminal();
-				auto end_repetition = ebnfe_parser.new_terminal();
-				auto begin_optional = ebnfe_parser.new_terminal();
-				auto end_optional = ebnfe_parser.new_terminal();
-				auto comma = ebnfe_parser.new_terminal();
-				auto semicolon = ebnfe_parser.new_terminal();
+				equals = ebnfe_parser.new_terminal();
+				identifier = ebnfe_parser.new_terminal();
+				number = ebnfe_parser.new_terminal();
+				print_keyword = ebnfe_parser.new_terminal();
+				semicolon = ebnfe_parser.new_terminal();
 
-				// Lexer to parser mappings
-				{
-					mapper.add_mapping(assignment_token, assignment);
-					mapper.add_mapping(keyword_token, [import, identifier](auto& token) {
-						if (token.string == "import")
-							return import;
-						return identifier;
-					});
-					mapper.add_mapping(alt_token, alternation);
-					mapper.add_mapping(string_token, terminal_string);
-					mapper.add_mapping(lrb_token, begin_group);
-					mapper.add_mapping(rrb_token, end_group);
-					mapper.add_mapping(lcb_token, begin_repetition);
-					mapper.add_mapping(rcb_token, end_repetition);
-					mapper.add_mapping(lsb_token, begin_optional);
-					mapper.add_mapping(rsb_token, end_optional);
-					mapper.add_mapping(comma_token, comma);
-					mapper.add_mapping(semicolon_token, semicolon);
-				}
+				mapper.add_mapping(assignment_token, equals);
+				mapper.add_mapping(word_token, [](lexing::token token) {
+					if (token.string == "print")
+						return print_keyword;
 
-				// Non terminals
-				auto terminal = ebnfe_parser.new_non_terminal();
-				auto rhs_alternation = ebnfe_parser.new_non_terminal();
-				auto rhs_concatenation = ebnfe_parser.new_non_terminal();
-				auto term = ebnfe_parser.new_non_terminal();
-				auto meta = ebnfe_parser.new_non_terminal();
-				auto rule = ebnfe_parser.new_non_terminal();
-				auto line = ebnfe_parser.new_non_terminal();
-				auto optional = ebnfe_parser.new_non_terminal();
-				auto repetition = ebnfe_parser.new_non_terminal();
-				auto grouping = ebnfe_parser.new_non_terminal();
+					return identifier;
+				});
+				mapper.add_mapping(number_token, number);
+				mapper.add_mapping(semicolon_token, semicolon);
+
 				file = ebnfe_parser.new_non_terminal();
-				auto end_of_input = ebnf::end_of_input;
+				statement = ebnfe_parser.new_non_terminal();
+				assignment = ebnfe_parser.new_non_terminal();
+				print = ebnfe_parser.new_non_terminal();
 
-				using namespace language::ebnf;
-				// Ebnf rules: these are the rules that (mostly) define ebnf
+				using namespace ebnf::meta;
 				ebnfe_parser
-					.new_rule({ terminal,          { terminal_string, alt, identifier } })
-					.new_rule({ optional,          { begin_optional, rhs_alternation, end_optional } })
-					.new_rule({ repetition,        { begin_repetition, rhs_alternation, end_repetition } })
-					.new_rule({ grouping,          { begin_group, rhs_alternation, end_group } })
-					.new_rule({ term,              { terminal, alt, optional, alt, repetition, alt, grouping } })
-					.new_rule({ rhs_concatenation, { term, lsb, comma, rhs_alternation, rsb } })
-					.new_rule({ rhs_alternation,   { rhs_concatenation, lsb, alternation, rhs_alternation, rsb } })
-					.new_rule({ rule,              { identifier, assignment, rhs_alternation, semicolon } });
-
-				// Meta rules: these are the rules that are extensions on top of ebnf
-				ebnfe_parser
-					.new_rule({ meta, { import, identifier, semicolon } });
-
-				// Combines meta and ebnf rules
-				ebnfe_parser
-					.new_rule({ line, { rule, alt, meta } })
-					.new_rule({ file, { line, star, end_of_input } });
+					.new_rule({ assignment, { identifier, equals, number } })
+					.new_rule({ print, { print_keyword, identifier } })
+					.new_rule({ statement, { assignment, semicolon, alt, print, semicolon } })
+					.new_rule({ file, { statement, star } });
 
 				ebnfe_parser
-					.new_transformation(term, ebnfe::transformation_type::REPLACE_WITH_CHILDREN)
-					.new_transformation(comma, ebnfe::transformation_type::REMOVE)
-					.new_transformation(begin_optional, ebnfe::transformation_type::REMOVE)
-					.new_transformation(end_optional, ebnfe::transformation_type::REMOVE)
-					.new_transformation(begin_repetition, ebnfe::transformation_type::REMOVE)
-					.new_transformation(end_repetition, ebnfe::transformation_type::REMOVE)
-					.new_transformation(rhs_alternation, ebnfe::transformation_type::REMOVE_IF_ONE_CHILD)
-					.new_transformation(rhs_concatenation, ebnfe::transformation_type::REMOVE_IF_ONE_CHILD);
+					.new_transformation(semicolon, ebnfe::transformation_type::REMOVE)
+					.new_transformation(statement, ebnfe::transformation_type::REPLACE_WITH_CHILDREN)
+					.new_transformation(number, ebnfe::transformation_type::REMOVE)
+					.new_transformation(print_keyword, ebnfe::transformation_type::REMOVE);
 			}
 
 			ebnfe::node* parse(const std::string& contents)
@@ -141,7 +94,6 @@ namespace language
 			}
 
 		private:
-			ebnfe::non_terminal file;
 			ebnfe::parser ebnfe_parser;
 			lexing::lexer lexer;
 

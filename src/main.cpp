@@ -25,7 +25,7 @@ std::function<void(int, language::ebnfe::node*)> print_ast = [&](int indentation
 int main()
 {
 	// Parse rules
-	std::ifstream in("./snippets/tiny.ebnfe", std::ios::in | std::ios::binary);
+	std::ifstream in("./snippets/example.fe", std::ios::in | std::ios::binary);
 	if (!in) throw std::exception("Could not open file");
 
 	std::string contents;
@@ -39,14 +39,17 @@ int main()
 	language::fe::parser parser;
 	auto parsed_ast = parser.parse(contents);
 
+	std::cout << "Parsed AST" << std::endl;
 	print_ast(0, parsed_ast);
 
 	language::fe::desugarer desugarer;
 	auto desugared_ast = desugarer.desugar(parsed_ast);
 
+	std::cout << "Desugared AST" << std::endl;
 	print_ast(0, parsed_ast);
 
 	language::fe::interpreter interpreter;
+	std::cout << "Program Output" << std::endl;
 	interpreter.interp(desugared_ast);
 	
 	std::cin.get();

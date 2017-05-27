@@ -10,7 +10,7 @@ namespace language
 		public:
 			ebnfe::node* desugar(ebnfe::node* n)
 			{
-				return nullptr;
+				return n;
 			}
 		};
 	}
