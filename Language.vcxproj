@@ -133,7 +133,6 @@
     <ClInclude Include="include\ebnf_parser.h" />
     <ClInclude Include="include\language_parser.h" />
     <ClInclude Include="include\lexer.h" />
-    <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="snippets\identifier.ebnfe" />

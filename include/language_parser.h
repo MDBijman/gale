@@ -87,8 +87,8 @@ namespace language
 
 				// Non terminals
 				auto terminal = ebnfe_parser.new_non_terminal();
-				auto rhs = ebnfe_parser.new_non_terminal();
-				auto concatenation = ebnfe_parser.new_non_terminal();
+				auto rhs_alternation = ebnfe_parser.new_non_terminal();
+				auto rhs_concatenation = ebnfe_parser.new_non_terminal();
 				auto term = ebnfe_parser.new_non_terminal();
 				auto meta = ebnfe_parser.new_non_terminal();
 				auto rule = ebnfe_parser.new_non_terminal();
@@ -103,13 +103,13 @@ namespace language
 				// Ebnf rules: these are the rules that (mostly) define ebnf
 				ebnfe_parser
 					.create_rule({ terminal,          { terminal_string, alt, identifier } })
-					.create_rule({ optional,          { begin_optional, rhs, end_optional } })
-					.create_rule({ repetition,        { begin_repetition, rhs, end_repetition } })
-					.create_rule({ grouping,          { begin_group, rhs, end_group } })
+					.create_rule({ optional,          { begin_optional, rhs_alternation, end_optional } })
+					.create_rule({ repetition,        { begin_repetition, rhs_alternation, end_repetition } })
+					.create_rule({ grouping,          { begin_group, rhs_alternation, end_group } })
 					.create_rule({ term,              { terminal, alt, optional, alt, repetition, alt, grouping } })
-					.create_rule({ concatenation,     { term, lsb, comma, rhs, rsb } })
-					.create_rule({ rhs,               { concatenation, lsb, alternation, rhs, rsb } })
-					.create_rule({ rule,              { identifier, assignment, rhs, semicolon } });
+					.create_rule({ rhs_concatenation, { term, lsb, comma, rhs_alternation, rsb } })
+					.create_rule({ rhs_alternation,   { rhs_concatenation, lsb, alternation, rhs_alternation, rsb } })
+					.create_rule({ rule,              { identifier, assignment, rhs_alternation, semicolon } });
 
 				// Meta rules: these are the rules that are extensions on top of ebnf
 				ebnfe_parser
@@ -122,7 +122,13 @@ namespace language
 
 				ebnfe_parser
 					.add_transformation(term, ebnfe::transformation_type::REPLACE_WITH_CHILDREN)
-					.add_transformation(comma, ebnfe::transformation_type::REMOVE);
+					.add_transformation(comma, ebnfe::transformation_type::REMOVE)
+					.add_transformation(begin_optional, ebnfe::transformation_type::REMOVE)
+					.add_transformation(end_optional, ebnfe::transformation_type::REMOVE)
+					.add_transformation(begin_repetition, ebnfe::transformation_type::REMOVE)
+					.add_transformation(end_repetition, ebnfe::transformation_type::REMOVE)
+					.add_transformation(rhs_alternation, ebnfe::transformation_type::REMOVE_IF_ONE_CHILD)
+					.add_transformation(rhs_concatenation, ebnfe::transformation_type::REMOVE_IF_ONE_CHILD);
 			}
 
 			void parse(const std::string& contents)

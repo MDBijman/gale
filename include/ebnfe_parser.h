@@ -14,7 +14,8 @@ namespace language
 		{
 			REMOVE,
 			REPLACE_WITH_CHILDREN,
-			KEEP
+			KEEP,
+			REMOVE_IF_ONE_CHILD
 		};
 
 		class node
@@ -37,6 +38,14 @@ namespace language
 
 					switch (rule)
 					{
+					case transformation_type::REMOVE_IF_ONE_CHILD:
+						if (child->children.size() != 1)
+						{
+							new_children.push_back(*it);
+							it++;
+							break;
+						}
+						// Fallthrough
 					case transformation_type::REMOVE:
 					case transformation_type::REPLACE_WITH_CHILDREN:
 						std::move(child->children.begin(), child->children.end(), std::back_inserter(new_children));

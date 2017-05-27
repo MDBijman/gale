@@ -54,7 +54,6 @@
     <ClInclude Include="include\language_parser.h">
       <Filter>Source Files\parsing</Filter>
     </ClInclude>
-    <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="snippets\language.ebnfe">
