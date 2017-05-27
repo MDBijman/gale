@@ -9,6 +9,7 @@ namespace language
 		using terminal = ebnf::terminal;
 		using non_terminal = ebnf::non_terminal;
 		using symbol = ebnf::symbol;
+		using rule = ebnf::rule;
 
 		enum class transformation_type
 		{
@@ -117,7 +118,7 @@ namespace language
 				return ebnf_parser.new_non_terminal();
 			}
 
-			parser& new_rule(ebnf::rule_stub r)
+			parser& new_rule(rule r)
 			{
 				ebnf_parser.create_rule(r);
 				return *this;

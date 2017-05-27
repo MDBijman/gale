@@ -98,8 +98,6 @@ namespace language
 			symbol value;
 		};
 
-		using rule_stub = std::pair<non_terminal, std::vector<std::variant<symbol, meta_char>>>;
-
 		struct rule
 		{
 			rule(non_terminal lhs, const std::vector<std::variant<symbol, meta_char>>& rhs) : lhs(lhs), rhs(rhs) {}
@@ -355,9 +353,9 @@ namespace language
 				return bnf_parser.new_non_terminal();
 			}
 
-			parser& create_rule(rule_stub r)
+			parser& create_rule(rule r)
 			{
-				auto bnf_rules = (rule{ r.first, r.second }).to_bnf([&](non_terminal p, child_type type) { return generate_child_non_terminal(p, type); });
+				auto bnf_rules = r.to_bnf([&](non_terminal p, child_type type) { return generate_child_non_terminal(p, type); });
 				for (auto& bnf_rule : bnf_rules)
 				{
 					bnf_parser.add_rule({ bnf_rule.lhs, bnf_rule.rhs });
