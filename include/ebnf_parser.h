@@ -26,6 +26,17 @@ namespace language
 		}
 		using namespace meta;
 
+		enum class error_code
+		{
+			BNF_ERROR,
+		};
+
+		struct error
+		{
+			error_code type;
+			std::string message;
+		};
+
 		enum class child_type {
 			REPETITION,
 			GROUP,
@@ -35,7 +46,7 @@ namespace language
 		class node
 		{
 		public:
-			node(ast::node<symbol>* bnf_tree, std::unordered_map<non_terminal, std::pair<non_terminal, child_type>>& rule_inheritance) : value(bnf_tree->value)
+			node(bnf::node* bnf_tree, std::unordered_map<non_terminal, std::pair<non_terminal, child_type>>& rule_inheritance) : value(bnf_tree->value)
 			{
 				for (auto child : bnf_tree->children)
 					children.push_back(new node(child, rule_inheritance));
@@ -315,17 +326,6 @@ namespace language
 			}
 		};
 
-		enum class error_code
-		{
-			BNF_ERROR,
-		};
-
-		struct error
-		{
-			error_code type;
-			std::string message;
-		};
-
 		class parser
 		{
 		public:
@@ -333,22 +333,12 @@ namespace language
 
 			std::variant<node*, error> parse(non_terminal init, std::vector<terminal> input) 
 			{
-				auto parser_compatible_rules = std::multimap<non_terminal, std::vector<symbol>>();
-				for (auto& rule : rules)
-				{
-					for (auto& bnf_rule : rule.bnf)
-					{
-						parser_compatible_rules.insert({ bnf_rule.lhs, bnf_rule.rhs });
-					}
-				}
-
-				auto parser = bnf::parser{ bnf::rules{ parser_compatible_rules } };
-				auto ast_or_error = parser.parse(init, input);
+				auto ast_or_error = bnf_parser.parse(init, input);
 
 				if (std::holds_alternative<bnf::error>(ast_or_error))
 					return error{ error_code::BNF_ERROR, std::get<bnf::error>(ast_or_error).message };
 
-				auto ast = std::get<ast::node<symbol>*>(ast_or_error);
+				auto ast = std::get<bnf::node*>(ast_or_error);
 
 				// Convert from bnf to ebnf
 				auto ebnf_ast = new node{ ast, nt_child_parents };
@@ -356,50 +346,37 @@ namespace language
 				return ebnf_ast;
 			}
 
-			terminal create_terminal()
+			terminal new_terminal()
 			{
-				return generate_terminal();
+				return bnf_parser.new_terminal();
 			}
 
-			non_terminal create_non_terminal()
+			non_terminal new_non_terminal()
 			{
-				return generate_non_terminal();
+				return bnf_parser.new_non_terminal();
 			}
 
 			parser& create_rule(rule_stub r)
 			{
-				rules.push_back(rule{ r.first, r.second, [&](non_terminal p, child_type type) { return generate_child_non_terminal(p, type); } });
+				auto ebnf_rule = rule{ r.first, r.second, [&](non_terminal p, child_type type) { return generate_child_non_terminal(p, type); } };
+				for (auto& bnf_rule : ebnf_rule.bnf)
+				{
+					bnf_parser.add_rule({ bnf_rule.lhs, bnf_rule.rhs });
+				}
 				return *this;
 			}
 
 		private:
-			std::vector<rule> rules;
-
-			std::set<terminal> ebnf_terminals;
-			std::set<non_terminal> ebnf_non_terminals;
+			bnf::parser bnf_parser;
 
 			std::unordered_map<non_terminal, std::pair<non_terminal, child_type>> nt_child_parents;
-
-			terminal generate_terminal()
-			{
-				ebnf_terminals.insert(t_generator);
-				return t_generator++;
-			}
-
-			non_terminal generate_non_terminal()
-			{
-				ebnf_non_terminals.insert(nt_generator);
-				return nt_generator++;
-			}
-
+			
 			non_terminal generate_child_non_terminal(non_terminal parent, child_type type)
 			{
-				nt_child_parents.insert({ nt_generator, { parent, type } });
-				return nt_generator++;
+				auto nt = bnf_parser.new_non_terminal();
+				nt_child_parents.insert({ nt, { parent, type } });
+				return nt;
 			}
-
-			terminal t_generator = 1;
-			non_terminal nt_generator = 1;
 		};
 	}
 }

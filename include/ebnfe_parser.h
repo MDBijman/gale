@@ -34,7 +34,7 @@ namespace language
 				{
 					auto child = *it;
 
-					auto rule = transformation_rules(child->value.content);
+					auto rule = transformation_rules(child->value.value);
 
 					switch (rule)
 					{
@@ -122,12 +122,12 @@ namespace language
 
 			terminal new_terminal()
 			{
-				return ebnf_parser.create_terminal();
+				return ebnf_parser.new_terminal();
 			}
 
 			non_terminal new_non_terminal()
 			{
-				return ebnf_parser.create_non_terminal();
+				return ebnf_parser.new_non_terminal();
 			}
 
 			parser& create_rule(ebnf::rule_stub r)

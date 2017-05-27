@@ -13,28 +13,42 @@ namespace language
 
 		using non_terminal = uint64_t;
 
+		enum class error_code
+		{
+			TERMINAL_MISMATCH,
+			NO_MATCHING_RULE,
+			UNEXPECTED_END_OF_INPUT,
+			UNEXPECTED_NON_TERMINAL
+		};
+
+		struct error
+		{
+			error_code type;
+			std::string message;
+		};
+
 		/*
 		* \brief A symbol contains either a terminal or a non terminal. Used for checking rule matching.
 		*/
 		struct symbol
 		{
-			symbol(std::variant<terminal, non_terminal> symbol) : content(symbol) {}
-			symbol(terminal t) : content(t) {}
-			symbol(non_terminal nt) : content(nt) {}
+			symbol(std::variant<terminal, non_terminal> symbol) : value(symbol) {}
+			symbol(terminal t) : value(t) {}
+			symbol(non_terminal nt) : value(nt) {}
 
 			bool is_terminal() const
 			{
-				return std::holds_alternative<terminal>(content);
+				return std::holds_alternative<terminal>(value);
 			}
 
 			terminal get_terminal() const
 			{
-				return std::get<terminal>(content);
+				return std::get<terminal>(value);
 			}
 
 			non_terminal get_non_terminal() const
 			{
-				return std::get<non_terminal>(content);
+				return std::get<non_terminal>(value);
 			}
 
 			bool matches(symbol other, const std::multimap<non_terminal, std::vector<symbol>>& mapping) const
@@ -71,7 +85,15 @@ namespace language
 					return get_non_terminal() == other.get_non_terminal();
 			}
 
-			std::variant<terminal, non_terminal> content;
+			std::variant<terminal, non_terminal> value;
+		};
+
+		struct node
+		{
+			node(symbol s) : value(s) {}
+
+			std::vector<node*> children;
+			symbol value;
 		};
 
 		struct rule
@@ -82,68 +104,10 @@ namespace language
 			const std::vector<symbol> rhs;
 		};
 
-		enum class error_code
-		{
-			TERMINAL_MISMATCH,
-			NO_MATCHING_RULE,
-			UNEXPECTED_END_OF_INPUT,
-			UNEXPECTED_NON_TERMINAL
-		};
-
-		struct error
-		{
-			error_code type;
-			std::string message;
-		};
-
-		class rules
-		{
-		public:
-			rules(std::multimap<non_terminal, std::vector<symbol>> rules) : bnf_rules(rules) {}
-
-			bool has_rule(non_terminal symbol) const
-			{
-				return bnf_rules.find(symbol) != bnf_rules.end();
-			}
-
-			auto get_rules(non_terminal symbol) const
-			{
-				return bnf_rules.equal_range(symbol);
-			}
-
-			std::variant<const std::vector<symbol>*, error> match(non_terminal symbol, terminal input_token) const
-			{
-				auto rules = get_rules(symbol);
-
-				// Find a rule that matches
-				auto rule_location = std::find_if(rules.first, rules.second, [&](auto& rule) {
-					return rule.second.at(0).matches(input_token, bnf_rules);
-				});
-				if (rule_location == rules.second)
-					return error{ error_code::NO_MATCHING_RULE, std::to_string((int)input_token) };
-
-				return &rule_location->second;
-			}
-
-		private:
-			std::multimap<non_terminal, std::vector<symbol>> bnf_rules;
-
-			struct table_hash
-			{
-				std::size_t operator()(std::pair<non_terminal, terminal> const& s) const
-				{
-					std::size_t h1 = std::hash<non_terminal>{}(s.first);
-					std::size_t h2 = std::hash<terminal>{}(s.second);
-					return h1 ^ (h2 << 1);
-				}
-			};
-			std::unordered_map<std::pair<non_terminal, terminal>, std::vector<symbol>, table_hash> table;
-		};
-
 		class parser
 		{
 		public:
-			parser(rules rules) : rules(std::move(rules)) {}
+			parser() {}
 			parser(parser&& other) : rules(std::move(other.rules)) {}
 
 			void operator= (parser&& other)
@@ -151,11 +115,48 @@ namespace language
 				rules = std::move(other.rules);
 			}
 
-			std::variant<ast::node<symbol>*, error> parse(non_terminal begin_symbol, std::vector<terminal> input) const;
+			std::variant<node*, error> parse(non_terminal begin_symbol, std::vector<terminal> input) const;
+
+			std::variant<const std::vector<symbol>*, error> match(non_terminal symbol, terminal input_token) const
+			{
+				// All rules with the right non terminal on the lhs
+				auto possible_matches = rules.equal_range(symbol);
+
+				if (possible_matches.first == possible_matches.second)
+					return error{ error_code::NO_MATCHING_RULE, std::to_string((int)input_token) };
+
+				// Find a rule that matches
+				auto rule_location = std::find_if(possible_matches.first, possible_matches.second, [&](auto& rule) {
+					return rule.second.at(0).matches(input_token, rules);
+				});
+
+				if (rule_location == possible_matches.second)
+					return error{ error_code::NO_MATCHING_RULE, std::to_string((int)input_token) };
+
+				return &rule_location->second;
+			}
+
+			parser& add_rule(const rule& r)
+			{
+				rules.insert({ r.lhs, r.rhs });
+				return *this;
+			}
+
+			terminal new_terminal()
+			{
+				return t_generator++;
+			}
+
+			non_terminal new_non_terminal()
+			{
+				return nt_generator++;
+			}
 
 		private:
-			rules rules;
+			std::multimap<non_terminal, std::vector<symbol>> rules;
+
+			terminal t_generator = 1;
+			non_terminal nt_generator = 1;
 		};
 	}
-
 }
