@@ -91,6 +91,11 @@ namespace language
 		struct node
 		{
 			node(symbol s) : value(s) {}
+			virtual ~node() 
+			{
+				for (auto child : children)
+					delete child;
+			}
 
 			std::vector<node*> children;
 			symbol value;
