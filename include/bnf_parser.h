@@ -1,6 +1,5 @@
 #pragma once
 #include "lexer.h"
-#include "ast.h"
 #include <stack>
 
 namespace language

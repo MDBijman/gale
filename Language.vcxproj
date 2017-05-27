@@ -127,11 +127,12 @@
     <ClCompile Include="src\bnf_parser.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="include\ast.h" />
     <ClInclude Include="include\bnf_parser.h" />
+    <ClInclude Include="include\desugarer.h" />
     <ClInclude Include="include\ebnfe_parser.h" />
     <ClInclude Include="include\ebnf_parser.h" />
-    <ClInclude Include="include\language_parser.h" />
+    <ClInclude Include="include\interpreter.h" />
+    <ClInclude Include="include\parser.h" />
     <ClInclude Include="include\lexer.h" />
   </ItemGroup>
   <ItemGroup>

@@ -131,30 +131,13 @@ namespace language
 					.new_transformation(rhs_concatenation, ebnfe::transformation_type::REMOVE_IF_ONE_CHILD);
 			}
 
-			void parse(const std::string& contents)
+			ebnfe::node* parse(const std::string& contents)
 			{
 				auto tokens_or_error = lexer.parse(contents);
 				auto tokens = std::get<std::vector<lexing::token>>(tokens_or_error);
-
 				auto parser_input = mapper.convert(tokens);
-
 				auto ast_or_error = ebnfe_parser.parse(file, parser_input);
-				auto ast = std::get<ebnfe::node*>(ast_or_error);
-
-
-				std::function<void(int, ebnfe::node*)> print_ast = [&](int indentation, ebnfe::node* node) {
-					for (int i = 0; i < indentation; i++)
-						std::cout << "\t";
-					if (node->value.is_terminal())
-						std::cout << node->value.get_terminal() << std::endl;
-					else
-					{
-						std::cout << node->value.get_non_terminal() << std::endl;
-						for (auto child : node->children)
-							print_ast(indentation + 1, child);
-					}
-				};
-				print_ast(0, ast);
+				return std::get<ebnfe::node*>(ast_or_error);
 			}
 
 		private:
