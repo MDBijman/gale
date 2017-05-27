@@ -88,7 +88,7 @@ namespace language
 				children = new_children;
 			}
 
-			~node()
+			virtual ~node()
 			{
 				for (auto child : children)
 					delete child;
