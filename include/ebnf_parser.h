@@ -102,7 +102,7 @@ namespace language
 
 		struct rule
 		{
-			rule(non_terminal lhs, const std::vector<std::variant<symbol, meta_char>>& rhs, std::function<non_terminal(non_terminal, child_type)> nt_gen) : lhs(lhs), rhs(rhs), bnf(to_bnf(nt_gen)) {}
+			rule(non_terminal lhs, const std::vector<std::variant<symbol, meta_char>>& rhs) : lhs(lhs), rhs(rhs) {}
 
 			bool contains_metatoken() const
 			{
@@ -120,11 +120,6 @@ namespace language
 				});
 			}
 
-			const non_terminal lhs;
-			const std::vector<std::variant<symbol, meta_char>> rhs;
-			const std::vector<bnf::rule> bnf;
-
-		private:
 			std::vector<bnf::rule> to_bnf(std::function<non_terminal(non_terminal, child_type)> nt_generator) const
 			{
 				// Turns a nested vector into single vector
@@ -143,7 +138,7 @@ namespace language
 				decltype(rhs)::const_iterator it;
 				if ((it = find(alt)) != rhs.end())
 				{
-					std::vector<rule> split_alt = split_on(alt, nt_generator);
+					std::vector<rule> split_alt = split_on(alt);
 					std::vector<std::vector<bnf::rule>> simplified;
 					std::transform(split_alt.begin(), split_alt.end(), std::back_inserter(simplified), [&](auto& rule) {
 						return rule.to_bnf(nt_generator);
@@ -184,7 +179,7 @@ namespace language
 					auto rule_rhs = std::vector<std::variant<symbol, meta_char>>();
 					std::copy(begin_group, end_group + 1, std::back_inserter(rule_rhs));
 
-					rule additional_rule{ rule_lhs, rule_rhs, nt_generator };
+					rule additional_rule{ rule_lhs, rule_rhs };
 
 					// Remove group from new rule and replace with the new rule identifier
 					auto modified_rhs{ rhs };
@@ -192,7 +187,7 @@ namespace language
 					auto right_bracket_offset = std::distance(rhs.begin(), it);
 					modified_rhs.erase(modified_rhs.begin() + left_bracket_offset, modified_rhs.begin() + right_bracket_offset + 1);
 					modified_rhs.insert(modified_rhs.begin() + left_bracket_offset, rule_lhs);
-					rule modified_rule{ lhs, modified_rhs, nt_generator };
+					rule modified_rule{ lhs, modified_rhs };
 
 					std::vector<std::vector<bnf::rule>> simplified_rules;
 					simplified_rules.push_back(additional_rule.to_bnf(nt_generator));
@@ -238,7 +233,7 @@ namespace language
 					auto rule_rhs = std::vector<std::variant<symbol, meta_char>>();
 					std::copy(begin_group, end_group + 1, std::back_inserter(rule_rhs));
 
-					rule additional_rule{ rule_lhs, rule_rhs, nt_generator };
+					rule additional_rule{ rule_lhs, rule_rhs };
 					bnf::rule epsilon_rule{ rule_lhs, { bnf::epsilon } };
 
 					// Remove optional from new rule and replace with the new rule identifier
@@ -247,7 +242,7 @@ namespace language
 					auto right_bracket_offset = std::distance(rhs.begin(), it);
 					modified_rhs.erase(modified_rhs.begin() + left_bracket_offset, modified_rhs.begin() + right_bracket_offset + 1);
 					modified_rhs.insert(modified_rhs.begin() + left_bracket_offset, rule_lhs);
-					rule modified_rule{ lhs, modified_rhs, nt_generator };
+					rule modified_rule{ lhs, modified_rhs };
 
 					std::vector<std::vector<bnf::rule>> simplified_rules;
 					simplified_rules.push_back(additional_rule.to_bnf(nt_generator));
@@ -277,7 +272,7 @@ namespace language
 					auto modified_rhs{ rhs };
 					modified_rhs.at(multiplied_offset) = additional_rule.lhs;
 					modified_rhs.erase(modified_rhs.begin() + multiplier_offset);
-					rule modified_rule{ lhs, modified_rhs, nt_generator };
+					rule modified_rule{ lhs, modified_rhs };
 
 					std::vector<bnf::rule> simplified_rules;
 					simplified_rules.push_back(additional_rule);
@@ -302,7 +297,11 @@ namespace language
 				}
 			}
 
-			std::vector<rule> split_on(meta_char token, std::function<non_terminal(non_terminal, child_type)> nt_generator) const
+			const non_terminal lhs;
+			const std::vector<std::variant<symbol, meta_char>> rhs;
+
+		private:
+			std::vector<rule> split_on(meta_char token) const
 			{
 				std::vector<rule> rules;
 
@@ -313,7 +312,7 @@ namespace language
 
 					if (std::holds_alternative<meta_char>(variant) && (std::get<meta_char>(variant) == token))
 					{
-						rules.push_back(rule{ lhs, new_rule, nt_generator });
+						rules.push_back(rule{ lhs, new_rule });
 						new_rule.clear();
 					}
 					else
@@ -321,7 +320,7 @@ namespace language
 						new_rule.push_back(variant);
 					}
 				}
-				rules.push_back(rule{ lhs, new_rule, nt_generator });
+				rules.push_back(rule{ lhs, new_rule });
 				return rules;
 			}
 		};
@@ -358,8 +357,8 @@ namespace language
 
 			parser& create_rule(rule_stub r)
 			{
-				auto ebnf_rule = rule{ r.first, r.second, [&](non_terminal p, child_type type) { return generate_child_non_terminal(p, type); } };
-				for (auto& bnf_rule : ebnf_rule.bnf)
+				auto bnf_rules = (rule{ r.first, r.second }).to_bnf([&](non_terminal p, child_type type) { return generate_child_non_terminal(p, type); });
+				for (auto& bnf_rule : bnf_rules)
 				{
 					bnf_parser.add_rule({ bnf_rule.lhs, bnf_rule.rhs });
 				}

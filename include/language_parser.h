@@ -102,33 +102,33 @@ namespace language
 				using namespace language::ebnf;
 				// Ebnf rules: these are the rules that (mostly) define ebnf
 				ebnfe_parser
-					.create_rule({ terminal,          { terminal_string, alt, identifier } })
-					.create_rule({ optional,          { begin_optional, rhs_alternation, end_optional } })
-					.create_rule({ repetition,        { begin_repetition, rhs_alternation, end_repetition } })
-					.create_rule({ grouping,          { begin_group, rhs_alternation, end_group } })
-					.create_rule({ term,              { terminal, alt, optional, alt, repetition, alt, grouping } })
-					.create_rule({ rhs_concatenation, { term, lsb, comma, rhs_alternation, rsb } })
-					.create_rule({ rhs_alternation,   { rhs_concatenation, lsb, alternation, rhs_alternation, rsb } })
-					.create_rule({ rule,              { identifier, assignment, rhs_alternation, semicolon } });
+					.new_rule({ terminal,          { terminal_string, alt, identifier } })
+					.new_rule({ optional,          { begin_optional, rhs_alternation, end_optional } })
+					.new_rule({ repetition,        { begin_repetition, rhs_alternation, end_repetition } })
+					.new_rule({ grouping,          { begin_group, rhs_alternation, end_group } })
+					.new_rule({ term,              { terminal, alt, optional, alt, repetition, alt, grouping } })
+					.new_rule({ rhs_concatenation, { term, lsb, comma, rhs_alternation, rsb } })
+					.new_rule({ rhs_alternation,   { rhs_concatenation, lsb, alternation, rhs_alternation, rsb } })
+					.new_rule({ rule,              { identifier, assignment, rhs_alternation, semicolon } });
 
 				// Meta rules: these are the rules that are extensions on top of ebnf
 				ebnfe_parser
-					.create_rule({ meta, { import, identifier, semicolon } });
+					.new_rule({ meta, { import, identifier, semicolon } });
 
 				// Combines meta and ebnf rules
 				ebnfe_parser
-					.create_rule({ line, { rule, alt, meta } })
-					.create_rule({ file, { line, star, end_of_input } });
+					.new_rule({ line, { rule, alt, meta } })
+					.new_rule({ file, { line, star, end_of_input } });
 
 				ebnfe_parser
-					.add_transformation(term, ebnfe::transformation_type::REPLACE_WITH_CHILDREN)
-					.add_transformation(comma, ebnfe::transformation_type::REMOVE)
-					.add_transformation(begin_optional, ebnfe::transformation_type::REMOVE)
-					.add_transformation(end_optional, ebnfe::transformation_type::REMOVE)
-					.add_transformation(begin_repetition, ebnfe::transformation_type::REMOVE)
-					.add_transformation(end_repetition, ebnfe::transformation_type::REMOVE)
-					.add_transformation(rhs_alternation, ebnfe::transformation_type::REMOVE_IF_ONE_CHILD)
-					.add_transformation(rhs_concatenation, ebnfe::transformation_type::REMOVE_IF_ONE_CHILD);
+					.new_transformation(term, ebnfe::transformation_type::REPLACE_WITH_CHILDREN)
+					.new_transformation(comma, ebnfe::transformation_type::REMOVE)
+					.new_transformation(begin_optional, ebnfe::transformation_type::REMOVE)
+					.new_transformation(end_optional, ebnfe::transformation_type::REMOVE)
+					.new_transformation(begin_repetition, ebnfe::transformation_type::REMOVE)
+					.new_transformation(end_repetition, ebnfe::transformation_type::REMOVE)
+					.new_transformation(rhs_alternation, ebnfe::transformation_type::REMOVE_IF_ONE_CHILD)
+					.new_transformation(rhs_concatenation, ebnfe::transformation_type::REMOVE_IF_ONE_CHILD);
 			}
 
 			void parse(const std::string& contents)
@@ -141,31 +141,21 @@ namespace language
 				auto ast_or_error = ebnfe_parser.parse(file, parser_input);
 				auto ast = std::get<ebnfe::node*>(ast_or_error);
 
-			}
 
-			/*
-
-			void prune(ast::node<symbol> tree) const;
-				void parser::prune(ast::node<symbol> tree) const
-				{
-					for (auto child : tree.children)
+				std::function<void(int, ebnfe::node*)> print_ast = [&](int indentation, ebnfe::node* node) {
+					for (int i = 0; i < indentation; i++)
+						std::cout << "\t";
+					if (node->value.is_terminal())
+						std::cout << node->value.get_terminal() << std::endl;
+					else
 					{
-						this->prune(*child);
+						std::cout << node->value.get_non_terminal() << std::endl;
+						for (auto child : node->children)
+							print_ast(indentation + 1, child);
 					}
-
-					tree.children.erase(
-						std::remove_if(tree.children.begin(), tree.children.end(), [](auto& child) {
-							if (child->value.is_terminal() && (child->value.get_terminal() == epsilon) ||
-								(!child->value.is_terminal() && child->is_leaf()))
-							{
-								return true;
-							}
-							return false;
-						}),
-						tree.children.end()
-					);
-				}
-			*/
+				};
+				print_ast(0, ast);
+			}
 
 		private:
 			ebnfe::non_terminal file;

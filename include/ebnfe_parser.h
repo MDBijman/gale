@@ -102,19 +102,6 @@ namespace language
 						transformation_rules.at(s);
 				});
 
-				std::function<void(int, node*)> print_ast = [&](int indentation, node* node) {
-					for (int i = 0; i < indentation; i++)
-						std::cout << "\t";
-					if (node->value.is_terminal())
-						std::cout << node->value.get_terminal() << std::endl;
-					else
-					{
-						std::cout << node->value.get_non_terminal() << std::endl;
-						for (auto child : node->children)
-							print_ast(indentation + 1, child);
-					}
-				};
-				print_ast(0, ebnfe_ast);
 				delete ast;
 
 				return ebnfe_ast;
@@ -130,53 +117,20 @@ namespace language
 				return ebnf_parser.new_non_terminal();
 			}
 
-			parser& create_rule(ebnf::rule_stub r)
+			parser& new_rule(ebnf::rule_stub r)
 			{
 				ebnf_parser.create_rule(r);
 				return *this;
 			}
 
-			parser& add_transformation(std::variant<terminal, non_terminal> s, transformation_type type)
+			parser& new_transformation(std::variant<terminal, non_terminal> s, transformation_type type)
 			{
 				transformation_rules.insert({ s, type });
 				return *this;
 			}
 
-			non_terminal new_non_terminal(std::string name)
-			{
-				auto nt = new_non_terminal();
-				non_terminal_names.insert({ nt, name });
-				return nt;
-			}
-
-			terminal new_terminal(std::string name)
-			{
-				auto t = new_terminal();
-				terminal_names.insert({ t, name });
-				return t;
-			}
-
-			bool has_symbol_name(std::variant<non_terminal, terminal> symbol)
-			{
-				if (std::holds_alternative<non_terminal>(symbol))
-					return non_terminal_names.find(std::get<non_terminal>(symbol)) != non_terminal_names.end();
-				else
-					return terminal_names.find(std::get<terminal>(symbol)) != terminal_names.end();
-			}
-
-			const std::string& get_symbol_name(std::variant<non_terminal, terminal> symbol)
-			{
-				if (std::holds_alternative<non_terminal>(symbol))
-					return non_terminal_names.at(std::get<non_terminal>(symbol));
-				else
-					return terminal_names.at(std::get<terminal>(symbol));
-			}
-
 		private:
 			ebnf::parser ebnf_parser;
-
-			std::unordered_map<non_terminal, std::string> non_terminal_names;
-			std::unordered_map<terminal, std::string> terminal_names;
 
 			std::unordered_map<std::variant<terminal, non_terminal>, transformation_type> transformation_rules;
 		};

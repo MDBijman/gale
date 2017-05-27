@@ -30,5 +30,6 @@ int main()
 
 	language::fe::parser ebnfe_parser;
 	ebnfe_parser.parse(contents);
+
 	std::cin.get();
 }
