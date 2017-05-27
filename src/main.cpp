@@ -1,4 +1,4 @@
-#include "ebnfe_parser.h"
+#include "language_parser.h"
 #include <stdio.h>
 #include <iostream>
 #include <functional>
@@ -17,7 +17,7 @@ void generate(const std::string& specification_location)
 int main()
 {
 	// Parse rules
-	std::ifstream in("./snippets/language.ebnfe", std::ios::in | std::ios::binary);
+	std::ifstream in("./snippets/tiny.ebnfe", std::ios::in | std::ios::binary);
 	if (!in) throw std::exception("Could not open file");
 
 	std::string contents;
@@ -28,7 +28,7 @@ int main()
 	in.close();
 	std::string_view contents_view = contents;
 
-	language::ebnfe::parser ebnfe_parser;
+	language::fe::parser ebnfe_parser;
 	ebnfe_parser.parse(contents);
 	std::cin.get();
 }

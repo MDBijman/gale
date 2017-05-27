@@ -7,14 +7,14 @@ namespace ast
 	class node
 	{
 	public:
-		node(T t) : t(t) {}
-		~node() 
-		{ 
-			for (node* node : children)
-				delete node;
+		node(T value) : value(value) {}
+		~node()
+		{
+			for (auto child : children)
+				delete child;
 		}
 
-		void add_child(node* node)
+		void add_child(node<T>* node)
 		{
 			children.push_back(node);
 		}
@@ -24,7 +24,7 @@ namespace ast
 			return children.empty();
 		}
 
-		std::vector<node*> children;
-		T t;
+		std::vector<node<T>*> children;
+		T value;
 	};
 }

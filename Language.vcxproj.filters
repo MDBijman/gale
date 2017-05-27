@@ -51,12 +51,19 @@
     <ClInclude Include="include\ebnfe_parser.h">
       <Filter>Source Files\parsing</Filter>
     </ClInclude>
+    <ClInclude Include="include\language_parser.h">
+      <Filter>Source Files\parsing</Filter>
+    </ClInclude>
+    <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="snippets\language.ebnfe">
       <Filter>Resource Files</Filter>
     </Text>
     <Text Include="snippets\identifier.ebnfe">
+      <Filter>Resource Files</Filter>
+    </Text>
+    <Text Include="snippets\tiny.ebnfe">
       <Filter>Resource Files</Filter>
     </Text>
   </ItemGroup>

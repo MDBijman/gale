@@ -131,11 +131,14 @@
     <ClInclude Include="include\bnf_parser.h" />
     <ClInclude Include="include\ebnfe_parser.h" />
     <ClInclude Include="include\ebnf_parser.h" />
+    <ClInclude Include="include\language_parser.h" />
     <ClInclude Include="include\lexer.h" />
+    <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="snippets\identifier.ebnfe" />
     <Text Include="snippets\language.ebnfe" />
+    <Text Include="snippets\tiny.ebnfe" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

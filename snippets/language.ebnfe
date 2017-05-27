@@ -18,8 +18,8 @@ rhs_group ::= rhs_multiplier | begin_group, rhs_multiplier, end_group;
 rhs_exception ::= rhs_group, [ exception, rhs ];
 rhs ::= rhs_exception, [ alternation, rhs ] | terminal;
 
-import ::= 'import', identifier;
-meta ::= import;
+import_line ::= 'import', identifier;
+meta ::= import_line;
 
 rule ::= identifier, assignment, rhs, end_of_rule | meta;
 ruleset ::= rule, end_of_input;

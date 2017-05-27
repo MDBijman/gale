@@ -1,88 +1,175 @@
 #pragma once
 #include "ebnf_parser.h"
+#include <functional>
 
 namespace language
 {
 	namespace ebnfe
 	{
+		using terminal = ebnf::terminal;
+		using non_terminal = ebnf::non_terminal;
+		using symbol = ebnf::symbol;
+
+		enum class transformation_type
+		{
+			REMOVE,
+			REPLACE_WITH_CHILDREN,
+			KEEP
+		};
+
+		class node
+		{
+		public:
+			node(ebnf::node* ebnf_tree, std::function<transformation_type(std::variant<terminal, non_terminal>)> transformation_rules) : value(ebnf_tree->value)
+			{
+				for (auto child : ebnf_tree->children)
+					children.push_back(new node(child, transformation_rules));
+
+				// Transform to ebnf
+				std::vector<node*> new_children;
+
+				auto it = children.begin();
+				while (it != children.end())
+				{
+					auto child = *it;
+
+					auto rule = transformation_rules(child->value.content);
+
+					switch (rule)
+					{
+					case transformation_type::REMOVE:
+					case transformation_type::REPLACE_WITH_CHILDREN:
+						std::move(child->children.begin(), child->children.end(), std::back_inserter(new_children));
+						it = children.erase(it);
+						break;
+					case transformation_type::KEEP:
+					default:
+						new_children.push_back(*it);
+						it++;
+						break;
+					}
+				}
+
+				children = new_children;
+			}
+
+			~node()
+			{
+				for (auto child : children)
+					delete child;
+			}
+
+			std::vector<node*> children;
+			symbol value;
+		};
+
+		enum class error_code
+		{
+			EBNF_PARSER_ERROR,
+			OTHER
+		};
+
+		struct error
+		{
+			error_code type;
+			std::string message;
+		};
+
 		class parser
 		{
 		public:
-			parser()
+			parser() {}
+
+			std::variant<node*, error> parse(non_terminal init, std::vector<terminal> input)
 			{
-				// Terminals
-				auto assignment = ebnf_parser.create_terminal("::=");
-				auto import = ebnf_parser.create_terminal("import");
-				auto identifier = ebnf_parser.create_terminal("[a-zA-Z][a-zA-Z_]+");
-				auto alternation = ebnf_parser.create_terminal("\\|");
-				auto terminal_string = ebnf_parser.create_terminal("\'.+?\'");
-				auto begin_group = ebnf_parser.create_terminal("\\(");
-				auto end_group = ebnf_parser.create_terminal("\\)");
-				auto begin_repetition = ebnf_parser.create_terminal("\\{");
-				auto end_repetition = ebnf_parser.create_terminal("\\}");
-				auto begin_optional = ebnf_parser.create_terminal("\\[");
-				auto end_optional = ebnf_parser.create_terminal("\\]");
-				auto comma = ebnf_parser.create_terminal(",");
-				auto semicolon = ebnf_parser.create_terminal(";");
+				auto ebnf_results = ebnf_parser.parse(init, input);
+				if (std::holds_alternative<ebnf::error>(ebnf_results))
+					return error{ error_code::EBNF_PARSER_ERROR, std::get<ebnf::error>(ebnf_results).message };
 
-				// Non terminals
-				auto terminal = ebnf_parser.create_non_terminal();
-				auto rhs = ebnf_parser.create_non_terminal();
-				auto rhs_concatenation = ebnf_parser.create_non_terminal();
-				auto rhs_alternation = ebnf_parser.create_non_terminal();
-				auto term = ebnf_parser.create_non_terminal();
-				auto meta = ebnf_parser.create_non_terminal();
-				auto rule = ebnf_parser.create_non_terminal();
-				auto line = ebnf_parser.create_non_terminal();
-				file = ebnf_parser.create_non_terminal();
-				auto end_of_input = ebnf_parser.end_of_input;
+				auto ast = std::get<ebnf::node*>(ebnf_results);
+				auto ebnfe_ast = new node(ast, [&](std::variant<terminal, non_terminal> s) {
+					return transformation_rules.find(s) == transformation_rules.end() ?
+						transformation_type::KEEP :
+						transformation_rules.at(s);
+				});
 
-				using namespace language::ebnf;
-				// Ebnf rules: these are the rules that (mostly) define ebnf
-				ebnf_parser
-					.create_rule({ terminal,          { terminal_string, alt, identifier } })
-					.create_rule({ term,              { terminal, alt, begin_optional, rhs, end_optional, alt, begin_repetition, rhs, end_repetition, alt, begin_group, rhs, end_group } })
-					.create_rule({ rhs_concatenation, { term, lsb, comma, rhs, rsb } })
-					.create_rule({ rhs_alternation,   { rhs_concatenation, lsb, alternation, rhs, rsb, alt, term, comma, rhs } })
-					.create_rule({ rhs,               { rhs_alternation } })
-					.create_rule({ rule,              { identifier, assignment, rhs, semicolon } });
-
-				// Meta rules: these are the rules that are extensions on top of ebnf
-				ebnf_parser
-					.create_rule({ meta, { import, identifier, semicolon } });
-
-				// Combines meta and ebnf rules
-				ebnf_parser
-					.create_rule({ line, { rule, alt, meta } })
-					.create_rule({ file, { line, star, end_of_input } });
-			}
-
-			void parse(const std::string& contents)
-			{
-				auto tokens_or_error = lexing::lexer{ ebnf_parser.token_rules }.parse(contents);
-				auto tokens = std::get<std::vector<lexing::token_id>>(tokens_or_error);
-
-				auto ast_or_error = ebnf_parser.parse(file, tokens);
-				auto ast = std::get<ast::node<bnf::symbol>*>(ast_or_error);
-
-				std::function<void(int, ast::node<language::bnf::symbol>*)> print_ast = [&](int indentation, ast::node<language::bnf::symbol>* node) {
+				std::function<void(int, node*)> print_ast = [&](int indentation, node* node) {
 					for (int i = 0; i < indentation; i++)
-						std::cout << " ";
-					if (node->t.is_terminal())
-						std::cout << node->t.get_terminal() << std::endl;
+						std::cout << "\t";
+					if (node->value.is_terminal())
+						std::cout << node->value.get_terminal() << std::endl;
 					else
 					{
-						std::cout << node->t.get_non_terminal() << std::endl;
+						std::cout << node->value.get_non_terminal() << std::endl;
 						for (auto child : node->children)
 							print_ast(indentation + 1, child);
 					}
 				};
-				print_ast(0, ast);
+				print_ast(0, ebnfe_ast);
+				delete ast;
+
+				return ebnfe_ast;
+			}
+
+			terminal new_terminal()
+			{
+				return ebnf_parser.create_terminal();
+			}
+
+			non_terminal new_non_terminal()
+			{
+				return ebnf_parser.create_non_terminal();
+			}
+
+			parser& create_rule(ebnf::rule_stub r)
+			{
+				ebnf_parser.create_rule(r);
+				return *this;
+			}
+
+			parser& add_transformation(std::variant<terminal, non_terminal> s, transformation_type type)
+			{
+				transformation_rules.insert({ s, type });
+				return *this;
+			}
+
+			non_terminal new_non_terminal(std::string name)
+			{
+				auto nt = new_non_terminal();
+				non_terminal_names.insert({ nt, name });
+				return nt;
+			}
+
+			terminal new_terminal(std::string name)
+			{
+				auto t = new_terminal();
+				terminal_names.insert({ t, name });
+				return t;
+			}
+
+			bool has_symbol_name(std::variant<non_terminal, terminal> symbol)
+			{
+				if (std::holds_alternative<non_terminal>(symbol))
+					return non_terminal_names.find(std::get<non_terminal>(symbol)) != non_terminal_names.end();
+				else
+					return terminal_names.find(std::get<terminal>(symbol)) != terminal_names.end();
+			}
+
+			const std::string& get_symbol_name(std::variant<non_terminal, terminal> symbol)
+			{
+				if (std::holds_alternative<non_terminal>(symbol))
+					return non_terminal_names.at(std::get<non_terminal>(symbol));
+				else
+					return terminal_names.at(std::get<terminal>(symbol));
 			}
 
 		private:
-			ebnf::non_terminal file;
 			ebnf::parser ebnf_parser;
+
+			std::unordered_map<non_terminal, std::string> non_terminal_names;
+			std::unordered_map<terminal, std::string> terminal_names;
+
+			std::unordered_map<std::variant<terminal, non_terminal>, transformation_type> transformation_rules;
 		};
 	}
 }

@@ -71,10 +71,8 @@ namespace language
 					return get_non_terminal() == other.get_non_terminal();
 			}
 
-		private:
 			std::variant<terminal, non_terminal> content;
 		};
-
 
 		struct rule
 		{
@@ -118,9 +116,11 @@ namespace language
 				auto rules = get_rules(symbol);
 
 				// Find a rule that matches
-				auto rule_location = std::find_if(rules.first, rules.second, [&](auto& rule) { return rule.second.at(0).matches(input_token, bnf_rules); });
+				auto rule_location = std::find_if(rules.first, rules.second, [&](auto& rule) {
+					return rule.second.at(0).matches(input_token, bnf_rules);
+				});
 				if (rule_location == rules.second)
-					return error{error_code::NO_MATCHING_RULE, std::to_string((int) input_token)};
+					return error{ error_code::NO_MATCHING_RULE, std::to_string((int)input_token) };
 
 				return &rule_location->second;
 			}
@@ -150,11 +150,10 @@ namespace language
 			{
 				rules = std::move(other.rules);
 			}
+
 			std::variant<ast::node<symbol>*, error> parse(non_terminal begin_symbol, std::vector<terminal> input) const;
 
 		private:
-			void prune(ast::node<symbol>* tree) const;
-
 			rules rules;
 		};
 	}

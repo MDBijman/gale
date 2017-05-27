@@ -11,6 +11,9 @@ namespace language
 		using non_terminal = bnf::non_terminal;
 		using symbol = bnf::symbol;
 
+		constexpr terminal end_of_input = bnf::end_of_input;
+		constexpr terminal epsilon = bnf::epsilon;
+
 		namespace meta {
 			enum meta_char {
 				alt,
@@ -23,11 +26,72 @@ namespace language
 		}
 		using namespace meta;
 
+		enum class child_type {
+			REPETITION,
+			GROUP,
+			OPTIONAL
+		};
+
+		class node
+		{
+		public:
+			node(ast::node<symbol>* bnf_tree, std::unordered_map<non_terminal, std::pair<non_terminal, child_type>>& rule_inheritance) : value(bnf_tree->value)
+			{
+				for (auto child : bnf_tree->children)
+					children.push_back(new node(child, rule_inheritance));
+
+				// Transform to ebnf
+				std::vector<node*> new_children;
+
+				auto it = children.begin();
+				while (it != children.end())
+				{
+					auto child = *it;
+					
+					// If the rule is not part of the original ebnf, we must transform it
+					if (!child->value.is_terminal() && (rule_inheritance.find(child->value.get_non_terminal()) != rule_inheritance.end()))
+					{
+						auto parent_and_type = rule_inheritance.at(child->value.get_non_terminal());
+						auto type = parent_and_type.second;
+						// If it is a repetition or an optional, we should copy it's children, unless it is empty (i.e. has epsilon)
+						if ((child->children.size() == 1) && (child->children.at(0)->value == epsilon))
+						{
+							// Skip this branch							
+						}
+						else
+						{
+							// Move children up
+							std::move(child->children.begin(), child->children.end(), std::back_inserter(new_children));
+						}
+						
+						it = children.erase(it);
+					}
+					// Else the rule should be part of the new children as is
+					else
+					{
+						new_children.push_back(*it);
+						it++;
+					}
+				}
+
+				children = new_children;
+			}
+
+			~node()
+			{
+				for (auto child : children)
+					delete child;
+			}
+
+			std::vector<node*> children;
+			symbol value;
+		};
+
 		using rule_stub = std::pair<non_terminal, std::vector<std::variant<symbol, meta_char>>>;
 
 		struct rule
 		{
-			rule(non_terminal lhs, const std::vector<std::variant<symbol, meta_char>>& rhs, std::function<non_terminal(non_terminal)> nt_gen) : lhs(lhs), rhs(rhs), bnf(to_bnf(nt_gen)) {}
+			rule(non_terminal lhs, const std::vector<std::variant<symbol, meta_char>>& rhs, std::function<non_terminal(non_terminal, child_type)> nt_gen) : lhs(lhs), rhs(rhs), bnf(to_bnf(nt_gen)) {}
 
 			bool contains_metatoken() const
 			{
@@ -50,7 +114,7 @@ namespace language
 			const std::vector<bnf::rule> bnf;
 
 		private:
-			std::vector<bnf::rule> to_bnf(std::function<non_terminal(non_terminal)> nt_generator) const
+			std::vector<bnf::rule> to_bnf(std::function<non_terminal(non_terminal, child_type)> nt_generator) const
 			{
 				// Turns a nested vector into single vector
 				auto flatten = [](std::vector<std::vector<bnf::rule>>& vec) {
@@ -105,7 +169,7 @@ namespace language
 					auto begin_group = left_bracket_it + 1;
 					auto end_group = it - 1;
 
-					auto rule_lhs = nt_generator(lhs);
+					auto rule_lhs = nt_generator(lhs, child_type::GROUP);
 					auto rule_rhs = std::vector<std::variant<symbol, meta_char>>();
 					std::copy(begin_group, end_group + 1, std::back_inserter(rule_rhs));
 
@@ -158,7 +222,7 @@ namespace language
 
 					auto symbol_after_left_bracket = std::get<symbol>(*(left_bracket_it + 1));
 
-					non_terminal rule_lhs = nt_generator(lhs);
+					non_terminal rule_lhs = nt_generator(lhs, child_type::OPTIONAL);
 
 					auto rule_rhs = std::vector<std::variant<symbol, meta_char>>();
 					std::copy(begin_group, end_group + 1, std::back_inserter(rule_rhs));
@@ -188,7 +252,7 @@ namespace language
 						throw std::runtime_error("Can only multiply non terminals/terminal");
 
 					auto multiplied_symbol = std::get<symbol>(*it);
-					non_terminal new_symbol = nt_generator(lhs);
+					non_terminal new_symbol = nt_generator(lhs, child_type::REPETITION);
 
 					// Create two new rules, and replace E* with X
 					// X -> epsilon
@@ -227,7 +291,7 @@ namespace language
 				}
 			}
 
-			std::vector<rule> split_on(meta_char token, std::function<non_terminal(non_terminal)> nt_generator) const
+			std::vector<rule> split_on(meta_char token, std::function<non_terminal(non_terminal, child_type)> nt_generator) const
 			{
 				std::vector<rule> rules;
 
@@ -267,7 +331,7 @@ namespace language
 		public:
 			parser() {}
 
-			std::variant<ast::node<symbol>*, error> parse(non_terminal init, std::vector<terminal> input) const
+			std::variant<node*, error> parse(non_terminal init, std::vector<terminal> input) 
 			{
 				auto parser_compatible_rules = std::multimap<non_terminal, std::vector<symbol>>();
 				for (auto& rule : rules)
@@ -286,37 +350,15 @@ namespace language
 
 				auto ast = std::get<ast::node<symbol>*>(ast_or_error);
 
-				std::function<void(ast::node<symbol>*)> bnf_to_ebnf = [&](ast::node<symbol>* node) {
-					if (node->t.is_terminal())
-						return;
+				// Convert from bnf to ebnf
+				auto ebnf_ast = new node{ ast, nt_child_parents };
 
-					std::vector<ast::node<symbol>*> new_children;
-					node->children.erase(std::remove_if(node->children.begin(), node->children.end(), [&](auto& child) {
-						bnf_to_ebnf(child);
-
-						if (!child->t.is_terminal() && (ebnf_non_terminals.find(child->t.get_non_terminal()) == ebnf_non_terminals.end()))
-						{
-							std::move(child->children.begin(), child->children.end(), std::back_inserter(new_children));
-							child->children.clear();
-							return true;
-						}
-
-						return false;
-					}), node->children.end());
-
-					std::move(new_children.begin(), new_children.end(), std::back_inserter(node->children));
-				};
-
-				bnf_to_ebnf(ast);
-
-				return ast;
+				return ebnf_ast;
 			}
 
-			terminal create_terminal(const std::string& rule)
+			terminal create_terminal()
 			{
-				terminal token = generate_terminal();
-				token_rules.insert({ token, rule });
-				return token;
+				return generate_terminal();
 			}
 
 			non_terminal create_non_terminal()
@@ -326,22 +368,21 @@ namespace language
 
 			parser& create_rule(rule_stub r)
 			{
-				rules.push_back(rule{ r.first, r.second, [&](non_terminal p) { return generate_child_non_terminal(p); } });
+				rules.push_back(rule{ r.first, r.second, [&](non_terminal p, child_type type) { return generate_child_non_terminal(p, type); } });
 				return *this;
 			}
 
-			const terminal end_of_input = bnf::end_of_input;
-			const terminal epsilon = bnf::epsilon;
-
-			std::unordered_map<lexing::token_id, std::string> token_rules;
 		private:
 			std::vector<rule> rules;
 
+			std::set<terminal> ebnf_terminals;
 			std::set<non_terminal> ebnf_non_terminals;
-			std::unordered_map<non_terminal, non_terminal> nt_child_parents;
+
+			std::unordered_map<non_terminal, std::pair<non_terminal, child_type>> nt_child_parents;
 
 			terminal generate_terminal()
 			{
+				ebnf_terminals.insert(t_generator);
 				return t_generator++;
 			}
 
@@ -351,9 +392,9 @@ namespace language
 				return nt_generator++;
 			}
 
-			non_terminal generate_child_non_terminal(non_terminal parent)
+			non_terminal generate_child_non_terminal(non_terminal parent, child_type type)
 			{
-				nt_child_parents.insert({ nt_generator, parent });
+				nt_child_parents.insert({ nt_generator, { parent, type } });
 				return nt_generator++;
 			}
 

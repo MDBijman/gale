@@ -20,26 +20,14 @@ namespace lexing
 	using lexer_position = std::string::const_iterator;
 	using lexer_range = std::pair<lexer_position, lexer_position>;
 
-	/*
-	* \brief A pair of <token name, regex string>
-	*/
-	using token_definitions = std::unordered_map<token_id, std::string>;
+	struct token
+	{
+		token_id value;
+		std::string_view string;
+	};
 
 	struct rules
 	{
-		rules(const token_definitions& rules) : token_definitions(rules)
-		{
-			std::string regex_string;
-			int subgroup = 0;
-			for (auto& rule : rules)
-			{
-				regex_group_to_token_id.insert({ subgroup++, rule.first });
-				regex_string.append("(").append(rule.second).append(")").append("|");
-			}
-			regex_string.pop_back();
-			regex_object = std::regex{regex_string.c_str()};
-		}
-
 		token_id match(lexer_range& range) const
 		{
 			std::smatch match;
@@ -52,9 +40,41 @@ namespace lexing
 			return -1;
 		}
 
+		token_id create_token(std::string regex_rule)
+		{
+			token_definitions.insert({ token_generator, regex_rule });
+			return token_generator++;
+		}
+
+		void compile()
+		{
+			regex_group_to_token_id.clear();
+
+			std::string regex_string;
+			int subgroup = 0;
+			for (auto& rule : token_definitions)
+			{
+				regex_group_to_token_id.insert({ subgroup++, rule.first });
+				regex_string.append("(").append(rule.second).append(")").append("|");
+			}
+			regex_string.pop_back();
+			regex_object = std::regex{ regex_string.c_str() };
+		}
+
+		rules& operator=(const rules& other)
+		{
+			token_definitions = other.token_definitions;
+			token_generator = other.token_generator;
+
+			compile();
+			return *this;
+		}
+
 	private:
+		token_id token_generator = 1;
+
 		std::unordered_map<size_t, token_id> regex_group_to_token_id;
-		const token_definitions token_definitions;
+		std::unordered_map<token_id, std::string> token_definitions;
 
 		std::regex regex_object;
 	};
@@ -79,12 +99,12 @@ namespace lexing
 
 		// Takes a string (e.g. file contents) and returns a token vector or an error code
 		std::variant<
-			std::vector<token_id>,
+			std::vector<token>,
 			error
 		> parse(const std::string& input_string)
 		{
-			std::vector<token_id> result;
-			lexer_range range{input_string.begin(), input_string.end()};
+			std::vector<token> result;
+			lexer_range range{ input_string.begin(), input_string.end() };
 
 			while (range.first != range.second)
 			{
@@ -94,17 +114,20 @@ namespace lexing
 					if (range.first == range.second) return result;
 				}
 
+				auto range_copy{ range };
 				auto id = rules.match(range);
 
-				if (id == -1) 
+				if (id == -1)
 					return error{ error_code::UNRECOGNIZED_SYMBOL, "Unrecognized symbol starting with: " + *range.first };
 
-				result.push_back(id);
+				auto token_size = std::distance(range_copy.first, range.first);
+				std::string_view tokenized(&*range_copy.first, token_size);
+				result.push_back(token{ id, tokenized });
 			}
 
 			return result;
 		}
 
-		const rules rules;
+		rules rules;
 	};
 }
