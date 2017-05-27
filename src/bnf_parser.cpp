@@ -27,8 +27,6 @@ namespace language
 				{
 					if (input_token == top->value.get_terminal())
 					{
-						std::cout << "Matching: " << (int)input_token << std::endl;
-
 						top->children.push_back(new node(input_token));
 						it++;
 						stack.pop();
