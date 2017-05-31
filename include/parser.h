@@ -55,6 +55,8 @@ namespace language
 				print_keyword = ebnfe_parser.new_terminal();
 				semicolon = ebnfe_parser.new_terminal();
 
+
+
 				mapper.add_mapping(assignment_token, equals);
 				mapper.add_mapping(word_token, [](lexing::token token) {
 					if (token.string == "print")

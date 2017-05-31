@@ -43,60 +43,93 @@ namespace language
 			OPTIONAL
 		};
 
-		class node
+		struct terminal_node
 		{
-		public:
-			node(bnf::node* bnf_tree, std::unordered_map<non_terminal, std::pair<non_terminal, child_type>>& rule_inheritance) : value(bnf_tree->value)
+			terminal_node(bnf::terminal_node* bnf_node) : value(bnf_node->value)
 			{
-				for (auto child : bnf_tree->children)
-					children.push_back(new node(child, rule_inheritance));
+			}
+			terminal value;
+		};
 
-				// Transform to ebnf
-				std::vector<node*> new_children;
-
-				auto it = children.begin();
-				while (it != children.end())
+		struct non_terminal_node
+		{
+			non_terminal_node(bnf::non_terminal_node* bnf_tree, std::unordered_map<non_terminal, std::pair<non_terminal, child_type>>& rule_inheritance) : value(bnf_tree->value)
+			{		
+				for (auto& child : bnf_tree->children)
 				{
-					auto child = *it;
-					
-					// If the rule is not part of the original ebnf, we must transform it
-					if (!child->value.is_terminal() && (rule_inheritance.find(child->value.get_non_terminal()) != rule_inheritance.end()))
+					if (std::holds_alternative<bnf::non_terminal_node>(*child))
 					{
-						auto parent_and_type = rule_inheritance.at(child->value.get_non_terminal());
-						auto type = parent_and_type.second;
-						// If it is a repetition or an optional, we should copy it's children, unless it is empty (i.e. has epsilon)
-						if ((child->children.size() == 1) && (child->children.at(0)->value == epsilon))
-						{
-							// Skip this branch							
-						}
-						else
-						{
-							// Move children up
-							std::move(child->children.begin(), child->children.end(), std::back_inserter(new_children));
-						}
-						
-						it = children.erase(it);
+						auto& child_node = std::get<bnf::non_terminal_node>(*child);
+						children.push_back(new node(non_terminal_node(&child_node, rule_inheritance)));
 					}
-					// Else the rule should be part of the new children as is
 					else
 					{
-						new_children.push_back(*it);
-						it++;
+						auto& child_node = std::get<bnf::terminal_node>(*child);
+						children.push_back(new node(terminal_node(&child_node)));
 					}
 				}
-
-				children = new_children;
+				
 			}
 
-			virtual ~node()
-			{
-				for (auto child : children)
-					delete child;
-			}
-
-			std::vector<node*> children;
-			symbol value;
+			std::vector<std::variant<terminal_node, non_terminal_node>*> children;
+			non_terminal value;
 		};
+
+		using node = std::variant<terminal_node, non_terminal_node>;
+
+		//class node
+		//{
+		//public:
+		//	node(bnf::node* bnf_tree, std::unordered_map<non_terminal, std::pair<non_terminal, child_type>>& rule_inheritance)
+		//	{
+		//		// Transform to ebnf
+		//		std::vector<node*> new_children;
+
+		//		auto it = children.begin();
+		//		while (it != children.end())
+		//		{
+		//			auto child = *it;
+		//			
+		//			// If the rule is not part of the original ebnf, we must transform it
+		//			if (!child->value.is_terminal() && (rule_inheritance.find(child->value.get_non_terminal()) != rule_inheritance.end()))
+		//			{
+		//				auto parent_and_type = rule_inheritance.at(child->value.get_non_terminal());
+		//				auto type = parent_and_type.second;
+		//				// If it is a repetition or an optional, we should copy it's children, unless it is empty (i.e. has epsilon)
+		//				if ((child->children.size() == 1) && (child->children.at(0)->value == epsilon))
+		//				{
+		//					// Skip this branch							
+		//				}
+		//				else
+		//				{
+		//					// Move children up
+		//					std::move(child->children.begin(), child->children.end(), std::back_inserter(new_children));
+		//				}
+		//				
+		//				it = children.erase(it);
+		//			}
+		//			// Else the rule should be part of the new children as is
+		//			else
+		//			{
+		//				new_children.push_back(*it);
+		//				it++;
+		//			}
+		//		}
+
+		//		children = new_children;
+		//	}
+
+		//	virtual ~node()
+		//	{
+		//		for (auto child : children)
+		//			delete child;
+		//	}
+
+		//	std::vector<node*> children;
+		//	symbol value;
+		//};
+
+
 
 		struct rule
 		{

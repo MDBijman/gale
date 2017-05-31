@@ -2,6 +2,7 @@
 #include "lexer.h"
 #include <stack>
 
+
 namespace language
 {
 	namespace bnf
@@ -87,18 +88,22 @@ namespace language
 			std::variant<terminal, non_terminal> value;
 		};
 
-		struct node
-		{
-			node(symbol s) : value(s) {}
-			virtual ~node() 
-			{
-				for (auto child : children)
-					delete child;
-			}
 
-			std::vector<node*> children;
-			symbol value;
+		struct terminal_node
+		{
+			terminal_node(terminal s, const std::string& t) : value(s), token(t) {}
+			terminal value;
+			std::string token;
 		};
+
+		struct non_terminal_node
+		{
+			non_terminal_node(non_terminal s) : value(s) {}
+			non_terminal value;
+			std::vector<std::variant<terminal_node, non_terminal_node>*> children;
+		};
+
+		using node = std::variant<terminal_node, non_terminal_node>;
 
 		struct rule
 		{
