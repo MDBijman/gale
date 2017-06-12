@@ -1,9 +1,10 @@
 #pragma once
 #include "lexer.h"
 #include <stack>
+#include <memory>
 
 
-namespace language
+namespace tools
 {
 	namespace bnf
 	{
@@ -88,7 +89,6 @@ namespace language
 			std::variant<terminal, non_terminal> value;
 		};
 
-
 		struct terminal_node
 		{
 			terminal_node(terminal s, const std::string& t) : value(s), token(t) {}
@@ -100,7 +100,7 @@ namespace language
 		{
 			non_terminal_node(non_terminal s) : value(s) {}
 			non_terminal value;
-			std::vector<std::variant<terminal_node, non_terminal_node>*> children;
+			std::vector<std::unique_ptr<std::variant<terminal_node, non_terminal_node>>> children;
 		};
 
 		using node = std::variant<terminal_node, non_terminal_node>;
@@ -124,7 +124,10 @@ namespace language
 				rules = std::move(other.rules);
 			}
 
-			std::variant<node*, error> parse(non_terminal begin_symbol, std::vector<terminal> input) const;
+			/*
+			* \brief Returns a parse tree (concrete syntax tree) describing the input.
+			*/
+			std::variant<std::unique_ptr<node>, error> parse(non_terminal begin_symbol, std::vector<terminal> input) const;
 
 			std::variant<const std::vector<symbol>*, error> match(non_terminal symbol, terminal input_token) const
 			{
@@ -145,7 +148,7 @@ namespace language
 				return &rule_location->second;
 			}
 
-			parser& add_rule(const rule& r)
+			parser& new_rule(const rule& r)
 			{
 				rules.insert({ r.lhs, r.rhs });
 				return *this;

@@ -2,16 +2,16 @@
 #include <stack>
 #include <variant>
 
-namespace language 
+namespace tools 
 {
 	namespace bnf
 	{
-		std::variant<node*, error> parser::parse(non_terminal begin_symbol, std::vector<terminal> input) const
+		std::variant<std::unique_ptr<node>, error> parser::parse(non_terminal begin_symbol, std::vector<terminal> input) const
 		{
 			input.push_back(end_of_input);
 			std::stack<node*> stack;
-			auto root = new node(non_terminal_node(begin_symbol));
-			stack.push(root);
+			auto root = std::make_unique<node>(non_terminal_node(begin_symbol));
+			stack.push(root.get());
 
 			auto it = input.begin();
 			while (!stack.empty())
@@ -29,6 +29,7 @@ namespace language
 
 					if (input_token == value)
 					{
+						//std::get<terminal_node>(*top).token = input_token;
 						//top->children.push_back(new node(input_token));
 						it++;
 						stack.pop();
@@ -38,7 +39,9 @@ namespace language
 						stack.pop();
 					}
 					else
-						return error{ error_code::TERMINAL_MISMATCH, std::string("Got: ").append(std::to_string((int)input_token)).append(" Expected: ").append(std::to_string((int)top->value.get_terminal())) };
+					{
+						return error{ error_code::TERMINAL_MISMATCH, std::string("Got: ").append(std::to_string((int)input_token)).append(" Expected: ").append(std::to_string((int)value)) };
+					}
 				}
 				else
 				{
@@ -55,20 +58,18 @@ namespace language
 					// Push the symbols onto the stack
 					for (auto rule_it = rule_rhs->rbegin(); rule_it != rule_rhs->rend(); rule_it++)
 					{
-						node* new_symbol;
+						std::unique_ptr<node> new_symbol;
 						if ((*rule_it).is_terminal())
-							new_symbol = new node(terminal_node(rule_it->get_terminal(), ""));
+							new_symbol = std::make_unique<node>(terminal_node(rule_it->get_terminal(), ""));
 						else
-							new_symbol = new node(non_terminal_node(rule_it->get_non_terminal()));
-						nt.children.insert(nt.children.begin(), new_symbol);
-						stack.push(new_symbol);
+							new_symbol = std::make_unique<node>(non_terminal_node(rule_it->get_non_terminal()));
+						stack.push(new_symbol.get());
+						nt.children.insert(nt.children.begin(), std::move(new_symbol));
 					}
 				}
 			}
 
 			return root;
 		}
-
-	
 	}
 }

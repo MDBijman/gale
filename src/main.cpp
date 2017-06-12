@@ -1,26 +1,17 @@
-#include "parser.h"
-#include "desugarer.h"
-#include "interpreter.h"
+#include "pipeline.h"
+#include "ebnfe_parser.h"
+
+#include "lexer_stage.h"
+#include "lexer_to_parser_stage.h"
+#include "parser_stage.h"
+#include "lowering_stage.h"
+#include "interpreting_stage.h"
 
 #include <stdio.h>
 #include <functional>
 #include <algorithm>
 #include <fstream>
 #include <iostream>
-
-
-std::function<void(int, language::ebnfe::node*)> print_ast = [&](int indentation, language::ebnfe::node* node) {
-	for (int i = 0; i < indentation; i++)
-		std::cout << "\t";
-	if (node->value.is_terminal())
-		std::cout << node->value.get_terminal() << std::endl;
-	else
-	{
-		std::cout << node->value.get_non_terminal() << std::endl;
-		for (auto child : node->children)
-			print_ast(indentation + 1, child);
-	}
-};
 
 int main()
 {
@@ -34,23 +25,27 @@ int main()
 	in.seekg(0, std::ios::beg);
 	in.read(&contents[0], contents.size());
 	in.close();
-	std::string_view contents_view = contents;
 
-	language::fe::parser parser;
-	auto parsed_ast = parser.parse(contents);
+	fe::pipeline p;
 
-	std::cout << "Parsed AST" << std::endl;
-	print_ast(0, parsed_ast);
+	{
+		auto lexing_stage = new fe::lexing_stage{};
+		auto parsing_stage = new fe::parsing_stage{};
+		auto lexer_to_parser_stage = new fe::lexer_to_parser_stage{};
+		auto lowering_stage = new fe::lowering_stage{};
+		auto interpreting_stage = new fe::interpreting_stage{};
 
-	language::fe::desugarer desugarer;
-	auto desugared_ast = desugarer.desugar(parsed_ast);
+		p
+			.lexer(lexing_stage)
+			.lexer_to_parser(lexer_to_parser_stage)
+			.parser(std::move(parsing_stage))
+			.lowerer(lowering_stage)
+			.interpreter(interpreting_stage);
+	}
 
-	std::cout << "Desugared AST" << std::endl;
-	print_ast(0, parsed_ast);
 
-	language::fe::interpreter interpreter;
-	std::cout << "Program Output" << std::endl;
-	interpreter.interp(desugared_ast);
-	
+	fe::value* result = p.process(std::move(contents));
+	result->print();
+
 	std::cin.get();
 }

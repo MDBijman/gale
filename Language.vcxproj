@@ -128,12 +128,17 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\bnf_parser.h" />
-    <ClInclude Include="include\desugarer.h" />
+    <ClInclude Include="include\lowering_stage.h" />
     <ClInclude Include="include\ebnfe_parser.h" />
     <ClInclude Include="include\ebnf_parser.h" />
-    <ClInclude Include="include\interpreter.h" />
-    <ClInclude Include="include\parser.h" />
+    <ClInclude Include="include\interpreting_stage.h" />
+    <ClInclude Include="include\language.h" />
+    <ClInclude Include="include\lexer_to_parser_stage.h" />
+    <ClInclude Include="include\pipeline.h" />
+    <ClInclude Include="include\lexer_stage.h" />
+    <ClInclude Include="include\parser_stage.h" />
     <ClInclude Include="include\lexer.h" />
+    <ClInclude Include="include\registry.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="snippets\identifier.ebnfe" />

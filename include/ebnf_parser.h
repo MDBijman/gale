@@ -1,9 +1,11 @@
 #pragma once
 #include "bnf_parser.h"
 #include <functional>
+#include <memory>
 #include <set>
+#include <variant>
 
-namespace language
+namespace tools
 {
 	namespace ebnf
 	{
@@ -13,18 +15,6 @@ namespace language
 
 		constexpr terminal end_of_input = bnf::end_of_input;
 		constexpr terminal epsilon = bnf::epsilon;
-
-		namespace meta {
-			enum meta_char {
-				alt,
-				lsb,
-				rsb,
-				lrb,
-				rrb,
-				star
-			};
-		}
-		using namespace meta;
 
 		enum class error_code
 		{
@@ -36,6 +26,19 @@ namespace language
 			error_code type;
 			std::string message;
 		};
+
+		namespace meta {
+			enum meta_char {
+				alt,
+				lsb,
+				rsb,
+				lrb,
+				rrb,
+				star
+			};
+		}
+
+		using namespace meta;
 
 		enum class child_type {
 			REPETITION,
@@ -54,82 +57,69 @@ namespace language
 		struct non_terminal_node
 		{
 			non_terminal_node(bnf::non_terminal_node* bnf_tree, std::unordered_map<non_terminal, std::pair<non_terminal, child_type>>& rule_inheritance) : value(bnf_tree->value)
-			{		
+			{
 				for (auto& child : bnf_tree->children)
 				{
 					if (std::holds_alternative<bnf::non_terminal_node>(*child))
 					{
 						auto& child_node = std::get<bnf::non_terminal_node>(*child);
-						children.push_back(new node(non_terminal_node(&child_node, rule_inheritance)));
+						children.push_back(std::make_unique<std::variant<terminal_node, non_terminal_node>>(non_terminal_node(&child_node, rule_inheritance)));
 					}
 					else
 					{
 						auto& child_node = std::get<bnf::terminal_node>(*child);
-						children.push_back(new node(terminal_node(&child_node)));
+						children.push_back(std::make_unique<std::variant<terminal_node, non_terminal_node>>(terminal_node(&child_node)));
 					}
 				}
-				
+
+
+				decltype(children) new_children;
+
+				auto it = children.begin();
+				while (it != children.end())
+				{
+					auto child = it->get();
+
+					if (std::holds_alternative<non_terminal_node>(*child) && (rule_inheritance.find(std::get<non_terminal_node>(*child).value) != rule_inheritance.end()))
+					{
+						auto& child_node = std::get<non_terminal_node>(*child);
+						auto& inheritance_rule = rule_inheritance.at(child_node.value);
+
+						switch (inheritance_rule.second)
+						{
+						case child_type::GROUP:
+							std::move(child_node.children.begin(), child_node.children.end(), std::back_inserter(new_children));
+							it = children.erase(it);
+							break;
+						case child_type::REPETITION:
+						case child_type::OPTIONAL:
+							// If repeated 0 times, skip
+							if (child_node.children.size() == 1 && std::holds_alternative<terminal_node>(*child_node.children.at(0)) && (std::get<terminal_node>(*child_node.children.at(0)).value == epsilon))
+							{
+								it++;
+							}
+							else
+							{
+								std::move(child_node.children.begin(), child_node.children.end(), std::back_inserter(new_children));
+								it = children.erase(it);
+							}
+							break;
+						}
+					}
+					else
+					{
+						new_children.push_back(std::move(*it));
+						it++;
+					}
+				}
+				children = std::move(new_children);
 			}
 
-			std::vector<std::variant<terminal_node, non_terminal_node>*> children;
+			std::vector<std::unique_ptr<std::variant<terminal_node, non_terminal_node>>> children;
 			non_terminal value;
 		};
 
 		using node = std::variant<terminal_node, non_terminal_node>;
-
-		//class node
-		//{
-		//public:
-		//	node(bnf::node* bnf_tree, std::unordered_map<non_terminal, std::pair<non_terminal, child_type>>& rule_inheritance)
-		//	{
-		//		// Transform to ebnf
-		//		std::vector<node*> new_children;
-
-		//		auto it = children.begin();
-		//		while (it != children.end())
-		//		{
-		//			auto child = *it;
-		//			
-		//			// If the rule is not part of the original ebnf, we must transform it
-		//			if (!child->value.is_terminal() && (rule_inheritance.find(child->value.get_non_terminal()) != rule_inheritance.end()))
-		//			{
-		//				auto parent_and_type = rule_inheritance.at(child->value.get_non_terminal());
-		//				auto type = parent_and_type.second;
-		//				// If it is a repetition or an optional, we should copy it's children, unless it is empty (i.e. has epsilon)
-		//				if ((child->children.size() == 1) && (child->children.at(0)->value == epsilon))
-		//				{
-		//					// Skip this branch							
-		//				}
-		//				else
-		//				{
-		//					// Move children up
-		//					std::move(child->children.begin(), child->children.end(), std::back_inserter(new_children));
-		//				}
-		//				
-		//				it = children.erase(it);
-		//			}
-		//			// Else the rule should be part of the new children as is
-		//			else
-		//			{
-		//				new_children.push_back(*it);
-		//				it++;
-		//			}
-		//		}
-
-		//		children = new_children;
-		//	}
-
-		//	virtual ~node()
-		//	{
-		//		for (auto child : children)
-		//			delete child;
-		//	}
-
-		//	std::vector<node*> children;
-		//	symbol value;
-		//};
-
-
 
 		struct rule
 		{
@@ -151,6 +141,7 @@ namespace language
 				});
 			}
 
+			// TODO simplify and DRY
 			std::vector<bnf::rule> to_bnf(std::function<non_terminal(non_terminal, child_type)> nt_generator) const
 			{
 				// Turns a nested vector into single vector
@@ -361,19 +352,31 @@ namespace language
 		public:
 			parser() {}
 
-			std::variant<node*, error> parse(non_terminal init, std::vector<terminal> input) 
+			std::variant<std::unique_ptr<node>, error> parse(non_terminal init, std::vector<terminal> input)
 			{
 				auto ast_or_error = bnf_parser.parse(init, input);
 
+				// Handle error of bnf parser
 				if (std::holds_alternative<bnf::error>(ast_or_error))
 					return error{ error_code::BNF_ERROR, std::get<bnf::error>(ast_or_error).message };
 
-				auto ast = std::get<bnf::node*>(ast_or_error);
+				auto& ast = std::get<std::unique_ptr<bnf::node>>(ast_or_error);
 
 				// Convert from bnf to ebnf
-				auto ebnf_ast = new node{ ast, nt_child_parents };
+				if (std::holds_alternative<bnf::terminal_node>(*ast))
+					return std::make_unique<node>(terminal_node{ &std::get<bnf::terminal_node>(*ast) });
+				else if (std::holds_alternative<bnf::non_terminal_node>(*ast))
+					return std::make_unique<node>(non_terminal_node{ &std::get<bnf::non_terminal_node>(*ast), nt_child_parents });
+			}
 
-				return ebnf_ast;
+			parser& new_rule(rule r)
+			{
+				auto bnf_rules = r.to_bnf([&](non_terminal p, child_type type) { return generate_child_non_terminal(p, type); });
+				for (auto& bnf_rule : bnf_rules)
+				{
+					bnf_parser.new_rule({ bnf_rule.lhs, bnf_rule.rhs });
+				}
+				return *this;
 			}
 
 			terminal new_terminal()
@@ -386,21 +389,11 @@ namespace language
 				return bnf_parser.new_non_terminal();
 			}
 
-			parser& create_rule(rule r)
-			{
-				auto bnf_rules = r.to_bnf([&](non_terminal p, child_type type) { return generate_child_non_terminal(p, type); });
-				for (auto& bnf_rule : bnf_rules)
-				{
-					bnf_parser.add_rule({ bnf_rule.lhs, bnf_rule.rhs });
-				}
-				return *this;
-			}
-
 		private:
 			bnf::parser bnf_parser;
 
 			std::unordered_map<non_terminal, std::pair<non_terminal, child_type>> nt_child_parents;
-			
+
 			non_terminal generate_child_non_terminal(non_terminal parent, child_type type)
 			{
 				auto nt = bnf_parser.new_non_terminal();
