@@ -14,5 +14,5 @@ namespace fe
 	tools::lexing::token_id
 		assignment_token, word_token, number_token, semicolon_token;
 
-	using pipeline = language::pipeline<tools::lexing::token, tools::ebnfe::terminal, std::unique_ptr<tools::ebnfe::node>, std::unique_ptr<tools::ebnfe::node>, fe::value*>;
+	using pipeline = language::pipeline<tools::lexing::token, tools::bnf::terminal_node, std::unique_ptr<tools::ebnfe::node>, std::unique_ptr<tools::ebnfe::node>, fe::value*>;
 }

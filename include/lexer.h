@@ -25,7 +25,7 @@ namespace tools
 		struct token
 		{
 			token_id value;
-			std::string_view string;
+			std::string text;
 		};
 
 		struct rules
@@ -124,7 +124,7 @@ namespace tools
 
 					auto token_size = std::distance(range_copy.first, range.first);
 					std::string_view tokenized(&*range_copy.first, token_size);
-					result.push_back(token{ id, tokenized });
+					result.push_back(token{ id, std::string(tokenized) });
 				}
 
 				return result;

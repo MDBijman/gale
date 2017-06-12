@@ -48,9 +48,9 @@ namespace tools
 
 		struct terminal_node
 		{
-			terminal_node(bnf::terminal_node* bnf_node) : value(bnf_node->value)
-			{
-			}
+			terminal_node(bnf::terminal_node* bnf_node) : value(bnf_node->value), token(bnf_node->token) {}
+
+			std::string token;
 			terminal value;
 		};
 
@@ -352,7 +352,7 @@ namespace tools
 		public:
 			parser() {}
 
-			std::variant<std::unique_ptr<node>, error> parse(non_terminal init, std::vector<terminal> input)
+			std::variant<std::unique_ptr<node>, error> parse(non_terminal init, std::vector<bnf::terminal_node> input)
 			{
 				auto ast_or_error = bnf_parser.parse(init, input);
 

@@ -127,7 +127,7 @@ namespace tools
 			/*
 			* \brief Returns a parse tree (concrete syntax tree) describing the input.
 			*/
-			std::variant<std::unique_ptr<node>, error> parse(non_terminal begin_symbol, std::vector<terminal> input) const;
+			std::variant<std::unique_ptr<node>, error> parse(non_terminal begin_symbol, std::vector<terminal_node> input) const;
 
 			std::variant<const std::vector<symbol>*, error> match(non_terminal symbol, terminal input_token) const
 			{

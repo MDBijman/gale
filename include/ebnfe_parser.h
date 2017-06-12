@@ -36,10 +36,11 @@ namespace tools
 
 		struct terminal_node
 		{
-			terminal_node(ebnf::terminal_node* ebnf_tree) : value(ebnf_tree->value)
+			terminal_node(ebnf::terminal_node* ebnf_tree) : value(ebnf_tree->value), token(ebnf_tree->token)
 			{
 			}
 
+			std::string token;
 			terminal value;
 		};
 
@@ -134,7 +135,7 @@ namespace tools
 		public:
 			parser() {}
 
-			std::variant<std::unique_ptr<node>, error> parse(non_terminal init, std::vector<terminal> input)
+			std::variant<std::unique_ptr<node>, error> parse(non_terminal init, std::vector<bnf::terminal_node> input)
 			{
 				auto ebnf_results = ebnf_parser.parse(init, input);
 				if (std::holds_alternative<ebnf::error>(ebnf_results))

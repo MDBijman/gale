@@ -43,8 +43,8 @@ namespace language
 			std::vector<TokenType> tokens = lexing_stage->lex(file);
 			std::vector<TerminalType> converted_tokens = lexer_to_parser_stage->convert(tokens);
 			ExtendedAstType ast = std::move(parsing_stage->parse(converted_tokens));
-			CoreAstType desugared_ast = std::move(lowering_stage->lower(std::move(ast)));
-			return interpreting_stage->interpret(std::move(desugared_ast));
+			CoreAstType lowered_ast = std::move(lowering_stage->lower(std::move(ast)));
+			return interpreting_stage->interpret(std::move(lowered_ast));
 		}
 
 		pipeline& lexer(lexing_stage<TokenType>* lex)
@@ -65,9 +65,9 @@ namespace language
 			return *this;
 		}
 
-		pipeline& lowerer(lowering_stage<ExtendedAstType, CoreAstType>* desugar)
+		pipeline& lowerer(lowering_stage<ExtendedAstType, CoreAstType>* lower)
 		{
-			lowering_stage = desugar;
+			lowering_stage = lower;
 			return *this;
 		}
 

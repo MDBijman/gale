@@ -31,6 +31,8 @@ int main()
 	{
 		auto lexing_stage = new fe::lexing_stage{};
 		auto parsing_stage = new fe::parsing_stage{};
+		// LtP stage initialization has a dependency on the values of the language terminals
+		// These are initialized in the parsing stage initialization
 		auto lexer_to_parser_stage = new fe::lexer_to_parser_stage{};
 		auto lowering_stage = new fe::lowering_stage{};
 		auto interpreting_stage = new fe::interpreting_stage{};
