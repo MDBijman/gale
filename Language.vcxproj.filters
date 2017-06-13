@@ -81,6 +81,9 @@
     <ClInclude Include="include\interpreting_stage.h">
       <Filter>Source Files\fe</Filter>
     </ClInclude>
+    <ClInclude Include="include\parsing_to_lowering_stage.h">
+      <Filter>Source Files\fe</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="snippets\language.ebnfe">

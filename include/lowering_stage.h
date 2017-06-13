@@ -4,10 +4,10 @@
 
 namespace fe
 {
-	class lowering_stage : public language::lowering_stage<std::unique_ptr<tools::ebnfe::node>, std::unique_ptr<tools::ebnfe::node>>
+	class lowering_stage : public language::lowering_stage<std::unique_ptr<fe::ast::node>, std::unique_ptr<fe::ast::node>>
 	{
 	public:
-		std::unique_ptr<tools::ebnfe::node> lower(std::unique_ptr<tools::ebnfe::node> n)
+		std::unique_ptr<fe::ast::node> lower(std::unique_ptr<fe::ast::node> n)
 		{
 			return n;
 		}

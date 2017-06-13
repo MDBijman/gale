@@ -37,67 +37,56 @@ namespace fe
 			values.insert_or_assign(name, value);
 		}
 
+		value* get(const std::string& name)
+		{
+			return values.at(name);
+		}
+
+	private:
 		std::unordered_map<std::string, value*> values;
 	};
 
-	class interpreting_stage : public language::interpreting_stage<std::unique_ptr<tools::ebnfe::node>, value*>
+	class interpreting_stage : public language::interpreting_stage<std::unique_ptr<fe::ast::node>, value*>
 	{
 	public:
-		value* interpret(std::unique_ptr<tools::ebnfe::node> ast)
+		value* interpret(std::unique_ptr<fe::ast::node> ast)
 		{
 			return interpret(ast.get(), new environment());
 		}
 
-		value* interpret(tools::ebnfe::node* ast, environment* env)
+		value* interpret(fe::ast::node* ast, environment* env)
 		{
-			using namespace fe;
-			if (std::holds_alternative<tools::ebnfe::terminal_node>(*ast))
+			if (ast::assignment* assignment = dynamic_cast<ast::assignment*>(ast))
 			{
-				auto terminal_node = std::get<tools::ebnfe::terminal_node>(*ast);
-				auto terminal = terminal_node.value;
-
-				if (terminal == number)
+				env->set(assignment->id.name, interpret(assignment->value.get(), env));
+				return new void_value();
+			}
+			else if (ast::file* file = dynamic_cast<ast::file*>(ast))
+			{
+				for (auto& line : file->children) interpret(line.get(), env);
+				return new void_value();
+			}
+			else if (ast::function_call* call = dynamic_cast<ast::function_call*>(ast))
+			{
+				if (call->id.name == "print")
 				{
-					return new numeric_value{ 0 };
-				}
-				else if (terminal == identifier)
-				{
-					return env->values.at("a");
+					interpret(call->params.at(0).get(), env)->print();
 				}
 				else
 				{
-					throw std::runtime_error("Unknown terminal");
+					throw std::runtime_error("unknown function");
 				}
+				return new void_value();
 			}
-			else
+			else if (ast::identifier* id = dynamic_cast<ast::identifier*>(ast))
 			{
-				auto non_terminal = std::get<tools::ebnfe::non_terminal_node>(*ast).value;
-
-				if (non_terminal == file)
-				{
-					for (auto& line : std::get<tools::ebnfe::non_terminal_node>(*ast).children)
-					{
-						interpret(line.get(), env);
-					}
-					return new void_value();
-				}
-				else if (non_terminal == print)
-				{
-					auto value = interpret(std::get<tools::ebnfe::non_terminal_node>(*ast).children.at(0).get(), env);
-					value->print();
-					return new void_value();
-				}
-				else if (non_terminal == assignment)
-				{
-					env->set("a", new numeric_value(1));
-					return new void_value();
-				}
-				else
-				{
-					throw std::runtime_error("Unknown non-terminal");
-				}
+				return env->get(id->name);
 			}
-			return nullptr;
+			else if (ast::number* num = dynamic_cast<ast::number*>(ast))
+			{
+				return new numeric_value(num->value);
+			}
+			throw std::runtime_error("Unknown AST node");
 		}
 	};
 }
