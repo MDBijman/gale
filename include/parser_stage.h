@@ -15,6 +15,7 @@ namespace fe
 			statement = parser.new_non_terminal();
 			assignment = parser.new_non_terminal();
 			print = parser.new_non_terminal();
+			expression = parser.new_non_terminal();
 
 			equals = parser.new_terminal();
 			identifier = parser.new_terminal();
@@ -24,8 +25,9 @@ namespace fe
 
 			using namespace tools::ebnf::meta;
 			parser
-				.new_rule({ assignment, { identifier, equals, number } })
-				.new_rule({ print, { print_keyword, identifier } })
+				.new_rule({ expression, { number, alt, identifier } })
+				.new_rule({ assignment, { identifier, equals, expression } })
+				.new_rule({ print, { print_keyword, expression } })
 				.new_rule({ statement, { assignment, semicolon, alt, print, semicolon } })
 				.new_rule({ file, { statement, star } });
 

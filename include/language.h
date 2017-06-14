@@ -6,7 +6,7 @@ namespace fe
 	struct value;
 
 	tools::ebnfe::non_terminal
-		file, statement, assignment, print;
+		file, statement, assignment, print, expression;
 
 	tools::ebnfe::terminal
 		equals, identifier, number, print_keyword, semicolon;

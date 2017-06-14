@@ -39,9 +39,15 @@ namespace fe
 					auto identifier = ast::identifier("print");
 
 					std::vector<std::unique_ptr<ast::node>> parameters;
-					parameters.push_back(std::make_unique<ast::identifier>(std::get<tools::ebnfe::terminal_node>(*nt_node.children.at(0)).token));
+					std::transform(nt_node.children.begin(), nt_node.children.end(), std::back_inserter(parameters), [&](auto&& x) {
+						return convert(std::move(x));
+					});
 
 					return std::make_unique<ast::function_call>(identifier, std::move(parameters));
+				}
+				else if (nt_node.value == expression)
+				{
+					return convert(std::move(nt_node.children.at(0)));
 				}
 			}
 			else if (std::holds_alternative<tools::ebnfe::terminal_node>(*node))
