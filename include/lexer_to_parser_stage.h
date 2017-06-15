@@ -21,6 +21,8 @@ namespace fe
 			});
 			add_mapping(number_token, number);
 			add_mapping(semicolon_token, semicolon);
+			add_mapping(lcb_token, lcb);
+			add_mapping(rcb_token, rcb);
 		}
 
 		std::vector<tools::bnf::terminal_node> convert(const std::vector<tools::lexing::token>& in)

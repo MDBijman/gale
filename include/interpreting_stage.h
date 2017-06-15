@@ -32,39 +32,40 @@ namespace fe
 
 	struct environment
 	{
-		void set(const std::string& name, value* value)
+		void set(const std::string& name, std::shared_ptr<value> value)
 		{
 			values.insert_or_assign(name, value);
 		}
 
-		value* get(const std::string& name)
+		std::shared_ptr<value> get(const std::string& name)
 		{
 			return values.at(name);
 		}
 
 	private:
-		std::unordered_map<std::string, value*> values;
+		std::unordered_map<std::string, std::shared_ptr<value>> values;
 	};
 
-	class interpreting_stage : public language::interpreting_stage<std::unique_ptr<fe::ast::node>, value*>
+	class interpreting_stage : public language::interpreting_stage<std::unique_ptr<fe::ast::node>, std::shared_ptr<value>>
 	{
 	public:
-		value* interpret(std::unique_ptr<fe::ast::node> ast)
+		std::shared_ptr<value> interpret(std::unique_ptr<fe::ast::node> ast)
 		{
-			return interpret(ast.get(), new environment());
+			return std::move(interpret(ast.get(), new environment()));
 		}
 
-		value* interpret(fe::ast::node* ast, environment* env)
+		std::shared_ptr<value> interpret(fe::ast::node* ast, environment* env)
 		{
 			if (ast::assignment* assignment = dynamic_cast<ast::assignment*>(ast))
 			{
-				env->set(assignment->id.name, interpret(assignment->value.get(), env));
-				return new void_value();
+				env->set(assignment->id.name, std::move(interpret(assignment->value.get(), env)));
+				return std::make_shared<void_value>();
 			}
-			else if (ast::file* file = dynamic_cast<ast::file*>(ast))
+			else if (ast::node_list* list = dynamic_cast<ast::node_list*>(ast))
 			{
-				for (auto& line : file->children) interpret(line.get(), env);
-				return new void_value();
+				std::shared_ptr<value> res;
+				for (auto& line : list->children) res = std::move(interpret(line.get(), env));
+				return res;
 			}
 			else if (ast::function_call* call = dynamic_cast<ast::function_call*>(ast))
 			{
@@ -76,7 +77,7 @@ namespace fe
 				{
 					throw std::runtime_error("unknown function");
 				}
-				return new void_value();
+				return std::make_shared<void_value>();
 			}
 			else if (ast::identifier* id = dynamic_cast<ast::identifier*>(ast))
 			{
@@ -84,7 +85,7 @@ namespace fe
 			}
 			else if (ast::number* num = dynamic_cast<ast::number*>(ast))
 			{
-				return new numeric_value(num->value);
+				return std::make_shared<numeric_value>(num->value);
 			}
 			throw std::runtime_error("Unknown AST node");
 		}

@@ -26,6 +26,8 @@ namespace fe
 			word_token = lexing_rules.create_token("[a-zA-Z][a-zA-Z_]*");
 			number_token = lexing_rules.create_token("[1-9][0-9]*");
 			semicolon_token = lexing_rules.create_token(";");
+			lcb_token = lexing_rules.create_token("\\{");
+			rcb_token = lexing_rules.create_token("\\}");
 			lexing_rules.compile();
 			return lexing_rules;
 		}

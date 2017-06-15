@@ -15,7 +15,7 @@ namespace fe
 
 				if (nt_node.value == file)
 				{
-					std::unique_ptr<ast::file> node = std::make_unique<ast::file>();
+					std::unique_ptr<ast::node_list> node = std::make_unique<ast::node_list>();
 
 					for (auto& child : nt_node.children)
 					{
@@ -47,6 +47,12 @@ namespace fe
 				}
 				else if (nt_node.value == expression)
 				{
+					
+					if (std::holds_alternative<tools::ebnfe::terminal_node>(*nt_node.children.at(0)) && (std::get<tools::ebnfe::terminal_node>(*nt_node.children.at(0)).value == lcb))
+					{
+						return convert(std::move(nt_node.children.at(1)));
+					}
+
 					return convert(std::move(nt_node.children.at(0)));
 				}
 			}

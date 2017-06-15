@@ -49,7 +49,7 @@ int main()
 	}
 
 
-	fe::value* result = p.process(std::move(contents));
+	std::shared_ptr<fe::value> result = p.process(std::move(contents));
 	result->print();
 
 	std::cin.get();

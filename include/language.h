@@ -9,11 +9,10 @@ namespace fe
 		file, statement, assignment, print, expression;
 
 	tools::ebnfe::terminal
-		equals, identifier, number, print_keyword, semicolon;
+		equals, identifier, number, print_keyword, semicolon, lcb, rcb;
 
 	tools::lexing::token_id
-		assignment_token, word_token, number_token, semicolon_token;
-
+		assignment_token, word_token, number_token, semicolon_token, lcb_token, rcb_token;
 
 
 	namespace ast
@@ -23,7 +22,7 @@ namespace fe
 			virtual ~node() {}
 		};
 
-		struct file : public node
+		struct node_list : public node
 		{
 			std::vector<std::unique_ptr<node>> children;
 		};
@@ -55,5 +54,6 @@ namespace fe
 		};
 	}
 
-	using pipeline = language::pipeline<tools::lexing::token, tools::bnf::terminal_node, std::unique_ptr<tools::ebnfe::node>, std::unique_ptr<ast::node>, std::unique_ptr<ast::node>, fe::value*>;
+
+	using pipeline = language::pipeline<tools::lexing::token, tools::bnf::terminal_node, std::unique_ptr<tools::ebnfe::node>, std::unique_ptr<ast::node>, std::unique_ptr<ast::node>, std::shared_ptr<fe::value>>;
 }

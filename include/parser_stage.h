@@ -22,10 +22,12 @@ namespace fe
 			number = parser.new_terminal();
 			print_keyword = parser.new_terminal();
 			semicolon = parser.new_terminal();
+			lcb = parser.new_terminal();
+			rcb = parser.new_terminal();
 
 			using namespace tools::ebnf::meta;
 			parser
-				.new_rule({ expression, { number, alt, identifier } })
+				.new_rule({ expression, { number, alt, identifier, alt, lcb, expression, rcb } })
 				.new_rule({ assignment, { identifier, equals, expression } })
 				.new_rule({ print, { print_keyword, expression } })
 				.new_rule({ statement, { assignment, semicolon, alt, print, semicolon } })
