@@ -6,10 +6,10 @@ namespace fe
 	struct value;
 
 	tools::ebnfe::non_terminal
-		file, statement, assignment, print, expression;
+		file, statement, assignment, print, expression, macro;
 
 	tools::ebnfe::terminal
-		equals, identifier, number, print_keyword, semicolon, lcb, rcb;
+		equals, identifier, number, print_keyword, semicolon, lcb, rcb, macro_keyword;
 
 	tools::lexing::token_id
 		assignment_token, word_token, number_token, semicolon_token, lcb_token, rcb_token;

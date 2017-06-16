@@ -1,5 +1,78 @@
-a = 3;
-b = {
-	a
-};
+type NonTerminal(name: String)
+type Terminal(name: String)
+type Symbol(value: NonTerminal | Terminal)
+
+type Token(name: String, Pattern: string, becomes: Terminal)
+type Rule(from: NonTerminal, to: [Symbol])
+
+
+trait Show =
+	print : Void -> Void
+
+def Show for Rule = return ()
+
+def multiply(x: Int, y: Int)
+
+def main =
+	let x =  
+	in
+
+lex {
+	tokens = [
+		{
+			name lsb_token;
+			pattern "\\[";
+			becomes lsb;
+		},
+		{
+			name rsb_token;
+			pattern "\\]";
+			becomes rsb;
+		},
+		{
+			name lrb_token;
+			pattern "\\(";
+			becomes lrb;
+		},
+		{
+			name rrb_token;
+			pattern "\\)";
+			becomes rrb;
+		},
+		{
+			name colon_token;
+			pattern ":";
+			becomes colon;
+		},
+		{
+			name comma_token;
+			pattern ",";
+			becomes comma;
+		}
+	],
+	keywords = [
+		{
+			name type;
+			value "type";
+		}
+	]
+}
+
+parse {
+	terminals = [
+		type, lsb, rsb, rrb, lrb, colon, comma
+	],
+	non_terminals = [
+		type_declaration, parameter
+	],
+	rules  = [
+		parameter_list ::= parameter*
+		type_declaration ::= type, identifier, lrb, parameter_list, rrb
+	]
+}
+
+interpret {
+	
+}
+
 print b;
