@@ -1,0 +1,54 @@
+import core::grammar;
+
+assignment = Terminal
+identifier = Terminal
+number     = Terminal
+
+lexer = Lexer (
+	Tokens [
+		Token ("="                  assignment)
+		Token ("[a-zA-Z][a-zA-Z_]*" identifier)
+		Token ("[1-9][0-9]*"        number)
+	]
+
+	Keywords [
+		Keyword (print "print")
+	]
+)
+
+variable  = NonTerminal
+print     = NonTerminal
+file      = NonTerminal
+statement = NonTerminal
+
+parser = Parser (
+	Terminals [assignment, identifier, number]
+
+	NonTerminals [variable, print, file, statement]
+
+	RuleSet [
+		Rule (file [])
+		Rule ()
+	]
+)
+
+type AST = Leaf value 
+	| Inner (value children)
+
+transformation AST ->  = 
+	Leaf lsb => Nil
+	| Leaf rsb => Nil
+	| Leaf rrb => Nil
+	| Leaf lrb => Nil
+	| Leaf colon => Nil
+	| Leaf comma => Nil
+	| Inner () => 
+
+grammar = Grammar(lex, parse, transformation)
+
+export grammar
+
+x = 1
+y = 2
+
+print x

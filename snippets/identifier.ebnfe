@@ -1,1 +1,0 @@
-identifier ::= '[a-zA-Z][a-zA-Z_]+';

@@ -29,10 +29,10 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="snippets\example.fe">
+    <None Include="snippets\test.fe">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="snippets\test.fe">
+    <None Include="snippets\grammar_extension.fe">
       <Filter>Resource Files</Filter>
     </None>
   </ItemGroup>
@@ -84,15 +84,15 @@
     <ClInclude Include="include\parsing_to_lowering_stage.h">
       <Filter>Source Files\fe</Filter>
     </ClInclude>
+    <ClInclude Include="include\grammar.h">
+      <Filter>Source Files\language</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="snippets\language.ebnfe">
+    <Text Include="snippets\language_core.fe">
       <Filter>Resource Files</Filter>
     </Text>
-    <Text Include="snippets\identifier.ebnfe">
-      <Filter>Resource Files</Filter>
-    </Text>
-    <Text Include="snippets\tiny.ebnfe">
+    <Text Include="include\notes.txt">
       <Filter>Resource Files</Filter>
     </Text>
   </ItemGroup>

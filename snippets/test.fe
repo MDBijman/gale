@@ -37,7 +37,7 @@ tr profiler {
 	}
 }
 
-fn main () -> i32 {
+fn main -> i32 {
 	ecs entity:
 		Position2D(1.0f, 0.0f)
 		Scale2D(0.3f, 0.1f)

@@ -1,0 +1,54 @@
+ADT
+	All types are either product types or sum types
+
+	Sum Type
+
+		def AST = Leaf value | Inner (value children)
+
+	Product Type
+		
+		def Token = Token (name terminal pattern)
+
+Initialization 
+	All structures take a single parameter
+	Multiple parameters must be wrapper in a tuple
+	This defines a unified initialization grammar
+
+	Base
+	Single parameter 
+
+		Type single_argument
+
+	vs.
+	
+	Tuple parameter
+
+		Type (argument1 argument2 argument3 ...)
+
+
+	Examples
+	When the only argument is an array 
+
+		Type [
+			item1
+			item2
+			item3
+		]
+
+	When the only argument is another type
+
+		Type1 Type2 argt2
+
+	Which can be represented as 
+		
+		Type1 (Type2 argt2)
+
+Assignment
+	Variables are assigned as follows 
+	
+		Identifier '=' Constructor
+
+Matching
+	Data can be transformed through pattern matching
+
+

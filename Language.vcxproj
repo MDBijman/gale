@@ -119,7 +119,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <None Include="snippets\example.fe" />
+    <None Include="snippets\grammar_extension.fe" />
     <None Include="snippets\test.fe" />
   </ItemGroup>
   <ItemGroup>
@@ -128,6 +128,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\bnf_parser.h" />
+    <ClInclude Include="include\grammar.h" />
     <ClInclude Include="include\lowering_stage.h" />
     <ClInclude Include="include\ebnfe_parser.h" />
     <ClInclude Include="include\ebnf_parser.h" />
@@ -142,9 +143,8 @@
     <ClInclude Include="include\registry.h" />
   </ItemGroup>
   <ItemGroup>
-    <Text Include="snippets\identifier.ebnfe" />
-    <Text Include="snippets\language.ebnfe" />
-    <Text Include="snippets\tiny.ebnfe" />
+    <Text Include="include\notes.txt" />
+    <Text Include="snippets\language_core.fe" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
