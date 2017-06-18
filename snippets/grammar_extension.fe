@@ -1,18 +1,17 @@
-import core::grammar;
-
-assignment = Terminal
-identifier = Terminal
-number     = Terminal
+assignment    = Terminal
+identifier    = Terminal
+number        = Terminal
+print_keyword = Terminal
 
 lexer = Lexer (
 	Tokens [
-		Token ("="                  assignment)
-		Token ("[a-zA-Z][a-zA-Z_]*" identifier)
-		Token ("[1-9][0-9]*"        number)
+		Token("="                  assignment)
+		Token("[a-zA-Z][a-zA-Z_]*" identifier)
+		Token("[1-9][0-9]*"        number)
 	]
 
 	Keywords [
-		Keyword (print "print")
+		Keyword("print" print_keyword)
 	]
 )
 
@@ -22,33 +21,29 @@ file      = NonTerminal
 statement = NonTerminal
 
 parser = Parser (
-	Terminals [assignment, identifier, number]
+	Terminals [assignment identifier number]
 
-	NonTerminals [variable, print, file, statement]
+	NonTerminals [variable print file statement]
 
 	RuleSet [
-		Rule (file [])
-		Rule ()
+		Rule(file      Repeat(statement))
+		Rule(statement Or(print variable))
+		Rule(variable  And(identifier assignment number))
+		Rule(print     And(print_keyword identifier))
 	]
 )
 
-type AST = Leaf value 
-	| Inner (value children)
+type CST = Leaf (value token) | Inner (value children)
 
-transformation AST ->  = 
-	Leaf lsb => Nil
-	| Leaf rsb => Nil
-	| Leaf rrb => Nil
-	| Leaf lrb => Nil
-	| Leaf colon => Nil
-	| Leaf comma => Nil
-	| Inner () => 
+transform CST > AST = 
+	Leaf (identifier token) => Identifier (token)
+	| Leaf (assignment _) => Nil
+	| Leaf (number token) => Number (token)
+	| Leaf (print_keyword) => Error ("This branch shouldn't be reached")
+	
+	| Inner (variable c) => Assignment (transform (get (c 0)) transform (get (c 2))
+	| Inner (print c) => FunctionCall ("print" transform(get (c 1)))
+	| Inner (file c) => NodeList(map (transform c))
+	| Inner (statement c) => transform(get (c 0))
 
-grammar = Grammar(lex, parse, transformation)
-
-export grammar
-
-x = 1
-y = 2
-
-print x
+return Grammar (lex parse transform)

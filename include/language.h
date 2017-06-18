@@ -1,19 +1,74 @@
 #pragma once
 #include "ebnfe_parser.h"
+#include <vector>
+#include <memory>
 
 namespace fe
 {
-	struct value;
-
-	tools::ebnfe::non_terminal
-		file, statement, assignment, print, expression, macro;
+	tools::lexing::token_id
+		assignment_token, word_token, number_token, lrb_token, rrb_token;
+	
+	tools::ebnfe::non_terminal 
+		file, tuple, value;
 
 	tools::ebnfe::terminal
-		equals, identifier, number, print_keyword, semicolon, lcb, rcb, macro_keyword;
+		left_bracket, right_bracket, number, word;
+	
+	namespace values
+	{
+		struct value
+		{
+			virtual void print() = 0;
+		};
 
-	tools::lexing::token_id
-		assignment_token, word_token, number_token, semicolon_token, lcb_token, rcb_token;
+		struct string : public value
+		{
+			string(std::string s) : value(s) {}
+			std::string value;
 
+			void print() override
+			{
+				std::cout << value << std::endl;
+			}
+		};
+
+		struct integer : public value
+		{
+			integer(int n) : value(n) {}
+			int value;
+
+			void print() override
+			{
+				std::cout << value << std::endl;
+			}
+		};
+
+		struct void_value : public value
+		{
+			void print() override
+			{
+				std::cout << "void" << std::endl;
+			}
+		};
+	}
+
+	namespace types
+	{
+		struct type
+		{
+			
+		};
+
+		struct sum_type : public type
+		{
+			std::vector<std::unique_ptr<type>> sum;
+		};
+
+		struct product_type : public type
+		{
+			std::vector<std::unique_ptr<type>> product;
+		};
+	}
 
 	namespace ast
 	{
@@ -47,13 +102,20 @@ namespace fe
 			std::vector<std::unique_ptr<node>> params;
 		};
 
-		struct number : public node
+		// Data
+
+		struct integer : public node
 		{
-			number(int val) : value(val) {}
-			int value;
+			integer(values::integer val) : value(val) {}
+			values::integer value;
+		};
+
+		struct string : public node
+		{
+			string(values::string val) : value(val) {}
+			values::string value;
 		};
 	}
-
 
 	using pipeline = language::pipeline<tools::lexing::token, tools::bnf::terminal_node, std::unique_ptr<tools::ebnfe::node>, std::unique_ptr<ast::node>, std::unique_ptr<ast::node>, std::shared_ptr<fe::value>>;
 }

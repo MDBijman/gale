@@ -3,34 +3,14 @@
 #include "language.h"
 #include <iostream>
 #include <memory>
+#include <tuple>
 
 namespace fe
 {
-	struct value
-	{
-		virtual void print() = 0;
-	};
+	using namespace values;
+	using namespace types;
 
-	struct numeric_value : public value
-	{
-		numeric_value(int n) : value(n) {}
-		int value;
-
-		void print() override
-		{
-			std::cout << value << std::endl;
-		}
-	};
-
-	struct void_value : public value
-	{
-		void print() override
-		{
-			std::cout << "void" << std::endl;
-		}
-	};
-
-	struct environment
+	struct value_environment
 	{
 		void set(const std::string& name, std::shared_ptr<value> value)
 		{
@@ -46,46 +26,68 @@ namespace fe
 		std::unordered_map<std::string, std::shared_ptr<value>> values;
 	};
 
+	struct type_environment
+	{
+	private:
+		std::unordered_map<std::string, std::shared_ptr<type>> types;
+	};
+
 	class interpreting_stage : public language::interpreting_stage<std::unique_ptr<fe::ast::node>, std::shared_ptr<value>>
 	{
 	public:
 		std::shared_ptr<value> interpret(std::unique_ptr<fe::ast::node> ast)
 		{
-			return std::move(interpret(ast.get(), new environment()));
+			auto interpreted_result = interpret(ast.get(), std::make_unique<value_environment>(), type_environment());
+			return std::move(
+				std::get<0>(std::move(interpreted_result))
+			);
 		}
 
-		std::shared_ptr<value> interpret(fe::ast::node* ast, environment* env)
+		std::tuple<
+			std::shared_ptr<value>, 
+			std::unique_ptr<value_environment>
+		> interpret(fe::ast::node* ast, std::unique_ptr<value_environment> v_env, const type_environment& t_env)
 		{
 			if (ast::assignment* assignment = dynamic_cast<ast::assignment*>(ast))
 			{
-				env->set(assignment->id.name, std::move(interpret(assignment->value.get(), env)));
-				return std::make_shared<void_value>();
+				auto interpreted_value = std::move(interpret(assignment->value.get(), std::move(v_env), t_env));
+				v_env = std::move(std::get<1>(interpreted_value));
+				v_env->set(assignment->id.name, std::get<0>(interpreted_value));
+				return std::make_tuple(std::make_shared<void_value>(), std::move(v_env));
 			}
 			else if (ast::node_list* list = dynamic_cast<ast::node_list*>(ast))
 			{
 				std::shared_ptr<value> res;
-				for (auto& line : list->children) res = std::move(interpret(line.get(), env));
-				return res;
+				for (auto& line : list->children)
+				{
+					auto interpreted_line = interpret(line.get(), std::move(v_env), t_env);
+					v_env = std::move(std::get<1>(interpreted_line));
+					res = std::get<0>(interpreted_line);
+				}
+				return std::make_tuple(res, std::move(v_env));
 			}
 			else if (ast::function_call* call = dynamic_cast<ast::function_call*>(ast))
 			{
 				if (call->id.name == "print")
 				{
-					interpret(call->params.at(0).get(), env)->print();
+					auto interpreted_function = interpret(call->params.at(0).get(), std::move(v_env), t_env);
+					v_env = std::move(std::get<1>(interpreted_function));
+					std::get<0>(interpreted_function).get()->print();
+					return std::make_tuple(std::make_shared<void_value>(), std::move(v_env));
 				}
 				else
 				{
 					throw std::runtime_error("unknown function");
 				}
-				return std::make_shared<void_value>();
 			}
 			else if (ast::identifier* id = dynamic_cast<ast::identifier*>(ast))
 			{
-				return env->get(id->name);
+				auto interpreted_id = v_env->get(id->name);
+				return std::make_tuple(interpreted_id, std::move(v_env));
 			}
-			else if (ast::number* num = dynamic_cast<ast::number*>(ast))
+			else if (ast::integer* num = dynamic_cast<ast::integer*>(ast))
 			{
-				return std::make_shared<numeric_value>(num->value);
+				return std::make_tuple(std::make_shared<values::integer>(num->value), std::move(v_env));
 			}
 			throw std::runtime_error("Unknown AST node");
 		}

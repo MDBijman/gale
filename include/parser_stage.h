@@ -12,26 +12,18 @@ namespace fe
 		{
 			using namespace fe;
 			file = parser.new_non_terminal();
-			statement = parser.new_non_terminal();
-			assignment = parser.new_non_terminal();
-			print = parser.new_non_terminal();
-			expression = parser.new_non_terminal();
+			tuple = parser.new_non_terminal();
+			value = parser.new_non_terminal();
 
-			equals = parser.new_terminal();
-			identifier = parser.new_terminal();
+			right_bracket = parser.new_terminal();
+			left_bracket = parser.new_terminal();
 			number = parser.new_terminal();
-			print_keyword = parser.new_terminal();
-			semicolon = parser.new_terminal();
-			lcb = parser.new_terminal();
-			rcb = parser.new_terminal();
+			word = parser.new_terminal();
 
 			using namespace tools::ebnf::meta;
 			parser
-				.new_rule({ expression, { number, alt, identifier, alt, lcb, expression, rcb } })
-				.new_rule({ assignment, { identifier, equals, expression } })
-				.new_rule({ print, { print_keyword, expression } })
-				.new_rule({ statement, { assignment, semicolon, alt, print, semicolon } })
-				.new_rule({ file, { statement, star } });
+				.new_rule({ file, { tuple } })
+				.new_rule({ tuple, { left_bracket, value, star, right_bracket });
 
 			parser
 				.new_transformation(semicolon, tools::ebnfe::transformation_type::REMOVE)

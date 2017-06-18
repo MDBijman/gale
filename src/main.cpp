@@ -17,7 +17,7 @@
 int main()
 {
 	// Parse rules
-	std::ifstream in("./snippets/example.fe", std::ios::in | std::ios::binary);
+	std::ifstream in("./snippets/testing.fe", std::ios::in | std::ios::binary);
 	if (!in) throw std::exception("Could not open file");
 
 	std::string contents;
