@@ -10,26 +10,29 @@ namespace fe
 	public:
 		parsing_stage()
 		{
-			using namespace fe;
 			file = parser.new_non_terminal();
-			tuple = parser.new_non_terminal();
-			value = parser.new_non_terminal();
+			tuple_t = parser.new_non_terminal();
+			data = parser.new_non_terminal();
+			assignment = parser.new_non_terminal();
 
 			right_bracket = parser.new_terminal();
 			left_bracket = parser.new_terminal();
 			number = parser.new_terminal();
 			word = parser.new_terminal();
+			equals = parser.new_terminal();
+			identifier = parser.new_terminal();
 
 			using namespace tools::ebnf::meta;
 			parser
-				.new_rule({ file, { tuple } })
-				.new_rule({ tuple, { left_bracket, value, star, right_bracket });
+				.new_rule({ file,  { assignment } })
+				.new_rule({ assignment, { identifier, equals, identifier, tuple_t } })
+				.new_rule({ data, { tuple_t, alt, number, alt, word } })
+				.new_rule({ tuple_t, { left_bracket, data, star, right_bracket } });
 
 			parser
-				.new_transformation(semicolon, tools::ebnfe::transformation_type::REMOVE)
-				.new_transformation(statement, tools::ebnfe::transformation_type::REPLACE_WITH_CHILDREN)
-				.new_transformation(equals, tools::ebnfe::transformation_type::REMOVE)
-				.new_transformation(print_keyword, tools::ebnfe::transformation_type::REMOVE);
+				.new_transformation(left_bracket, tools::ebnfe::transformation_type::REMOVE)
+				.new_transformation(right_bracket, tools::ebnfe::transformation_type::REMOVE)
+				.new_transformation(equals, tools::ebnfe::transformation_type::REMOVE);
 		}
 
 		std::unique_ptr<tools::ebnfe::node> parse(const std::vector<tools::bnf::terminal_node>& in)

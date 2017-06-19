@@ -121,6 +121,7 @@
   <ItemGroup>
     <None Include="snippets\grammar_extension.fe" />
     <None Include="snippets\test.fe" />
+    <None Include="snippets\testing.fe" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp" />

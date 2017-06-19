@@ -85,9 +85,29 @@ namespace fe
 				auto interpreted_id = v_env->get(id->name);
 				return std::make_tuple(interpreted_id, std::move(v_env));
 			}
+			else if (ast::type_identifier* id = dynamic_cast<ast::type_identifier*>(ast))
+			{
+
+			}
 			else if (ast::integer* num = dynamic_cast<ast::integer*>(ast))
 			{
 				return std::make_tuple(std::make_shared<values::integer>(num->value), std::move(v_env));
+			}
+			else if (ast::string* string = dynamic_cast<ast::string*>(ast))
+			{
+				return std::make_tuple(std::make_shared<values::string>(string->value), std::move(v_env));
+			}
+			else if (ast::tuple* tuple = dynamic_cast<ast::tuple*>(ast))
+			{
+				std::shared_ptr<values::tuple> res = std::make_shared<values::tuple>();
+				for (decltype(auto) line : tuple->children)
+				{
+					auto interpreted_line = interpret(line.get(), std::move(v_env), t_env);
+					v_env = std::move(std::get<1>(interpreted_line));
+					res->content.push_back(std::get<0>(interpreted_line));
+				}
+
+				return std::make_tuple(std::move(res), std::move(v_env));
 			}
 			throw std::runtime_error("Unknown AST node");
 		}

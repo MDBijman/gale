@@ -22,11 +22,12 @@ namespace fe
 			tools::lexing::rules lexing_rules;
 
 			using namespace fe;
-			assignment_token = lexing_rules.create_token("=");
-			word_token = lexing_rules.create_token("[a-zA-Z][a-zA-Z_]*");
+			string_token = lexing_rules.create_token("\".*?\"");
 			number_token = lexing_rules.create_token("[1-9][0-9]*");
 			rrb_token = lexing_rules.create_token("\\)");
 			lrb_token = lexing_rules.create_token("\\(");
+			equals_token = lexing_rules.create_token("=");
+			keyword_token = lexing_rules.create_token("[a-zA-Z][a-zA-Z_]*");
 			lexing_rules.compile();
 			return lexing_rules;
 		}

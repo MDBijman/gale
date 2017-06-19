@@ -11,18 +11,12 @@ namespace fe
 	public:
 		lexer_to_parser_stage()
 		{
-			using namespace fe;
-			add_mapping(assignment_token, equals);
-			add_mapping(word_token, [](tools::lexing::token& token) {
-				if (token.text == "print")
-					return print_keyword;
-
-				return identifier;
-			});
+			add_mapping(string_token, word);
 			add_mapping(number_token, number);
-			add_mapping(semicolon_token, semicolon);
-			add_mapping(lcb_token, lcb);
-			add_mapping(rcb_token, rcb);
+			add_mapping(lrb_token, left_bracket);
+			add_mapping(rrb_token, right_bracket);
+			add_mapping(equals_token, equals);
+			add_mapping(keyword_token, identifier);
 		}
 
 		std::vector<tools::bnf::terminal_node> convert(const std::vector<tools::lexing::token>& in)
