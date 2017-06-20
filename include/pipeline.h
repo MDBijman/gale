@@ -23,7 +23,7 @@ namespace language
 	};
 
 	template<typename CoreSyntaxTreeType, typename ExtendedAstType>
-	struct parsing_to_lowering_stage 
+	struct cst_to_ast_stage 
 	{
 		virtual ExtendedAstType convert(CoreSyntaxTreeType cst) = 0;
 	};
@@ -49,7 +49,7 @@ namespace language
 			std::vector<TokenType> tokens = lexing_stage->lex(file);
 			std::vector<TerminalType> converted_tokens = lexer_to_parser_stage->convert(tokens);
 			CSTType cst = std::move(parsing_stage->parse(converted_tokens));
-			ExtendedAstType ast = std::move(parsing_to_lowering_stage->convert(std::move(cst)));
+			ExtendedAstType ast = std::move(cst_to_ast_stage->convert(std::move(cst)));
 			CoreAstType lowered_ast = std::move(lowering_stage->lower(std::move(ast)));
 			return interpreting_stage->interpret(std::move(lowered_ast));
 		}
@@ -72,9 +72,9 @@ namespace language
 			return *this;
 		}
 
-		pipeline& parser_to_lowerer(parsing_to_lowering_stage<CSTType, ExtendedAstType>* parse_to_lower)
+		pipeline& parser_to_lowerer(cst_to_ast_stage<CSTType, ExtendedAstType>* parse_to_lower)
 		{
-			parsing_to_lowering_stage = parse_to_lower;
+			cst_to_ast_stage = parse_to_lower;
 			return *this;
 		}
 
@@ -94,7 +94,7 @@ namespace language
 		lexing_stage<TokenType>* lexing_stage;
 		lexer_to_parser_stage<TokenType, TerminalType>* lexer_to_parser_stage;
 		parsing_stage<TerminalType, CSTType>* parsing_stage;
-		parsing_to_lowering_stage<CSTType, ExtendedAstType>* parsing_to_lowering_stage;
+		cst_to_ast_stage<CSTType, ExtendedAstType>* cst_to_ast_stage;
 		lowering_stage<ExtendedAstType, CoreAstType>* lowering_stage;
 		interpreting_stage<CoreAstType, ValueType>* interpreting_stage;
 	};

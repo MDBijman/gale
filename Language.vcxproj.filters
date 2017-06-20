@@ -84,11 +84,11 @@
     <ClInclude Include="include\interpreting_stage.h">
       <Filter>Source Files\fe</Filter>
     </ClInclude>
-    <ClInclude Include="include\parsing_to_lowering_stage.h">
-      <Filter>Source Files\fe</Filter>
-    </ClInclude>
     <ClInclude Include="include\grammar.h">
       <Filter>Source Files\language</Filter>
+    </ClInclude>
+    <ClInclude Include="include\cst_to_ast_stage.h">
+      <Filter>Source Files\fe</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

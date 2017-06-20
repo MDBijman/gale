@@ -4,7 +4,7 @@
 #include "lexer_stage.h"
 #include "lexer_to_parser_stage.h"
 #include "parser_stage.h"
-#include "parsing_to_lowering_stage.h"
+#include "cst_to_ast_stage.h"
 #include "lowering_stage.h"
 #include "interpreting_stage.h"
 
@@ -35,7 +35,7 @@ int main()
 		// LtP stage initialization has a dependency on the values of the language terminals
 		// These are initialized in the parsing stage initialization
 		auto lexer_to_parser_stage = new fe::lexer_to_parser_stage{};
-		auto parser_to_lowerer_stage = new fe::parsing_to_lowering_stage{};
+		auto parser_to_lowerer_stage = new fe::cst_to_ast_stage{};
 		auto lowering_stage = new fe::lowering_stage{};
 		auto interpreting_stage = new fe::interpreting_stage{};
 

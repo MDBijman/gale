@@ -14,7 +14,7 @@ namespace fe
 		assignment, file, tuple_t, data;
 
 	tools::ebnfe::terminal
-		identifier, equals, left_bracket, right_bracket, number, word;
+		type_identifier, identifier, equals, left_bracket, right_bracket, number, word;
 
 	namespace types
 	{

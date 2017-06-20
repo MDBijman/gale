@@ -4,7 +4,7 @@
 
 namespace fe
 {
-	class parsing_to_lowering_stage : public language::parsing_to_lowering_stage<std::unique_ptr<tools::ebnfe::node>, std::unique_ptr<fe::ast::node>>
+	class cst_to_ast_stage : public language::cst_to_ast_stage<std::unique_ptr<tools::ebnfe::node>, std::unique_ptr<fe::ast::node>>
 	{
 	public:
 		std::unique_ptr<ast::node> convert(std::unique_ptr<tools::ebnfe::node> node)

@@ -87,7 +87,7 @@ namespace fe
 			}
 			else if (ast::type_identifier* id = dynamic_cast<ast::type_identifier*>(ast))
 			{
-
+				
 			}
 			else if (ast::integer* num = dynamic_cast<ast::integer*>(ast))
 			{

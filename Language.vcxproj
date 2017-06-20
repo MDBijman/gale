@@ -136,7 +136,7 @@
     <ClInclude Include="include\interpreting_stage.h" />
     <ClInclude Include="include\language.h" />
     <ClInclude Include="include\lexer_to_parser_stage.h" />
-    <ClInclude Include="include\parsing_to_lowering_stage.h" />
+    <ClInclude Include="include\cst_to_ast_stage.h" />
     <ClInclude Include="include\pipeline.h" />
     <ClInclude Include="include\lexer_stage.h" />
     <ClInclude Include="include\parser_stage.h" />
