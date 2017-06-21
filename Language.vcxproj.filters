@@ -27,6 +27,9 @@
     <Filter Include="Source Files\language">
       <UniqueIdentifier>{48917566-8ed6-43a2-a7fd-435af4cc339b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\fe\data">
+      <UniqueIdentifier>{4daa90e2-78bc-4f8f-8bac-378becc88020}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="snippets\test.fe">
@@ -72,9 +75,6 @@
     <ClInclude Include="include\pipeline.h">
       <Filter>Source Files\language</Filter>
     </ClInclude>
-    <ClInclude Include="include\language.h">
-      <Filter>Source Files\fe</Filter>
-    </ClInclude>
     <ClInclude Include="include\registry.h">
       <Filter>Source Files\language</Filter>
     </ClInclude>
@@ -89,6 +89,18 @@
     </ClInclude>
     <ClInclude Include="include\cst_to_ast_stage.h">
       <Filter>Source Files\fe</Filter>
+    </ClInclude>
+    <ClInclude Include="include\language.h">
+      <Filter>Source Files\fe\data</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ast.h">
+      <Filter>Source Files\fe\data</Filter>
+    </ClInclude>
+    <ClInclude Include="include\values.h">
+      <Filter>Source Files\fe\data</Filter>
+    </ClInclude>
+    <ClInclude Include="include\types.h">
+      <Filter>Source Files\fe\data</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

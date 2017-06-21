@@ -21,12 +21,11 @@ namespace fe
 			word = parser.new_terminal();
 			equals = parser.new_terminal();
 			identifier = parser.new_terminal();
-			type_identifier = parser.new_terminal();
 
 			using namespace tools::ebnf::meta;
 			parser
 				.new_rule({ file,  { assignment } })
-				.new_rule({ assignment, { identifier, equals, type_identifier, tuple_t } })
+				.new_rule({ assignment, { identifier, equals, identifier, tuple_t } })
 				.new_rule({ data, { tuple_t, alt, number, alt, word } })
 				.new_rule({ tuple_t, { left_bracket, data, star, right_bracket } });
 

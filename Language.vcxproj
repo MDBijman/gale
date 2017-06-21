@@ -128,6 +128,7 @@
     <ClCompile Include="src\bnf_parser.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\ast.h" />
     <ClInclude Include="include\bnf_parser.h" />
     <ClInclude Include="include\grammar.h" />
     <ClInclude Include="include\lowering_stage.h" />
@@ -142,6 +143,8 @@
     <ClInclude Include="include\parser_stage.h" />
     <ClInclude Include="include\lexer.h" />
     <ClInclude Include="include\registry.h" />
+    <ClInclude Include="include\types.h" />
+    <ClInclude Include="include\values.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="include\notes.txt" />
