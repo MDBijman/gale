@@ -143,6 +143,7 @@
     <ClInclude Include="include\parser_stage.h" />
     <ClInclude Include="include\lexer.h" />
     <ClInclude Include="include\registry.h" />
+    <ClInclude Include="include\typechecker_stage.h" />
     <ClInclude Include="include\types.h" />
     <ClInclude Include="include\values.h" />
   </ItemGroup>

@@ -102,6 +102,9 @@
     <ClInclude Include="include\types.h">
       <Filter>Source Files\fe\data</Filter>
     </ClInclude>
+    <ClInclude Include="include\typechecker_stage.h">
+      <Filter>Source Files\fe</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="snippets\language_core.fe">

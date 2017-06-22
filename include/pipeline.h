@@ -28,10 +28,16 @@ namespace language
 		virtual ExtendedAstType convert(CoreSyntaxTreeType cst) = 0;
 	};
 
-	template<typename ExtendedAstType, typename CoreAstType>
+	template<typename ExtendedAstType, typename TypedAstType>
+	struct typechecking_stage
+	{
+		virtual TypedAstType typecheck(ExtendedAstType ast) = 0;
+	};
+
+	template<typename TypedAstType, typename CoreAstType>
 	struct lowering_stage
 	{
-		virtual CoreAstType lower(ExtendedAstType ast) = 0;
+		virtual CoreAstType lower(TypedAstType ast) = 0;
 	};
 
 	template<typename CoreAstType, typename ValueType>
@@ -40,7 +46,7 @@ namespace language
 		virtual ValueType interpret(CoreAstType ast) = 0;
 	};
 
-	template<typename TokenType, typename TerminalType, typename CSTType, typename ExtendedAstType, typename CoreAstType, typename ValueType>
+	template<typename TokenType, typename TerminalType, typename CSTType, typename ExtendedAstType, typename TypedAstType, typename CoreAstType, typename ValueType>
 	class pipeline
 	{
 	public:
@@ -50,7 +56,8 @@ namespace language
 			std::vector<TerminalType> converted_tokens = lexer_to_parser_stage->convert(tokens);
 			CSTType cst = std::move(parsing_stage->parse(converted_tokens));
 			ExtendedAstType ast = std::move(cst_to_ast_stage->convert(std::move(cst)));
-			CoreAstType lowered_ast = std::move(lowering_stage->lower(std::move(ast)));
+			TypedAstType typed_ast = std::move(typechecking_stage->typecheck(std::move(ast)));
+			CoreAstType lowered_ast = std::move(lowering_stage->lower(std::move(typed_ast)));
 			return interpreting_stage->interpret(std::move(lowered_ast));
 		}
 
@@ -72,9 +79,15 @@ namespace language
 			return *this;
 		}
 
-		pipeline& parser_to_lowerer(cst_to_ast_stage<CSTType, ExtendedAstType>* parse_to_lower)
+		pipeline& cst_to_ast(cst_to_ast_stage<CSTType, ExtendedAstType>* parse_to_lower)
 		{
 			cst_to_ast_stage = parse_to_lower;
+			return *this;
+		}
+
+		pipeline& typechecker(typechecking_stage<ExtendedAstType, TypedAstType>* typecheck) 
+		{
+			typechecking_stage = typecheck;
 			return *this;
 		}
 
@@ -95,7 +108,8 @@ namespace language
 		lexer_to_parser_stage<TokenType, TerminalType>* lexer_to_parser_stage;
 		parsing_stage<TerminalType, CSTType>* parsing_stage;
 		cst_to_ast_stage<CSTType, ExtendedAstType>* cst_to_ast_stage;
-		lowering_stage<ExtendedAstType, CoreAstType>* lowering_stage;
+		typechecking_stage<ExtendedAstType, TypedAstType>* typechecking_stage;
+		lowering_stage<TypedAstType, CoreAstType>* lowering_stage;
 		interpreting_stage<CoreAstType, ValueType>* interpreting_stage;
 	};
 }
