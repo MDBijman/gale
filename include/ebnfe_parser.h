@@ -141,12 +141,12 @@ namespace tools
 				if (std::holds_alternative<ebnf::error>(ebnf_results))
 					return error{ error_code::EBNF_PARSER_ERROR, std::get<ebnf::error>(ebnf_results).message };
 
-				auto ast = 
+				auto extended_ast = 
 					std::get<ebnf::non_terminal_node>(
 						std::move(*std::get<std::unique_ptr<ebnf::node>>(ebnf_results))
 					);
 
-				auto ebnfe_ast = std::make_unique<node>(non_terminal_node(&ast, [&](std::variant<terminal, non_terminal> s) {
+				auto ebnfe_ast = std::make_unique<node>(non_terminal_node(&extended_ast, [&](std::variant<terminal, non_terminal> s) {
 					return transformation_rules.find(s) == transformation_rules.end() ?
 						transformation_type::KEEP :
 						transformation_rules.at(s);

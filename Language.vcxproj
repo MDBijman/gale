@@ -128,8 +128,9 @@
     <ClCompile Include="src\bnf_parser.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="include\ast.h" />
+    <ClInclude Include="include\extended_ast.h" />
     <ClInclude Include="include\bnf_parser.h" />
+    <ClInclude Include="include\core_ast.h" />
     <ClInclude Include="include\grammar.h" />
     <ClInclude Include="include\lowering_stage.h" />
     <ClInclude Include="include\ebnfe_parser.h" />
@@ -146,6 +147,7 @@
     <ClInclude Include="include\typechecker_stage.h" />
     <ClInclude Include="include\types.h" />
     <ClInclude Include="include\values.h" />
+    <ClInclude Include="tests\end2end_tests.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="include\notes.txt" />

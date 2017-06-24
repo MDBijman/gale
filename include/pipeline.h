@@ -31,32 +31,32 @@ namespace language
 	template<typename ExtendedAstType, typename TypedAstType>
 	struct typechecking_stage
 	{
-		virtual TypedAstType typecheck(ExtendedAstType ast) = 0;
+		virtual TypedAstType typecheck(ExtendedAstType extended_ast) = 0;
 	};
 
 	template<typename TypedAstType, typename CoreAstType>
 	struct lowering_stage
 	{
-		virtual CoreAstType lower(TypedAstType ast) = 0;
+		virtual CoreAstType lower(TypedAstType extended_ast) = 0;
 	};
 
 	template<typename CoreAstType, typename ValueType>
 	struct interpreting_stage
 	{
-		virtual ValueType interpret(CoreAstType ast) = 0;
+		virtual ValueType interpret(CoreAstType extended_ast) = 0;
 	};
 
 	template<typename TokenType, typename TerminalType, typename CSTType, typename ExtendedAstType, typename TypedAstType, typename CoreAstType, typename ValueType>
 	class pipeline
 	{
 	public:
-		ValueType process(const std::string& file)
+		ValueType process(std::string&& file)
 		{
 			std::vector<TokenType> tokens = lexing_stage->lex(file);
 			std::vector<TerminalType> converted_tokens = lexer_to_parser_stage->convert(tokens);
 			CSTType cst = std::move(parsing_stage->parse(converted_tokens));
-			ExtendedAstType ast = std::move(cst_to_ast_stage->convert(std::move(cst)));
-			TypedAstType typed_ast = std::move(typechecking_stage->typecheck(std::move(ast)));
+			ExtendedAstType extended_ast = std::move(cst_to_ast_stage->convert(std::move(cst)));
+			TypedAstType typed_ast = std::move(typechecking_stage->typecheck(std::move(extended_ast)));
 			CoreAstType lowered_ast = std::move(lowering_stage->lower(std::move(typed_ast)));
 			return interpreting_stage->interpret(std::move(lowered_ast));
 		}

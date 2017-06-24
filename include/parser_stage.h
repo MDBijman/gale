@@ -11,23 +11,25 @@ namespace fe
 		parsing_stage()
 		{
 			file = parser.new_non_terminal();
-			tuple_t = parser.new_non_terminal();
-			data = parser.new_non_terminal();
 			assignment = parser.new_non_terminal();
+			expression = parser.new_non_terminal();
+			tuple_t = parser.new_non_terminal();
 
-			right_bracket = parser.new_terminal();
 			left_bracket = parser.new_terminal();
+			right_bracket = parser.new_terminal();
+			equals = parser.new_terminal();
+
 			number = parser.new_terminal();
 			word = parser.new_terminal();
-			equals = parser.new_terminal();
 			identifier = parser.new_terminal();
 
 			using namespace tools::ebnf::meta;
 			parser
-				.new_rule({ file,  { assignment } })
-				.new_rule({ assignment, { identifier, equals, identifier, tuple_t } })
-				.new_rule({ data, { tuple_t, alt, number, alt, word } })
-				.new_rule({ tuple_t, { left_bracket, data, star, right_bracket } });
+				.new_rule({ file, { assignment } })
+				.new_rule({ assignment, { identifier, equals, expression } })
+				.new_rule({ expression, { tuple_t, alt, number, alt, word, alt, identifier, lsb, tuple_t, rsb } })
+				.new_rule({ tuple_t, { left_bracket, expression, star, right_bracket } })
+			;
 
 			parser
 				.new_transformation(left_bracket, tools::ebnfe::transformation_type::REMOVE)

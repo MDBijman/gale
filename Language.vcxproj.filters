@@ -30,6 +30,36 @@
     <Filter Include="Source Files\fe\data">
       <UniqueIdentifier>{4daa90e2-78bc-4f8f-8bac-378becc88020}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Tests">
+      <UniqueIdentifier>{0c93d3ae-ca03-48db-a348-b87fc31b6c6a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Tests\fe">
+      <UniqueIdentifier>{4e95b8f4-7cf0-4a8e-bd9e-eaa05ca6722d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Tests\fe\data">
+      <UniqueIdentifier>{2f104b29-8e23-42a2-8886-85e5623a8376}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Tests\tools">
+      <UniqueIdentifier>{41aecb1a-45c3-4599-9406-1a69c228a146}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Tests\language">
+      <UniqueIdentifier>{f0f73ad3-11b7-48da-ad3f-7b3e2ae6d454}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Tests\tools\compilation">
+      <UniqueIdentifier>{b01d3415-f994-4aa2-8f24-be06b427774f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Tests\tools\lexing">
+      <UniqueIdentifier>{97d6f300-48f8-45fc-b8fe-310fc4a882b4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Tests\tools\parsing">
+      <UniqueIdentifier>{ffb901a3-576a-4b9a-80f0-3fcc8ed842d7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\fe\pipeline">
+      <UniqueIdentifier>{8aacbe17-1c1f-4b03-a529-fe01fa3e41cd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\fe\environment">
+      <UniqueIdentifier>{cad4fa38-8785-4175-92cb-d2a3a109e01a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="snippets\test.fe">
@@ -63,37 +93,16 @@
     <ClInclude Include="include\ebnfe_parser.h">
       <Filter>Source Files\tools\parsing</Filter>
     </ClInclude>
-    <ClInclude Include="include\lexer_stage.h">
-      <Filter>Source Files\fe</Filter>
-    </ClInclude>
-    <ClInclude Include="include\lexer_to_parser_stage.h">
-      <Filter>Source Files\fe</Filter>
-    </ClInclude>
-    <ClInclude Include="include\parser_stage.h">
-      <Filter>Source Files\fe</Filter>
-    </ClInclude>
     <ClInclude Include="include\pipeline.h">
       <Filter>Source Files\language</Filter>
     </ClInclude>
     <ClInclude Include="include\registry.h">
       <Filter>Source Files\language</Filter>
     </ClInclude>
-    <ClInclude Include="include\lowering_stage.h">
-      <Filter>Source Files\fe</Filter>
-    </ClInclude>
-    <ClInclude Include="include\interpreting_stage.h">
-      <Filter>Source Files\fe</Filter>
-    </ClInclude>
     <ClInclude Include="include\grammar.h">
       <Filter>Source Files\language</Filter>
     </ClInclude>
-    <ClInclude Include="include\cst_to_ast_stage.h">
-      <Filter>Source Files\fe</Filter>
-    </ClInclude>
     <ClInclude Include="include\language.h">
-      <Filter>Source Files\fe\data</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ast.h">
       <Filter>Source Files\fe\data</Filter>
     </ClInclude>
     <ClInclude Include="include\values.h">
@@ -102,8 +111,35 @@
     <ClInclude Include="include\types.h">
       <Filter>Source Files\fe\data</Filter>
     </ClInclude>
+    <ClInclude Include="tests\end2end_tests.h">
+      <Filter>Tests\fe</Filter>
+    </ClInclude>
+    <ClInclude Include="include\core_ast.h">
+      <Filter>Source Files\fe\data</Filter>
+    </ClInclude>
+    <ClInclude Include="include\extended_ast.h">
+      <Filter>Source Files\fe\data</Filter>
+    </ClInclude>
     <ClInclude Include="include\typechecker_stage.h">
-      <Filter>Source Files\fe</Filter>
+      <Filter>Source Files\fe\pipeline</Filter>
+    </ClInclude>
+    <ClInclude Include="include\interpreting_stage.h">
+      <Filter>Source Files\fe\pipeline</Filter>
+    </ClInclude>
+    <ClInclude Include="include\lexer_stage.h">
+      <Filter>Source Files\fe\pipeline</Filter>
+    </ClInclude>
+    <ClInclude Include="include\lexer_to_parser_stage.h">
+      <Filter>Source Files\fe\pipeline</Filter>
+    </ClInclude>
+    <ClInclude Include="include\lowering_stage.h">
+      <Filter>Source Files\fe\pipeline</Filter>
+    </ClInclude>
+    <ClInclude Include="include\parser_stage.h">
+      <Filter>Source Files\fe\pipeline</Filter>
+    </ClInclude>
+    <ClInclude Include="include\cst_to_ast_stage.h">
+      <Filter>Source Files\fe\pipeline</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

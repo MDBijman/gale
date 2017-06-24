@@ -360,13 +360,13 @@ namespace tools
 				if (std::holds_alternative<bnf::error>(ast_or_error))
 					return error{ error_code::BNF_ERROR, std::get<bnf::error>(ast_or_error).message };
 
-				auto& ast = std::get<std::unique_ptr<bnf::node>>(ast_or_error);
+				auto& extended_ast = std::get<std::unique_ptr<bnf::node>>(ast_or_error);
 
 				// Convert from bnf to ebnf
-				if (std::holds_alternative<bnf::terminal_node>(*ast))
-					return std::make_unique<node>(terminal_node{ &std::get<bnf::terminal_node>(*ast) });
-				else if (std::holds_alternative<bnf::non_terminal_node>(*ast))
-					return std::make_unique<node>(non_terminal_node{ &std::get<bnf::non_terminal_node>(*ast), nt_child_parents });
+				if (std::holds_alternative<bnf::terminal_node>(*extended_ast))
+					return std::make_unique<node>(terminal_node{ &std::get<bnf::terminal_node>(*extended_ast) });
+				else if (std::holds_alternative<bnf::non_terminal_node>(*extended_ast))
+					return std::make_unique<node>(non_terminal_node{ &std::get<bnf::non_terminal_node>(*extended_ast), nt_child_parents });
 			}
 
 			parser& new_rule(rule r)

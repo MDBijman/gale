@@ -11,7 +11,6 @@ namespace fe
 		{
 			virtual ~value() {};
 			virtual void print() = 0;
-			virtual types::type type() = 0;
 		};
 
 		struct string : public value
@@ -22,11 +21,6 @@ namespace fe
 			void print() override
 			{
 				std::cout << val;
-			}
-
-			types::type type() override
-			{
-				return types::string_type();
 			}
 		};
 
@@ -39,11 +33,6 @@ namespace fe
 			{
 				std::cout << val;
 			}
-
-			types::type type() override
-			{
-				return types::integer_type();
-			}
 		};
 
 		struct void_value : public value
@@ -51,11 +40,6 @@ namespace fe
 			void print() override
 			{
 				std::cout << "void" << std::endl;
-			}
-
-			types::type type() override
-			{
-				return types::void_type();
 			}
 		};
 
@@ -76,16 +60,6 @@ namespace fe
 				}
 
 				std::cout << ")";
-			}
-
-			types::type type() override
-			{
-				auto type = types::product_type();
-				for (decltype(auto) value : content)
-				{
-					type.product.push_back(std::make_unique<types::type>(value->type()));
-				}
-				return type;
 			}
 		};
 	}
