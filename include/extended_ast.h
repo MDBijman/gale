@@ -23,7 +23,7 @@ namespace fe
 		struct tuple : public node
 		{
 			tuple(tuple&& other) : node(other.type), children(std::move(other.children)) {}
-			tuple() : node(types::product_type()) {}
+			tuple() : node(types::product_type({})) {}
 
 			void add(std::unique_ptr<node> child)
 			{
@@ -39,7 +39,7 @@ namespace fe
 		private:
 			void update_type()
 			{
-				types::product_type new_type;
+				types::product_type new_type({});
 				for (decltype(auto) child : children)
 				{
 					new_type.product.push_back(child->type);

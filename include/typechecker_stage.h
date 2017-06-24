@@ -29,17 +29,17 @@ namespace fe
 		extended_ast::node_p typecheck(extended_ast::node_p extended_ast) override
 		{
 			auto t_env = type_environment{};
-			t_env.set("Type", types::product_type());
+			t_env.set("Type", product_type({ integer_type(), integer_type(), product_type({string_type(), integer_type(), integer_type()}), product_type({}), integer_type(), string_type() }));
 
 			return std::get<0>(typecheck(std::move(extended_ast), std::move(t_env)));
 		}
 
-		std::tuple<extended_ast::node_p, type_environment> typecheck(extended_ast::node_p n, type_environment&& t_env) 
+		std::tuple<extended_ast::node_p, type_environment> typecheck(extended_ast::node_p n, type_environment&& t_env)
 		{
 			if (auto tuple = dynamic_cast<extended_ast::tuple*>(n.get()))
 			{
 				auto new_node = std::make_unique<extended_ast::tuple>();
-				auto new_type = types::product_type();
+				auto new_type = product_type({});
 
 				for (decltype(auto) element : tuple->get_children())
 				{
@@ -52,15 +52,15 @@ namespace fe
 				new_node->type = new_type;
 
 				return std::make_tuple(
-					std::move(new_node), 
+					std::move(new_node),
 					std::move(t_env
-				));
+					));
 			}
 			else if (auto id = dynamic_cast<extended_ast::identifier*>(n.get()))
 			{
 				id->type = t_env.get(id->name);
 				return std::make_tuple(
-					std::move(n), 
+					std::move(n),
 					std::move(t_env)
 				);
 			}
@@ -76,32 +76,35 @@ namespace fe
 
 				return std::make_tuple(
 					std::make_unique<extended_ast::assignment>(
-						std::move(assignment->id), 
+						std::move(assignment->id),
 						std::move(new_value)
-					), 
+						),
 					std::move(t_env)
 				);
 			}
 			else if (auto fc = dynamic_cast<extended_ast::function_call*>(n.get()))
 			{
-				extended_ast::node_p new_params;
-				std::tie(new_params, t_env) = typecheck(
-					std::move(std::make_unique<extended_ast::tuple>(std::move(fc->params))), 
+				extended_ast::node_p typechecked_params;
+				std::tie(typechecked_params, t_env) = typecheck(
+					std::move(std::make_unique<extended_ast::tuple>(std::move(fc->params))),
 					std::move(t_env)
 				);
 
 				auto env_type = t_env.get(fc->id.name);
 
-				// TODO compare env_type with params type
+				if (!(typechecked_params->type == env_type))
+				{
+					throw std::runtime_error("Type error");
+				}
 
 				fc->type = env_type;
 
 				return std::make_tuple(
 					std::make_unique<extended_ast::function_call>(
-						std::move(fc->id), 
-						std::move(*dynamic_cast<extended_ast::tuple*>(new_params.get())), 
+						std::move(fc->id),
+						std::move(*dynamic_cast<extended_ast::tuple*>(typechecked_params.get())),
 						std::get<1>(env_type)
-					),
+						),
 					std::move(t_env)
 				);
 			}
@@ -110,19 +113,22 @@ namespace fe
 			{
 				extended_ast::node_p typechecked_value;
 				std::tie(typechecked_value, t_env) = typecheck(
-					std::make_unique<extended_ast::tuple>(std::move(constructor->value)), 
+					std::make_unique<extended_ast::tuple>(std::move(constructor->value)),
 					std::move(t_env)
 				);
 
 				auto env_type = t_env.get(constructor->id.name);
-				
-				// TODO compare value type with env_type
-				
+
+				if (!(typechecked_value->type == env_type))
+				{
+					throw std::runtime_error("Type error");
+				}
+
 				return std::make_tuple(
 					std::make_unique<extended_ast::constructor>(
-						std::move(constructor->id), 
+						std::move(constructor->id),
 						std::move(*dynamic_cast<extended_ast::tuple*>(typechecked_value.get()))
-					), 
+						),
 					std::move(t_env)
 				);
 			}
