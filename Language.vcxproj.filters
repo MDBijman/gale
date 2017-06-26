@@ -57,7 +57,7 @@
     <Filter Include="Source Files\fe\pipeline">
       <UniqueIdentifier>{8aacbe17-1c1f-4b03-a529-fe01fa3e41cd}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\fe\environment">
+    <Filter Include="Source Files\fe\modules">
       <UniqueIdentifier>{cad4fa38-8785-4175-92cb-d2a3a109e01a}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
@@ -140,6 +140,12 @@
     </ClInclude>
     <ClInclude Include="include\cst_to_ast_stage.h">
       <Filter>Source Files\fe\pipeline</Filter>
+    </ClInclude>
+    <ClInclude Include="include\module.h">
+      <Filter>Source Files\language</Filter>
+    </ClInclude>
+    <ClInclude Include="include\language_module.h">
+      <Filter>Source Files\fe\modules</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

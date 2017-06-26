@@ -12,6 +12,7 @@ namespace fe
 		struct integer_type {};
 		struct string_type {};
 		struct void_type {};
+		struct unset_type {};
 
 		// Composition types
 
@@ -21,12 +22,14 @@ namespace fe
 		struct sum_type 
 		{
 			sum_type(std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type>> sum) : sum(sum) {}
+			sum_type() {}
 			std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type>> sum;
 		};
 
 		struct product_type
 		{
 			product_type(std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type>> product) : product(product) {}
+			product_type() {}
 			std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type>> product;
 		};
 
@@ -47,12 +50,10 @@ namespace fe
 			return true;
 		}
 
-
 		bool operator==(const string_type& one, const string_type& two)
 		{
 			return true;
 		}
-
 
 		bool operator==(const void_type& one, const void_type& two) 
 		{
@@ -87,6 +88,5 @@ namespace fe
 		{
 			return one.from == two.from && one.to == two.to;
 		}
-
 	}
 }

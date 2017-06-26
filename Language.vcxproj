@@ -132,6 +132,7 @@
     <ClInclude Include="include\bnf_parser.h" />
     <ClInclude Include="include\core_ast.h" />
     <ClInclude Include="include\grammar.h" />
+    <ClInclude Include="include\language_module.h" />
     <ClInclude Include="include\lowering_stage.h" />
     <ClInclude Include="include\ebnfe_parser.h" />
     <ClInclude Include="include\ebnf_parser.h" />
@@ -139,6 +140,7 @@
     <ClInclude Include="include\language.h" />
     <ClInclude Include="include\lexer_to_parser_stage.h" />
     <ClInclude Include="include\cst_to_ast_stage.h" />
+    <ClInclude Include="include\module.h" />
     <ClInclude Include="include\pipeline.h" />
     <ClInclude Include="include\lexer_stage.h" />
     <ClInclude Include="include\parser_stage.h" />

@@ -5,6 +5,12 @@
 
 namespace fe
 {
+	namespace core_ast
+	{
+		struct node;
+		struct identifier;
+	}
+
 	namespace values
 	{
 		struct value
@@ -46,6 +52,7 @@ namespace fe
 		struct tuple : public value
 		{
 			tuple() {}
+			tuple(std::vector<std::shared_ptr<value>> values) : content(values) {}
 			std::vector<std::shared_ptr<value>> content;
 
 			void print() override
@@ -60,6 +67,29 @@ namespace fe
 				}
 
 				std::cout << ")";
+			}
+		};
+
+		struct function : public value
+		{
+			function(std::vector<core_ast::identifier>&& params, std::unique_ptr<core_ast::node> body) : parameters(std::move(params)), body(std::move(body)) {}
+			std::vector<core_ast::identifier> parameters;
+			std::unique_ptr<core_ast::node> body;
+
+			void print() override
+			{
+				std::cout << "function";
+			}
+		};
+
+		struct native_function : public value
+		{
+			native_function(std::function<tuple(tuple)> f) : function(f) {}
+			std::function<tuple(tuple)> function;
+
+			void print() override
+			{
+				std::cout << "native function";
 			}
 		};
 	}

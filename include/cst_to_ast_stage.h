@@ -39,7 +39,7 @@ namespace fe
 				{
 					// Expression has children [tuple_t | number | word | identifier [tuple]]
 
-					// Constructor
+					// Function call
 					if (n.children.size() == 2)
 					{
 						// Convert the identifier
@@ -50,7 +50,7 @@ namespace fe
 						auto converted_tuple =
 							dynamic_cast<extended_ast::tuple*>(convert(std::move(n.children.at(1))).release());
 
-						return std::make_unique<extended_ast::constructor>(
+						return std::make_unique<extended_ast::function_call>(
 							std::move(*converted_identifier),
 							std::move(*converted_tuple)
 						);
@@ -72,7 +72,6 @@ namespace fe
 					return values;
 				}
 			}
-
 			else if (std::holds_alternative<tools::ebnfe::terminal_node>(*node))
 			{
 				auto n = std::move(std::get<tools::ebnfe::terminal_node>(*node));

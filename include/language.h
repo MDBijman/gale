@@ -23,6 +23,6 @@ namespace fe
 		extended_ast::node_p,
 		extended_ast::node_p,
 		std::unique_ptr<core_ast::node>, 
-		std::shared_ptr<fe::values::value>
+		std::shared_ptr<values::value>
 	>;
 }

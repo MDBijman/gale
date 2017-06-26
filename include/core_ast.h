@@ -13,6 +13,7 @@ namespace fe
 			node(types::type type) : type(type) {}
 			node() : type(types::void_type()) {}
 
+
 			types::type type;
 		};
 
@@ -21,6 +22,7 @@ namespace fe
 		struct tuple : public node
 		{
 			tuple(tuple&& other) : children(std::move(other.children)) {}
+			tuple(std::vector<std::unique_ptr<node>> children) : children(std::move(children)) {}
 			tuple() {}
 
 			std::vector<std::unique_ptr<node>> children;
@@ -53,25 +55,17 @@ namespace fe
 
 		// Value nodes
 
-		struct constructor : public node
-		{
-			constructor(identifier&& type, tuple&& value) : id(std::move(type)), value(std::move(value)) {}
-
-			identifier id;
-			tuple value;
-		};
-
 		struct integer : public node
 		{
-			integer(::fe::values::integer val) : value(val) {}
+			integer(values::integer val) : value(val) {}
 
-			::fe::values::integer value;
+			values::integer value;
 		};
 
 		struct string : public node
 		{
-			string(::fe::values::string val) : value(val) {}
-			::fe::values::string value;
+			string(values::string val) : value(val) {}
+			values::string value;
 		};
 	}
 }

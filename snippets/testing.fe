@@ -1,1 +1,1 @@
-x = Type (1 2 ("a" 1 2) () 3 "asd")
+x = Terminal

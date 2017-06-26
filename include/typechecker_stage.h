@@ -1,45 +1,56 @@
 #pragma once
+#include <memory>
+
 #include "core_ast.h"
 #include "extended_ast.h"
-#include <memory>
 
 namespace fe
 {
-	using namespace types;
-
 	struct type_environment
 	{
-		void set(const std::string& name, type type)
+		type_environment() {}
+		type_environment(std::unordered_map<std::string, types::type> type_mapping) : types(type_mapping) {}
+		type_environment(const type_environment& other) : types(other.types) {}
+
+		void set(const std::string& name, types::type type)
 		{
 			types.insert_or_assign(name, type);
 		}
 
-		type get(const std::string& name)
+		types::type get(const std::string& name)
 		{
 			return types.at(name);
 		}
 
 	private:
-		std::unordered_map<std::string, type> types;
+		std::unordered_map<std::string, types::type> types;
 	};
 
 	class typechecker_stage : public language::typechecking_stage<extended_ast::node_p, extended_ast::node_p>
 	{
+	private:
+		type_environment base_environment;
+
 	public:
+		typechecker_stage() {}
+		typechecker_stage(type_environment environment) : base_environment(environment) {}
+
 		extended_ast::node_p typecheck(extended_ast::node_p extended_ast) override
 		{
-			auto t_env = type_environment{};
-			t_env.set("Type", product_type({ integer_type(), integer_type(), product_type({string_type(), integer_type(), integer_type()}), product_type({}), integer_type(), string_type() }));
+			using namespace types;
 
+			auto t_env = type_environment{base_environment};
 			return std::get<0>(typecheck(std::move(extended_ast), std::move(t_env)));
 		}
 
 		std::tuple<extended_ast::node_p, type_environment> typecheck(extended_ast::node_p n, type_environment&& t_env)
 		{
+			using namespace types;
+
 			if (auto tuple = dynamic_cast<extended_ast::tuple*>(n.get()))
 			{
 				auto new_node = std::make_unique<extended_ast::tuple>();
-				auto new_type = product_type({});
+				auto new_type = product_type();
 
 				for (decltype(auto) element : tuple->get_children())
 				{
@@ -92,42 +103,18 @@ namespace fe
 
 				auto env_type = t_env.get(fc->id.name);
 
-				if (!(typechecked_params->type == env_type))
+				function_type env_fn_type = std::get<5>(env_type);
+
+				if (!(std::get<1>(typechecked_params->type) == env_fn_type.from))
 				{
 					throw std::runtime_error("Type error");
 				}
-
-				fc->type = env_type;
 
 				return std::make_tuple(
 					std::make_unique<extended_ast::function_call>(
 						std::move(fc->id),
 						std::move(*dynamic_cast<extended_ast::tuple*>(typechecked_params.get())),
-						std::get<1>(env_type)
-						),
-					std::move(t_env)
-				);
-			}
-			// TODO can we remove constructor use function call instead?
-			else if (auto constructor = dynamic_cast<extended_ast::constructor*>(n.get()))
-			{
-				extended_ast::node_p typechecked_value;
-				std::tie(typechecked_value, t_env) = typecheck(
-					std::make_unique<extended_ast::tuple>(std::move(constructor->value)),
-					std::move(t_env)
-				);
-
-				auto env_type = t_env.get(constructor->id.name);
-
-				if (!(typechecked_value->type == env_type))
-				{
-					throw std::runtime_error("Type error");
-				}
-
-				return std::make_tuple(
-					std::make_unique<extended_ast::constructor>(
-						std::move(constructor->id),
-						std::move(*dynamic_cast<extended_ast::tuple*>(typechecked_value.get()))
+						env_fn_type.to
 						),
 					std::move(t_env)
 				);
