@@ -13,7 +13,6 @@ namespace fe
 			node(types::type type) : type(type) {}
 			node() : type(types::void_type()) {}
 
-
 			types::type type;
 		};
 
@@ -30,7 +29,7 @@ namespace fe
 
 		struct identifier : public node
 		{
-			identifier(std::string&& name) : name(std::move(name)) {}
+			identifier(std::string&& name, types::type t) : node(t), name(std::move(name)) {}
 			identifier(identifier&& other) : name(std::move(other.name)) {}
 
 			std::string name;

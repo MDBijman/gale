@@ -25,28 +25,21 @@ namespace fe
 
 			virtual std::unordered_map<std::string, std::shared_ptr<values::value>> get_values() override
 			{
-				auto inte = std::make_unique<core_ast::integer>(values::integer(4));
+				// TODO write in extended ast
+				auto lines = std::vector<std::unique_ptr<core_ast::node>>();
+				lines.push_back(std::make_unique<core_ast::integer>(values::integer(4)));
 
-				auto lines = std::vector<std::unique_ptr<core_ast::node>>{
-					std::move(inte)
-				};
+				auto code = std::make_unique<core_ast::tuple>(std::move(lines));
 
-				auto code = std::make_unique<core_ast::tuple>(
-					std::move(lines)
-					);
+				auto params = std::vector<core_ast::identifier>();
+				params.push_back(core_ast::identifier("x", types::integer_type()));
 
-
-				return std::move<std::unordered_map<std::string, std::shared_ptr<values::value>>>({
-					{
-						"Terminal",
-						std::move(std::make_shared<values::function>(
-							std::move(std::vector<core_ast::identifier>{
-								core_ast::identifier("x")
-							}),
-							std::move(code)
-						))
-					}
-				});
+				auto values = std::unordered_map<std::string, std::shared_ptr<values::value>>();
+				values.insert(std::make_pair("Terminal", std::make_shared<values::function>(
+					std::move(params),
+					std::move(code)
+				)));
+				return std::move(values);
 			}
 		};
 	}
