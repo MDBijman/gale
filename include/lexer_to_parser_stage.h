@@ -1,7 +1,7 @@
 #pragma once
 #include "ebnfe_parser.h"
 #include "lexer.h"
-#include "language.h"
+#include "language_definition.h"
 #include "pipeline.h"
 
 namespace fe
@@ -16,21 +16,29 @@ namespace fe
 			add_mapping(lrb_token, left_bracket);
 			add_mapping(rrb_token, right_bracket);
 			add_mapping(equals_token, equals);
-			add_mapping(keyword_token, identifier);
+			add_mapping(keyword_token, [](tools::lexing::token token) {
+				if (token.text == "export")
+					return export_keyword;
+				if (token.text == "type")
+					return type_keyword;
+				return identifier;
+			});
 		}
 
 		std::vector<tools::bnf::terminal_node> convert(const std::vector<tools::lexing::token>& in)
 		{
-			std::vector<tools::bnf::terminal_node> result;
+			using namespace tools;
 
-			std::transform(in.begin(), in.end(), std::back_inserter(result), [&](tools::lexing::token x) {
+			std::vector<bnf::terminal_node> result;
 
-				std::variant<tools::ebnf::terminal, std::function<tools::ebnf::terminal(tools::lexing::token)>> mapped = mapping.at(x.value);
+			std::transform(in.begin(), in.end(), std::back_inserter(result), [&](lexing::token x) {
 
-				if (std::holds_alternative<tools::ebnf::terminal>(mapped))
-					return tools::bnf::terminal_node(std::get<tools::bnf::terminal>(mapped), x.text);
+				std::variant<ebnf::terminal, std::function<ebnf::terminal(lexing::token)>> mapped = mapping.at(x.value);
+
+				if (std::holds_alternative<ebnf::terminal>(mapped))
+					return bnf::terminal_node(std::get<bnf::terminal>(mapped), x.text);
 				else
-					return tools::bnf::terminal_node(std::get<std::function<tools::bnf::terminal(tools::lexing::token)>>(mapped)(x), x.text);
+					return bnf::terminal_node(std::get<std::function<bnf::terminal(lexing::token)>>(mapped)(x), x.text);
 
 			});
 			return result;

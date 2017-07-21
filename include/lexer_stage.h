@@ -1,6 +1,6 @@
 #pragma once
 #include "pipeline.h"
-#include "language.h"
+#include "language_definition.h"
 #include "lexer.h"
 
 namespace fe

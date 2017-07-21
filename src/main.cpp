@@ -17,10 +17,35 @@
 #include <fstream>
 #include <iostream>
 
-int main()
+fe::pipeline create_pipeline()
 {
-	// Parse rules
-	std::ifstream in("./snippets/testing.fe", std::ios::in | std::ios::binary);
+	fe::pipeline p;
+
+	auto lexing_stage = new fe::lexing_stage{};
+	auto parsing_stage = new fe::parsing_stage{};
+	// LtP stage initialization has a dependency on the values of the language terminals
+	// These are initialized in the parsing stage initialization
+	auto lexer_to_parser_stage = new fe::lexer_to_parser_stage{};
+	auto parser_to_lowerer_stage = new fe::cst_to_ast_stage{};
+	auto typechecker_stage = new fe::typechecker_stage{};
+	auto lowering_stage = new fe::lowering_stage{};
+	auto interpreting_stage = new fe::interpreting_stage{};
+
+	p
+		.lexer(lexing_stage)
+		.lexer_to_parser(lexer_to_parser_stage)
+		.parser(std::move(parsing_stage))
+		.cst_to_ast(parser_to_lowerer_stage)
+		.typechecker(typechecker_stage)
+		.lowerer(lowering_stage)
+		.interpreter(interpreting_stage);
+
+	return p;
+}
+
+std::string read_file(const std::string& name)
+{
+	std::ifstream in(name, std::ios::in | std::ios::binary);
 	if (!in) throw std::exception("Could not open file");
 
 	std::string contents;
@@ -30,41 +55,27 @@ int main()
 	in.read(&contents[0], contents.size());
 	in.close();
 
-	fe::pipeline p;
+	return contents;
+}
 
-	{
-		auto language_module = fe::modules::language_api{};
+int main()
+{
+	auto pipeline = create_pipeline();
 
-		auto lexing_stage = new fe::lexing_stage{};
-		auto parsing_stage = new fe::parsing_stage{};
-		// LtP stage initialization has a dependency on the values of the language terminals
-		// These are initialized in the parsing stage initialization
-		auto lexer_to_parser_stage = new fe::lexer_to_parser_stage{};
-		auto parser_to_lowerer_stage = new fe::cst_to_ast_stage{};
-		auto typechecker_stage = new fe::typechecker_stage{
-			fe::type_environment{
-				language_module.get_types()
-			}
-		};
-		auto lowering_stage = new fe::lowering_stage{};
-		auto interpreting_stage = new fe::interpreting_stage{
-			fe::value_environment{
-				language_module.get_values()
-			}
-		};
+	// Load modules
+	
+	auto environment = fe::environment{};
 
-		p
-			.lexer(lexing_stage)
-			.lexer_to_parser(lexer_to_parser_stage)
-			.parser(std::move(parsing_stage))
-			.cst_to_ast(parser_to_lowerer_stage)
-			.typechecker(typechecker_stage)
-			.lowerer(lowering_stage)
-			.interpreter(interpreting_stage);
-	}
+	auto language_module_contents = read_file("./snippets/language_module.fe");
+	auto language_module = pipeline.process(std::move(language_module_contents), environment);
+	language_module->print();
+	std::cout << std::endl;
+	environment.add_module("language", language_module);
 
+	// Interpret code
 
-	std::shared_ptr<fe::values::value> result = p.process(std::move(contents));
+	auto contents = read_file("./snippets/testing.fe");
+	std::shared_ptr<fe::values::value> result = pipeline.process(std::move(contents), environment);
 	result->print();
 
 	std::cin.get();

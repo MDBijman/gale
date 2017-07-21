@@ -94,5 +94,15 @@ namespace fe
 				std::cout << "native function";
 			}
 		};
+
+		struct module : public value
+		{
+			std::unordered_map<std::string, std::shared_ptr<value>> exports;
+
+			void print() override
+			{
+				std::cout << "module";
+			}
+		};
 	}
 }

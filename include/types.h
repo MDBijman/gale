@@ -21,16 +21,16 @@ namespace fe
 
 		struct sum_type 
 		{
-			sum_type(std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type>> sum) : sum(sum) {}
+			sum_type(std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, unset_type>> sum) : sum(sum) {}
 			sum_type() {}
-			std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type>> sum;
+			std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, unset_type>> sum;
 		};
 
 		struct product_type
 		{
-			product_type(std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type>> product) : product(product) {}
+			product_type(std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, unset_type>> product) : product(product) {}
 			product_type() {}
-			std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type>> product;
+			std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, unset_type>> product;
 		};
 
 		struct function_type
@@ -41,7 +41,7 @@ namespace fe
 
 		// Variant
 
-		using type = std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type>;
+		using type = std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, unset_type>;
 
 		// Operators
 
@@ -56,6 +56,11 @@ namespace fe
 		}
 
 		bool operator==(const void_type& one, const void_type& two) 
+		{
+			return true;
+		}
+
+		bool operator==(const unset_type& one, const unset_type& two)
 		{
 			return true;
 		}

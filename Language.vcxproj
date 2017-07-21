@@ -128,24 +128,22 @@
     <ClCompile Include="src\bnf_parser.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\environment.h" />
     <ClInclude Include="include\extended_ast.h" />
     <ClInclude Include="include\bnf_parser.h" />
     <ClInclude Include="include\core_ast.h" />
-    <ClInclude Include="include\grammar.h" />
     <ClInclude Include="include\language_module.h" />
     <ClInclude Include="include\lowering_stage.h" />
     <ClInclude Include="include\ebnfe_parser.h" />
     <ClInclude Include="include\ebnf_parser.h" />
     <ClInclude Include="include\interpreting_stage.h" />
-    <ClInclude Include="include\language.h" />
+    <ClInclude Include="include\language_definition.h" />
     <ClInclude Include="include\lexer_to_parser_stage.h" />
     <ClInclude Include="include\cst_to_ast_stage.h" />
-    <ClInclude Include="include\module.h" />
     <ClInclude Include="include\pipeline.h" />
     <ClInclude Include="include\lexer_stage.h" />
     <ClInclude Include="include\parser_stage.h" />
     <ClInclude Include="include\lexer.h" />
-    <ClInclude Include="include\registry.h" />
     <ClInclude Include="include\typechecker_stage.h" />
     <ClInclude Include="include\types.h" />
     <ClInclude Include="include\values.h" />
@@ -154,6 +152,7 @@
   <ItemGroup>
     <Text Include="include\notes.txt" />
     <Text Include="snippets\language_core.fe" />
+    <Text Include="snippets\language_module.fe" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

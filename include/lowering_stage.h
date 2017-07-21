@@ -14,22 +14,23 @@ namespace fe
 
 			if (auto tuple = dynamic_cast<extended_ast::tuple*>(n.get()))
 			{
-				auto nl = make_unique<core_ast::tuple>();
+				std::vector<std::unique_ptr<core_ast::node>> children;
 				for (decltype(auto) subnode : tuple->get_children())
 				{
-					(*nl).children.push_back(lower(move(subnode)));
+					children.push_back(lower(move(subnode)));
 				}
 
+				auto nl = make_unique<core_ast::tuple>(std::move(children));
 				return nl;
 			}
 			else if (auto id = dynamic_cast<extended_ast::identifier*>(n.get()))
 			{
-				return make_unique<core_ast::identifier>(move(id->name));
+				return make_unique<core_ast::identifier>(move(id->name), id->type);
 			}
 			else if (auto assignment = dynamic_cast<extended_ast::assignment*>(n.get()))
 			{
 				return make_unique<core_ast::assignment>(
-					core_ast::identifier(move(assignment->id.name)),
+					core_ast::identifier(move(assignment->id.name), assignment->id.type),
 					move(lower(move(assignment->value)))
 				);
 			}
@@ -42,9 +43,16 @@ namespace fe
 					);
 
 				return make_unique<core_ast::function_call>(
-					core_ast::identifier(move(fc->id.name)),
-					move(*lowered_parameters)
+					core_ast::identifier(move(fc->id.name), fc->id.type),
+					move(*lowered_parameters),
+					fc->type
 				);
+			}
+			else if (auto export_stmt = dynamic_cast<extended_ast::export_stmt*>(n.get()))
+			{
+				return make_unique<core_ast::export_stmt>(
+						core_ast::identifier(move(export_stmt->name.name), export_stmt->name.type)
+					);
 			}
 			else if (auto integer = dynamic_cast<extended_ast::integer*>(n.get()))
 			{

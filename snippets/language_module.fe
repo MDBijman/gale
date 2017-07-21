@@ -1,0 +1,3 @@
+type Terminal = (Int)
+
+export Terminal

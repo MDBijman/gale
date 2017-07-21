@@ -44,6 +44,7 @@ namespace fe
 				{
 					new_type.product.push_back(child->type);
 				}
+				type = new_type;
 			}
 
 			std::vector<std::unique_ptr<node>> children;
@@ -73,6 +74,21 @@ namespace fe
 
 			identifier id;
 			tuple params;
+		};
+
+		struct type_declaration : public node
+		{
+			type_declaration(identifier&& name, tuple&& types) : id(std::move(name)), types(std::move(types)), node(types::void_type{}) {}
+
+			identifier id;
+			tuple types;
+		};
+
+		struct export_stmt : public node
+		{
+			export_stmt(identifier name) : node{ types::unset_type{} }, name(std::move(name)) {}
+
+			identifier name;
 		};
 
 		// Value nodes

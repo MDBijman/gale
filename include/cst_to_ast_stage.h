@@ -1,6 +1,6 @@
 #pragma once
 #include "pipeline.h"
-#include "language.h"
+#include "language_definition.h"
 
 namespace fe
 {
@@ -15,9 +15,12 @@ namespace fe
 
 				if (n.value == file)
 				{
-					// File has children [assignment]
+					// File has children [assignment export]
 
-					return convert(std::move(n.children.at(0)));
+					auto converted_assignment = convert(std::move(n.children.at(0)));
+					auto converted_module_export = convert(std::move(n.children.at(1)));
+
+					return converted_assignment;
 				}
 				else if (n.value == assignment)
 				{
@@ -70,6 +73,33 @@ namespace fe
 						values->get_children().push_back(std::move(convert(std::move(n.children.at(i)))));
 					}
 					return values;
+				}
+				else if (n.value == type_definition)
+				{
+					// Type definition has children [identifier tuple]
+
+					// Convert the identifier
+					auto converted_identifier =
+						dynamic_cast<extended_ast::identifier*>(convert(std::move(n.children.at(0))).release());
+
+					// Convert the tuple
+					auto converted_tuple =
+						dynamic_cast<extended_ast::tuple*>(convert(std::move(n.children.at(1))).release());
+
+					return std::make_unique<extended_ast::type_declaration>(
+						std::move(*converted_identifier),	
+						std::move(*converted_tuple)
+					);
+				}
+				else if (n.value == export_stmt)
+				{
+					// Export has children [identifier]
+
+					// Convert the identifier
+					auto converted_identifier =
+						dynamic_cast<extended_ast::identifier*>(convert(std::move(n.children.at(0))).release());
+
+					return std::make_unique<extended_ast::export_stmt>(std::move(*converted_identifier));
 				}
 			}
 			else if (std::holds_alternative<tools::ebnfe::terminal_node>(*node))

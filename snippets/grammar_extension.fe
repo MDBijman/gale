@@ -46,4 +46,5 @@ transform CST > AST =
 	| Inner (file c) => NodeList(map (transform c))
 	| Inner (statement c) => transform(get (c 0))
 
-return Grammar (lex parse transform)
+g = Grammar (lex parse transform)
+

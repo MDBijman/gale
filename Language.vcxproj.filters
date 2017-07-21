@@ -24,9 +24,6 @@
     <Filter Include="Source Files\fe">
       <UniqueIdentifier>{201a128b-a669-4f6f-8bb8-dc3f1f7a921c}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\language">
-      <UniqueIdentifier>{48917566-8ed6-43a2-a7fd-435af4cc339b}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source Files\fe\data">
       <UniqueIdentifier>{4daa90e2-78bc-4f8f-8bac-378becc88020}</UniqueIdentifier>
     </Filter>
@@ -57,8 +54,8 @@
     <Filter Include="Source Files\fe\pipeline">
       <UniqueIdentifier>{8aacbe17-1c1f-4b03-a529-fe01fa3e41cd}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\fe\modules">
-      <UniqueIdentifier>{cad4fa38-8785-4175-92cb-d2a3a109e01a}</UniqueIdentifier>
+    <Filter Include="Source Files\library">
+      <UniqueIdentifier>{b6786af6-755c-4594-9866-730840718fef}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -92,18 +89,6 @@
     </ClInclude>
     <ClInclude Include="include\ebnfe_parser.h">
       <Filter>Source Files\tools\parsing</Filter>
-    </ClInclude>
-    <ClInclude Include="include\pipeline.h">
-      <Filter>Source Files\language</Filter>
-    </ClInclude>
-    <ClInclude Include="include\registry.h">
-      <Filter>Source Files\language</Filter>
-    </ClInclude>
-    <ClInclude Include="include\grammar.h">
-      <Filter>Source Files\language</Filter>
-    </ClInclude>
-    <ClInclude Include="include\language.h">
-      <Filter>Source Files\fe\data</Filter>
     </ClInclude>
     <ClInclude Include="include\values.h">
       <Filter>Source Files\fe\data</Filter>
@@ -141,11 +126,17 @@
     <ClInclude Include="include\cst_to_ast_stage.h">
       <Filter>Source Files\fe\pipeline</Filter>
     </ClInclude>
-    <ClInclude Include="include\module.h">
-      <Filter>Source Files\language</Filter>
+    <ClInclude Include="include\pipeline.h">
+      <Filter>Source Files\fe</Filter>
     </ClInclude>
     <ClInclude Include="include\language_module.h">
-      <Filter>Source Files\fe\modules</Filter>
+      <Filter>Source Files\library</Filter>
+    </ClInclude>
+    <ClInclude Include="include\language_definition.h">
+      <Filter>Source Files\fe</Filter>
+    </ClInclude>
+    <ClInclude Include="include\environment.h">
+      <Filter>Source Files\fe\data</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -153,6 +144,9 @@
       <Filter>Resource Files</Filter>
     </Text>
     <Text Include="include\notes.txt">
+      <Filter>Resource Files</Filter>
+    </Text>
+    <Text Include="snippets\language_module.fe">
       <Filter>Resource Files</Filter>
     </Text>
   </ItemGroup>
