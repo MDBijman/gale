@@ -20,57 +20,57 @@ namespace fe
 
 		struct tuple : public node
 		{
-			tuple(tuple&& other) : children(std::move(other.children)), node(std::move(other)) {}
-			tuple(std::vector<std::unique_ptr<node>> children) : children(std::move(children)), node(types::void_type()) {}
+			tuple(tuple&& other) : node(std::move(other)), children(std::move(other.children)) {}
+			tuple(std::vector<std::unique_ptr<node>> children, types::type t) : node(t), children(std::move(children)) {}
 
 			std::vector<std::unique_ptr<node>> children;
 		};
 
 		struct identifier : public node
 		{
-			identifier(std::string&& name, types::type t) : node(t), name(std::move(name)) {}
-			identifier(identifier&& other) : name(std::move(other.name)), node(std::move(other)) {}
+			identifier(std::vector<std::string>&& name, types::type t) : node(t), name(std::move(name)) {}
+			identifier(std::string&& name, types::type t) : node(t), name({ name }) {}
+			identifier(identifier&& other) : node(std::move(other)), name(std::move(other.name)) {}
 
-			std::string name;
+			std::vector<std::string> name;
 		};
 
 		struct assignment : public node
 		{
 			assignment(identifier&& id, std::unique_ptr<node>&& val) 
-				: id(std::move(id)), value(std::move(val)), node(types::void_type()) {}
+				: node(types::void_type()), id(std::move(id)), value(std::move(val)) {}
 
 			identifier id;
 			std::unique_ptr<node> value;
 		};
+
 		struct function_call : public node
 		{
 			function_call(identifier&& id, tuple&& params, types::type t)
-				: id(std::move(id)), params(std::move(params)), node(t) {}
+				: node(t), id(std::move(id)), params(std::move(params)) {}
 
 			identifier id;
 			tuple params;
-		};
-
-		struct export_stmt : public node
-		{
-			export_stmt(identifier&& name) : node(types::unset_type()), name(std::move(name)) {}
-
-			identifier name;
 		};
 
 		// Value nodes
 
 		struct integer : public node
 		{
-			integer(values::integer val) : value(val), node(types::integer_type()) {}
-
+			integer(values::integer val) : node(types::integer_type()), value(val) {}
 			values::integer value;
 		};
 
 		struct string : public node
 		{
-			string(values::string val) : value(val), node(types::string_type()) {}
+			string(values::string val) : node(types::string_type()), value(val) {}
 			values::string value;
+		};
+
+		struct function : public node
+		{
+			function(values::function&& fun, types::type t) : node(t), fun(std::move(fun)) {}
+			values::function fun;
 		};
 	}
 }

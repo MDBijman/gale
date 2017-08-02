@@ -16,6 +16,7 @@ namespace fe
 			add_mapping(lrb_token, left_bracket);
 			add_mapping(rrb_token, right_bracket);
 			add_mapping(equals_token, equals);
+			add_mapping(module_infix_token, module_infix);
 			add_mapping(keyword_token, [](tools::lexing::token token) {
 				if (token.text == "export")
 					return export_keyword;

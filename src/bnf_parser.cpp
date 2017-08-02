@@ -39,7 +39,14 @@ namespace tools
 					}
 					else
 					{
-						return error{ error_code::TERMINAL_MISMATCH, std::string("Got: ").append(std::to_string((int)input_token.value)).append(" Expected: ").append(std::to_string((int)value)) };
+						return error{ error_code::TERMINAL_MISMATCH, 
+							std::string("Got: ")
+							.append(std::to_string((int)input_token.value))
+							.append(" Expected: ")
+							.append(std::to_string((int)value))
+							.append(" at token index ")
+							.append(std::to_string(std::distance(input.begin(), it)))
+						};
 					}
 				}
 				else

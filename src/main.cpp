@@ -9,6 +9,8 @@
 #include "lowering_stage.h"
 #include "interpreting_stage.h"
 
+#include "values.h"
+
 #include "language_module.h"
 
 #include <stdio.h>
@@ -63,20 +65,18 @@ int main()
 	auto pipeline = create_pipeline();
 
 	// Load modules
-	
 	auto environment = fe::environment{};
 
-	auto language_module_contents = read_file("./snippets/language_module.fe");
-	auto language_module = pipeline.process(std::move(language_module_contents), environment);
-	language_module->print();
-	std::cout << std::endl;
-	environment.add_module("language", language_module);
+	{ // Language module
+		auto language_module_contents = read_file("./snippets/language_module.fe");
+		auto language_results = pipeline.run_to_interp(std::move(language_module_contents), fe::environment{});
+		environment.add_module("language", std::get<2>(language_results));
+	}
 
 	// Interpret code
-
-	auto contents = read_file("./snippets/testing.fe");
-	std::shared_ptr<fe::values::value> result = pipeline.process(std::move(contents), environment);
-	result->print();
+	auto testing_contents = read_file("./snippets/testing.fe");
+	auto testing_results = pipeline.run_to_interp(std::move(testing_contents), std::move(environment));
+	std::get<1>(testing_results)->print();
 
 	std::cin.get();
 }

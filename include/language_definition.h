@@ -9,13 +9,13 @@
 namespace fe
 {
 	tools::lexing::token_id
-		equals_token, keyword_token, string_token, number_token, lrb_token, rrb_token;
+		equals_token, keyword_token, string_token, number_token, lrb_token, rrb_token, module_infix_token;
 	
 	tools::ebnfe::non_terminal 
-		file, assignment, expression, tuple_t, export_stmt, type_definition;
+		file, assignment, expression, tuple_t, export_stmt, type_definition, statement;
 
 	tools::ebnfe::terminal
-		identifier, equals, left_bracket, right_bracket, number, word, export_keyword, type_keyword;
+		name, identifier, equals, left_bracket, right_bracket, number, word, export_keyword, type_keyword, module_infix;
 
 	using pipeline = language::pipeline<
 		tools::lexing::token, 
@@ -23,8 +23,8 @@ namespace fe
 		std::unique_ptr<tools::ebnfe::node>, 
 		extended_ast::node_p,
 		extended_ast::node_p,
-		std::unique_ptr<core_ast::node>, 
-		std::shared_ptr<values::value>,
+		std::unique_ptr<core_ast::node>,
+		std::shared_ptr<fe::values::value>,
 		fe::environment
 	>;
 }

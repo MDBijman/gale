@@ -72,7 +72,7 @@ namespace fe
 
 		struct function : public value
 		{
-			function(std::vector<core_ast::identifier>&& params, std::unique_ptr<core_ast::node> body) : parameters(std::move(params)), body(std::move(body)) {}
+			function(std::vector<core_ast::identifier> params, std::unique_ptr<core_ast::node> body) : parameters(std::move(params)), body(std::move(body)) {}
 			function(function&& other) : parameters(std::move(other.parameters)), body(std::move(other.body)) {}
 			
 			std::vector<core_ast::identifier> parameters;

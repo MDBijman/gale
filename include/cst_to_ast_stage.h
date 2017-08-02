@@ -15,12 +15,15 @@ namespace fe
 
 				if (n.value == file)
 				{
-					// File has children [assignment export]
+					// File has children [statements*]
 
-					auto converted_assignment = convert(std::move(n.children.at(0)));
-					auto converted_module_export = convert(std::move(n.children.at(1)));
+					auto file_nodes = std::make_unique<extended_ast::tuple>();
 
-					return converted_assignment;
+					for (int i = 0; i < n.children.size(); i++)
+					{
+						file_nodes->get_children().push_back(std::move(convert(std::move(n.children.at(i)))));
+					}
+					return file_nodes;
 				}
 				else if (n.value == assignment)
 				{
@@ -40,6 +43,7 @@ namespace fe
 				}
 				else if (n.value == expression)
 				{
+					// TODO create seperate nt for function
 					// Expression has children [tuple_t | number | word | identifier [tuple]]
 
 					// Function call
@@ -65,7 +69,7 @@ namespace fe
 				}
 				else if (n.value == tuple_t)
 				{
-					// Tuple has children [values...]
+					// Tuple has children [values*]
 
 					auto values = std::make_unique<extended_ast::tuple>();
 					for (int i = 0; i < n.children.size(); i++)
@@ -116,7 +120,35 @@ namespace fe
 				}
 				else if (n.value == identifier)
 				{
-					return std::make_unique<extended_ast::identifier>(std::move(n.token), types::void_type());
+					auto splitter = [](std::string identifier) -> std::vector<std::string> {
+						std::vector<std::string> split_identifier;
+
+						bool reading_infix = false;
+						std::string::iterator begin_word = identifier.begin();
+						for (auto it = identifier.begin(); it != identifier.end(); it++)
+						{
+							if (*it == ':')
+							{
+								if (!reading_infix) reading_infix = true;
+								else
+								{ // Read infix
+									split_identifier.push_back(std::string(begin_word, it - 1));
+									begin_word = it + 1;
+									continue;
+								}
+							}
+							else
+							{
+								if (reading_infix) reading_infix = false;
+								if(it == identifier.end() - 1)
+									split_identifier.push_back(std::string(begin_word, it + 1));
+							}
+						}
+						return split_identifier;
+					};
+
+					auto words = splitter(n.token);
+					return std::make_unique<extended_ast::identifier>(std::move(words));
 				}
 			}
 			return nullptr;
