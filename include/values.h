@@ -104,5 +104,16 @@ namespace fe
 				std::cout << "module";
 			}
 		};
+
+		struct type : public value
+		{
+			type(types::type t) : kind(t) {}
+			types::type kind;
+
+			void print() override
+			{
+				std::cout << "type";
+			}
+		};
 	}
 }

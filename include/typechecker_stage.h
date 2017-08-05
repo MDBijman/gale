@@ -17,6 +17,18 @@ namespace fe
 
 		std::tuple<extended_ast::node_p, fe::environment> typecheck(extended_ast::node_p n, fe::environment env) override
 		{
+			std::tie(n, env) = simplify(std::move(n), std::move(env));
+			std::tie(n, env) = check(std::move(n), std::move(env));
+			return std::make_tuple(std::move(n), std::move(env));
+		}
+
+		std::tuple<extended_ast::node_p, fe::environment> simplify(extended_ast::node_p n, fe::environment env)
+		{
+			return std::make_tuple(std::move(n), std::move(env));
+		}
+
+		std::tuple<extended_ast::node_p, fe::environment> check(extended_ast::node_p n, fe::environment env) 
+		{
 			using namespace types;
 		
 			if (auto value_tuple = dynamic_cast<extended_ast::value_tuple*>(n.get()))
@@ -39,7 +51,7 @@ namespace fe
 			else if (auto id = dynamic_cast<extended_ast::identifier*>(n.get()))
 			{
 				id->type = env.typeof(id->name);
-				
+
 				return std::make_tuple(
 					std::move(n),
 					std::move(env)
@@ -54,7 +66,7 @@ namespace fe
 				env.set_type(assignment->id.name, assignment->value->type);
 				assignment->id.type = assignment->value->type;
 				
-				assignment->type = types::void_type();
+				assignment->type = void_type();
 
 				return std::make_tuple(
 					std::move(n),
@@ -88,19 +100,19 @@ namespace fe
 			}
 			else if (auto export_stmt = dynamic_cast<extended_ast::export_stmt*>(n.get()))
 			{
-				export_stmt->type = types::void_type();
+				export_stmt->type = void_type();
 				//env.t_env.set(export_stmt->name, env.);
 				return std::make_tuple(std::move(n), std::move(env));
 			}
 			else if (auto type_declaration = dynamic_cast<extended_ast::type_declaration*>(n.get()))
 			{
-				type_declaration->type = types::void_type();
+				type_declaration->type = void_type();
 
 				extended_ast::node_p typechecked_tuple;
 				std::tie(typechecked_tuple, env) = typecheck(std::make_unique<extended_ast::type_tuple>(std::move(type_declaration->types)), std::move(env));
 				type_declaration->types = std::move(*dynamic_cast<extended_ast::type_tuple*>(typechecked_tuple.get()));
 			
-				env.set_type(type_declaration->id.name, types::function_type(
+				env.set_type(type_declaration->id.name, function_type(
 					std::get<1>(type_declaration->types.type), std::get<1>(type_declaration->types.type)
 				));
 
@@ -108,25 +120,22 @@ namespace fe
 			}
 			else if (auto integer = dynamic_cast<extended_ast::integer*>(n.get()))
 			{
-				integer->type = types::integer_type();
+				integer->type = integer_type();
 				return std::make_tuple(std::move(n), std::move(env));
 			}
 			else if (auto string = dynamic_cast<extended_ast::string*>(n.get()))
 			{
-				string->type = types::string_type();
+				string->type = string_type();
 				return std::make_tuple(std::move(n), std::move(env));
 			}
 			else if (auto type_tuple = dynamic_cast<extended_ast::type_tuple*>(n.get()))
 			{
-				auto new_type = types::product_type();
-
 				for (decltype(auto) child : type_tuple->children)
 				{
 					std::tie(child, env) = typecheck(std::move(child), std::move(env));
-					new_type.product.push_back(child->type);
 				}
 
-				type_tuple->type = types::meta_type{};
+				type_tuple->type = meta_type{};
 				return std::make_pair(std::move(n), std::move(env));
 			}
 
