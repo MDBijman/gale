@@ -367,6 +367,8 @@ namespace tools
 					return std::make_unique<node>(terminal_node{ &std::get<bnf::terminal_node>(*extended_ast) });
 				else if (std::holds_alternative<bnf::non_terminal_node>(*extended_ast))
 					return std::make_unique<node>(non_terminal_node{ &std::get<bnf::non_terminal_node>(*extended_ast), nt_child_parents });
+				else
+					return error{ error_code::BNF_ERROR, "BNF parser returned empty value" };
 			}
 
 			parser& new_rule(rule r)

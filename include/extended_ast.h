@@ -22,37 +22,29 @@ namespace fe
 
 		// Derivatives
 
-		struct tuple : public node
+		struct type_tuple : public node
 		{
-			tuple() : node(types::unset_type()) {}
-			tuple(tuple&& other) : node(std::move(other)), children(std::move(other.children)) {}
-			tuple& operator=(tuple&& other) 
+			type_tuple(std::vector<std::unique_ptr<node>>&& children) : node(types::unset_type()), children(std::move(children)) {}
+			type_tuple(type_tuple&& other) : node(std::move(other)), children(std::move(other.children)) {}
+			type_tuple& operator=(type_tuple&& other) 
 			{
 				this->children = std::move(other.children);
 				this->type = other.type;
 				return *this;
 			}
 
-			void add(std::unique_ptr<node> child)
-			{
-				children.push_back(std::move(child));
-				update_type();
-			}
+			std::vector<std::unique_ptr<node>> children;
+		};
 
-			std::vector<std::unique_ptr<node>>& get_children()
+		struct value_tuple : public node
+		{
+			value_tuple(std::vector<std::unique_ptr<node>>&& children) : node(types::unset_type()), children(std::move(children)) {}
+			value_tuple(value_tuple&& other) : node(std::move(other)), children(std::move(other.children)) {}
+			value_tuple& operator=(value_tuple&& other) 
 			{
-				return children;
-			}
-
-		private:
-			void update_type()
-			{
-				types::product_type new_type;
-				for (decltype(auto) child : children)
-				{
-					new_type.product.push_back(child->type);
-				}
-				type = new_type;
+				this->children = std::move(other.children);
+				this->type = other.type;
+				return *this;
 			}
 
 			std::vector<std::unique_ptr<node>> children;
@@ -77,20 +69,20 @@ namespace fe
 
 		struct function_call : public node
 		{
-			function_call(identifier&& id, tuple&& params) : id(std::move(id)), params(std::move(params)) {}
+			function_call(identifier&& id, value_tuple&& params) : id(std::move(id)), params(std::move(params)) {}
 			function_call(function_call&& other) : node(std::move(other)), id(std::move(other.id)), params(std::move(other.params)) { }
 
 			identifier id;
-			tuple params;
+			value_tuple params;
 		};
 
 		struct type_declaration : public node
 		{
-			type_declaration(identifier&& name, tuple&& types) : id(std::move(name)), types(std::move(types)), node(types::void_type{}) {}
+			type_declaration(identifier&& name, type_tuple&& types) : node(types::void_type{}), id(std::move(name)), types(std::move(types)) {}
 			type_declaration(type_declaration&& other) : node(std::move(other)), id(std::move(other.id)), types(std::move(other.types)) {}
 
 			identifier id;
-			tuple types;
+			type_tuple types;
 		};
 
 		struct export_stmt : public node

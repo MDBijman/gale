@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <fstream>
 #include <iostream>
+#include <string>
 
 fe::pipeline create_pipeline()
 {
@@ -64,14 +65,28 @@ int main()
 {
 	auto pipeline = create_pipeline();
 
-	// Load modules
-	auto environment = fe::environment{};
+	auto std_module = fe::environment{};
+	{ // Standard module
+		std::unique_ptr<fe::types::type> int_type = std::make_unique<fe::types::type>(fe::types::integer_type());
 
+		std_module.set_type(std::string("i32"), fe::types::meta_type(std::move(int_type)));
+	}
+
+	auto language_module = fe::environment{};
 	{ // Language module
 		auto language_module_contents = read_file("./snippets/language_module.fe");
-		auto language_results = pipeline.run_to_interp(std::move(language_module_contents), fe::environment{});
-		environment.add_module("language", std::get<2>(language_results));
+
+		// std lib
+		language_module.add_module("std", std_module);
+
+		auto language_results = pipeline.run_to_interp(std::move(language_module_contents), std::move(language_module));
+		language_module = std::get<2>(language_results);
 	}
+
+	// Load modules
+	auto environment = fe::environment{};
+	environment.add_module("std", std_module);
+	environment.add_module("language", language_module);
 
 	// Interpret code
 	auto testing_contents = read_file("./snippets/testing.fe");

@@ -28,7 +28,7 @@ namespace fe
 			rrb_token = lexing_rules.create_token("\\)");
 			lrb_token = lexing_rules.create_token("\\(");
 			equals_token = lexing_rules.create_token("=");
-			keyword_token = lexing_rules.create_token("[a-zA-Z][a-zA-Z_:]*");
+			keyword_token = lexing_rules.create_token("[a-zA-Z][a-zA-Z0-9_:]*");
 			lexing_rules.compile();
 			return lexing_rules;
 		}

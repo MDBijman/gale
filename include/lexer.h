@@ -36,7 +36,7 @@ namespace tools
 				if (std::regex_search(range.first, range.second, match, regex_object, std::regex_constants::match_continuous))
 				{
 					range = match.suffix();
-					for (int i = 1; i < match.size(); i++)
+					for (unsigned int i = 1; i < match.size(); i++)
 						if (match[i].matched) return regex_group_to_token_id.at(i - 1);
 				}
 				return -1;

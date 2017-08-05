@@ -13,21 +13,19 @@ namespace fe
 			file = parser.new_non_terminal();
 			assignment = parser.new_non_terminal();
 			expression = parser.new_non_terminal();
-			tuple_t = parser.new_non_terminal();
-			
+			value_tuple = parser.new_non_terminal();
 			type_definition = parser.new_non_terminal();
 			statement = parser.new_non_terminal();
 			export_stmt = parser.new_non_terminal();
-			identifier = parser.new_terminal();
+			type_tuple = parser.new_non_terminal();
 
+			identifier = parser.new_terminal();
 			module_infix = parser.new_terminal();
 			export_keyword = parser.new_terminal();
 			type_keyword = parser.new_terminal();
-
 			left_bracket = parser.new_terminal();
 			right_bracket = parser.new_terminal();
 			equals = parser.new_terminal();
-
 			number = parser.new_terminal();
 			word = parser.new_terminal();
 
@@ -35,11 +33,14 @@ namespace fe
 			parser
 				.new_rule({ file, { statement, star } })
 				.new_rule({ statement, { type_definition, alt, export_stmt, alt, assignment } })
-				.new_rule({ type_definition, { type_keyword, identifier, tuple_t } })
 				.new_rule({ export_stmt, { export_keyword, identifier } })
 				.new_rule({ assignment, { identifier, equals, expression } })
-				.new_rule({ expression, { tuple_t, alt, number, alt, word, alt, identifier, lsb, tuple_t, rsb } })
-				.new_rule({ tuple_t, { left_bracket, expression, star, right_bracket } })
+				.new_rule({ expression, { value_tuple, alt, number, alt, word, alt, identifier, lsb, value_tuple, rsb } })
+				.new_rule({ value_tuple, { left_bracket, expression, star, right_bracket } })
+
+				// Type system
+				.new_rule({ type_definition, { type_keyword, identifier, type_tuple } })
+				.new_rule({ type_tuple, { left_bracket, identifier, star, right_bracket } })
 			;
 
 			parser

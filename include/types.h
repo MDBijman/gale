@@ -13,6 +13,7 @@ namespace fe
 		struct string_type {};
 		struct void_type {};
 		struct unset_type {};
+		struct meta_type {};
 
 		// Composition types
 
@@ -21,16 +22,16 @@ namespace fe
 
 		struct sum_type 
 		{
-			sum_type(std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, unset_type>> sum) : sum(sum) {}
+			sum_type(std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, meta_type, unset_type>> sum) : sum(sum) {}
 			sum_type() {}
-			std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, unset_type>> sum;
+			std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, meta_type, unset_type>> sum;
 		};
 
 		struct product_type
 		{
-			product_type(std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, unset_type>> product) : product(product) {}
+			product_type(std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, meta_type, unset_type>> product) : product(product) {}
 			product_type() {}
-			std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, unset_type>> product;
+			std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, meta_type, unset_type>> product;
 		};
 
 		struct function_type
@@ -41,7 +42,7 @@ namespace fe
 
 		// Variant
 
-		using type = std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, unset_type>;
+		using type = std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, meta_type, unset_type>;
 
 		// Operators
 
@@ -65,11 +66,16 @@ namespace fe
 			return true;
 		}
 
+		bool operator==(const meta_type& one, const meta_type& two)
+		{
+			return true;
+		}
+
 		bool operator==(const sum_type& one, const sum_type& two)
 		{
 			if (one.sum.size() != two.sum.size()) return false;
 
-			for (int i = 0; i < one.sum.size(); i++)
+			for (unsigned int i = 0; i < one.sum.size(); i++)
 			{
 				if (!(one.sum.at(i) == two.sum.at(i))) return false;
 			}
@@ -81,7 +87,7 @@ namespace fe
 		{
 			if (one.product.size() != two.product.size()) return false;
 
-			for (int i = 0; i < one.product.size(); i++)
+			for (unsigned int i = 0; i < one.product.size(); i++)
 			{
 				if (!(one.product.at(i) == two.product.at(i))) return false;
 			}

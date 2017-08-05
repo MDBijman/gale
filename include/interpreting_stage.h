@@ -55,7 +55,7 @@ namespace fe
 				auto function = dynamic_cast<values::function*>(env.valueof(call->id.name).get());
 				fe::environment function_env{ env };
 
-				for (int i = 0; i < call->params.children.size(); i++)
+				for (unsigned int i = 0; i < call->params.children.size(); i++)
 				{
 					shared_ptr<values::value> param_value;
 					tie(call->params.children.at(i), param_value, std::ignore) 

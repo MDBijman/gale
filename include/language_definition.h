@@ -12,7 +12,7 @@ namespace fe
 		equals_token, keyword_token, string_token, number_token, lrb_token, rrb_token, module_infix_token;
 	
 	tools::ebnfe::non_terminal 
-		file, assignment, expression, tuple_t, export_stmt, type_definition, statement;
+		file, assignment, expression, value_tuple, export_stmt, type_definition, type_tuple, statement;
 
 	tools::ebnfe::terminal
 		name, identifier, equals, left_bracket, right_bracket, number, word, export_keyword, type_keyword, module_infix;

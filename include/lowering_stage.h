@@ -12,10 +12,10 @@ namespace fe
 		{
 			using namespace std;
 
-			if (auto tuple = dynamic_cast<extended_ast::tuple*>(n.get()))
+			if (auto tuple = dynamic_cast<extended_ast::value_tuple*>(n.get()))
 			{
 				std::vector<std::unique_ptr<core_ast::node>> children;
-				for (decltype(auto) subnode : tuple->get_children())
+				for (decltype(auto) subnode : tuple->children)
 				{
 					children.push_back(lower(move(subnode)));
 				}
@@ -39,7 +39,7 @@ namespace fe
 				// HACK creating smart ptr to call lower then releasing and casting
 				auto lowered_parameters = 
 					dynamic_cast<core_ast::tuple*>(
-						lower(make_unique<extended_ast::tuple>(move(fc->params))).release()
+						lower(make_unique<extended_ast::value_tuple>(move(fc->params))).release()
 					);
 
 				return make_unique<core_ast::function_call>(

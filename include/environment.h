@@ -55,54 +55,57 @@ namespace fe
 		types::type typeof(const std::vector<std::string>& identifier)
 		{
 			if (identifier.size() == 1)
-				return t_env.get(identifier.at(0));
+				return type_environment.get(identifier.at(0));
 			else return modules.find(identifier.at(0))->second.typeof(std::vector<std::string>{ identifier.begin() + 1, identifier.end() });
 		}
 
 		types::type typeof(const std::string& name)
 		{
-			return t_env.get(name);
+			return type_environment.get(name);
 		}
 
 		std::shared_ptr<values::value> valueof(const std::string& name)
 		{
-			return v_env.get(name);
+			return value_environment.get(name);
 		}
 
 		std::shared_ptr<values::value> valueof(const std::vector<std::string>& identifier)
 		{
 			if (identifier.size() == 1)
-				return v_env.get(identifier.at(0));
+				return value_environment.get(identifier.at(0));
 			else return modules.find(identifier.at(0))->second.valueof(std::vector<std::string>{ identifier.begin() + 1, identifier.end() });
 		}
 
 		void set_value(std::string& identifier, std::shared_ptr<values::value> value)
 		{
-			return v_env.set(identifier, value);
+			value_environment.set(identifier, value);
 		}
 
 		void set_value(const std::vector<std::string>& identifier, std::shared_ptr<values::value> value)
 		{
 			if (identifier.size() == 1)
-				return v_env.set(identifier.at(0), value);
-			else return modules.find(identifier.at(0))->second.set_value(std::vector<std::string>{ identifier.begin() + 1, identifier.end() }, value);
+				value_environment.set(identifier.at(0), value);
+			else 
+				modules.find(identifier.at(0))->second.set_value(std::vector<std::string>{ identifier.begin() + 1, identifier.end() }, value);
 		}
 
-		void set_type(std::string& identifier, std::shared_ptr<values::value> value)
+		void set_type(std::string& identifier, types::type type)
 		{
-			return v_env.set(identifier, value);
+			type_environment.set(identifier, type);
 		}
 
 		void set_type(const std::vector<std::string>& identifier, types::type type)
 		{
 			if (identifier.size() == 1)
-				return t_env.set(identifier.at(0), type);
-			else return modules.find(identifier.at(0))->second.set_type(std::vector<std::string>{ identifier.begin() + 1, identifier.end() }, type);
+				type_environment.set(identifier.at(0), type);
+			else 
+				modules.find(identifier.at(0))->second.set_type(std::vector<std::string>{ identifier.begin() + 1, identifier.end() }, type);
 		}
 
 	private:
-		type_environment t_env;
-		value_environment v_env;
+		type_environment type_environment;
+		value_environment value_environment;
+
 		std::unordered_multimap<std::string, environment> modules;
 	};
 }

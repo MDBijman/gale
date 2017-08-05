@@ -12,20 +12,20 @@ namespace fe
 			if(std::holds_alternative<tools::ebnfe::non_terminal_node>(*node))
 			{
 				auto n = std::move(std::get<tools::ebnfe::non_terminal_node>(*node));
+				auto node_type = n.value;
 
-				if (n.value == file)
+				if (node_type == file)
 				{
 					// File has children [statements*]
 
-					auto file_nodes = std::make_unique<extended_ast::tuple>();
-
-					for (int i = 0; i < n.children.size(); i++)
+					std::vector<extended_ast::node_p> children;
+					for (unsigned int i = 0; i < n.children.size(); i++)
 					{
-						file_nodes->get_children().push_back(std::move(convert(std::move(n.children.at(i)))));
+						children.push_back(std::move(convert(std::move(n.children.at(i)))));
 					}
-					return file_nodes;
+					return std::make_unique<extended_ast::value_tuple>(std::move(children));
 				}
-				else if (n.value == assignment)
+				else if (node_type == assignment)
 				{
 					// Assignment has children [identifier constructor_or_identifier]
 
@@ -41,10 +41,10 @@ namespace fe
 						std::move(converted_value)
 					);
 				}
-				else if (n.value == expression)
+				else if (node_type == expression)
 				{
 					// TODO create seperate nt for function
-					// Expression has children [tuple_t | number | word | identifier [tuple]]
+					// Expression has children [value_tuple | number | word | identifier [value_tuple]]
 
 					// Function call
 					if (n.children.size() == 2)
@@ -55,7 +55,7 @@ namespace fe
 
 						// Convert the tuple
 						auto converted_tuple =
-							dynamic_cast<extended_ast::tuple*>(convert(std::move(n.children.at(1))).release());
+							dynamic_cast<extended_ast::value_tuple*>(convert(std::move(n.children.at(1))).release());
 
 						return std::make_unique<extended_ast::function_call>(
 							std::move(*converted_identifier),
@@ -67,20 +67,20 @@ namespace fe
 						return convert(std::move(n.children.at(0)));
 					}
 				}
-				else if (n.value == tuple_t)
+				else if (node_type == value_tuple)
 				{
 					// Tuple has children [values*]
 
-					auto values = std::make_unique<extended_ast::tuple>();
-					for (int i = 0; i < n.children.size(); i++)
+					std::vector<extended_ast::node_p> children;
+					for (unsigned int i = 0; i < n.children.size(); i++)
 					{
-						values->get_children().push_back(std::move(convert(std::move(n.children.at(i)))));
+						children.push_back(std::move(convert(std::move(n.children.at(i)))));
 					}
-					return values;
+					return std::make_unique<extended_ast::value_tuple>(std::move(children));
 				}
-				else if (n.value == type_definition)
+				else if (node_type == type_definition)
 				{
-					// Type definition has children [identifier tuple]
+					// Type definition has children [identifier type_tuple]
 
 					// Convert the identifier
 					auto converted_identifier =
@@ -88,14 +88,14 @@ namespace fe
 
 					// Convert the tuple
 					auto converted_tuple =
-						dynamic_cast<extended_ast::tuple*>(convert(std::move(n.children.at(1))).release());
+						dynamic_cast<extended_ast::type_tuple*>(convert(std::move(n.children.at(1))).release());
 
 					return std::make_unique<extended_ast::type_declaration>(
 						std::move(*converted_identifier),	
 						std::move(*converted_tuple)
 					);
 				}
-				else if (n.value == export_stmt)
+				else if (node_type == export_stmt)
 				{
 					// Export has children [identifier]
 
@@ -105,20 +105,34 @@ namespace fe
 
 					return std::make_unique<extended_ast::export_stmt>(std::move(*converted_identifier));
 				}
+				else if (node_type == type_tuple)
+				{
+					// Type tuple has children [types*]
+
+					std::vector<extended_ast::node_p> children;
+					for (decltype(auto) child : n.children)
+					{
+						children.push_back(std::move(convert(std::move(child))));
+					}
+
+					auto types = std::make_unique<extended_ast::type_tuple>(std::move(children));
+					return types;
+				}
 			}
 			else if (std::holds_alternative<tools::ebnfe::terminal_node>(*node))
 			{
 				auto n = std::move(std::get<tools::ebnfe::terminal_node>(*node));
+				auto node_type = n.value;
 
-				if (n.value == number)
+				if (node_type == number)
 				{
 					return std::make_unique<extended_ast::integer>(atoi(n.token.c_str()));
 				}
-				else if (n.value == word)
+				else if (node_type == word)
 				{
 					return std::make_unique<extended_ast::string>(n.token.substr(1, n.token.size() - 2));
 				}
-				else if (n.value == identifier)
+				else if (node_type == identifier)
 				{
 					auto splitter = [](std::string identifier) -> std::vector<std::string> {
 						std::vector<std::string> split_identifier;
@@ -151,7 +165,8 @@ namespace fe
 					return std::make_unique<extended_ast::identifier>(std::move(words));
 				}
 			}
-			return nullptr;
+
+			throw std::runtime_error("Unknown node type");
 		}
 	};
 }
