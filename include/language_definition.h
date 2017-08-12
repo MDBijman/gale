@@ -21,8 +21,8 @@ namespace fe
 		tools::lexing::token, 
 		tools::bnf::terminal_node, 
 		std::unique_ptr<tools::ebnfe::node>, 
-		extended_ast::node_p,
-		extended_ast::node_p,
+		extended_ast::node_v,
+		extended_ast::node_v,
 		std::unique_ptr<core_ast::node>,
 		std::shared_ptr<fe::values::value>,
 		fe::environment

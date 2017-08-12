@@ -61,10 +61,10 @@ namespace language
 			
 			ExtendedAstType extended_ast = std::move(cst_to_ast_stage->convert(std::move(cst)));
 			
-			TypedAstType typed_ast;
-			std::tie(typed_ast, environment) = std::move(typechecking_stage->typecheck(std::move(extended_ast), environment));
+			auto typed_res = std::move(typechecking_stage->typecheck(std::move(extended_ast), environment));
+			environment = std::get<EnvironmentType>(typed_res);
 
-			CoreAstType lowered_ast = std::move(lowering_stage->lower(std::move(typed_ast)));
+			CoreAstType lowered_ast = std::move(lowering_stage->lower(std::move(std::get<TypedAstType>(typed_res))));
 	
 			return interpreting_stage->interpret(std::move(lowered_ast), std::move(environment));
 		}

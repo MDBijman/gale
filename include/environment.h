@@ -15,7 +15,7 @@ namespace fe
 			types.insert_or_assign(name, type);
 		}
 
-		types::type get(const std::string& name)
+		types::type get(const std::string& name) const
 		{
 			return types.at(name);
 		}
@@ -35,7 +35,7 @@ namespace fe
 			values.insert_or_assign(name, value);
 		}
 
-		std::shared_ptr<values::value> get(const std::string& name)
+		std::shared_ptr<values::value> get(const std::string& name) const
 		{
 			return values.at(name);
 		}
@@ -52,24 +52,24 @@ namespace fe
 			modules.insert({ name, module });
 		}
 
-		types::type typeof(const std::vector<std::string>& identifier)
+		types::type typeof(const std::vector<std::string>& identifier) const
 		{
 			if (identifier.size() == 1)
 				return type_environment.get(identifier.at(0));
 			else return modules.find(identifier.at(0))->second.typeof(std::vector<std::string>{ identifier.begin() + 1, identifier.end() });
 		}
 
-		types::type typeof(const std::string& name)
+		types::type typeof(const std::string& name) const
 		{
 			return type_environment.get(name);
 		}
 
-		std::shared_ptr<values::value> valueof(const std::string& name)
+		std::shared_ptr<values::value> valueof(const std::string& name) const
 		{
 			return value_environment.get(name);
 		}
 
-		std::shared_ptr<values::value> valueof(const std::vector<std::string>& identifier)
+		std::shared_ptr<values::value> valueof(const std::vector<std::string>& identifier) const
 		{
 			if (identifier.size() == 1)
 				return value_environment.get(identifier.at(0));

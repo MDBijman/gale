@@ -19,6 +19,7 @@ namespace fe
 
 		struct product_type;
 		struct function_type;
+		struct meta_type;
 
 		struct sum_type 
 		{
