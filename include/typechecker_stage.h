@@ -27,7 +27,7 @@ namespace fe
 				for (decltype(auto) element : value_tuple.children)
 				{
 					std::tie(element, env) = typecheck(std::move(element), std::move(env));
-					//new_type.product.push_back(std::visit(extended_ast::get_type, element));
+					new_type.product.push_back(std::visit(extended_ast::get_type, element));
 				}
 				
 				value_tuple.type = new_type;
@@ -52,10 +52,12 @@ namespace fe
 				auto assignment = std::move(std::get<extended_ast::assignment>(n));
 
 				// Typecheck value
-				std::tie(assignment.value, env) = typecheck(std::move(assignment.value), std::move(env));
-				
+				auto checked_value = typecheck(std::move(*assignment.value), std::move(env));
+				assignment.value = std::make_unique<extended_ast::node_v>(std::move(std::get<0>(checked_value)));
+				env = std::move(std::get<1>(checked_value));
+
 				// Put id type in env
-				auto type = std::visit(extended_ast::get_type, assignment.value);
+				auto type = std::visit(extended_ast::get_type, *assignment.value);
 				env.set_type(assignment.id.name, type);
 				assignment.id.type = type;
 
@@ -70,12 +72,12 @@ namespace fe
 			{
 				auto fc = std::move(std::get<extended_ast::function_call>(n));
 
-				auto param_typecheck = typecheck(
+				auto checked_params = typecheck(
 					std::move(fc.params),
 					std::move(env)
 				);
-
-				fc.params = std::move(std::get<extended_ast::value_tuple>(std::get<0>(param_typecheck)));
+				env = std::get<1>(checked_params);
+				fc.params = std::move(std::get<extended_ast::value_tuple>(std::get<0>(checked_params)));
 
 				auto env_fn_type = std::get<5>(env.typeof(fc.id.name));
 

@@ -69,8 +69,11 @@ int main()
 	{ // Standard module
 		std::unique_ptr<fe::types::type> int_type = std::make_unique<fe::types::type>(fe::types::integer_type());
 
-		std_module.set_type(std::string("i32"), fe::types::meta_type());
-		std_module.set_value(std::string("i32"), std::make_shared<fe::values::type>(fe::types::integer_type()));
+		std_module.set_type("i32", fe::types::meta_type());
+		std_module.set_value("i32", std::make_shared<fe::values::type>(fe::types::integer_type()));
+
+		std_module.set_type("str", fe::types::meta_type());
+		std_module.set_value("str", std::make_shared<fe::values::type>(fe::types::string_type()));
 	}
 
 	auto language_module = fe::environment{};

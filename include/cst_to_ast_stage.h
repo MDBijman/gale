@@ -21,7 +21,8 @@ namespace fe
 					std::vector<extended_ast::node_v> children;
 					for (unsigned int i = 0; i < n.children.size(); i++)
 					{
-						children.push_back(std::move(convert(std::move(n.children.at(i)))));
+						auto new_node{ convert(std::move(n.children.at(i))) };
+						children.push_back(std::move(new_node));
 					}
 					return extended_ast::value_tuple(std::move(children));
 				}
@@ -35,10 +36,12 @@ namespace fe
 					// Convert the value
 					auto converted_value = convert(std::move(n.children.at(1)));
 
-					return extended_ast::assignment(
+					auto assignment = extended_ast::assignment(
 						std::move(std::get<extended_ast::identifier>(converted_identifier)),
 						std::move(converted_value)
 					);
+
+					return assignment;
 				}
 				else if (node_type == expression)
 				{

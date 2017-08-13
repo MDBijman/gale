@@ -28,10 +28,12 @@ namespace fe
 			}
 			else if (auto tuple_node = dynamic_cast<core_ast::tuple*>(core_ast.get()))
 			{
-				shared_ptr<values::value> res;
+				shared_ptr<values::tuple> res = std::make_shared<values::tuple>();
+				shared_ptr<values::value> res_part;
 				for (decltype(auto) line : tuple_node->children)
 				{
-					tie(line, res, env) = interpret(move(line), move(env));
+					tie(line, res_part, env) = interpret(move(line), move(env));
+					res->content.push_back(res_part);
 				}
 
 				return make_tuple(move(core_ast), move(res), move(env));

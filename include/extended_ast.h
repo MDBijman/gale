@@ -86,10 +86,11 @@ namespace fe
 		struct type_tuple : public node
 		{
 			type_tuple(std::vector<std::variant<type_tuple, value_tuple, identifier, assignment, function_call, type_declaration, export_stmt, integer, string>>&& children) : node(types::unset_type()), children(std::move(children)) {}
-			type_tuple(type_tuple&& other) : node(std::move(other)), children(std::move(other.children)) {}
+			type_tuple(type_tuple&& other) : node(std::move(other)), children(std::move(other.children)), value(other.value) {}
 			type_tuple& operator=(type_tuple&& other) 
 			{
 				type = other.type;
+				value = other.value;
 				children = std::move(other.children);
 				return *this;
 			}
@@ -146,7 +147,7 @@ namespace fe
 
 		struct assignment : public node
 		{
-			assignment(identifier&& id, std::variant<type_tuple, value_tuple, identifier, assignment, function_call, type_declaration, export_stmt, integer, string> val) : node(types::unset_type()), id(std::move(id)), value(std::move(val)) {}
+			assignment(identifier&& id, std::variant<type_tuple, value_tuple, identifier, assignment, function_call, type_declaration, export_stmt, integer, string>&& val) : node(types::unset_type()), id(std::move(id)), value(std::make_unique<std::variant<type_tuple, value_tuple, identifier, assignment, function_call, type_declaration, export_stmt, integer, string>>(std::move(val))) {}
 			assignment(assignment&& other) : node(std::move(other)), id(std::move(other.id)), value(std::move(other.value)) {}
 			assignment& operator=(assignment&& other)
 			{
@@ -157,7 +158,7 @@ namespace fe
 			}
 
 			identifier id;
-			std::variant<type_tuple, value_tuple, identifier, assignment, function_call, type_declaration, export_stmt, integer, string>& value;
+			std::unique_ptr<std::variant<type_tuple, value_tuple, identifier, assignment, function_call, type_declaration, export_stmt, integer, string>> value;
 		};
 
 		auto get_type = [](auto& node) {

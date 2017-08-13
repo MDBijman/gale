@@ -76,7 +76,7 @@ namespace fe
 			else return modules.find(identifier.at(0))->second.valueof(std::vector<std::string>{ identifier.begin() + 1, identifier.end() });
 		}
 
-		void set_value(std::string& identifier, std::shared_ptr<values::value> value)
+		void set_value(const std::string& identifier, std::shared_ptr<values::value> value)
 		{
 			value_environment.set(identifier, value);
 		}
@@ -89,7 +89,7 @@ namespace fe
 				modules.find(identifier.at(0))->second.set_value(std::vector<std::string>{ identifier.begin() + 1, identifier.end() }, value);
 		}
 
-		void set_type(std::string& identifier, types::type type)
+		void set_type(const std::string& identifier, types::type type)
 		{
 			type_environment.set(identifier, type);
 		}

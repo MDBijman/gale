@@ -36,7 +36,7 @@ namespace fe
 
 				return make_unique<core_ast::assignment>(
 					core_ast::identifier(move(assignment.id.name), assignment.id.type),
-					lower(move(assignment.value))
+					lower(move(*assignment.value))
 				);
 			}
 			else if (std::holds_alternative<extended_ast::function_call>(n))
@@ -65,10 +65,19 @@ namespace fe
 				auto type_declaration = std::move(std::get<extended_ast::type_declaration>(n));
 
 				auto func_params = std::vector<core_ast::identifier>();
-				func_params.push_back(core_ast::identifier("1", types::integer_type()));
+				auto& func_param_types = std::get<types::product_type>(type_declaration.types.type).product;
 
-				auto func_body = std::vector<std::unique_ptr<core_ast::node>>();
-				func_body.push_back(make_unique<core_ast::integer>(values::integer(1)));
+				auto return_statement = std::vector<std::unique_ptr<core_ast::node>>();
+				auto return_type = std::vector<types::type>();
+
+				for (unsigned int i = 0; i < func_param_types.size(); i++)
+				{
+					func_params.push_back(core_ast::identifier("_" + i, func_param_types.at(i)));
+					return_statement.push_back(make_unique<core_ast::identifier>("_" + i, func_param_types.at(i)));
+					return_type.push_back(func_param_types.at(i));
+				}
+
+				auto func_body = std::make_unique<core_ast::tuple>(std::move(return_statement), types::product_type(return_type));
 
 				return make_unique<core_ast::assignment>(
 					core_ast::identifier(move(type_declaration.id.name), move(type_declaration.id.type)),
@@ -76,14 +85,11 @@ namespace fe
 					make_unique<core_ast::function>(
 						values::function(
 							move(func_params), 
-							make_unique<core_ast::tuple>(
-								move(func_body),
-								types::product_type({ types::integer_type() })
-							)
+							move(func_body)
 						),
 						types::function_type(
-							types::product_type({ types::integer_type() }),
-							types::product_type({ types::integer_type() })
+							types::product_type(return_type),
+							types::product_type(return_type)
 						)
 					)
 				);
