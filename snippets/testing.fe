@@ -1,2 +1,4 @@
 y = language::Terminal (3 "test")
 x = language::Terminal (1 "asd")
+z = language::random ()
+p = language::random ()

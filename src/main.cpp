@@ -85,6 +85,12 @@ int main()
 
 		auto language_results = pipeline.run_to_interp(std::move(language_module_contents), std::move(language_module));
 		language_module = std::get<2>(language_results);
+		language_module.set_type("random", fe::types::function_type(fe::types::product_type(), fe::types::product_type({fe::types::integer_type()})));
+		language_module.set_value("random", std::make_shared<fe::values::native_function>([&](fe::values::tuple t) {
+			auto contents = std::vector<std::shared_ptr<fe::values::value>>();
+			contents.push_back(std::make_shared<fe::values::integer>(rand()));
+			return fe::values::tuple(contents);
+		}));
 	}
 
 	// Load modules

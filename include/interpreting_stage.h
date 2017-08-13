@@ -54,22 +54,42 @@ namespace fe
 			}
 			else if (auto call = dynamic_cast<core_ast::function_call*>(core_ast.get()))
 			{
-				auto function = dynamic_cast<values::function*>(env.valueof(call->id.name).get());
-				fe::environment function_env{ env };
-
-				for (unsigned int i = 0; i < call->params.children.size(); i++)
+				// Function written in cpp
+				if (auto native_function = dynamic_cast<values::native_function*>(env.valueof(call->id.name).get()))
 				{
-					shared_ptr<values::value> param_value;
-					tie(call->params.children.at(i), param_value, std::ignore) 
-						= interpret(move(call->params.children.at(i)), move(env));
+					std::vector<std::shared_ptr<values::value>> params;
+					for (unsigned int i = 0; i < call->params.children.size(); i++)
+					{
+						shared_ptr<values::value> param_value;
+						fe::environment param_env{ env };
+						tie(call->params.children.at(i), param_value, std::ignore)
+							= interpret(move(call->params.children.at(i)), move(param_env));
+						params.push_back(param_value);
+					}
+					values::tuple param_tuple(params);
 
-					auto param_name = function->parameters.at(i).name;
-					function_env.set_value(param_name, param_value);
+					auto result = std::make_shared<values::tuple>(std::move(native_function->function(std::move(param_tuple))));
+					return make_tuple(move(core_ast), result, move(env));
 				}
+				// Function written in language itself
+				else if (auto function = dynamic_cast<values::function*>(env.valueof(call->id.name).get()))
+				{
+					fe::environment function_env{ env };
+					for (unsigned int i = 0; i < call->params.children.size(); i++)
+					{
+						shared_ptr<values::value> param_value;
+						fe::environment param_env{ env };
+						tie(call->params.children.at(i), param_value, std::ignore)
+							= interpret(move(call->params.children.at(i)), move(param_env));
 
-				shared_ptr<values::value> value;
-				tie(function->body, value, env) = interpret(move(function->body), move(function_env));
-				return make_tuple(move(core_ast), value, move(env));
+						auto param_name = function->parameters.at(i).name;
+						function_env.set_value(param_name, param_value);
+					}
+
+					shared_ptr<values::value> value;
+					tie(function->body, value, env) = interpret(move(function->body), move(function_env));
+					return make_tuple(move(core_ast), value, move(env));
+				}
 			}
 			else if (auto num = dynamic_cast<core_ast::integer*>(core_ast.get()))
 			{
