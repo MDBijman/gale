@@ -37,7 +37,7 @@ namespace fe
 
 		struct function_type
 		{
-			function_type(product_type from, product_type to) : from(from), to(to) {}
+			function_type(std::unique_ptr<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, meta_type, unset_type>> from, product_type to) : from(from), to(to) {}
 			product_type from, to;
 		};
 

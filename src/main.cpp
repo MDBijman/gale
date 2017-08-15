@@ -83,8 +83,7 @@ int main()
 		// std lib
 		language_module.add_module("std", std_module);
 
-		auto language_results = pipeline.run_to_interp(std::move(language_module_contents), std::move(language_module));
-		language_module = std::get<2>(language_results);
+		std::tie(std::ignore, std::ignore, language_module) = pipeline.run_to_interp(std::move(language_module_contents), std::move(language_module));
 		language_module.set_type("random", fe::types::function_type(fe::types::product_type(), fe::types::product_type({fe::types::integer_type()})));
 		language_module.set_value("random", std::make_shared<fe::values::native_function>([&](fe::values::tuple t) {
 			auto contents = std::vector<std::shared_ptr<fe::values::value>>();
@@ -95,6 +94,16 @@ int main()
 
 	// Load modules
 	auto environment = fe::environment{};
+	environment.set_type("_add", fe::types::function_type{ fe::types::product_type{{fe::types::integer_type{}, fe::types::integer_type{} }}, fe::types::product_type{{fe::types::integer_type{}}} });
+	environment.set_value("_add", std::make_shared<fe::values::native_function>([](fe::values::tuple t) {
+		auto a = dynamic_cast<fe::values::integer*>(t.content[0].get());
+		auto b = dynamic_cast<fe::values::integer*>(t.content[1].get());
+
+		return fe::values::tuple{{
+			std::make_shared<fe::values::integer>(a->val + b->val)
+		}};
+	}));
+
 	environment.add_module("std", std_module);
 	environment.add_module("language", language_module);
 

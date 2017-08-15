@@ -15,7 +15,7 @@ namespace fe
 		typechecker_stage() {}
 		typechecker_stage(type_environment environment) : base_environment(environment) {}
 
-		std::tuple<extended_ast::node_v, fe::environment> typecheck(extended_ast::node_v n, fe::environment env) override
+		std::tuple<extended_ast::node_v, fe::environment> typecheck(extended_ast::node_v n, environment env) override
 		{
 			using namespace types;
 		
@@ -70,7 +70,7 @@ namespace fe
 			}
 			else if (std::holds_alternative<extended_ast::function_call>(n))
 			{
-				auto fc = std::move(std::get<extended_ast::function_call>(n));
+				auto& fc = std::get<extended_ast::function_call>(n);
 
 				auto checked_params = typecheck(
 					std::move(fc.params),
@@ -87,7 +87,7 @@ namespace fe
 					throw std::runtime_error("Type error");
 				}
 
-				fc.type = env_fn_type;
+				fc.type = env_fn_type.to;
 
 				return std::make_tuple(
 					std::move(fc),
@@ -124,6 +124,28 @@ namespace fe
 			{
 				std::get<extended_ast::string>(n).type = string_type();
 				return std::make_tuple(std::move(n), std::move(env));
+			}
+			else if (std::holds_alternative<extended_ast::bin_op>(n))
+			{
+				auto& operation = std::get<extended_ast::bin_op>(n);
+
+				auto checked_left = typecheck(std::move(*operation.left), std::move(env));
+				env = std::move(std::get<environment>(checked_left));
+				operation.left = std::make_unique<extended_ast::node_v>(std::move(std::get<extended_ast::node_v>(checked_left)));
+
+				auto checked_right = typecheck(std::move(*operation.right), std::move(env));
+				env = std::move(std::get<environment>(checked_right));
+				operation.right = std::make_unique<extended_ast::node_v>(std::move(std::get<extended_ast::node_v>(checked_right)));
+
+				auto left_type = std::visit(extended_ast::get_type, *(operation.left));
+				auto right_type = std::visit(extended_ast::get_type, *(operation.right));
+				if (!(left_type == types::type(types::integer_type())) || !(right_type == types::type(types::integer_type())))
+				{
+					throw std::runtime_error("Cannot perform binary operation, types must both be int");
+				}
+
+				operation.type = types::type(types::integer_type());
+				return std::make_tuple(std::move(operation), std::move(env));
 			}
 
 			throw std::runtime_error("Unknown node type");

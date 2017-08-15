@@ -116,6 +116,22 @@ namespace fe
 
 					return extended_ast::type_tuple(std::move(children));
 				}
+				else if (node_type == addition)
+				{
+					return extended_ast::bin_op(
+						extended_ast::binary_operator::ADD,
+						std::make_unique<extended_ast::node_v>(std::move(convert(std::move(n.children.at(0))))), 
+						std::make_unique<extended_ast::node_v>(std::move(convert(std::move(n.children.at(1)))))
+					);
+				}
+				else if (node_type == subtraction)
+				{
+					return extended_ast::bin_op(
+						extended_ast::binary_operator::SUBTRACT,
+						std::make_unique<extended_ast::node_v>(std::move(convert(std::move(n.children.at(0))))),
+						std::make_unique<extended_ast::node_v>(std::move(convert(std::move(n.children.at(1)))))
+					);
+				}
 			}
 			else if (std::holds_alternative<tools::ebnfe::terminal_node>(*node))
 			{

@@ -24,6 +24,8 @@ namespace fe
 			using namespace fe;
 			string_token = lexing_rules.create_token("\".*?\"");
 			number_token = lexing_rules.create_token("[1-9][0-9]*");
+			plus_token = lexing_rules.create_token("\\+");
+			minus_token = lexing_rules.create_token("\\-");
 			module_infix_token = lexing_rules.create_token("::");
 			rrb_token = lexing_rules.create_token("\\)");
 			lrb_token = lexing_rules.create_token("\\(");

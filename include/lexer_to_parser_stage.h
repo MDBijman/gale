@@ -17,6 +17,8 @@ namespace fe
 			add_mapping(rrb_token, right_bracket);
 			add_mapping(equals_token, equals);
 			add_mapping(module_infix_token, module_infix);
+			add_mapping(plus_token, plus);
+			add_mapping(minus_token, minus);
 			add_mapping(keyword_token, [&](tools::lexing::token token) {
 				if (token.text == "export")
 					return export_keyword;
@@ -32,15 +34,18 @@ namespace fe
 
 			std::vector<bnf::terminal_node> result;
 
-			std::transform(in.begin(), in.end(), std::back_inserter(result), [&](lexing::token x) {
-
-				std::variant<ebnf::terminal, std::function<ebnf::terminal(lexing::token)>> mapped = mapping.at(x.value);
+			std::transform(in.begin(), in.end(), std::back_inserter(result), [&](lexing::token x) 
+			{
+				std::variant<ebnf::terminal, std::function<ebnf::terminal(lexing::token)>>& mapped = mapping.at(x.value);
 
 				if (std::holds_alternative<ebnf::terminal>(mapped))
+				{
 					return bnf::terminal_node(std::get<bnf::terminal>(mapped), x.text);
+				}
 				else
+				{
 					return bnf::terminal_node(std::get<std::function<bnf::terminal(lexing::token)>>(mapped)(x), x.text);
-
+				}
 			});
 			return result;
 		}
