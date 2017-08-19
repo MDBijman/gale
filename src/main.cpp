@@ -12,6 +12,7 @@
 #include "values.h"
 
 #include "language_module.h"
+#include "input.h"
 
 #include <stdio.h>
 #include <functional>
@@ -70,10 +71,10 @@ int main()
 		std::unique_ptr<fe::types::type> int_type = std::make_unique<fe::types::type>(fe::types::integer_type());
 
 		std_module.set_type("i32", fe::types::meta_type());
-		std_module.set_value("i32", std::make_shared<fe::values::type>(fe::types::integer_type()));
+		std_module.set_value("i32", fe::values::type(fe::types::integer_type()));
 
 		std_module.set_type("str", fe::types::meta_type());
-		std_module.set_value("str", std::make_shared<fe::values::type>(fe::types::string_type()));
+		std_module.set_value("str", fe::values::type(fe::types::string_type()));
 	}
 
 	auto language_module = fe::environment{};
@@ -84,33 +85,66 @@ int main()
 		language_module.add_module("std", std_module);
 
 		std::tie(std::ignore, std::ignore, language_module) = pipeline.run_to_interp(std::move(language_module_contents), std::move(language_module));
-		language_module.set_type("random", fe::types::function_type(fe::types::product_type(), fe::types::product_type({fe::types::integer_type()})));
-		language_module.set_value("random", std::make_shared<fe::values::native_function>([&](fe::values::tuple t) {
-			auto contents = std::vector<std::shared_ptr<fe::values::value>>();
-			contents.push_back(std::make_shared<fe::values::integer>(rand()));
+		language_module.set_type("random", fe::types::function_type(fe::types::make_unique(fe::types::product_type()), fe::types::make_unique(fe::types::integer_type())));
+		language_module.set_value("random", fe::values::native_function([&](fe::values::value t) -> fe::values::value {
+			auto& tuple = std::get<fe::values::tuple>(t);
+
+			auto contents = std::vector<fe::values::value>();
+			contents.push_back(fe::values::integer(rand()));
 			return fe::values::tuple(contents);
 		}));
 	}
 
 	// Load modules
 	auto environment = fe::environment{};
-	environment.set_type("_add", fe::types::function_type{ fe::types::product_type{{fe::types::integer_type{}, fe::types::integer_type{} }}, fe::types::product_type{{fe::types::integer_type{}}} });
-	environment.set_value("_add", std::make_shared<fe::values::native_function>([](fe::values::tuple t) {
-		auto a = dynamic_cast<fe::values::integer*>(t.content[0].get());
-		auto b = dynamic_cast<fe::values::integer*>(t.content[1].get());
+	{
+		environment.set_type("_add", fe::types::function_type(fe::types::make_unique(fe::types::product_type{ {fe::types::integer_type{}, fe::types::integer_type{}} }), fe::types::make_unique(fe::types::integer_type{})));
+		environment.set_value("_add", fe::values::native_function([](fe::values::value t) -> fe::values::value {
+			auto& tuple = std::get<fe::values::tuple>(t);
 
-		return fe::values::tuple{{
-			std::make_shared<fe::values::integer>(a->val + b->val)
-		}};
-	}));
+			auto a = std::get<fe::values::integer>(tuple.content[0]);
+			auto b = std::get<fe::values::integer>(tuple.content[1]);
+
+			return fe::values::integer(a.val + b.val);
+		}));
+		environment.set_type("_subtract", fe::types::function_type(fe::types::make_unique(fe::types::product_type{ {fe::types::integer_type{}, fe::types::integer_type{}} }), fe::types::make_unique(fe::types::integer_type{})));
+		environment.set_value("_subtract", fe::values::native_function([](fe::values::value t) -> fe::values::value {
+			auto& tuple = std::get<fe::values::tuple>(t);
+
+			auto a = std::get<fe::values::integer>(tuple.content[0]);
+			auto b = std::get<fe::values::integer>(tuple.content[1]);
+
+			return fe::values::integer(a.val - b.val);
+		}));
+		environment.set_type("_multiply", fe::types::function_type(fe::types::make_unique(fe::types::product_type{ {fe::types::integer_type{}, fe::types::integer_type{}} }), fe::types::make_unique(fe::types::integer_type{})));
+		environment.set_value("_multiply", fe::values::native_function([](fe::values::value t) -> fe::values::value {
+			auto& tuple = std::get<fe::values::tuple>(t);
+
+			auto a = std::get<fe::values::integer>(tuple.content[0]);
+			auto b = std::get<fe::values::integer>(tuple.content[1]);
+
+			return fe::values::integer(a.val * b.val);
+		}));
+		environment.set_type("_divide", fe::types::function_type(fe::types::make_unique(fe::types::product_type{ {fe::types::integer_type{}, fe::types::integer_type{}} }), fe::types::make_unique(fe::types::integer_type{})));
+		environment.set_value("_divide", fe::values::native_function([](fe::values::value t) -> fe::values::value {
+			auto& tuple = std::get<fe::values::tuple>(t);
+
+			auto a = std::get<fe::values::integer>(tuple.content[0]);
+			auto b = std::get<fe::values::integer>(tuple.content[1]);
+
+			return fe::values::integer(a.val / b.val);
+		}));
+	}
 
 	environment.add_module("std", std_module);
 	environment.add_module("language", language_module);
+	environment.add_module("stdin", fe::stdlib::input_module().load());
 
 	// Interpret code
 	auto testing_contents = read_file("./snippets/testing.fe");
 	auto testing_results = pipeline.run_to_interp(std::move(testing_contents), std::move(environment));
-	std::get<1>(testing_results)->print();
+	std::visit(fe::values::print_value, std::get<1>(testing_results));
 
+	std::cin.get();
 	std::cin.get();
 }

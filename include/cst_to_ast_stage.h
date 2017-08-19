@@ -4,10 +4,10 @@
 
 namespace fe
 {
-	class cst_to_ast_stage : public language::cst_to_ast_stage<std::unique_ptr<tools::ebnfe::node>, extended_ast::node_v>
+	class cst_to_ast_stage : public language::cst_to_ast_stage<std::unique_ptr<tools::ebnfe::node>, extended_ast::node>
 	{
 	public:
-		extended_ast::node_v convert(std::unique_ptr<tools::ebnfe::node> node)
+		extended_ast::node convert(std::unique_ptr<tools::ebnfe::node> node)
 		{
 			if(std::holds_alternative<tools::ebnfe::non_terminal_node>(*node))
 			{
@@ -18,11 +18,10 @@ namespace fe
 				{
 					// File has children [statements*]
 
-					std::vector<extended_ast::node_v> children;
+					std::vector<extended_ast::node> children;
 					for (unsigned int i = 0; i < n.children.size(); i++)
 					{
-						auto new_node{ convert(std::move(n.children.at(i))) };
-						children.push_back(std::move(new_node));
+						children.push_back(std::move(convert(std::move(n.children.at(i)))));
 					}
 					return extended_ast::value_tuple(std::move(children));
 				}
@@ -36,12 +35,10 @@ namespace fe
 					// Convert the value
 					auto converted_value = convert(std::move(n.children.at(1)));
 
-					auto assignment = extended_ast::assignment(
+					return extended_ast::assignment(
 						std::move(std::get<extended_ast::identifier>(converted_identifier)),
-						std::move(converted_value)
+						std::move(extended_ast::make_unique(std::move(converted_value)))
 					);
-
-					return assignment;
 				}
 				else if (node_type == expression)
 				{
@@ -71,10 +68,10 @@ namespace fe
 				{
 					// Tuple has children [values*]
 
-					std::vector<extended_ast::node_v> children;
+					std::vector<extended_ast::node> children;
 					for (unsigned int i = 0; i < n.children.size(); i++)
 					{
-						children.push_back(convert(std::move(n.children.at(i))));
+						children.push_back(std::move(convert(std::move(n.children.at(i)))));
 					}
 					return extended_ast::value_tuple(std::move(children));
 				}
@@ -108,7 +105,7 @@ namespace fe
 				{
 					// Type tuple has children [types*]
 
-					std::vector<extended_ast::node_v> children;
+					std::vector<extended_ast::node> children;
 					for (decltype(auto) child : n.children)
 					{
 						children.push_back(std::move(convert(std::move(child))));
@@ -120,16 +117,32 @@ namespace fe
 				{
 					return extended_ast::bin_op(
 						extended_ast::binary_operator::ADD,
-						std::make_unique<extended_ast::node_v>(std::move(convert(std::move(n.children.at(0))))), 
-						std::make_unique<extended_ast::node_v>(std::move(convert(std::move(n.children.at(1)))))
+						extended_ast::make_unique(std::move(convert(std::move(n.children.at(0))))), 
+						extended_ast::make_unique(std::move(convert(std::move(n.children.at(1)))))
 					);
 				}
 				else if (node_type == subtraction)
 				{
 					return extended_ast::bin_op(
 						extended_ast::binary_operator::SUBTRACT,
-						std::make_unique<extended_ast::node_v>(std::move(convert(std::move(n.children.at(0))))),
-						std::make_unique<extended_ast::node_v>(std::move(convert(std::move(n.children.at(1)))))
+						extended_ast::make_unique(std::move(convert(std::move(n.children.at(0))))),
+						extended_ast::make_unique(std::move(convert(std::move(n.children.at(1)))))
+					);
+				}
+				else if (node_type == multiplication)
+				{
+					return extended_ast::bin_op(
+						extended_ast::binary_operator::MULTIPLY,
+						extended_ast::make_unique(std::move(convert(std::move(n.children.at(0))))),
+						extended_ast::make_unique(std::move(convert(std::move(n.children.at(1)))))
+					);
+				}
+				else if (node_type == division)
+				{
+					return extended_ast::bin_op(
+						extended_ast::binary_operator::DIVIDE,
+						extended_ast::make_unique(std::move(convert(std::move(n.children.at(0))))),
+						extended_ast::make_unique(std::move(convert(std::move(n.children.at(1)))))
 					);
 				}
 			}

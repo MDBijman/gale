@@ -6,7 +6,7 @@
 
 namespace fe
 {
-	class typechecker_stage : public language::typechecking_stage<extended_ast::node_v, extended_ast::node_v, fe::environment>
+	class typechecker_stage : public language::typechecking_stage<extended_ast::node, extended_ast::node, fe::environment>
 	{
 	private:
 		type_environment base_environment;
@@ -15,7 +15,7 @@ namespace fe
 		typechecker_stage() {}
 		typechecker_stage(type_environment environment) : base_environment(environment) {}
 
-		std::tuple<extended_ast::node_v, fe::environment> typecheck(extended_ast::node_v n, environment env) override
+		std::tuple<extended_ast::node, fe::environment> typecheck(extended_ast::node n, environment env) override
 		{
 			using namespace types;
 		
@@ -26,11 +26,14 @@ namespace fe
 
 				for (decltype(auto) element : value_tuple.children)
 				{
-					std::tie(element, env) = typecheck(std::move(element), std::move(env));
+					auto checked_element = typecheck(std::move(element), std::move(env));
+					element = std::move(std::get<extended_ast::node>(checked_element));
+					env = std::move(std::get<environment>(checked_element));
+
 					new_type.product.push_back(std::visit(extended_ast::get_type, element));
 				}
 				
-				value_tuple.type = new_type;
+				value_tuple.type = std::move(new_type);
 
 				return std::make_tuple(
 					std::move(value_tuple),
@@ -53,13 +56,13 @@ namespace fe
 
 				// Typecheck value
 				auto checked_value = typecheck(std::move(*assignment.value), std::move(env));
-				assignment.value = std::make_unique<extended_ast::node_v>(std::move(std::get<0>(checked_value)));
-				env = std::move(std::get<1>(checked_value));
+				assignment.value = extended_ast::make_unique(std::move(std::get<extended_ast::node>(checked_value)));
+				env = std::move(std::get<environment>(checked_value));
 
 				// Put id type in env
 				auto type = std::visit(extended_ast::get_type, *assignment.value);
 				env.set_type(assignment.id.name, type);
-				assignment.id.type = type;
+				assignment.id.type = std::move(type);
 
 				assignment.type = void_type();
 
@@ -79,15 +82,15 @@ namespace fe
 				env = std::get<1>(checked_params);
 				fc.params = std::move(std::get<extended_ast::value_tuple>(std::get<0>(checked_params)));
 
-				auto env_fn_type = std::get<5>(env.typeof(fc.id.name));
+				auto env_fn_type = std::get<types::function_type>(env.typeof(fc.id.name));
 
 				// Check function signature against call signature
-				if (!(std::get<1>(fc.params.type) == env_fn_type.from))
+				if (!(fc.params.type == *env_fn_type.from))
 				{
 					throw std::runtime_error("Type error");
 				}
 
-				fc.type = env_fn_type.to;
+				fc.type = std::move(*env_fn_type.to);
 
 				return std::make_tuple(
 					std::move(fc),
@@ -106,12 +109,14 @@ namespace fe
 				type_declaration.type = void_type();
 
 				auto type = interpret(type_declaration.types, env);
-				type_declaration.types.type = type;
+				type_declaration.types.type = std::move(type);
 
-				env.set_type(type_declaration.id.name, function_type(
-					std::get<product_type>(type_declaration.types.type), 
-					std::get<product_type>(type_declaration.types.type)
-				));
+				auto ft = function_type(
+					types::make_unique(type_declaration.types.type),
+					types::make_unique(type_declaration.types.type)
+				);
+
+				env.set_type(type_declaration.id.name, std::move(ft));
 
 				return std::make_tuple(std::move(type_declaration), std::move(env));
 			}
@@ -131,11 +136,11 @@ namespace fe
 
 				auto checked_left = typecheck(std::move(*operation.left), std::move(env));
 				env = std::move(std::get<environment>(checked_left));
-				operation.left = std::make_unique<extended_ast::node_v>(std::move(std::get<extended_ast::node_v>(checked_left)));
+				operation.left = extended_ast::make_unique(std::move(std::get<extended_ast::node>(checked_left)));
 
 				auto checked_right = typecheck(std::move(*operation.right), std::move(env));
 				env = std::move(std::get<environment>(checked_right));
-				operation.right = std::make_unique<extended_ast::node_v>(std::move(std::get<extended_ast::node_v>(checked_right)));
+				operation.right = extended_ast::make_unique(std::move(std::get<extended_ast::node>(checked_right)));
 
 				auto left_type = std::visit(extended_ast::get_type, *(operation.left));
 				auto right_type = std::visit(extended_ast::get_type, *(operation.right));
@@ -160,7 +165,7 @@ namespace fe
 			}
 
 			auto& value = env.valueof(identifier.name);
-			return dynamic_cast<values::type*>(value.get())->kind;
+			return std::get<values::type>(value).kind;
 		}
 
 		types::type interpret(const extended_ast::type_tuple& tuple, const fe::environment& env)

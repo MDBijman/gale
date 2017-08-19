@@ -27,21 +27,21 @@ namespace fe
 	struct value_environment
 	{
 		value_environment() {}
-		value_environment(std::unordered_map<std::string, std::shared_ptr<values::value>> values) : values(values) {}
+		value_environment(std::unordered_map<std::string, values::value> values) : values(values) {}
 		value_environment(const value_environment& other) : values(other.values) {}
 
-		void set(const std::string& name, std::shared_ptr<values::value> value)
+		void set(const std::string& name, values::value&& value)
 		{
 			values.insert_or_assign(name, value);
 		}
 
-		std::shared_ptr<values::value> get(const std::string& name) const
+		const values::value& get(const std::string& name) const
 		{
 			return values.at(name);
 		}
 
 	private:
-		std::unordered_map<std::string, std::shared_ptr<values::value>> values;
+		std::unordered_map<std::string, values::value> values;
 	};
 
 	class environment
@@ -64,29 +64,29 @@ namespace fe
 			return type_environment.get(name);
 		}
 
-		std::shared_ptr<values::value> valueof(const std::string& name) const
+		const values::value& valueof(const std::string& name) const
 		{
 			return value_environment.get(name);
 		}
 
-		std::shared_ptr<values::value> valueof(const std::vector<std::string>& identifier) const
+		const values::value& valueof(const std::vector<std::string>& identifier) const
 		{
 			if (identifier.size() == 1)
 				return value_environment.get(identifier.at(0));
 			else return modules.find(identifier.at(0))->second.valueof(std::vector<std::string>{ identifier.begin() + 1, identifier.end() });
 		}
 
-		void set_value(const std::string& identifier, std::shared_ptr<values::value> value)
+		void set_value(const std::string& identifier, values::value&& value)
 		{
-			value_environment.set(identifier, value);
+			value_environment.set(identifier, std::move(value));
 		}
 
-		void set_value(const std::vector<std::string>& identifier, std::shared_ptr<values::value> value)
+		void set_value(const std::vector<std::string>& identifier, values::value&& value)
 		{
 			if (identifier.size() == 1)
-				value_environment.set(identifier.at(0), value);
+				value_environment.set(identifier.at(0), std::move(value));
 			else 
-				modules.find(identifier.at(0))->second.set_value(std::vector<std::string>{ identifier.begin() + 1, identifier.end() }, value);
+				modules.find(identifier.at(0))->second.set_value(std::vector<std::string>{ identifier.begin() + 1, identifier.end() }, std::move(value));
 		}
 
 		void set_type(const std::string& identifier, types::type type)

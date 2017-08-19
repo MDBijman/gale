@@ -124,8 +124,12 @@
     <None Include="snippets\testing.fe" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="include\input.h" />
+    <ClCompile Include="src\core_ast.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\bnf_parser.cpp" />
+    <ClCompile Include="src\types.cpp" />
+    <ClCompile Include="src\values.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\environment.h" />

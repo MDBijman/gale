@@ -19,6 +19,8 @@ namespace fe
 			add_mapping(module_infix_token, module_infix);
 			add_mapping(plus_token, plus);
 			add_mapping(minus_token, minus);
+			add_mapping(multiply_token, times);
+			add_mapping(divide_token, divide);
 			add_mapping(keyword_token, [&](tools::lexing::token token) {
 				if (token.text == "export")
 					return export_keyword;

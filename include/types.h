@@ -17,88 +17,83 @@ namespace fe
 
 		// Composition types
 
-		struct product_type;
 		struct function_type;
-		struct meta_type;
+		struct product_type;
 
 		struct sum_type 
 		{
-			sum_type(std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, meta_type, unset_type>> sum) : sum(sum) {}
-			sum_type() {}
+			sum_type();
+			sum_type(std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, meta_type, unset_type>> sum);
+
+			// Move
+			sum_type(sum_type&& other);
+			sum_type& operator=(sum_type&& other);
+
+			// Copy
+			sum_type(const sum_type& other);
+			sum_type& operator=(const sum_type& other);
+
 			std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, meta_type, unset_type>> sum;
 		};
 
 		struct product_type
 		{
-			product_type(std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, meta_type, unset_type>> product) : product(product) {}
-			product_type() {}
+			product_type();
+			product_type(std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, meta_type, unset_type>> product);
+
+			// Move
+			product_type(product_type&& other);
+			product_type& operator=(product_type&& other);
+
+			// Copy
+			product_type(const product_type& other);
+			product_type& operator=(const product_type& other);
+
 			std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, meta_type, unset_type>> product;
 		};
 
 		struct function_type
 		{
-			function_type(std::unique_ptr<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, meta_type, unset_type>> from, product_type to) : from(from), to(to) {}
-			product_type from, to;
+			function_type(std::unique_ptr<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, meta_type, unset_type>> f, std::unique_ptr<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, meta_type, unset_type>> t);
+
+			// Move
+			function_type(function_type&& other);
+			function_type& operator=(function_type&& other);
+
+			// Copy
+			function_type(const function_type& other);
+			function_type& operator=(const function_type& other);
+
+			std::unique_ptr<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, meta_type, unset_type>> from, to;
 		};
 
 		// Variant
 
 		using type = std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, meta_type, unset_type>;
+		using unique_type = std::unique_ptr<type>;
+
+		// Helper methods
+
+		const auto make_unique = [](auto x) {
+			return std::make_unique<type>(x);
+		};
 
 		// Operators
 
-		bool operator==(const integer_type& one, const integer_type& two)
-		{
-			return true;
-		}
+		bool operator==(const integer_type& one, const integer_type& two);
 
-		bool operator==(const string_type& one, const string_type& two)
-		{
-			return true;
-		}
+		bool operator==(const string_type& one, const string_type& two);
 
-		bool operator==(const void_type& one, const void_type& two) 
-		{
-			return true;
-		}
+		bool operator==(const void_type& one, const void_type& two);
 
-		bool operator==(const unset_type& one, const unset_type& two)
-		{
-			return true;
-		}
+		bool operator==(const unset_type& one, const unset_type& two);
 
-		bool operator==(const meta_type& one, const meta_type& two)
-		{
-			return true;
-		}
+		bool operator==(const meta_type& one, const meta_type& two);
 
-		bool operator==(const sum_type& one, const sum_type& two)
-		{
-			if (one.sum.size() != two.sum.size()) return false;
+		bool operator==(const sum_type& one, const sum_type& two);
 
-			for (unsigned int i = 0; i < one.sum.size(); i++)
-			{
-				if (!(one.sum.at(i) == two.sum.at(i))) return false;
-			}
+		bool operator==(const product_type& one, const product_type& two);
 
-			return true;
-		}
-
-		bool operator==(const product_type& one, const product_type& two)
-		{
-			if (one.product.size() != two.product.size()) return false;
-
-			for (unsigned int i = 0; i < one.product.size(); i++)
-			{
-				if (!(one.product.at(i) == two.product.at(i))) return false;
-			}
-
-			return true;
-		}
-
-		bool operator==(const function_type& one, const function_type& two)
-		{
-			return one.from == two.from && one.to == two.to;
-		}
+		bool operator==(const function_type& one, const function_type& two);
 	}
 }

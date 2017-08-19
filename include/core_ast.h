@@ -7,70 +7,129 @@ namespace fe
 {
 	namespace core_ast
 	{
-		struct node 
-		{
-			virtual ~node() {}
-			node(types::type type) : type(type) {}
-			node(node&& other) : type(std::move(other.type)) {}
+		// Value nodes
 
+		struct integer
+		{
+			integer(values::integer val);
+			
+			// Copy
+			integer(const integer& other);
+
+			// Move
+			integer(integer&& other);
+			integer& operator=(integer&& other);
+
+			values::integer value;
+			types::type type;
+		};
+
+		struct string
+		{
+			string(values::string val);
+			
+			// Copy
+			string(const string& other);
+
+			// Move
+			string(string&& other);
+			string& operator=(string&& other);
+
+			values::string value;
+			types::type type;
+		};
+
+		struct function
+		{
+			function(values::function&& fun, types::type t);
+			
+			// Copy
+			function(const function& other);
+
+			// Move
+			function(function&& other);
+			function& operator=(function&& other);
+
+			values::function fun;
 			types::type type;
 		};
 
 		// Derivatives
 
-		struct tuple : public node
-		{
-			tuple(tuple&& other) : node(std::move(other)), children(std::move(other.children)) {}
-			tuple(std::vector<std::unique_ptr<node>> children, types::type t) : node(t), children(std::move(children)) {}
+		struct identifier;
+		struct assignment;
+		struct function_call;
 
-			std::vector<std::unique_ptr<node>> children;
+		struct tuple
+		{
+			tuple(std::vector<std::variant<tuple, identifier, assignment, function_call, integer, string, function>> children, types::type t);
+			
+			// Copy
+			tuple(const tuple& other);
+
+			// Move
+			tuple(tuple&& other);
+			tuple& operator=(tuple&& other);
+
+			std::vector<std::variant<tuple, identifier, assignment, function_call, integer, string, function>> children;
+			types::type type;
 		};
 
-		struct identifier : public node
+		struct identifier
 		{
-			identifier(std::vector<std::string>&& name, types::type t) : node(t), name(std::move(name)) {}
-			identifier(std::string&& name, types::type t) : node(t), name({ name }) {}
-			identifier(identifier&& other) : node(std::move(other)), name(std::move(other.name)) {}
+			identifier(std::vector<std::string>&& name, types::type t);
+			identifier(std::string&& name, types::type t);
+
+			// Copy
+			identifier(const identifier& other);
+			identifier& operator=(const identifier& other);
+
+			// Move
+			identifier(identifier&& other);
+			identifier& operator=(identifier&& other);
+			
 
 			std::vector<std::string> name;
+			types::type type;
 		};
 
-		struct assignment : public node
+		struct assignment
 		{
-			assignment(identifier&& id, std::unique_ptr<node>&& val) 
-				: node(types::void_type()), id(std::move(id)), value(std::move(val)) {}
+			assignment(identifier&& id, std::unique_ptr<std::variant<tuple, identifier, assignment, function_call, integer, string, function>>&& val);
+			
+			// Copy
+			assignment(const assignment& other);
+
+			// Move
+			assignment(assignment&& other);
+			assignment& operator=(assignment&& other);
 
 			identifier id;
-			std::unique_ptr<node> value;
+			std::unique_ptr<std::variant<tuple, identifier, assignment, function_call, integer, string, function>> value;
+			types::type type;
 		};
 
-		struct function_call : public node
+		struct function_call
 		{
-			function_call(identifier&& id, tuple&& params, types::type t)
-				: node(t), id(std::move(id)), params(std::move(params)) {}
+			function_call(identifier&& id, tuple&& params, types::type&& t);
+			
+			// Copy
+			function_call(const function_call& other);
+
+			// Move
+			function_call(function_call&& other);
+			function_call& operator=(function_call&& other);
 
 			identifier id;
 			tuple params;
+			types::type type;
 		};
 
-		// Value nodes
+		using node = std::variant<tuple, identifier, assignment, function_call, integer, string, function>;
+		using unique_node = std::unique_ptr<node>;
 
-		struct integer : public node
-		{
-			integer(values::integer val) : node(types::integer_type()), value(val) {}
-			values::integer value;
-		};
-
-		struct string : public node
-		{
-			string(values::string val) : node(types::string_type()), value(val) {}
-			values::string value;
-		};
-
-		struct function : public node
-		{
-			function(values::function&& fun, types::type t) : node(t), fun(std::move(fun)) {}
-			values::function fun;
+		const auto make_unique = [](auto& x) {
+			return std::make_unique<node>(x);
 		};
 	}
 }

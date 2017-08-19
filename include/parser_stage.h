@@ -20,9 +20,13 @@ namespace fe
 			type_tuple = parser.new_non_terminal();
 			addition = parser.new_non_terminal();
 			subtraction = parser.new_non_terminal();
+			multiplication = parser.new_non_terminal();
+			division = parser.new_non_terminal();
 
 			plus = parser.new_terminal();
 			minus = parser.new_terminal();
+			times = parser.new_terminal();
+			divide = parser.new_terminal();
 			identifier = parser.new_terminal();
 			module_infix = parser.new_terminal();
 			export_keyword = parser.new_terminal();
@@ -39,10 +43,12 @@ namespace fe
 				.new_rule({ statement, { type_definition, alt, export_stmt, alt, assignment } })
 				.new_rule({ export_stmt, { export_keyword, identifier } })
 				.new_rule({ assignment, { identifier, equals, expression } })
-				.new_rule({ expression, { value_tuple, alt, number, alt, word, alt, identifier, lsb, value_tuple, rsb, alt, addition, alt, subtraction } })
+				.new_rule({ expression, { value_tuple, alt, number, alt, word, alt, identifier, lsb, value_tuple, rsb, alt, addition, alt, subtraction, alt, multiplication, alt, division } })
 				.new_rule({ value_tuple, { left_bracket, expression, star, right_bracket } })
 				.new_rule({ addition, { plus, expression, expression } })
 				.new_rule({ subtraction, { minus, expression, expression } })
+				.new_rule({ multiplication, { times, expression, expression } })
+				.new_rule({ division, { divide, expression, expression } })
 
 				// Type system
 				.new_rule({ type_definition, { type_keyword, identifier, type_tuple } })
@@ -58,6 +64,8 @@ namespace fe
 				.new_transformation(type_keyword, tools::ebnfe::transformation_type::REMOVE)
 				.new_transformation(plus, tools::ebnfe::transformation_type::REMOVE)
 				.new_transformation(minus, tools::ebnfe::transformation_type::REMOVE)
+				.new_transformation(times, tools::ebnfe::transformation_type::REMOVE)
+				.new_transformation(divide, tools::ebnfe::transformation_type::REMOVE)
 			;
 		}
 

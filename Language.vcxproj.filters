@@ -57,6 +57,9 @@
     <Filter Include="Source Files\library">
       <UniqueIdentifier>{b6786af6-755c-4594-9866-730840718fef}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\library\std">
+      <UniqueIdentifier>{12f383be-618f-4276-9927-7c0765a055ef}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="snippets\test.fe">
@@ -75,6 +78,18 @@
     </ClCompile>
     <ClCompile Include="src\bnf_parser.cpp">
       <Filter>Source Files\tools\parsing</Filter>
+    </ClCompile>
+    <ClCompile Include="src\values.cpp">
+      <Filter>Source Files\fe\data</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core_ast.cpp">
+      <Filter>Source Files\fe\data</Filter>
+    </ClCompile>
+    <ClCompile Include="src\types.cpp">
+      <Filter>Source Files\fe\data</Filter>
+    </ClCompile>
+    <ClCompile Include="include\input.h">
+      <Filter>Source Files\library\std</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

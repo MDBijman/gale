@@ -3,105 +3,125 @@
 #include "language_definition.h"
 #include "values.h"
 #include "pipeline.h"
+#include "core_ast.h"
 #include <iostream>
 #include <memory>
 #include <tuple>
 
 namespace fe
 {
-	class interpreting_stage : public language::interpreting_stage<std::unique_ptr<core_ast::node>, std::shared_ptr<fe::values::value>, fe::environment>
+	class interpreting_stage : public language::interpreting_stage<core_ast::node, values::value, environment>
 	{
 	public:
 		interpreting_stage() {}
 
 		std::tuple<
-			std::unique_ptr<core_ast::node>,
-			std::shared_ptr<values::value>,
-			fe::environment
-		> interpret(std::unique_ptr<core_ast::node> core_ast, fe::environment&& env) override
+			core_ast::node,
+			values::value,
+			environment
+		> interpret(core_ast::node core_ast, environment&& env) override
 		{
 			using namespace std;
-
-			if (!core_ast)
+			if (std::holds_alternative<core_ast::tuple>(core_ast))
 			{
-				return make_tuple(move(core_ast), make_shared<values::void_value>(), move(env));
-			}
-			else if (auto tuple_node = dynamic_cast<core_ast::tuple*>(core_ast.get()))
-			{
-				shared_ptr<values::tuple> res = std::make_shared<values::tuple>();
-				shared_ptr<values::value> res_part;
-				for (decltype(auto) line : tuple_node->children)
+				auto& tuple_node = std::get<core_ast::tuple>(core_ast);
+				values::tuple res = values::tuple();
+				 
+				for (auto& line : tuple_node.children)
 				{
-					tie(line, res_part, env) = interpret(move(line), move(env));
-					res->content.push_back(res_part);
+					auto [new_line, line_value, new_env] = interpret(move(line), move(env));
+					line = std::move(new_line);
+					env = std::move(new_env);
+
+					res.content.push_back(line_value);
 				}
 
-				return make_tuple(move(core_ast), move(res), move(env));
-			}
-			else if (auto id = dynamic_cast<core_ast::identifier*>(core_ast.get()))
-			{
-				auto interpreted_id = env.valueof(id->name);
-				return make_tuple(move(core_ast), interpreted_id, move(env));
-			}
-			else if (auto assignment = dynamic_cast<core_ast::assignment*>(core_ast.get()))
-			{
-				shared_ptr<values::value> value;
-				tie(assignment->value, value, env) = interpret(move(assignment->value), move(env));
+				return make_tuple(move(tuple_node), move(res), move(env));
 
-				env.set_value(assignment->id.name, value);
-
-				return make_tuple(move(core_ast), env.valueof(assignment->id.name), move(env));
 			}
-			else if (auto call = dynamic_cast<core_ast::function_call*>(core_ast.get()))
+			else if (std::holds_alternative<core_ast::identifier>(core_ast))
 			{
+				auto& id = std::get<core_ast::identifier>(core_ast);
+				auto& id_value = env.valueof(id.name);
+
+				return make_tuple(move(id), id_value, move(env));
+			}
+			else if (std::holds_alternative<core_ast::assignment>(core_ast))
+			{
+				auto& assignment = std::get<core_ast::assignment>(core_ast);
+
+				auto [new_code, new_value, new_env] = interpret(move(*assignment.value), move(env));
+				assignment.value = std::make_unique<core_ast::node>(std::move(new_code));
+				env = std::move(new_env);
+
+				env.set_value(assignment.id.name, std::move(new_value));
+
+				return make_tuple(move(core_ast), env.valueof(assignment.id.name), move(env));
+			}
+			else if (std::holds_alternative<core_ast::function_call>(core_ast))
+			{
+				auto& call = std::get<core_ast::function_call>(core_ast);
+				auto& value = env.valueof(call.id.name);
+
 				// Function written in cpp
-				if (auto native_function = dynamic_cast<values::native_function*>(env.valueof(call->id.name).get()))
+				if (std::holds_alternative<values::native_function>(value))
 				{
-					std::vector<std::shared_ptr<values::value>> params;
-					for (unsigned int i = 0; i < call->params.children.size(); i++)
-					{
-						shared_ptr<values::value> param_value;
-						fe::environment param_env{ env };
-						tie(call->params.children.at(i), param_value, std::ignore)
-							= interpret(move(call->params.children.at(i)), move(param_env));
-						params.push_back(param_value);
-					}
-					values::tuple param_tuple(params);
+					auto& function = std::get<values::native_function>(value);
 
-					auto result = std::make_shared<values::tuple>(std::move(native_function->function(std::move(param_tuple))));
-					return make_tuple(move(core_ast), result, move(env));
+					// Eval parameters
+					std::vector<values::value> params;
+					for (unsigned int i = 0; i < call.params.children.size(); i++)
+					{
+						fe::environment param_env{ env };
+						auto [new_code, new_value, _] = interpret(move(call.params.children.at(i)), move(param_env));
+						call.params.children.at(i) = std::move(new_code);
+						params.push_back(std::move(new_value));
+					}
+					values::tuple param_tuple(std::move(params));
+
+					// Eval function
+					auto result = std::move(function.function(std::move(param_tuple)));
+
+					return make_tuple(move(core_ast), std::move(result), move(env));
 				}
 				// Function written in language itself
-				else if (auto function = dynamic_cast<values::function*>(env.valueof(call->id.name).get()))
+				else if (std::holds_alternative<values::function>(value))
 				{
-					fe::environment function_env{ env };
-					for (unsigned int i = 0; i < call->params.children.size(); i++)
-					{
-						shared_ptr<values::value> param_value;
-						fe::environment param_env{ env };
-						tie(call->params.children.at(i), param_value, std::ignore)
-							= interpret(move(call->params.children.at(i)), move(param_env));
+					auto function = std::get<values::function>(value);
 
-						auto param_name = function->parameters.at(i).name;
-						function_env.set_value(param_name, param_value);
+					fe::environment function_env{ env };
+
+					for (unsigned int i = 0; i < call.params.children.size(); i++)
+					{
+						fe::environment param_env{ env };
+
+						auto[new_code, new_value, _] = interpret(move(call.params.children.at(i)), move(param_env));
+						call.params.children.at(i) = std::move(new_code);
+						std::move(core_ast::tuple({}, types::unset_type()));
+						auto param_name = function.parameters.at(i).name;
+
+						function_env.set_value(param_name, std::move(new_value));
 					}
 
-					shared_ptr<values::value> value;
-					tie(function->body, value, env) = interpret(move(function->body), move(function_env));
-					return make_tuple(move(core_ast), value, move(env));
+					auto [_, result, _] = interpret(move(*function.body), move(function_env));
+
+					return make_tuple(move(core_ast), std::move(result), move(env));
 				}
 			}
-			else if (auto num = dynamic_cast<core_ast::integer*>(core_ast.get()))
+			else if (std::holds_alternative<core_ast::integer>(core_ast))
 			{
-				return make_tuple(move(core_ast), make_shared<values::integer>(num->value), move(env));
+				auto& num = std::get<core_ast::integer>(core_ast);
+				return make_tuple(move(core_ast), values::integer(num.value), move(env));
 			}
-			else if (auto string = dynamic_cast<core_ast::string*>(core_ast.get()))
+			else if (std::holds_alternative<core_ast::string>(core_ast))
 			{
-				return make_tuple(move(core_ast), make_shared<values::string>(string->value), move(env));
+				auto& string = std::get<core_ast::string>(core_ast);
+				return make_tuple(move(core_ast), values::string(string.value), move(env));
 			}
-			else if (auto function = dynamic_cast<core_ast::function*>(core_ast.get()))
+			else if (std::holds_alternative<core_ast::function>(core_ast))
 			{
-				return make_tuple(move(core_ast), make_shared<values::function>(move(function->fun.parameters), move(function->fun.body)), move(env));
+				auto& function = std::get<core_ast::function>(core_ast);
+				return make_tuple(move(core_ast), values::function(move(function.fun)), move(env));
 			}
 
 			throw runtime_error("Unknown AST node");
