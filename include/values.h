@@ -45,12 +45,12 @@ namespace fe
 				return *this;
 			}
 
-			std::string val;
-
-			void print()
+			std::string to_string()
 			{
-				std::cout << val;
+				return "\"" + val + "\"";
 			}
+
+			std::string val;
 		};
 
 		struct integer
@@ -75,17 +75,17 @@ namespace fe
 
 			int val;
 
-			void print()
+			std::string to_string()
 			{
-				std::cout << val;
+				return std::to_string(val);
 			}
 		};
 
 		struct void_value
 		{
-			void print()
+			std::string to_string()
 			{
-				std::cout << "void" << std::endl;
+				return "void";
 			}
 		};
 
@@ -111,9 +111,9 @@ namespace fe
 
 			types::type kind;
 
-			void print()
+			std::string to_string()
 			{
-				std::cout << "type";
+				return "type (" + std::visit(types::to_string, kind) + ")";
 			}
 		};
 
@@ -132,7 +132,7 @@ namespace fe
 			std::vector<core_ast::identifier> parameters;
 			core_ast::unique_node body;
 
-			void print();
+			std::string to_string();
 		};
 
 		struct tuple;
@@ -158,9 +158,9 @@ namespace fe
 
 			std::unordered_map<std::string, std::shared_ptr<std::variant<string, integer, tuple, function, native_function, module, type>>> exports;
 
-			void print()
+			std::string to_string()
 			{
-				std::cout << "module";
+				return "module";
 			}
 		};
 
@@ -179,7 +179,7 @@ namespace fe
 
 			std::vector<std::variant<string, integer, tuple, function, native_function, module, type>> content;
 
-			void print();
+			std::string to_string();
 		};
 
 		struct native_function
@@ -196,7 +196,7 @@ namespace fe
 
 			std::function<std::variant<string, integer, tuple, function, native_function, module, type>(std::variant<string, integer, tuple, function, native_function, module, type>)> function;
 
-			void print();
+			std::string to_string();
 		};
 
 		using value = std::variant<string, integer, tuple, function, native_function, module, type>;
@@ -207,8 +207,8 @@ namespace fe
 			return std::make_shared<std::variant<string, integer, tuple, function, native_function, module, type>>(value);
 		};
 
-		const auto print_value = [](auto& value) {
-			value.print();
+		const auto to_string = [](auto& value) -> std::string {
+			return value.to_string();
 		};
 	}
 }

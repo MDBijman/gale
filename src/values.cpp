@@ -28,11 +28,10 @@ namespace fe
 			return *this;
 		}
 
-		void function::print()
+		std::string function::to_string()
 		{
-			std::cout << "function";
+			return "function";
 		}
-
 
 		// Tuple
 
@@ -56,18 +55,19 @@ namespace fe
 			return *this;
 		}
 
-		void tuple::print()
+		std::string tuple::to_string()
 		{
-			std::cout << "(";
+			std::string r("tuple (");
 
 			for (auto it = content.begin(); it != content.end(); it++)
 			{
-				std::visit(print_value, *it);
+				r.append(std::visit(values::to_string, *it));
 				if (it != content.end() - 1)
-					std::cout << " ";
+					r.append(", ");
 			}
 
-			std::cout << ")";
+			r.append(")");
+			return r;
 		}
 
 		// Native Function
@@ -88,9 +88,9 @@ namespace fe
 			return *this;
 		}
 
-		void native_function::print()
+		std::string native_function::to_string()
 		{
-			std::cout << "native function" << std::endl;
+			return "native_function";
 		}
 
 	}	

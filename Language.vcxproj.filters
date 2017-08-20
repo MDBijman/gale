@@ -60,6 +60,15 @@
     <Filter Include="Source Files\library\std">
       <UniqueIdentifier>{12f383be-618f-4276-9927-7c0765a055ef}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\library\language">
+      <UniqueIdentifier>{09b0ec37-1ac6-44ad-979b-d7325c3f8c20}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\library\core">
+      <UniqueIdentifier>{d757ac8a-8534-4f2f-9e99-1574bfd48cef}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\tools\files">
+      <UniqueIdentifier>{be0ab643-ac95-4b90-86a9-f3e4d15c919d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="snippets\test.fe">
@@ -88,7 +97,7 @@
     <ClCompile Include="src\types.cpp">
       <Filter>Source Files\fe\data</Filter>
     </ClCompile>
-    <ClCompile Include="include\input.h">
+    <ClCompile Include="include\std_input.h">
       <Filter>Source Files\library\std</Filter>
     </ClCompile>
   </ItemGroup>
@@ -141,17 +150,26 @@
     <ClInclude Include="include\cst_to_ast_stage.h">
       <Filter>Source Files\fe\pipeline</Filter>
     </ClInclude>
-    <ClInclude Include="include\pipeline.h">
-      <Filter>Source Files\fe</Filter>
-    </ClInclude>
-    <ClInclude Include="include\language_module.h">
-      <Filter>Source Files\library</Filter>
-    </ClInclude>
     <ClInclude Include="include\language_definition.h">
       <Filter>Source Files\fe</Filter>
     </ClInclude>
     <ClInclude Include="include\environment.h">
       <Filter>Source Files\fe\data</Filter>
+    </ClInclude>
+    <ClInclude Include="include\language_module.h">
+      <Filter>Source Files\library\language</Filter>
+    </ClInclude>
+    <ClInclude Include="include\core_operations.h">
+      <Filter>Source Files\library\core</Filter>
+    </ClInclude>
+    <ClInclude Include="include\std_types.h">
+      <Filter>Source Files\library\std</Filter>
+    </ClInclude>
+    <ClInclude Include="include\reader.h">
+      <Filter>Source Files\tools\files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pipeline.h">
+      <Filter>Source Files\fe\pipeline</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

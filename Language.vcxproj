@@ -22,7 +22,7 @@
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{A08F4F80-CD33-4855-9834-FCBD0D8DE5D3}</ProjectGuid>
     <RootNamespace>Language</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.14393.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.15063.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -124,7 +124,7 @@
     <None Include="snippets\testing.fe" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="include\input.h" />
+    <ClCompile Include="include\std_input.h" />
     <ClCompile Include="src\core_ast.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\bnf_parser.cpp" />
@@ -132,6 +132,9 @@
     <ClCompile Include="src\values.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\core_operations.h" />
+    <ClInclude Include="include\reader.h" />
+    <ClInclude Include="include\std_types.h" />
     <ClInclude Include="include\environment.h" />
     <ClInclude Include="include\extended_ast.h" />
     <ClInclude Include="include\bnf_parser.h" />

@@ -1,5 +1,6 @@
 #include "pipeline.h"
 #include "ebnfe_parser.h"
+#include "reader.h"
 
 #include "lexer_stage.h"
 #include "lexer_to_parser_stage.h"
@@ -12,14 +13,11 @@
 #include "values.h"
 
 #include "language_module.h"
-#include "input.h"
+#include "std_input.h"
+#include "std_types.h"
+#include "core_operations.h"
 
-#include <stdio.h>
-#include <functional>
-#include <algorithm>
-#include <fstream>
 #include <iostream>
-#include <string>
 
 fe::pipeline create_pipeline()
 {
@@ -47,104 +45,61 @@ fe::pipeline create_pipeline()
 	return p;
 }
 
-std::string read_file(const std::string& name)
+auto handle_error = []() {
+
+};
+
+int main(int argc, char** argv)
 {
-	std::ifstream in(name, std::ios::in | std::ios::binary);
-	if (!in) throw std::exception("Could not open file");
+	if (argc == 2)
+	{
+		if(argv[1] == "repl")
+		{
+			std::cout << "Fe language v0.0 REPL\n";
+		}
+	}
 
-	std::string contents;
-	in.seekg(0, std::ios::end);
-	contents.resize(in.tellg());
-	in.seekg(0, std::ios::beg);
-	in.read(&contents[0], contents.size());
-	in.close();
-
-	return contents;
-}
-
-int main()
-{
 	auto pipeline = create_pipeline();
-
-	auto std_module = fe::environment{};
-	{ // Standard module
-		std::unique_ptr<fe::types::type> int_type = std::make_unique<fe::types::type>(fe::types::integer_type());
-
-		std_module.set_type("i32", fe::types::meta_type());
-		std_module.set_value("i32", fe::values::type(fe::types::integer_type()));
-
-		std_module.set_type("str", fe::types::meta_type());
-		std_module.set_value("str", fe::values::type(fe::types::string_type()));
-	}
-
-	auto language_module = fe::environment{};
-	{ // Language module
-		auto language_module_contents = read_file("./snippets/language_module.fe");
-
-		// std lib
-		language_module.add_module("std", std_module);
-
-		std::tie(std::ignore, std::ignore, language_module) = pipeline.run_to_interp(std::move(language_module_contents), std::move(language_module));
-		language_module.set_type("random", fe::types::function_type(fe::types::make_unique(fe::types::product_type()), fe::types::make_unique(fe::types::integer_type())));
-		language_module.set_value("random", fe::values::native_function([&](fe::values::value t) -> fe::values::value {
-			auto& tuple = std::get<fe::values::tuple>(t);
-
-			auto contents = std::vector<fe::values::value>();
-			contents.push_back(fe::values::integer(rand()));
-			return fe::values::tuple(contents);
-		}));
-	}
 
 	// Load modules
 	auto environment = fe::environment{};
-	{
-		environment.set_type("_add", fe::types::function_type(fe::types::make_unique(fe::types::product_type{ {fe::types::integer_type{}, fe::types::integer_type{}} }), fe::types::make_unique(fe::types::integer_type{})));
-		environment.set_value("_add", fe::values::native_function([](fe::values::value t) -> fe::values::value {
-			auto& tuple = std::get<fe::values::tuple>(t);
 
-			auto a = std::get<fe::values::integer>(tuple.content[0]);
-			auto b = std::get<fe::values::integer>(tuple.content[1]);
-
-			return fe::values::integer(a.val + b.val);
-		}));
-		environment.set_type("_subtract", fe::types::function_type(fe::types::make_unique(fe::types::product_type{ {fe::types::integer_type{}, fe::types::integer_type{}} }), fe::types::make_unique(fe::types::integer_type{})));
-		environment.set_value("_subtract", fe::values::native_function([](fe::values::value t) -> fe::values::value {
-			auto& tuple = std::get<fe::values::tuple>(t);
-
-			auto a = std::get<fe::values::integer>(tuple.content[0]);
-			auto b = std::get<fe::values::integer>(tuple.content[1]);
-
-			return fe::values::integer(a.val - b.val);
-		}));
-		environment.set_type("_multiply", fe::types::function_type(fe::types::make_unique(fe::types::product_type{ {fe::types::integer_type{}, fe::types::integer_type{}} }), fe::types::make_unique(fe::types::integer_type{})));
-		environment.set_value("_multiply", fe::values::native_function([](fe::values::value t) -> fe::values::value {
-			auto& tuple = std::get<fe::values::tuple>(t);
-
-			auto a = std::get<fe::values::integer>(tuple.content[0]);
-			auto b = std::get<fe::values::integer>(tuple.content[1]);
-
-			return fe::values::integer(a.val * b.val);
-		}));
-		environment.set_type("_divide", fe::types::function_type(fe::types::make_unique(fe::types::product_type{ {fe::types::integer_type{}, fe::types::integer_type{}} }), fe::types::make_unique(fe::types::integer_type{})));
-		environment.set_value("_divide", fe::values::native_function([](fe::values::value t) -> fe::values::value {
-			auto& tuple = std::get<fe::values::tuple>(t);
-
-			auto a = std::get<fe::values::integer>(tuple.content[0]);
-			auto b = std::get<fe::values::integer>(tuple.content[1]);
-
-			return fe::values::integer(a.val / b.val);
-		}));
-	}
-
-	environment.add_module("std", std_module);
-	environment.add_module("language", language_module);
-	environment.add_module("stdin", fe::stdlib::input_module().load());
+	environment.extend(fe::core::operations::load());
+	environment.add_module("std", fe::stdlib::core_types::load());
+	environment.add_module("language", fe::language_module::load(pipeline));
 
 	// Interpret code
-	auto testing_contents = read_file("./snippets/testing.fe");
-	auto testing_results = pipeline.run_to_interp(std::move(testing_contents), std::move(environment));
-	std::visit(fe::values::print_value, std::get<1>(testing_results));
+	auto testing_contents = tools::files::read_file("snippets/testing.fe");
+	auto results = pipeline.run_to_interp(std::move(testing_contents), std::move(environment));
+	if (std::holds_alternative<std::tuple<fe::core_ast::node, fe::values::value, fe::environment>>(results))
+	{
 
-	std::cin.get();
-	std::cin.get();
+	}
+
+	std::cout << std::visit(fe::values::to_string, std::get<fe::values::value>(results)) << std::endl;
+
+	while (1) {
+		std::cout << ">>> ";
+		std::string line;
+		std::getline(std::cin, line);
+
+		if (line == "")
+			continue;
+
+		if (line == "env")
+		{
+			std::cout << environment.to_string() << std::endl;
+			continue;
+		}
+
+		if (line == "exit")
+		{
+			exit(0);
+		}
+
+		results = pipeline.run_to_interp(std::move(line), std::move(std::get<fe::environment>(results)));
+		std::cout << std::visit(fe::values::to_string, std::get<fe::values::value>(results)) << std::endl;
+
+		environment = std::move(std::get<fe::environment>(results));
+	}
 }

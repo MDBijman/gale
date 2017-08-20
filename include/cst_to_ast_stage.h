@@ -4,10 +4,15 @@
 
 namespace fe
 {
-	class cst_to_ast_stage : public language::cst_to_ast_stage<std::unique_ptr<tools::ebnfe::node>, extended_ast::node>
+	struct cst_to_ast_error
+	{
+
+	};
+
+	class cst_to_ast_stage : public language::cst_to_ast_stage<std::unique_ptr<tools::ebnfe::node>, extended_ast::node, cst_to_ast_error>
 	{
 	public:
-		extended_ast::node convert(std::unique_ptr<tools::ebnfe::node> node)
+		std::variant<extended_ast::node, cst_to_ast_error> convert(std::unique_ptr<tools::ebnfe::node> node)
 		{
 			if(std::holds_alternative<tools::ebnfe::non_terminal_node>(*node))
 			{
@@ -21,7 +26,13 @@ namespace fe
 					std::vector<extended_ast::node> children;
 					for (unsigned int i = 0; i < n.children.size(); i++)
 					{
-						children.push_back(std::move(convert(std::move(n.children.at(i)))));
+						auto converted_child = convert(std::move(n.children.at(i)));
+						if (std::holds_alternative<cst_to_ast_error>(converted_child))
+						{
+							return std::get<cst_to_ast_error>(converted_child);
+						}
+
+						children.push_back(std::move(std::get<extended_ast::node>(converted_child)));
 					}
 					return extended_ast::value_tuple(std::move(children));
 				}
@@ -71,7 +82,13 @@ namespace fe
 					std::vector<extended_ast::node> children;
 					for (unsigned int i = 0; i < n.children.size(); i++)
 					{
-						children.push_back(std::move(convert(std::move(n.children.at(i)))));
+						auto converted_child = convert(std::move(n.children.at(i)));
+						if (std::holds_alternative<cst_to_ast_error>(converted_child))
+						{
+							return std::get<cst_to_ast_error>(converted_child);
+						}
+
+						children.push_back(std::move(std::get<extended_ast::node>(converted_child)));
 					}
 					return extended_ast::value_tuple(std::move(children));
 				}
@@ -108,8 +125,13 @@ namespace fe
 					std::vector<extended_ast::node> children;
 					for (decltype(auto) child : n.children)
 					{
-						children.push_back(std::move(convert(std::move(child))));
-					}
+						auto converted_child = convert(std::move(child));
+						if (std::holds_alternative<cst_to_ast_error>(converted_child))
+						{
+							return std::get<cst_to_ast_error>(converted_child);
+						}
+
+						children.push_back(std::move(std::get<extended_ast::node>(converted_child)));					}
 
 					return extended_ast::type_tuple(std::move(children));
 				}
@@ -193,7 +215,7 @@ namespace fe
 				}
 			}
 
-			throw std::runtime_error("Unknown node type");
+			return cst_to_ast_error();
 		}
 	};
 }

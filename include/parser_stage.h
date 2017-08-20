@@ -5,7 +5,7 @@
 
 namespace fe
 {
-	class parsing_stage : public language::parsing_stage<tools::bnf::terminal_node, std::unique_ptr<tools::ebnfe::node>>
+	class parsing_stage : public language::parsing_stage<tools::bnf::terminal_node, std::unique_ptr<tools::ebnfe::node>, tools::ebnfe::error>
 	{
 	public:
 		parsing_stage()
@@ -69,10 +69,18 @@ namespace fe
 			;
 		}
 
-		std::unique_ptr<tools::ebnfe::node> parse(const std::vector<tools::bnf::terminal_node>& in) override
+		std::variant<std::unique_ptr<tools::ebnfe::node>, tools::ebnfe::error> parse(const std::vector<tools::bnf::terminal_node>& in) override
 		{
 			auto cst = parser.parse(fe::file, in);
-			return std::get<0>(std::move(cst));
+
+			if (std::holds_alternative<tools::ebnfe::error>(cst))
+			{
+				return std::get<tools::ebnfe::error>(cst);
+			}
+			else
+			{
+				return std::get<std::unique_ptr<tools::ebnfe::node>>(std::move(cst));
+			}
 		}
 
 	private:

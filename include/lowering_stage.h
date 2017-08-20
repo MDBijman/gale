@@ -7,10 +7,15 @@
 
 namespace fe
 {
-	class lowering_stage : public language::lowering_stage<extended_ast::node, core_ast::node>
+	struct lower_error
+	{
+
+	};
+
+	class lowering_stage : public language::lowering_stage<extended_ast::node, core_ast::node, lower_error>
 	{
 	public:
-		core_ast::node lower(extended_ast::node n) override
+		std::variant<core_ast::node, lower_error> lower(extended_ast::node n) override
 		{
 			using namespace std;
 

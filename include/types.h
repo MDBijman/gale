@@ -9,11 +9,30 @@ namespace fe
 	{
 		// Atomic types
 
-		struct integer_type {};
-		struct string_type {};
-		struct void_type {};
-		struct unset_type {};
-		struct meta_type {};
+		struct integer_type 
+		{
+			std::string to_string();
+		};
+
+		struct string_type 
+		{
+			std::string to_string();
+		};
+
+		struct void_type 
+		{
+			std::string to_string();
+		};
+		
+		struct unset_type
+		{
+			std::string to_string();
+		};
+
+		struct meta_type
+		{
+			std::string to_string();
+		};
 
 		// Composition types
 
@@ -33,6 +52,8 @@ namespace fe
 			sum_type(const sum_type& other);
 			sum_type& operator=(const sum_type& other);
 
+			std::string to_string();
+
 			std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, meta_type, unset_type>> sum;
 		};
 
@@ -49,6 +70,8 @@ namespace fe
 			product_type(const product_type& other);
 			product_type& operator=(const product_type& other);
 
+			std::string to_string();
+
 			std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, meta_type, unset_type>> product;
 		};
 
@@ -64,6 +87,8 @@ namespace fe
 			function_type(const function_type& other);
 			function_type& operator=(const function_type& other);
 
+			std::string to_string();
+
 			std::unique_ptr<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, meta_type, unset_type>> from, to;
 		};
 
@@ -76,6 +101,10 @@ namespace fe
 
 		const auto make_unique = [](auto x) {
 			return std::make_unique<type>(x);
+		};
+
+		const auto to_string = [](auto& x) -> std::string {
+			return x.to_string();
 		};
 
 		// Operators

@@ -7,7 +7,6 @@ namespace fe
 	{
 		// Integer
 
-
 		integer::integer(values::integer val) : type(types::integer_type()), value(val) {}
 		
 		// Copy

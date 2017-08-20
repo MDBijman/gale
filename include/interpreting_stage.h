@@ -10,6 +10,11 @@
 
 namespace fe
 {
+	struct interp_error
+	{
+
+	};
+
 	class interpreting_stage : public language::interpreting_stage<core_ast::node, values::value, environment>
 	{
 	public:

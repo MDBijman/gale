@@ -6,7 +6,12 @@
 
 namespace fe
 {
-	class lexer_to_parser_stage : public language::lexer_to_parser_stage<tools::lexing::token, tools::bnf::terminal_node>
+	struct lex_to_parse_error
+	{
+
+	};
+
+	class lexer_to_parser_stage : public language::lexer_to_parser_stage<tools::lexing::token, tools::bnf::terminal_node, lex_to_parse_error>
 	{
 	public:
 		lexer_to_parser_stage()
@@ -30,7 +35,7 @@ namespace fe
 			});
 		}
 
-		std::vector<tools::bnf::terminal_node> convert(const std::vector<tools::lexing::token>& in)
+		std::variant<std::vector<tools::bnf::terminal_node>, lex_to_parse_error> convert(const std::vector<tools::lexing::token>& in)
 		{
 			using namespace tools;
 

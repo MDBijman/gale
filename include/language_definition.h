@@ -19,12 +19,26 @@ namespace fe
 
 	using pipeline = language::pipeline<
 		tools::lexing::token, 
+		tools::lexing::error,
+
 		tools::bnf::terminal_node, 
+		fe::lex_to_parse_error,
+
 		std::unique_ptr<tools::ebnfe::node>, 
+		tools::ebnfe::error,
+		
 		extended_ast::node,
+		fe::cst_to_ast_error,
+
 		extended_ast::node,
+		fe::typecheck_error,
+
 		core_ast::node,
+		fe::lower_error,
+
 		values::value,
+		fe::interp_error,
+
 		environment
 	>;
 }

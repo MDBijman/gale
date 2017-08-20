@@ -5,68 +5,111 @@
 
 namespace language
 {
-	template<typename TokenType>
+	template<typename TokenType, typename ErrorType>
 	struct lexing_stage
 	{
-		virtual std::vector<TokenType> lex(const std::string&) = 0;
+		virtual std::variant<std::vector<TokenType>, ErrorType> lex(const std::string&) = 0;
 	};
 
-	template<typename TokenType, typename TerminalType>
+	template<typename TokenType, typename TerminalType, typename ErrorType>
 	struct lexer_to_parser_stage
 	{
-		virtual std::vector<TerminalType> convert(const std::vector<TokenType>& tokens) = 0;
+		virtual std::variant<std::vector<TerminalType>, ErrorType> convert(const std::vector<TokenType>& tokens) = 0;
 	};
 
-	template<typename TerminalType, typename CSTType>
+	template<typename TerminalType, typename CSTType, typename ErrorType>
 	struct parsing_stage
 	{
-		virtual CSTType parse(const std::vector<TerminalType>& terminals) = 0;
+		virtual std::variant<CSTType, ErrorType> parse(const std::vector<TerminalType>& terminals) = 0;
 	};
 
-	template<typename CoreSyntaxTreeType, typename ExtendedAstType>
+	template<typename CoreSyntaxTreeType, typename ExtendedAstType, typename ErrorType>
 	struct cst_to_ast_stage 
 	{
-		virtual ExtendedAstType convert(CoreSyntaxTreeType cst) = 0;
+		virtual std::variant<ExtendedAstType, ErrorType> convert(CoreSyntaxTreeType cst) = 0;
 	};
 
-	template<typename ExtendedAstType, typename TypedAstType, typename EnvironmentType>
+	template<typename ExtendedAstType, typename TypedAstType, typename EnvironmentType, typename ErrorType>
 	struct typechecking_stage
 	{
-		virtual std::tuple<TypedAstType, EnvironmentType> typecheck(ExtendedAstType extended_ast, EnvironmentType env) = 0;
+		virtual std::variant<std::tuple<TypedAstType, EnvironmentType>, ErrorType> typecheck(ExtendedAstType extended_ast, EnvironmentType env) = 0;
 	};
 
-	template<typename TypedAstType, typename CoreAstType>
+	template<typename TypedAstType, typename CoreAstType, typename ErrorType>
 	struct lowering_stage
 	{
-		virtual CoreAstType lower(TypedAstType extended_ast) = 0;
+		virtual std::variant<CoreAstType, ErrorType> lower(TypedAstType extended_ast) = 0;
 	};
 
-	template<typename CoreAstType, typename ValueType, typename EnvironmentType>
+	template<typename CoreAstType, typename ValueType, typename EnvironmentType, typename ErrorType>
 	struct interpreting_stage
 	{
-		virtual std::tuple<CoreAstType, ValueType, EnvironmentType> interpret(CoreAstType extended_ast, EnvironmentType&& environment) = 0;
+		virtual std::variant<std::tuple<CoreAstType, ValueType, EnvironmentType>, ErrorType> interpret(CoreAstType extended_ast, EnvironmentType&& environment) = 0;
 	};
 
-	template<typename TokenType, typename TerminalType, typename CSTType, typename ExtendedAstType, typename TypedAstType, typename CoreAstType, typename ValueType, typename EnvironmentType>
+	template<
+		typename TokenType, typename LexError, 
+		typename TerminalType, typename LexToParseError,
+		typename CSTType, typename ParseError, 
+		typename ExtendedAstType, typename CSTToASTError,
+		typename TypedAstType, typename TypecheckError,
+		typename CoreAstType, typename LowerError,
+		typename ValueType, typename InterpError, 
+		typename EnvironmentType>
 	class pipeline
 	{
 	public:
-		std::tuple<CoreAstType, ValueType, EnvironmentType> run_to_interp(std::string&& file, EnvironmentType&& environment)
+		std::variant<
+			LexError, LexToParseError, ParseError, CSTToASTError, TypecheckError, LowerError, InterpError
+			std::tuple<CoreAstType, ValueType, EnvironmentType>
+		> run_to_interp(std::string&& file, EnvironmentType&& environment) const
 		{
-			std::vector<TokenType> tokens = lexing_stage->lex(file);
-			
-			std::vector<TerminalType> converted_tokens = lexer_to_parser_stage->convert(tokens);
-			
-			CSTType cst = std::move(parsing_stage->parse(converted_tokens));
-			
-			ExtendedAstType extended_ast = std::move(cst_to_ast_stage->convert(std::move(cst)));
-			
-			auto typed_res = std::move(typechecking_stage->typecheck(std::move(extended_ast), environment));
-			environment = std::get<EnvironmentType>(typed_res);
+			// Lex
+			auto lex_output = lexing_stage->lex(std::move(file));
 
-			CoreAstType lowered_ast = std::move(lowering_stage->lower(std::move(std::get<TypedAstType>(typed_res))));
+			if (std::holds_alternative<LexError>(lex_output))
+				return std::get<LexError>(lex_output);
+			std::vector<TokenType> tokens = std::get<std::vector<TokenType>>(lex_output);
+			
+			// Lex to Parse
+			auto lex_to_parse_output = lexer_to_parser_stage->convert(tokens);
+
+			if (std::holds_alternative<LexToParseError>(lex_to_parse_output))
+				return std::get<LexToParseError>(lex_to_parse_output);
+			std::vector<TerminalType> converted_tokens = std::get<std::vector<TerminalType>>(lex_to_parse_output);
+
+			// Parse
+			auto parse_output = std::move(parsing_stage->parse(converted_tokens));
+
+			if (std::holds_alternative<ParseError>(parse_output))
+				return std::get<ParseError>(parse_output);
+			CSTType cst = std::get<CSTType>(parse_output);
+
+			// CST to AST
+			auto cst_to_ast_output = std::move(cst_to_ast_stage->convert(std::move(cst)));
+
+			if (std::holds_alternative<CSTToASTError>(cst_to_ast_output))
+				return std::get<CSTToASTError>(cst_to_ast_output);
+			ExtendedAstType extended_ast = std::get<ExtendedAstType>(cst_to_ast_output);
+
+			// Typecheck
+			auto typecheck_output = std::move(typechecking_stage->typecheck(std::move(extended_ast), environment));
+
+			if (std::holds_alternative<TypecheckError>(typecheck_output))
+				return std::get<TypecheckError>(typecheck_output);
+			std::tuple<TypedAstType, EnvironmentType> typecheck_results = std::get<EnvironmentType>(typecheck_output);
+
+			environment = std::get<EnvironmentType>(typecheck_results);
+			TypedAstType typed_ast = std::get<TypedAstType>(typecheck_results);
+
+			// Lower
+			auto lower_output = std::move(lowering_stage->lower(std::move(typed_ast)));
+			if (std::holds_alternative<LowerError>(lower_output))
+				return std::get<LowerError>(lower_output);
 	
-			return interpreting_stage->interpret(std::move(lowered_ast), std::move(environment));
+			CoreAstType core_ast = std:get<CoreAstType>(lower_output);
+
+			return interpreting_stage->interpret(std::move(core_ast), std::move(environment));
 		}
 
 		pipeline& lexer(lexing_stage<TokenType>* lex)
@@ -112,12 +155,12 @@ namespace language
 		}
 
 	private:
-		lexing_stage<TokenType>* lexing_stage;
-		lexer_to_parser_stage<TokenType, TerminalType>* lexer_to_parser_stage;
-		parsing_stage<TerminalType, CSTType>* parsing_stage;
-		cst_to_ast_stage<CSTType, ExtendedAstType>* cst_to_ast_stage;
-		typechecking_stage<ExtendedAstType, TypedAstType, EnvironmentType>* typechecking_stage;
-		lowering_stage<TypedAstType, CoreAstType>* lowering_stage;
-		interpreting_stage<CoreAstType, ValueType, EnvironmentType>* interpreting_stage;
+		lexing_stage<TokenType, LexError>* lexing_stage;
+		lexer_to_parser_stage<TokenType, TerminalType, LexToParseError>* lexer_to_parser_stage;
+		parsing_stage<TerminalType, CSTType, ParseError>* parsing_stage;
+		cst_to_ast_stage<CSTType, ExtendedAstType, CSTToASTError>* cst_to_ast_stage;
+		typechecking_stage<ExtendedAstType, TypedAstType, EnvironmentType, TypecheckError>* typechecking_stage;
+		lowering_stage<TypedAstType, CoreAstType, LowerError>* lowering_stage;
+		interpreting_stage<CoreAstType, ValueType, EnvironmentType, InterpError>* interpreting_stage;
 	};
 }

@@ -6,7 +6,12 @@
 
 namespace fe
 {
-	class typechecker_stage : public language::typechecking_stage<extended_ast::node, extended_ast::node, fe::environment>
+	struct typecheck_error
+	{
+
+	};
+
+	class typechecker_stage : public language::typechecking_stage<extended_ast::node, extended_ast::node, fe::environment, typecheck_error>
 	{
 	private:
 		type_environment base_environment;
@@ -15,7 +20,7 @@ namespace fe
 		typechecker_stage() {}
 		typechecker_stage(type_environment environment) : base_environment(environment) {}
 
-		std::tuple<extended_ast::node, fe::environment> typecheck(extended_ast::node n, environment env) override
+		std::variant<std::tuple<extended_ast::node, fe::environment>, typecheck_error> typecheck(extended_ast::node n, environment env) override
 		{
 			using namespace types;
 		
@@ -75,12 +80,17 @@ namespace fe
 			{
 				auto& fc = std::get<extended_ast::function_call>(n);
 
-				auto checked_params = typecheck(
+				auto res = typecheck(
 					std::move(fc.params),
 					std::move(env)
 				);
-				env = std::get<1>(checked_params);
-				fc.params = std::move(std::get<extended_ast::value_tuple>(std::get<0>(checked_params)));
+
+				if (std::holds_alternative<typecheck_error>(res))
+					return std::get<typecheck_error>(res);
+				auto checked_params = std::move(std::get<std::tuple<extended_ast::node, fe::environment>>(res));
+
+				env = std::move(std::get<environment>(checked_params));
+				fc.params = std::move(std::get<extended_ast::value_tuple>(std::get<extended_ast::node>(checked_params)));
 
 				auto env_fn_type = std::get<types::function_type>(env.typeof(fc.id.name));
 

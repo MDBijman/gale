@@ -1,8 +1,4 @@
-y = language::Terminal (3 "test")
-x = language::Terminal (1 "asd")
-m = language::random ()
-n = language::random ()
+a = language::Terminal (3 "test")
+b = language::Terminal (1 "asd")
 
-z = * 2 / 7 3
-
-k = stdin::get ()
+d = * 4 100

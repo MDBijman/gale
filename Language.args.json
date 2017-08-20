@@ -1,0 +1,8 @@
+{
+  "DataCollection": [
+    {
+      "Id": "ed6a9e3f-8b10-42b1-b2bf-885a7b0de9d2",
+      "Command": "-f snippets/testing.fe"
+    }
+  ]
+}

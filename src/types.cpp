@@ -5,6 +5,31 @@ namespace fe
 	namespace types
 	{
 
+		std::string integer_type::to_string()
+		{
+			return "integer_type";
+		}
+
+		std::string string_type::to_string()
+		{
+			return "integer_type";
+		}
+
+		std::string void_type::to_string()
+		{
+			return "integer_type";
+		}
+
+		std::string unset_type::to_string()
+		{
+			return "integer_type";
+		}
+
+		std::string meta_type::to_string()
+		{
+			return "integer_type";
+		}
+
 		// Sum
 
 		sum_type::sum_type() {}
@@ -32,6 +57,25 @@ namespace fe
 			return *this;
 		}
 
+		std::string sum_type::to_string()
+		{
+			std::string r = "sum_type (";
+			
+			// Probably inefficient
+			for (auto it = sum.begin(); it != sum.end(); ++it)
+			{
+				r.append(std::visit(types::to_string, *it));
+
+				if (it != sum.end() - 1)
+				{
+					r.append(", ");
+				}
+			}
+
+			r.append(")");
+			return r;
+		}
+
 		// Product
 
 		product_type::product_type() {}
@@ -57,6 +101,25 @@ namespace fe
 		{
 			this->product = other.product;
 			return *this;
+		}
+
+		std::string product_type::to_string()
+		{
+			std::string r = "product_type (";
+			
+			// Probably inefficient
+			for (auto it = product.begin(); it != product.end(); ++it)
+			{
+				r.append(std::visit(types::to_string, *it));
+
+				if (it != product.end() - 1)
+				{
+					r.append(", ");
+				}
+			}
+
+			r.append(")");
+			return r;
 		}
 
 		// Function Type
@@ -87,6 +150,18 @@ namespace fe
 			this->from = std::make_unique<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, meta_type, unset_type>>(*other.from);
 			this->to = std::make_unique<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, meta_type, unset_type>>(*other.to);
 			return *this;
+		}
+
+		std::string function_type::to_string()
+		{
+			std::string r = "function_type (";
+			
+			r.append(std::visit(types::to_string, *from));
+			r.append(", ");
+			r.append(std::visit(types::to_string, *to));
+
+			r.append(")");
+			return r;
 		}
 
 		// Operators
