@@ -12,7 +12,9 @@ namespace fe
 			e.add_module("std", fe::stdlib::types::load());
 
 			auto language_module_contents = tools::files::read_file("./snippets/language_module.fe");
-			std::tie(std::ignore, std::ignore, e) = pipeline.run_to_interp(std::move(language_module_contents), std::move(e));
+			auto res = pipeline.run_to_interp(std::move(std::get<std::string>(language_module_contents)), std::move(e));
+			std::tie(std::ignore, std::ignore, e) = std::get<std::tuple<core_ast::node, fe::values::value, fe::environment>>(res);
+
 			return e;
 		}
 	}

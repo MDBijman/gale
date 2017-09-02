@@ -133,6 +133,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\core_operations.h" />
+    <ClInclude Include="include\error.h" />
     <ClInclude Include="include\reader.h" />
     <ClInclude Include="include\std_types.h" />
     <ClInclude Include="include\environment.h" />
@@ -151,13 +152,14 @@
     <ClInclude Include="include\lexer_stage.h" />
     <ClInclude Include="include\parser_stage.h" />
     <ClInclude Include="include\lexer.h" />
+    <ClInclude Include="include\tests.h" />
+    <ClInclude Include="include\tests\end2end_tests.h" />
+    <ClInclude Include="include\tests\grammar_tests.h" />
     <ClInclude Include="include\typechecker_stage.h" />
     <ClInclude Include="include\types.h" />
     <ClInclude Include="include\values.h" />
-    <ClInclude Include="tests\end2end_tests.h" />
   </ItemGroup>
   <ItemGroup>
-    <Text Include="include\notes.txt" />
     <Text Include="snippets\language_core.fe" />
     <Text Include="snippets\language_module.fe" />
   </ItemGroup>

@@ -10,6 +10,11 @@ namespace fe
 			return "integer_type";
 		}
 
+		std::string boolean_type::to_string()
+		{
+			return "boolean_type";
+		}
+
 		std::string string_type::to_string()
 		{
 			return "integer_type";
@@ -33,7 +38,7 @@ namespace fe
 		// Sum
 
 		sum_type::sum_type() {}
-		sum_type::sum_type(std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, meta_type, unset_type>> sum) : sum(sum) {}
+		sum_type::sum_type(std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, meta_type, unset_type>> sum) : sum(sum) {}
 
 		// Move
 		sum_type::sum_type(sum_type&& other)
@@ -79,7 +84,7 @@ namespace fe
 		// Product
 
 		product_type::product_type() {}
-		product_type::product_type(std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, meta_type, unset_type>> product) : product(product) {}
+		product_type::product_type(std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, meta_type, unset_type>> product) : product(product) {}
 
 		// Move
 		product_type::product_type(product_type&& other)
@@ -124,7 +129,7 @@ namespace fe
 
 		// Function Type
 
-		function_type::function_type(std::unique_ptr<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, meta_type, unset_type>> f, std::unique_ptr<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, meta_type, unset_type>> t) : from(std::move(f)), to(std::move(t)) {}
+		function_type::function_type(std::unique_ptr<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, meta_type, unset_type>> f, std::unique_ptr<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, meta_type, unset_type>> t) : from(std::move(f)), to(std::move(t)) {}
 
 		// Move
 		function_type::function_type(function_type&& other)
@@ -142,13 +147,13 @@ namespace fe
 		// Copy
 		function_type::function_type(const function_type& other)
 		{
-			from = std::make_unique<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, meta_type, unset_type>>(*other.from.get());
-			to = std::make_unique<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, meta_type, unset_type>>(*other.to.get());
+			from = std::make_unique<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, meta_type, unset_type>>(*other.from.get());
+			to = std::make_unique<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, meta_type, unset_type>>(*other.to.get());
 		}
 		function_type& function_type::operator=(const function_type& other)
 		{
-			this->from = std::make_unique<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, meta_type, unset_type>>(*other.from);
-			this->to = std::make_unique<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, meta_type, unset_type>>(*other.to);
+			this->from = std::make_unique<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, meta_type, unset_type>>(*other.from);
+			this->to = std::make_unique<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, meta_type, unset_type>>(*other.to);
 			return *this;
 		}
 
@@ -167,6 +172,11 @@ namespace fe
 		// Operators
 
 		bool operator==(const integer_type& one, const integer_type& two)
+		{
+			return true;
+		}
+
+		bool operator==(const boolean_type & one, const boolean_type & two)
 		{
 			return true;
 		}
@@ -219,5 +229,5 @@ namespace fe
 		{
 			return one.from.get() == two.from.get() && one.to.get() == two.to.get();
 		}
-	}
+}
 }

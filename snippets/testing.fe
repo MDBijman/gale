@@ -1,4 +1,4 @@
-a = language::Terminal (3 "test")
-b = language::Terminal (1 "asd")
-
-d = * 4 100
+abs = fn (std::i32 a, std::i32 b) -> (std::i32 out) = branch [
+	| lt(a, 0) -> (mul(a, -1))
+	| gte(a, 0) -> (a)
+]

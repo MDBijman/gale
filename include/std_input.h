@@ -8,15 +8,18 @@ namespace fe
 {
 	namespace stdlib
 	{
-		namespace core_types
+		namespace input
 		{
 			static environment load()
 			{
 				environment e{};
-				e.set_type("get", fe::types::function_type(fe::types::make_unique(fe::types::product_type()), fe::types::make_unique(fe::types::integer_type())));
-				e.set_value("get", values::native_function([](values::value t) -> values::value {
-					return values::integer(std::cin.get());
-				}));
+				e.set(
+					"get",
+					fe::types::function_type(fe::types::make_unique(fe::types::product_type()), fe::types::make_unique(fe::types::integer_type())),
+					values::native_function([](values::value t) -> values::value {
+						return values::integer(std::cin.get());
+					}
+				));
 
 				return e;
 			}

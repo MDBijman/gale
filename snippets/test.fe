@@ -1,4 +1,9 @@
 
+power_two = fn (fn std::i32 t -> std::i32 m f, std::i32 depth) a -> std::i32 n = branch [
+	| lt(a, 2) -> depth
+	| lt(0, 1) -> mul (2, f sub (a, 1))
+]
+
 macro entity_transform {
 	from {
 		<constructor> = <type><argument-list>

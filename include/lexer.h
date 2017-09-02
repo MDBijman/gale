@@ -108,10 +108,21 @@ namespace tools
 				std::vector<token> result;
 				lexer_range range{ input_string.begin(), input_string.end() };
 
+				// Offset into program from beginning for error reporting
+				uint32_t line_count = 1;
+				uint32_t character_count = 0;
+
 				while (range.first != range.second)
 				{
 					while (isspace(*range.first))
 					{
+						if (*range.first == '\n')
+						{
+							line_count++;
+							character_count = 0;
+						}
+
+						character_count++;
 						range.first++;
 						if (range.first == range.second) return result;
 					}
@@ -120,9 +131,21 @@ namespace tools
 					auto id = rules.match(range);
 
 					if (id == -1)
-						return error{ error_code::UNRECOGNIZED_SYMBOL, "Unrecognized symbol starting with: " + *range.first };
+					{
+						auto error_message =
+							std::string("Unrecognized symbol \'")
+							.append(std::string(1, *range.first))
+							.append("\' at line ")
+							.append(std::to_string(line_count))
+							.append(", offset ")
+							.append(std::to_string(character_count));
+						return error{ error_code::UNRECOGNIZED_SYMBOL, error_message };
+					}
 
 					auto token_size = std::distance(range_copy.first, range.first);
+
+					character_count += token_size;
+
 					std::string_view tokenized(&*range_copy.first, token_size);
 					result.push_back(token{ id, std::string(tokenized) });
 				}

@@ -16,7 +16,7 @@
 #include "std_input.h"
 #include "std_types.h"
 #include "core_operations.h"
-
+#include "tests.h"
 #include <iostream>
 
 fe::pipeline create_pipeline()
@@ -45,18 +45,58 @@ fe::pipeline create_pipeline()
 	return p;
 }
 
-auto handle_error = []() {
-
-};
+void process_error(std::variant<tools::lexing::error, fe::lex_to_parse_error, tools::ebnfe::error, fe::cst_to_ast_error, fe::typecheck_error, fe::lower_error, fe::interp_error> error)
+{
+	if (std::holds_alternative<tools::lexing::error>(error))
+	{
+		auto lexing_error = std::get<tools::lexing::error>(error);
+		std::cout << "Lexing error:\n"
+			<< "\t" << lexing_error.message;
+	}
+	else if (std::holds_alternative<fe::lex_to_parse_error>(error))
+	{
+		std::cout << "Lex to parse error";
+	}
+	else if (std::holds_alternative<tools::ebnfe::error>(error))
+	{
+		std::cout << "Parse error: " << std::get<tools::ebnfe::error>(error).message;
+	}
+	else if (std::holds_alternative<fe::cst_to_ast_error>(error))
+	{
+		std::cout << "CST to AST error: " << std::get<fe::cst_to_ast_error>(error).message;
+	}
+	else if (std::holds_alternative<fe::typecheck_error>(error))
+	{
+		std::cout << "Typecheck error: " << std::get<fe::typecheck_error>(error).message;
+	}
+	else if (std::holds_alternative<fe::lower_error>(error))
+	{
+		std::cout << "Lower error";
+	}
+	else if (std::holds_alternative<fe::interp_error>(error))
+	{
+		std::cout << "Interp error: " << std::get<fe::interp_error>(error).message;
+	}
+	std::cout << "\n";
+}
 
 int main(int argc, char** argv)
 {
 	if (argc == 2)
 	{
-		if(argv[1] == "repl")
+		std::string argument = argv[1];
+
+		if (argument == "test")
 		{
-			std::cout << "Fe language v0.0 REPL\n";
+			tests::run_all();
 		}
+		else
+		{
+			std::cout << "Unknown commandline argument(s)" << std::endl;
+		}
+
+		std::cin.get();
+		return 0;
 	}
 
 	auto pipeline = create_pipeline();
@@ -65,41 +105,66 @@ int main(int argc, char** argv)
 	auto environment = fe::environment{};
 
 	environment.extend(fe::core::operations::load());
-	environment.add_module("std", fe::stdlib::core_types::load());
 	environment.add_module("language", fe::language_module::load(pipeline));
 
-	// Interpret code
-	auto testing_contents = tools::files::read_file("snippets/testing.fe");
-	auto results = pipeline.run_to_interp(std::move(testing_contents), std::move(environment));
-	if (std::holds_alternative<std::tuple<fe::core_ast::node, fe::values::value, fe::environment>>(results))
-	{
+	auto stdlib = fe::environment{};
+	stdlib.extend(fe::stdlib::input::load());
+	stdlib.extend(fe::stdlib::types::load());
+	environment.add_module("std", stdlib);
 
-	}
-
-	std::cout << std::visit(fe::values::to_string, std::get<fe::values::value>(results)) << std::endl;
 
 	while (1) {
 		std::cout << ">>> ";
-		std::string line;
-		std::getline(std::cin, line);
+		std::string code;
+		std::getline(std::cin, code);
 
-		if (line == "")
+		// Debug
+
+		if (code == "1")
+			code = "load snippets/testing.fe";
+
+		// End Debug
+
+		if (code == "")
 			continue;
 
-		if (line == "env")
+		if (code == "env")
 		{
 			std::cout << environment.to_string() << std::endl;
 			continue;
 		}
 
-		if (line == "exit")
+		if (code == "exit")
 		{
 			exit(0);
 		}
 
-		results = pipeline.run_to_interp(std::move(line), std::move(std::get<fe::environment>(results)));
-		std::cout << std::visit(fe::values::to_string, std::get<fe::values::value>(results)) << std::endl;
+		if (code.size() > 4 && code.substr(0, 4) == "load")
+		{
+			auto filename = code.substr(5, code.size() - 4);
+			auto file_or_error = tools::files::read_file(filename);
+			if (std::holds_alternative<std::exception>(file_or_error))
+			{
+				std::cout << "File not found\n";
+				continue;
+			}
+	
+			code = std::get<std::string>(file_or_error);
+		}
 
-		environment = std::move(std::get<fe::environment>(results));
+		auto result_or_error = pipeline.run_to_interp(std::move(code), std::move(environment));
+
+		if (std::holds_alternative<std::variant<tools::lexing::error, fe::lex_to_parse_error, tools::ebnfe::error, fe::cst_to_ast_error, fe::typecheck_error, fe::lower_error, fe::interp_error>>(result_or_error))
+		{
+			process_error(std::get<std::variant<tools::lexing::error, fe::lex_to_parse_error, tools::ebnfe::error, fe::cst_to_ast_error, fe::typecheck_error, fe::lower_error, fe::interp_error>>(result_or_error));
+		}
+		else
+		{
+			auto result = std::move(std::get<std::tuple<fe::core_ast::node, fe::values::value, fe::environment>>(result_or_error));
+
+			std::cout << std::visit(fe::values::to_string, std::get<fe::values::value>(result)) << std::endl;
+
+			environment = std::move(std::get<fe::environment>(result));
+		}
 	}
 }

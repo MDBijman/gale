@@ -16,7 +16,9 @@ namespace fe
 		struct integer;
 		struct string;
 		struct function;
-		using node = std::variant<tuple, identifier, assignment, function_call, integer, string, function>;
+		struct conditional_branch;
+		struct conditional_branch_path;
+		using node = std::variant<tuple, identifier, assignment, function_call, integer, string, function, conditional_branch, conditional_branch_path>;
 		using unique_node = std::unique_ptr<node>;
 	}
 }
@@ -81,6 +83,34 @@ namespace fe
 			}
 		};
 
+		struct boolean
+		{
+			boolean(bool b) : val(b) {}
+
+			// Copy
+			boolean(const boolean& other) = default;
+			boolean& operator=(const boolean& other)
+			{
+				this->val = other.val;
+				return *this;
+			}
+
+			// Move
+			boolean(boolean&& other) : val(other.val) {}
+			boolean& operator=(boolean&& other)
+			{
+				this->val = std::move(other.val);
+				return *this;
+			}
+
+			bool val;
+
+			std::string to_string()
+			{
+				return val ? "true" : "false";
+			}
+		};
+
 		struct void_value
 		{
 			std::string to_string()
@@ -119,7 +149,7 @@ namespace fe
 
 		struct function
 		{
-			function(std::vector<core_ast::identifier> params, core_ast::unique_node body);
+			function(std::unique_ptr<core_ast::function> func);
 
 			// Copy
 			function(const function& other);
@@ -129,8 +159,7 @@ namespace fe
 			function(function&& other);
 			function& operator=(function&& other);
 
-			std::vector<core_ast::identifier> parameters;
-			core_ast::unique_node body;
+			std::unique_ptr<core_ast::function> func;
 
 			std::string to_string();
 		};
@@ -156,7 +185,7 @@ namespace fe
 				return *this;
 			}
 
-			std::unordered_map<std::string, std::shared_ptr<std::variant<string, integer, tuple, function, native_function, module, type>>> exports;
+			std::unordered_map<std::string, std::shared_ptr<std::variant<string, integer, boolean, tuple, function, native_function, module, type>>> exports;
 
 			std::string to_string()
 			{
@@ -167,7 +196,7 @@ namespace fe
 		struct tuple
 		{
 			tuple();
-			tuple(std::vector<std::variant<string, integer, tuple, function, native_function, module, type>> values);
+			tuple(std::vector<std::variant<string, integer, boolean, tuple, function, native_function, module, type>> values);
 
 			// Copy
 			tuple(const tuple& other);
@@ -177,14 +206,14 @@ namespace fe
 			tuple(tuple&& other);
 			tuple& operator=(tuple&& other);
 
-			std::vector<std::variant<string, integer, tuple, function, native_function, module, type>> content;
+			std::vector<std::variant<string, integer, boolean, tuple, function, native_function, module, type>> content;
 
 			std::string to_string();
 		};
 
 		struct native_function
 		{
-			native_function(std::function<std::variant<string, integer, tuple, function, native_function, module, type>(std::variant<string, integer, tuple, function, native_function, module, type>)> f) : function(f) {}
+			native_function(std::function<std::variant<string, integer, boolean, tuple, function, native_function, module, type>(std::variant<string, integer, boolean, tuple, function, native_function, module, type>)> f) : function(f) {}
 
 			// Copy
 			native_function(const native_function& other);
@@ -194,17 +223,17 @@ namespace fe
 			native_function(native_function&& other);
 			native_function& operator=(native_function&& other);
 
-			std::function<std::variant<string, integer, tuple, function, native_function, module, type>(std::variant<string, integer, tuple, function, native_function, module, type>)> function;
+			std::function<std::variant<string, integer, boolean, tuple, function, native_function, module, type>(std::variant<string, integer, boolean, tuple, function, native_function, module, type>)> function;
 
 			std::string to_string();
 		};
 
-		using value = std::variant<string, integer, tuple, function, native_function, module, type>;
+		using value = std::variant<string, integer, boolean, tuple, function, native_function, module, type>;
 		using unique_value = std::unique_ptr<value>;
 		using shared_value = std::shared_ptr<value>;
 
 		const auto make_shared = [](auto value) {
-			return std::make_shared<std::variant<string, integer, tuple, function, native_function, module, type>>(value);
+			return std::make_shared<std::variant<string, integer, boolean, tuple, function, native_function, module, type>>(value);
 		};
 
 		const auto to_string = [](auto& value) -> std::string {

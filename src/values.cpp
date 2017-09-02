@@ -8,23 +8,21 @@ namespace fe
 		// Function
 
 
-		function::function(std::vector<core_ast::identifier> params, core_ast::unique_node body) : parameters(std::move(params)), body(std::move(body)) {}
+		function::function(std::unique_ptr<core_ast::function> func) : func(std::move(func)) {}
 
 		// Copy
-		function::function(const function& other) : parameters(other.parameters), body(std::make_unique<core_ast::node>(*other.body)) {}
+		function::function(const function& other) : func(std::make_unique<core_ast::function>(*other.func)) {}
 		function& function::operator=(const function& other)
 		{
-			this->parameters = other.parameters;
-			this->body = std::make_unique<core_ast::node>(*other.body);
+			this->func = std::make_unique<core_ast::function>(*other.func);
 			return *this;
 		}
 
 		// Move
-		function::function(function&& other) : parameters(std::move(other.parameters)), body(std::move(other.body)) {}
+		function::function(function&& other) : func(std::move(other.func)) {}
 		function& function::operator=(function&& other)
 		{
-			this->parameters = std::move(other.parameters);
-			this->body = std::move(other.body);
+			this->func = std::move(other.func);
 			return *this;
 		}
 
@@ -37,7 +35,7 @@ namespace fe
 
 
 		tuple::tuple() {}
-		tuple::tuple(std::vector<std::variant<string, integer, tuple, function, native_function, module, type>> values) : content(values) {}
+		tuple::tuple(std::vector<std::variant<string, integer, boolean, tuple, function, native_function, module, type>> values) : content(values) {}
 
 		// Copy
 		tuple::tuple(const tuple& other) : content(other.content) {}

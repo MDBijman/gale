@@ -13,6 +13,7 @@ namespace tools
 			auto root = std::make_unique<node>(non_terminal_node(begin_symbol));
 			stack.push(root.get());
 
+			auto distance = 0;
 			auto it = input.begin();
 			while (!stack.empty())
 			{
@@ -45,9 +46,11 @@ namespace tools
 							.append(" Expected: ")
 							.append(std::to_string((int)value))
 							.append(" at token index ")
-							.append(std::to_string(std::distance(input.begin(), it)))
+							.append(std::to_string(distance))
 						};
 					}
+
+					distance += input_token.token.size();
 				}
 				else
 				{

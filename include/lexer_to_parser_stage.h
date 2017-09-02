@@ -6,11 +6,6 @@
 
 namespace fe
 {
-	struct lex_to_parse_error
-	{
-
-	};
-
 	class lexer_to_parser_stage : public language::lexer_to_parser_stage<tools::lexing::token, tools::bnf::terminal_node, lex_to_parse_error>
 	{
 	public:
@@ -20,17 +15,24 @@ namespace fe
 			add_mapping(number_token, number);
 			add_mapping(lrb_token, left_bracket);
 			add_mapping(rrb_token, right_bracket);
+			add_mapping(lcb_token, left_curly_bracket);
+			add_mapping(rcb_token, right_curly_bracket); 
+			add_mapping(lsb_token, left_square_bracket);
+			add_mapping(rsb_token, right_square_bracket);
+			add_mapping(pipe_token, vertical_line);
+			add_mapping(right_arrow_token, right_arrow);
 			add_mapping(equals_token, equals);
 			add_mapping(module_infix_token, module_infix);
-			add_mapping(plus_token, plus);
-			add_mapping(minus_token, minus);
-			add_mapping(multiply_token, times);
-			add_mapping(divide_token, divide);
+			add_mapping(comma_token, comma);
 			add_mapping(keyword_token, [&](tools::lexing::token token) {
 				if (token.text == "export")
 					return export_keyword;
 				if (token.text == "type")
 					return type_keyword;
+				if (token.text == "fn")
+					return function_keyword;
+				if (token.text == "branch")
+					return branch_keyword;
 				return identifier;
 			});
 		}
@@ -54,6 +56,7 @@ namespace fe
 					return bnf::terminal_node(std::get<std::function<bnf::terminal(lexing::token)>>(mapped)(x), x.text);
 				}
 			});
+
 			return result;
 		}
 

@@ -14,6 +14,11 @@ namespace fe
 			std::string to_string();
 		};
 
+		struct boolean_type 
+		{
+			std::string to_string();
+		};
+
 		struct string_type 
 		{
 			std::string to_string();
@@ -42,7 +47,7 @@ namespace fe
 		struct sum_type 
 		{
 			sum_type();
-			sum_type(std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, meta_type, unset_type>> sum);
+			sum_type(std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, meta_type, unset_type>> sum);
 
 			// Move
 			sum_type(sum_type&& other);
@@ -54,13 +59,13 @@ namespace fe
 
 			std::string to_string();
 
-			std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, meta_type, unset_type>> sum;
+			std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, meta_type, unset_type>> sum;
 		};
 
 		struct product_type
 		{
 			product_type();
-			product_type(std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, meta_type, unset_type>> product);
+			product_type(std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, meta_type, unset_type>> product);
 
 			// Move
 			product_type(product_type&& other);
@@ -72,12 +77,12 @@ namespace fe
 
 			std::string to_string();
 
-			std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, meta_type, unset_type>> product;
+			std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, meta_type, unset_type>> product;
 		};
 
 		struct function_type
 		{
-			function_type(std::unique_ptr<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, meta_type, unset_type>> f, std::unique_ptr<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, meta_type, unset_type>> t);
+			function_type(std::unique_ptr<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, meta_type, unset_type>> f, std::unique_ptr<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, meta_type, unset_type>> t);
 
 			// Move
 			function_type(function_type&& other);
@@ -89,12 +94,12 @@ namespace fe
 
 			std::string to_string();
 
-			std::unique_ptr<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, meta_type, unset_type>> from, to;
+			std::unique_ptr<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, meta_type, unset_type>> from, to;
 		};
 
 		// Variant
 
-		using type = std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, meta_type, unset_type>;
+		using type = std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, meta_type, unset_type>;
 		using unique_type = std::unique_ptr<type>;
 
 		// Helper methods
@@ -110,6 +115,8 @@ namespace fe
 		// Operators
 
 		bool operator==(const integer_type& one, const integer_type& two);
+
+		bool operator==(const boolean_type& one, const boolean_type& two);
 
 		bool operator==(const string_type& one, const string_type& two);
 

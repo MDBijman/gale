@@ -6,6 +6,8 @@
 #include "values.h"
 #include "types.h"
 
+#define AST_NODE std::variant<atom_type, function_type, tuple_type, atom_declaration, function_declaration, tuple_declaration, value_tuple, identifier, assignment, function_call, type_declaration, export_stmt, integer, string, function, conditional_branch, conditional_branch_path>
+
 namespace fe
 {
 	namespace extended_ast
@@ -72,59 +74,115 @@ namespace fe
 			types::type type;
 		};
 
-		enum class binary_operator
-		{
-			ADD, SUBTRACT, MULTIPLY, DIVIDE
-		};
-
-		struct type_tuple;
 		struct value_tuple;
 		struct function_call;
 		struct assignment;
 		struct type_declaration;
+		struct function;
+		struct conditional_branch;
+		struct conditional_branch_path;
 
-		struct bin_op 
+		struct atom_type
 		{
-			bin_op(
-				binary_operator operation,
-				std::unique_ptr<std::variant<type_tuple, value_tuple, identifier, assignment, function_call, type_declaration, export_stmt, integer, string, bin_op>>&& l,
-				std::unique_ptr<std::variant<type_tuple, value_tuple, identifier, assignment, function_call, type_declaration, export_stmt, integer, string, bin_op>>&& r
-			) : left(std::move(l)), right(std::move(r)), operation(operation) {}
-			bin_op(bin_op&& other) : type(std::move(other.type)), left(std::move(other.left)), right(std::move(other.right)), operation(other.operation) {}
-			bin_op& operator=(bin_op&& other)
+			atom_type(identifier&& name) : name(std::move(name)), type(types::unset_type()) {}
+			atom_type(atom_type&& other) : name(std::move(other.name)), type(std::move(other.type)) {}
+			atom_type& operator=(atom_type&& other)
 			{
-				type = std::move(other.type);
-				operation = other.operation;
-				right = std::move(other.right);
-				left = std::move(other.left);
+				this->name = std::move(other.name);
+				this->type = std::move(other.type);
 				return *this;
 			}
 
-			binary_operator operation;
-			std::unique_ptr<std::variant<type_tuple, value_tuple, identifier, assignment, function_call, type_declaration, export_stmt, integer, string, bin_op>> left, right;
+			identifier name;
+			types::type type;
+		};
+		
+		struct function_type;
+
+		struct tuple_type
+		{
+			tuple_type(std::vector<std::variant<atom_type, function_type>>&& elements) : elements(std::move(elements)), type(types::unset_type()) {}
+			tuple_type(tuple_type&& other) : elements(std::move(other.elements)), type(std::move(other.type)) {}
+			tuple_type& operator=(tuple_type&& other)
+			{
+				this->elements = std::move(other.elements);
+				this->type = std::move(other.type);
+				return *this;
+			}
+
+			std::vector<std::variant<atom_type, function_type>> elements;
 			types::type type;
 		};
 
-		struct type_tuple 
+		struct function_type
 		{
-			type_tuple(std::vector<std::variant<type_tuple, value_tuple, identifier, assignment, function_call, type_declaration, export_stmt, integer, string, bin_op>>&& children) : type(types::unset_type()), children(std::move(children)) {}
-			type_tuple(type_tuple&& other) : type(std::move(other.type)), children(std::move(other.children)), value(std::move(other.value)) {}
-			type_tuple& operator=(type_tuple&& other) 
+			function_type(tuple_type&& from, tuple_type&& to) : from(std::move(from)), to(std::move(to)), type(types::unset_type()) {}
+			function_type(function_type&& other) : from(std::move(other.from)), to(std::move(other.to)), type(std::move(other.type)) {}
+			function_type& operator=(function_type&& other)
 			{
-				type = std::move(other.type);
-				value = std::move(other.value);
-				children = std::move(other.children);
+				this->from = std::move(other.from);
+				this->to = std::move(other.to);
+				this->type = std::move(other.type);
 				return *this;
 			}
 
-			std::vector<std::variant<type_tuple, value_tuple, identifier, assignment, function_call, type_declaration, export_stmt, integer, string, bin_op>> children;
-			types::type value;
+			tuple_type from;
+			tuple_type to;
+			types::type type;
+		};
+
+		struct atom_declaration
+		{
+			atom_declaration(atom_type&& type_name, identifier&& name) : type_name(std::move(type_name)), name(std::move(name)), type(types::unset_type()) {}
+			atom_declaration(atom_declaration&& other) : type_name(std::move(other.type_name)), name(std::move(other.name)), type(std::move(other.type)) {}
+			atom_declaration& operator=(atom_declaration&& other)
+			{
+				this->type_name = std::move(other.type_name);
+				this->name = std::move(other.name);
+				this->type = std::move(other.type);
+				return *this;
+			}
+
+			atom_type type_name;
+			identifier name;
+			types::type type;
+		};
+
+		struct function_declaration
+		{
+			function_declaration(function_type&& type_name, identifier&& name) : type_name(std::move(type_name)), name(std::move(name)), type(types::unset_type()) {}
+			function_declaration(function_declaration&& other) : type_name(std::move(other.type_name)), name(std::move(other.name)), type(std::move(other.type)) {}
+			function_declaration& operator=(function_declaration&& other)
+			{
+				this->type_name = std::move(other.type_name);
+				this->name = std::move(other.name);
+				this->type = std::move(other.type);
+				return *this;
+			}
+
+			function_type type_name;
+			identifier name;
+			types::type type;
+		};
+
+		struct tuple_declaration
+		{
+			tuple_declaration(std::vector<std::variant<atom_declaration, function_declaration>>&& elements) : elements(std::move(elements)), type(types::unset_type()) {}
+			tuple_declaration(tuple_declaration&& other) : elements(std::move(other.elements)), type(std::move(other.type)) {}
+			tuple_declaration& operator=(tuple_declaration&& other)
+			{
+				this->elements = std::move(other.elements);
+				this->type = std::move(other.type);
+				return *this;
+			}
+
+			std::vector<std::variant<atom_declaration, function_declaration>> elements;
 			types::type type;
 		};
 
 		struct value_tuple
 		{
-			value_tuple(std::vector<std::variant<type_tuple, value_tuple, identifier, assignment, function_call, type_declaration, export_stmt, integer, string, bin_op>>&& children) : type(types::unset_type()), children(std::move(children)) {}
+			value_tuple(std::vector<AST_NODE>&& children) : type(types::unset_type()), children(std::move(children)) {}
 			value_tuple(value_tuple&& other) : type(std::move(other.type)), children(std::move(other.children)) {}
 			value_tuple& operator=(value_tuple&& other) 
 			{
@@ -133,13 +191,13 @@ namespace fe
 				return *this;
 			}
 
-			std::vector<std::variant<type_tuple, value_tuple, identifier, assignment, function_call, type_declaration, export_stmt, integer, string, bin_op>> children;
+			std::vector<AST_NODE> children;
 			types::type type;
 		};
 
 		struct function_call 
 		{
-			function_call(identifier&& id, value_tuple&& params) : id(std::move(id)), params(std::move(params)) {}
+			function_call(identifier&& id, std::unique_ptr<AST_NODE>&& params) : id(std::move(id)), params(std::move(params)) {}
 			function_call(function_call&& other) : type(std::move(other.type)), id(std::move(other.id)), params(std::move(other.params)) { }
 			function_call& operator=(function_call&& other)
 			{
@@ -150,13 +208,13 @@ namespace fe
 			}
 
 			identifier id;
-			value_tuple params;
+			std::unique_ptr<AST_NODE> params;
 			types::type type;
 		};
 
 		struct type_declaration 
 		{
-			type_declaration(identifier&& name, type_tuple&& types) : type(types::void_type{}), id(std::move(name)), types(std::move(types)) {}
+			type_declaration(identifier&& name, tuple_type&& types) : type(types::void_type{}), id(std::move(name)), types(std::move(types)) {}
 			type_declaration(type_declaration&& other) : type(std::move(other.type)), id(std::move(other.id)), types(std::move(other.types)) {}
 			type_declaration& operator=(type_declaration&& other)
 			{
@@ -167,13 +225,13 @@ namespace fe
 			}
 
 			identifier id;
-			type_tuple types;
+			tuple_type types;
 			types::type type;
 		};
 
 		struct assignment 
 		{
-			assignment(identifier&& id, std::unique_ptr<std::variant<type_tuple, value_tuple, identifier, assignment, function_call, type_declaration, export_stmt, integer, string, bin_op>>&& val) : type(types::unset_type()), id(std::move(id)), value(std::move(val)) {}
+			assignment(identifier&& id, std::unique_ptr<AST_NODE>&& val) : type(types::unset_type()), id(std::move(id)), value(std::move(val)) {}
 			assignment(assignment&& other) : type(std::move(other.type)), id(std::move(other.id)), value(std::move(other.value)) {}
 			assignment& operator=(assignment&& other)
 			{
@@ -184,7 +242,55 @@ namespace fe
 			}
 
 			identifier id;
-			std::unique_ptr<std::variant<type_tuple, value_tuple, identifier, assignment, function_call, type_declaration, export_stmt, integer, string, bin_op>> value;
+			std::unique_ptr<AST_NODE> value;
+			types::type type;
+		};
+
+		struct function
+		{
+			function(tuple_declaration from, tuple_declaration to, std::unique_ptr<AST_NODE> body) : type(types::unset_type()), from(std::move(from)), to(std::move(to)), body(std::move(body)) {}
+			function(function&& other) : type(std::move(other.type)), from(std::move(other.from)), to(std::move(other.to)), body(std::move(other.body)) {}
+			function& operator=(function&& other)
+			{
+				type = std::move(other.type);
+				from = std::move(other.from);
+				to = std::move(other.to);
+				body = std::move(other.body);
+				return *this;
+			}
+
+			types::type type;
+			tuple_declaration from;
+			tuple_declaration to;
+			std::unique_ptr<AST_NODE> body;
+		};
+
+		struct conditional_branch_path
+		{
+			conditional_branch_path(std::unique_ptr<AST_NODE> test, std::unique_ptr<AST_NODE> code) : test_path(std::move(test)), code_path(std::move(code)) {}
+			conditional_branch_path(conditional_branch_path&& other) : code_path(std::move(other.code_path)), test_path(std::move(other.test_path)), type(std::move(other.type)) {}
+			conditional_branch_path& operator=(conditional_branch_path&& other) {
+				this->code_path = std::move(other.code_path);
+				this->test_path = std::move(other.test_path);
+				this->type = std::move(other.type);
+				return *this;
+			}
+			std::unique_ptr<AST_NODE> test_path;
+			std::unique_ptr<AST_NODE> code_path;
+			types::type type;
+		};
+
+		struct conditional_branch
+		{
+			conditional_branch(std::vector<conditional_branch_path>&& branches) : branches(std::move(branches)) {}
+			conditional_branch(conditional_branch&& other) : branches(std::move(other.branches)), type(std::move(other.type)) {}
+			conditional_branch& operator=(conditional_branch&& other) {
+				this->branches = std::move(other.branches);
+				this->type = std::move(other.type);
+				return *this;
+			}
+
+			std::vector<conditional_branch_path> branches;
 			types::type type;
 		};
 
@@ -196,7 +302,7 @@ namespace fe
 			node.type = t;
 		};
 
-		using node = std::variant<type_tuple, value_tuple, identifier, assignment, function_call, type_declaration, export_stmt, integer, string, bin_op>;
+		using node = AST_NODE;
 		using unique_node = std::unique_ptr<node>;
 
 		auto make_unique = [](auto&& x) {
@@ -204,3 +310,5 @@ namespace fe
 		};
 	}
 }
+
+#undef AST_NODE

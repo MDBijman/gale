@@ -14,11 +14,15 @@ namespace fe
 			{
 				environment e{};
 
-				e.set_type("i32", fe::types::meta_type());
-				e.set_value("i32", fe::values::type(fe::types::integer_type()));
+				e.set("i32", 
+					fe::types::meta_type(), 
+					fe::values::type(fe::types::integer_type())
+				);
 
-				e.set_type("str", fe::types::meta_type());
-				e.set_value("str", fe::values::type(fe::types::string_type()));
+				e.set("str", 
+					fe::types::meta_type(), 
+					fe::values::type(fe::types::string_type())
+				);
 
 				return e;
 			}

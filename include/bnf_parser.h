@@ -52,7 +52,7 @@ namespace tools
 				return std::get<non_terminal>(value);
 			}
 
-			bool matches(symbol other, const std::multimap<non_terminal, std::vector<symbol>>& mapping) const
+			bool matches(const symbol& other, const std::multimap<non_terminal, std::vector<symbol>>& mapping) const
 			{
 				if (other.is_terminal() && is_terminal() && (other.get_terminal() == get_terminal())) return true;
 				if (!other.is_terminal() && !is_terminal() && (other.get_non_terminal() == get_non_terminal())) true;
@@ -129,21 +129,47 @@ namespace tools
 			*/
 			std::variant<std::unique_ptr<node>, error> parse(non_terminal begin_symbol, std::vector<terminal_node> input) const;
 
-			std::variant<const std::vector<symbol>*, error> match(non_terminal symbol, terminal input_token) const
+			std::variant<const std::vector<symbol>*, error> match(non_terminal lhs, terminal input_token) const
 			{
-				// All rules with the right non terminal on the lhs
-				auto possible_matches = rules.equal_range(symbol);
+				// All rules with the given non terminal on the lhs
+				auto possible_matches = rules.equal_range(lhs);
 
 				if (possible_matches.first == possible_matches.second)
 					return error{ error_code::NO_MATCHING_RULE, std::to_string((int)input_token) };
 
+				// Set to true if the symbol can be the empty string
+				const std::vector<symbol>* null_rule = nullptr;
+
 				// Find a rule that matches
 				auto rule_location = std::find_if(possible_matches.first, possible_matches.second, [&](auto& rule) {
-					return rule.second.at(0).matches(input_token, rules);
+					auto& first_on_rhs = rule.second.at(0);
+
+					if (first_on_rhs.is_terminal() && (first_on_rhs.get_terminal() == epsilon))
+					{
+						null_rule = &rule.second;
+						return false;
+					}
+
+					return first_on_rhs.matches(input_token, rules);
 				});
 
 				if (rule_location == possible_matches.second)
-					return error{ error_code::NO_MATCHING_RULE, std::to_string((int)input_token) };
+				{
+					if (null_rule)
+					{
+						return null_rule;
+					}
+					else
+					{
+						return error{
+							error_code::NO_MATCHING_RULE,
+							std::string("No matching rule for lhs ")
+								.append(std::to_string(lhs))
+								.append(" attempted to match ")
+								.append(std::to_string(input_token))
+						};
+					}
+				}
 
 				return &rule_location->second;
 			}

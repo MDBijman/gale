@@ -1,6 +1,8 @@
 #include "core_ast.h"
 #include <vector>
 
+#define AST_NODE std::variant<tuple, identifier, assignment, function_call, integer, string, function, conditional_branch, conditional_branch_path>
+
 namespace fe
 {
 	namespace core_ast
@@ -11,6 +13,12 @@ namespace fe
 		
 		// Copy
 		integer::integer(const integer& other) : value(other.value), type(other.type) {}
+		integer& integer::operator=(const integer& other)
+		{
+			this->value = other.value;
+			this->type = other.type;
+			return *this;
+		}
 
 		// Move
 		integer::integer(integer&& other) : value(std::move(other.value)), type(std::move(other.type)) {}
@@ -29,6 +37,13 @@ namespace fe
 		
 		// Copy
 		string::string(const string& other) : value(other.value), type(other.type) {}
+		string& string::operator=(const string& other)
+		{
+			this->value = other.value;
+			this->type = other.type;
+			return *this;
+		}
+
 
 		// Move
 		string::string(string&& other) : value(std::move(other.value)), type(std::move(other.type)) {}
@@ -42,16 +57,24 @@ namespace fe
 		// Function
 
 
-		function::function(values::function&& fun, types::type t) : type(t), fun(std::move(fun)) {}
+		function::function(std::vector<identifier>&& parameters, std::unique_ptr<AST_NODE>&& body, types::type t) : parameters(std::move(parameters)), type(t), body(std::move(body)) {}
 		
 		// Copy
-		function::function(const function& other) : fun(other.fun), type(other.type) {}
+		function::function(const function& other) : parameters(other.parameters), body(core_ast::make_unique(*other.body)), type(other.type) {}
+		function& function::operator=(const function& other)
+		{
+			this->parameters = other.parameters;
+			this->body = make_unique(*other.body);
+			this->type = other.type;
+			return *this;
+		}
 
 		// Move
-		function::function(function&& other) : fun(std::move(other.fun)), type(std::move(other.type)) {}
+		function::function(function&& other) : parameters(std::move(other.parameters)), body(std::move(other.body)), type(std::move(other.type)) {}
 		function& function::operator=(function&& other)
 		{
-			this->fun = std::move(other.fun);
+			this->parameters = std::move(other.parameters);
+			this->body = std::move(other.body);
 			this->type = std::move(other.type);
 			return *this;
 		}
@@ -60,10 +83,16 @@ namespace fe
 		// Tuple
 
 
-		tuple::tuple(std::vector<std::variant<tuple, identifier, assignment, function_call, integer, string, function>> children, types::type t) : type(t), children(std::move(children)) {}
+		tuple::tuple(std::vector<AST_NODE> children, types::type t) : type(t), children(std::move(children)) {}
 		
 		// Copy
 		tuple::tuple(const tuple& other) : children(other.children), type(other.type) {}
+		tuple& tuple::operator=(const tuple& other)
+		{
+			this->children = other.children;
+			this->type = other.type;
+			return *this;
+		}
 
 		// Move
 		tuple::tuple(tuple&& other) : type(std::move(other.type)), children(std::move(other.children)) {}
@@ -102,12 +131,19 @@ namespace fe
 		// Assignment
 
 
-		assignment::assignment(identifier&& id, std::unique_ptr<std::variant<tuple, identifier, assignment, function_call, integer, string, function>>&& val)
+		assignment::assignment(identifier&& id, std::unique_ptr<AST_NODE>&& val)
 			: type(types::void_type()), id(std::move(id)), value(std::move(val)) {}
 
 		// Copy
-		assignment::assignment(const assignment& other) : id(other.id), value(std::make_unique<std::variant<tuple, identifier, assignment, function_call, integer, string, function>>(*other.value)), type(other.type) {}
-
+		assignment::assignment(const assignment& other) : id(other.id), value(std::make_unique<AST_NODE>(*other.value)), type(other.type) {}
+		assignment& assignment::operator=(const assignment& other)
+		{
+			this->id = other.id;
+			this->value = make_unique(*other.value);
+			this->type = other.type;
+			return *this;
+		}
+		
 		// Move
 		assignment::assignment(assignment&& other) : id(std::move(other.id)), value(std::move(other.value)), type(std::move(other.type)) {}
 		assignment& assignment::operator=(assignment&& other)
@@ -122,21 +158,76 @@ namespace fe
 		// Function Call
 
 
-		function_call::function_call(identifier&& id, tuple&& params, types::type&& t)
-			: type(std::move(t)), id(std::move(id)), params(std::move(params)) {}
+		function_call::function_call(identifier&& id, std::unique_ptr<AST_NODE>&& parameter, types::type&& t)
+			: type(std::move(t)), id(std::move(id)), parameter(std::move(parameter)) {}
 		
 		// Copy
-		function_call::function_call(const function_call& other) : id(other.id), params(other.params), type(other.type) {}
+		function_call::function_call(const function_call& other) : id(other.id), parameter(make_unique(*other.parameter)), type(other.type) {}
+		function_call& function_call::operator=(const function_call& other)
+		{
+			this->id = other.id;
+			this->parameter = make_unique(*other.parameter);
+			this->type = other.type;
+			return *this;
+		}
 
 		// Move
-		function_call::function_call(function_call&& other) : id(std::move(other.id)), params(std::move(other.params)), type(std::move(other.type)) {}
+		function_call::function_call(function_call&& other) : id(std::move(other.id)), parameter(std::move(other.parameter)), type(std::move(other.type)) {}
 		function_call& function_call::operator=(function_call&& other)
 		{
 			this->id = std::move(other.id);
-			this->params = std::move(other.params);
+			this->parameter = std::move(other.parameter);
 			this->type = std::move(other.type);
 			return *this;
 		}
 
+
+		// Conditional Branch Path
+
+		conditional_branch_path::conditional_branch_path(std::unique_ptr<AST_NODE> test, std::unique_ptr<AST_NODE> code) : test_path(std::move(test)), code_path(std::move(code)) {}
+
+		// Copy
+		conditional_branch_path::conditional_branch_path(const conditional_branch_path& other) : code_path(make_unique(*other.code_path)), test_path(make_unique(*other.test_path)), type(other.type) {}
+		conditional_branch_path& conditional_branch_path::operator=(const conditional_branch_path& other)
+		{
+			this->test_path = make_unique(*other.test_path);
+			this->code_path = make_unique(*other.code_path);
+			this->type = other.type;
+			return *this;
+		}
+
+		// Move
+		conditional_branch_path::conditional_branch_path(conditional_branch_path&& other) : code_path(std::move(other.code_path)), test_path(std::move(other.test_path)), type(std::move(other.type)) {}
+		conditional_branch_path& conditional_branch_path::operator=(conditional_branch_path&& other) {
+			this->code_path = std::move(other.code_path);
+			this->test_path = std::move(other.test_path);
+			this->type = std::move(other.type);
+			return *this;
+		}
+
+		// Conditional Branch
+
+
+		conditional_branch::conditional_branch(std::vector<conditional_branch_path>&& branches, types::type&& t) : branches(std::move(branches)), type(t) {}
+
+		// Copy
+		conditional_branch::conditional_branch(const conditional_branch& other) : branches(other.branches), type(other.type) {}
+		conditional_branch& conditional_branch::operator=(const conditional_branch& other)
+		{
+			this->branches = other.branches;
+			this->type = other.type;
+			return *this;
+		}
+
+		// Move
+		conditional_branch::conditional_branch(conditional_branch&& other) : branches(std::move(other.branches)), type(std::move(other.type)) {}
+		conditional_branch& conditional_branch::operator=(conditional_branch&& other)
+		{
+			this->branches = std::move(other.branches);
+			this->type = std::move(other.type);
+			return *this;
+		}
 	}
 }
+
+#undef AST_NODE

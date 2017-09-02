@@ -1,6 +1,7 @@
 #pragma once
 #include "types.h"
 #include "values.h"
+#include <regex>
 
 namespace fe
 {
@@ -27,24 +28,24 @@ namespace fe
 
 		std::string to_string()
 		{
-			std::string r("type_environment (");
+			std::string r("type_environment (\n");
 
 			uint32_t counter = 0;
 			for(auto& pair : types)
 			{
-				std::string t = pair.first + ": ";
+				std::string t = "\t" + pair.first + ": ";
 				t.append(std::visit(types::to_string, pair.second));
 				r.append(t);
 
 				if (counter != types.size() - 1)
 				{
-					r.append(", ");
+					r.append(",\n");
 				}
 
 				counter++;
 			}
 
-			r.append(")");
+			r.append("\n)");
 
 			return r;
 		}
@@ -76,24 +77,24 @@ namespace fe
 
 		std::string to_string()
 		{
-			std::string r("value_environment (");
+			std::string r("value_environment (\n");
 
 			uint32_t counter = 0;
 			for(auto& pair : values)
 			{
-				std::string t = pair.first + ": ";
+				std::string t = "\t" + pair.first + ": ";
 				t.append(std::visit(values::to_string, pair.second));
 				r.append(t);
 
 				if (counter != values.size() - 1)
 				{
-					r.append(", ");
+					r.append(",\n");
 				}
 
 				counter++;
 			}
 
-			r.append(")");
+			r.append("\n)");
 			return r;
 		}
 
@@ -104,9 +105,27 @@ namespace fe
 	class environment
 	{
 	public:
+		environment() {}
+		environment(const environment& other) : type_environment(other.type_environment), value_environment(other.value_environment), modules(other.modules) {}
+		environment& operator=(const environment& other)
+		{
+			this->type_environment = other.type_environment;
+			this->value_environment = other.value_environment;
+			this->modules = other.modules;
+			return *this;
+		}
+		environment(environment&& other) : type_environment(std::move(other.type_environment)), value_environment(std::move(other.value_environment)), modules(std::move(other.modules)) {}
+		environment& operator=(environment&& other)
+		{
+			this->type_environment = std::move(other.type_environment);
+			this->value_environment = std::move(other.value_environment);
+			this->modules = std::move(other.modules);
+			return *this;
+		}
+
 		void add_module(std::string name, environment module)
 		{
-			modules.insert({ name, module });
+			modules.insert({ name, std::move(module) });
 		}
 
 		void extend(environment&& other)
@@ -140,17 +159,17 @@ namespace fe
 			else return modules.find(identifier.at(0))->second.valueof(std::vector<std::string>{ identifier.begin() + 1, identifier.end() });
 		}
 
-		void set_value(const std::string& identifier, values::value&& value)
-		{
-			value_environment.set(identifier, std::move(value));
-		}
-
 		void set_value(const std::vector<std::string>& identifier, values::value&& value)
 		{
 			if (identifier.size() == 1)
 				value_environment.set(identifier.at(0), std::move(value));
 			else 
 				modules.find(identifier.at(0))->second.set_value(std::vector<std::string>{ identifier.begin() + 1, identifier.end() }, std::move(value));
+		}
+
+		void set_value(const std::string& identifier, values::value&& value)
+		{
+			value_environment.set(identifier, std::move(value));
 		}
 
 		void set_type(const std::string& identifier, types::type type)
@@ -166,13 +185,27 @@ namespace fe
 				modules.find(identifier.at(0))->second.set_type(std::vector<std::string>{ identifier.begin() + 1, identifier.end() }, type);
 		}
 
+		void set(const std::string& identifier, types::type&& type, values::value&& value)
+		{
+			set(std::vector<std::string>{ identifier }, std::move(type), std::move(value));
+		}
+
+		void set(const std::vector<std::string>& identifier, types::type&& type, values::value&& value)
+		{
+			set_type(identifier, std::move(type));
+			set_value(identifier, std::move(value));
+		}
+
 		std::string to_string()
 		{
-			std::string r("environment (");
+			std::string r("environment (\n");
 			r.append(type_environment.to_string());
-			r.append(", ");
+			r.append(",\n");
 			r.append(value_environment.to_string());
-			r.append(")");
+
+			r = std::regex_replace(r, std::regex("\\n"), "\n\t");
+
+			r.append("\n)");
 			return r;
 		}
 

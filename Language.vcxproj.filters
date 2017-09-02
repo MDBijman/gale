@@ -39,9 +39,6 @@
     <Filter Include="Tests\tools">
       <UniqueIdentifier>{41aecb1a-45c3-4599-9406-1a69c228a146}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Tests\language">
-      <UniqueIdentifier>{f0f73ad3-11b7-48da-ad3f-7b3e2ae6d454}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Tests\tools\compilation">
       <UniqueIdentifier>{b01d3415-f994-4aa2-8f24-be06b427774f}</UniqueIdentifier>
     </Filter>
@@ -120,9 +117,6 @@
     <ClInclude Include="include\types.h">
       <Filter>Source Files\fe\data</Filter>
     </ClInclude>
-    <ClInclude Include="tests\end2end_tests.h">
-      <Filter>Tests\fe</Filter>
-    </ClInclude>
     <ClInclude Include="include\core_ast.h">
       <Filter>Source Files\fe\data</Filter>
     </ClInclude>
@@ -171,12 +165,21 @@
     <ClInclude Include="include\pipeline.h">
       <Filter>Source Files\fe\pipeline</Filter>
     </ClInclude>
+    <ClInclude Include="include\error.h">
+      <Filter>Source Files\fe\pipeline</Filter>
+    </ClInclude>
+    <ClInclude Include="include\tests.h">
+      <Filter>Tests</Filter>
+    </ClInclude>
+    <ClInclude Include="include\tests\end2end_tests.h">
+      <Filter>Tests\fe</Filter>
+    </ClInclude>
+    <ClInclude Include="include\tests\grammar_tests.h">
+      <Filter>Tests\fe</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="snippets\language_core.fe">
-      <Filter>Resource Files</Filter>
-    </Text>
-    <Text Include="include\notes.txt">
       <Filter>Resource Files</Filter>
     </Text>
     <Text Include="snippets\language_module.fe">
