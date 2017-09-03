@@ -2,6 +2,7 @@
 #include "types.h"
 #include "values.h"
 #include <vector>
+#include <optional>
 
 // Also defined in core_ast.cpp
 #define AST_NODE std::variant<tuple, identifier, assignment, function_call, integer, string, function, conditional_branch, conditional_branch_path>
@@ -71,7 +72,7 @@ namespace fe
 
 		struct function
 		{
-			function(std::vector<identifier>&& parameters, std::unique_ptr<AST_NODE>&& body, types::type t);
+			function(std::optional<identifier>&& name, std::vector<identifier>&& parameters, std::unique_ptr<AST_NODE>&& body, types::type t);
 			
 			// Copy
 			function(const function& other);
@@ -81,6 +82,8 @@ namespace fe
 			function(function&& other);
 			function& operator=(function&& other);
 
+			// Name is set when the function is not anonymous, for recursion
+			std::optional<identifier> name;
 			std::vector<identifier> parameters;
 			std::unique_ptr<AST_NODE> body;
 			types::type type;

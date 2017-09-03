@@ -90,6 +90,7 @@ namespace fe
 					core_ast::identifier(move(type_declaration.id.name), move(type_declaration.id.type)),
 
 					core_ast::make_unique(core_ast::function(
+						std::optional<core_ast::identifier>(),
 						std::move(parameter_names),
 						std::move(return_statement),
 						types::function_type(
@@ -115,6 +116,16 @@ namespace fe
 			{
 				auto& func = std::get<extended_ast::function>(n);
 
+				auto name = std::optional<core_ast::identifier>();
+				if (func.name.has_value())
+				{
+					auto name_or_error = lower(std::move(func.name.value()));
+					if (std::holds_alternative<lower_error>(name_or_error))
+						return std::get<lower_error>(name_or_error);
+					else
+						name = make_optional(move(get<core_ast::identifier>(get<core_ast::node>(name_or_error))));
+				}
+
 				auto body_or_error = lower(std::move(*func.body));
 				if (std::holds_alternative<lower_error>(body_or_error))
 					return std::get<lower_error>(body_or_error);
@@ -135,6 +146,7 @@ namespace fe
 				}
 
 				return core_ast::function{
+					std::move(name),
 					std::move(parameter_names),
 					core_ast::make_unique(std::move(std::get<core_ast::node>(body_or_error))),
 					std::move(func.type)

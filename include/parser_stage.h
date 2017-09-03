@@ -63,7 +63,7 @@ namespace fe
 				} })
 				.new_rule({ value_tuple, { left_bracket, lsb, tuple_element, rsb, right_bracket } })
 				.new_rule({ tuple_element, { expression, lsb, comma, tuple_element, rsb } })
-				.new_rule({ function, { function_keyword, variable_declaration, right_arrow, variable_declaration, equals, expression} })
+				.new_rule({ function, { function_keyword, variable_declaration, right_arrow, type_expression, equals, expression} })
 
 				.new_rule({ branch, { branch_keyword, left_square_bracket, branch_element, star, right_square_bracket } })
 				.new_rule({ branch_element, { vertical_line, expression, right_arrow, expression } })

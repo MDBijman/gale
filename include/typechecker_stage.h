@@ -85,32 +85,38 @@ namespace fe
 			}
 			else if (std::holds_alternative<extended_ast::function_call>(n))
 			{
-				auto& fc = std::get<extended_ast::function_call>(n);
+				auto& call = std::get<extended_ast::function_call>(n);
 
 				auto res = typecheck(
-					std::move(*fc.params),
+					std::move(*call.params),
 					std::move(env)
 				);
 
 				if (std::holds_alternative<typecheck_error>(res))
 					return std::get<typecheck_error>(res);
-				auto checked_params = std::move(std::get<std::tuple<extended_ast::node, fe::environment>>(res));
+				auto& checked_params = std::get<std::tuple<extended_ast::node, fe::environment>>(res);
 
 				env = std::move(std::get<environment>(checked_params));
-				fc.params = std::move(extended_ast::make_unique(std::move(std::get<extended_ast::node>(checked_params))));
+				call.params = extended_ast::make_unique(std::move(std::get<extended_ast::node>(checked_params)));
 
-				auto env_fn_type = std::get<types::function_type>(env.typeof(fc.id.name));
+				auto function_type = std::get<types::function_type>(env.typeof(call.id.name));
+				auto& argument_type = std::visit(extended_ast::get_type, *call.params);
 
 				// Check function signature against call signature
-				if (!(std::visit(extended_ast::get_type, *fc.params) == *env_fn_type.from))
+				if (!(argument_type == *function_type.from))
 				{
-					return typecheck_error{"Function call signature does not match function signature"};
+					;
+					return typecheck_error{ 
+						"Function call signature does not match function signature:\n"
+						+ std::visit(types::to_string, argument_type) + " | " 
+						+ std::visit(types::to_string, *function_type.from)
+					};
 				}
 
-				fc.type = std::move(*env_fn_type.to);
+				call.type = std::move(*function_type.to);
 
 				return std::make_tuple(
-					std::move(fc),
+					std::move(call),
 					std::move(env)
 				);
 			}
@@ -155,9 +161,15 @@ namespace fe
 				types::type from_type = interpret(func.from, env);
 
 				// Check 'to' type expression
-				types::type to_type = interpret(func.to, env);
+				types::type to_type = interpret(*func.to, env);
 
 				func.type = types::function_type(types::make_unique(from_type), types::make_unique(to_type));
+
+				// Allow recursion
+				if (func.name.has_value())
+				{
+					env.set_type(func.name.value().name, func.type);
+				}
 
 				auto res = typecheck(std::move(*func.body), std::move(env));
 
@@ -242,6 +254,38 @@ namespace fe
 			return typecheck_error{ std::string("Unknown node type: ").append(std::to_string(n.index())) };
 		}
 
+		types::type interpret(const extended_ast::node& node, fe::environment& env)
+		{
+			if (std::holds_alternative<extended_ast::atom_type>(node))
+			{
+				return interpret(std::get<extended_ast::atom_type>(node), env);
+			}
+			else if (std::holds_alternative<extended_ast::atom_declaration>(node))
+			{
+				return interpret(std::get<extended_ast::atom_declaration>(node), env);
+			}
+			else if (std::holds_alternative<extended_ast::tuple_type>(node))
+			{
+				return interpret(std::get<extended_ast::tuple_type>(node), env);
+			}
+			else if (std::holds_alternative<extended_ast::tuple_declaration>(node))
+			{
+				return interpret(std::get<extended_ast::tuple_declaration>(node), env);
+			}
+			else if (std::holds_alternative<extended_ast::function_type>(node))
+			{
+				return interpret(std::get<extended_ast::function_type>(node), env);
+			}
+			else if (std::holds_alternative<extended_ast::function_declaration>(node))
+			{
+				return interpret(std::get<extended_ast::function_declaration>(node), env);
+			}
+			else
+			{
+				throw std::exception("Cannot interpret non-type node");
+			}
+		}
+
 		types::type interpret(const extended_ast::atom_type& identifier, const fe::environment& env)
 		{
 			auto& type = env.typeof(identifier.name.name);
@@ -299,9 +343,9 @@ namespace fe
 			types::product_type res;
 			for (decltype(auto) elem : tuple.elements)
 			{
-				if(std::holds_alternative<extended_ast::atom_declaration>(elem))
+				if (std::holds_alternative<extended_ast::atom_declaration>(elem))
 					res.product.push_back(interpret(std::get<extended_ast::atom_declaration>(elem), env));
-				else if(std::holds_alternative<extended_ast::function_declaration>(elem))
+				else if (std::holds_alternative<extended_ast::function_declaration>(elem))
 					res.product.push_back(interpret(std::get<extended_ast::function_declaration>(elem), env));
 			}
 			return res;

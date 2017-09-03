@@ -36,15 +36,22 @@ namespace fe
 					// Convert the identifier
 					auto converted_identifier = convert(std::move(n.children.at(0)));
 					if (holds_error(converted_identifier)) return get_error(converted_identifier);
-					auto& identifier = get_node(converted_identifier);
+					auto& identifier_node = get_node(converted_identifier);
+					auto& identifier = std::get<extended_ast::identifier>(identifier_node);
 
 					// Convert the value
 					auto converted_value = convert(std::move(n.children.at(1)));
 					if (holds_error(converted_value)) return get_error(converted_value);
 					auto& value = get_node(converted_value);
 
+					// Set function name
+					if (std::holds_alternative<extended_ast::function>(value))
+					{
+						std::get<extended_ast::function>(value).name = std::make_optional(extended_ast::identifier(identifier));
+					}
+
 					return extended_ast::assignment(
-						std::move(std::get<extended_ast::identifier>(identifier)),
+						std::move(identifier),
 						std::move(extended_ast::make_unique(std::move(value)))
 					);
 				}
@@ -229,8 +236,9 @@ namespace fe
 					if (holds_error(body)) return get_error(body);
 
 					return extended_ast::function{
-						std::get<extended_ast::tuple_declaration>(std::move(get_node(from))),
-						std::get<extended_ast::tuple_declaration>(std::move(get_node(to))),
+						std::optional<extended_ast::identifier>(),
+						std::move(std::get<extended_ast::tuple_declaration>(std::move(get_node(from)))),
+						extended_ast::make_unique(std::move(get_node(to))),
 						extended_ast::make_unique(std::move(get_node(body)))
 					};
 				}

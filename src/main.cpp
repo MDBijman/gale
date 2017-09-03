@@ -49,33 +49,31 @@ void process_error(std::variant<tools::lexing::error, fe::lex_to_parse_error, to
 {
 	if (std::holds_alternative<tools::lexing::error>(error))
 	{
-		auto lexing_error = std::get<tools::lexing::error>(error);
-		std::cout << "Lexing error:\n"
-			<< "\t" << lexing_error.message;
+		std::cout << "Lexing error:\n\t" << std::get<tools::lexing::error>(error).message;
 	}
 	else if (std::holds_alternative<fe::lex_to_parse_error>(error))
 	{
-		std::cout << "Lex to parse error";
+		std::cout << "Lex to parse error:\n\t" << std::get<fe::lex_to_parse_error>(error).message;
 	}
 	else if (std::holds_alternative<tools::ebnfe::error>(error))
 	{
-		std::cout << "Parse error: " << std::get<tools::ebnfe::error>(error).message;
+		std::cout << "Parse error:\n\t" << std::get<tools::ebnfe::error>(error).message;
 	}
 	else if (std::holds_alternative<fe::cst_to_ast_error>(error))
 	{
-		std::cout << "CST to AST error: " << std::get<fe::cst_to_ast_error>(error).message;
+		std::cout << "CST to AST error:\n\t" << std::get<fe::cst_to_ast_error>(error).message;
 	}
 	else if (std::holds_alternative<fe::typecheck_error>(error))
 	{
-		std::cout << "Typecheck error: " << std::get<fe::typecheck_error>(error).message;
+		std::cout << "Typecheck error:\n\t" << std::get<fe::typecheck_error>(error).message;
 	}
 	else if (std::holds_alternative<fe::lower_error>(error))
 	{
-		std::cout << "Lower error";
+		std::cout << "Lower error:\n\t" << std::get<fe::lower_error>(error).message;
 	}
 	else if (std::holds_alternative<fe::interp_error>(error))
 	{
-		std::cout << "Interp error: " << std::get<fe::interp_error>(error).message;
+		std::cout << "Interp error:\n\t" << std::get<fe::interp_error>(error).message;
 	}
 	std::cout << "\n";
 }

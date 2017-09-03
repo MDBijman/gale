@@ -57,12 +57,13 @@ namespace fe
 		// Function
 
 
-		function::function(std::vector<identifier>&& parameters, std::unique_ptr<AST_NODE>&& body, types::type t) : parameters(std::move(parameters)), type(t), body(std::move(body)) {}
+		function::function(std::optional<identifier>&& name, std::vector<identifier>&& parameters, std::unique_ptr<AST_NODE>&& body, types::type t) : name(std::move(name)), parameters(std::move(parameters)), type(t), body(std::move(body)) {}
 		
 		// Copy
-		function::function(const function& other) : parameters(other.parameters), body(core_ast::make_unique(*other.body)), type(other.type) {}
+		function::function(const function& other) : name(other.name), parameters(other.parameters), body(core_ast::make_unique(*other.body)), type(other.type) {}
 		function& function::operator=(const function& other)
 		{
+			this->name = other.name;
 			this->parameters = other.parameters;
 			this->body = make_unique(*other.body);
 			this->type = other.type;
@@ -70,9 +71,10 @@ namespace fe
 		}
 
 		// Move
-		function::function(function&& other) : parameters(std::move(other.parameters)), body(std::move(other.body)), type(std::move(other.type)) {}
+		function::function(function&& other) : name(std::move(other.name)), parameters(std::move(other.parameters)), body(std::move(other.body)), type(std::move(other.type)) {}
 		function& function::operator=(function&& other)
 		{
+			this->name = std::move(other.name);
 			this->parameters = std::move(other.parameters);
 			this->body = std::move(other.body);
 			this->type = std::move(other.type);

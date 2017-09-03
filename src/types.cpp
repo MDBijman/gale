@@ -227,7 +227,7 @@ namespace fe
 
 		bool operator==(const function_type& one, const function_type& two)
 		{
-			return one.from.get() == two.from.get() && one.to.get() == two.to.get();
+			return (*one.from == *two.from) && (*one.to == *two.to);
 		}
 }
 }

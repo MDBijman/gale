@@ -1,4 +1,5 @@
-abs = fn (std::i32 a, std::i32 b) -> (std::i32 out) = branch [
-	| lt(a, 0) -> (mul(a, -1))
-	| gte(a, 0) -> (a)
+factorial = fn (std::i32 a) -> std::i32 = branch [
+	| lt(a, 2) -> a
+	| gte(a, 2) -> mul(a, factorial (sub(a, 1)))
 ]
+

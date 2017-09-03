@@ -2,6 +2,7 @@
 #include <vector>
 #include <string>
 #include <memory>
+#include <optional>
 
 #include "values.h"
 #include "types.h"
@@ -47,6 +48,8 @@ namespace fe
 		struct identifier 
 		{
 			identifier(std::vector<std::string>&& name) : name(std::move(name)) {}
+			identifier(const identifier& other) : name(other.name), type(other.type) {}
+
 			identifier(identifier&& other) : type(std::move(other.type)), name(std::move(other.name)) {}
 			identifier& operator=(identifier&& other)
 			{
@@ -248,21 +251,25 @@ namespace fe
 
 		struct function
 		{
-			function(tuple_declaration from, tuple_declaration to, std::unique_ptr<AST_NODE> body) : type(types::unset_type()), from(std::move(from)), to(std::move(to)), body(std::move(body)) {}
-			function(function&& other) : type(std::move(other.type)), from(std::move(other.from)), to(std::move(other.to)), body(std::move(other.body)) {}
+			function(std::optional<identifier>&& name, tuple_declaration&& from, std::unique_ptr<AST_NODE>&& to, std::unique_ptr<AST_NODE> body) : type(types::unset_type()), name(std::move(name)), from(std::move(from)), to(std::move(to)), body(std::move(body)) {}
+			function(function&& other) : type(std::move(other.type)), name(std::move(other.name)), from(std::move(other.from)), to(std::move(other.to)), body(std::move(other.body)) {}
 			function& operator=(function&& other)
 			{
 				type = std::move(other.type);
+				name = std::move(other.name);
 				from = std::move(other.from);
 				to = std::move(other.to);
 				body = std::move(other.body);
 				return *this;
 			}
 
-			types::type type;
+			// Name is set when the function is not anonymous, for recursion
+			std::optional<identifier> name;
 			tuple_declaration from;
-			tuple_declaration to;
+			std::unique_ptr<AST_NODE> to;
 			std::unique_ptr<AST_NODE> body;
+
+			types::type type;
 		};
 
 		struct conditional_branch_path
