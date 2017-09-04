@@ -23,7 +23,11 @@ namespace fe
 		> interpret(core_ast::node core_ast, environment&& env) override
 		{
 			using namespace std;
-			if (holds_alternative<core_ast::tuple>(core_ast))
+			if (holds_alternative<core_ast::no_op>(core_ast))
+			{
+				return make_tuple(move(core_ast), values::value(values::void_value()), move(env));
+			}
+			else if (holds_alternative<core_ast::tuple>(core_ast))
 			{
 				auto& tuple_node = get<core_ast::tuple>(core_ast);
 				values::tuple res = values::tuple();
@@ -96,7 +100,12 @@ namespace fe
 				{
 					auto& function = *get<values::function>(function_value).func;
 
-					fe::environment function_env{ env };
+					// TODO improve
+					fe::environment function_env;
+					if (call.id.name.size() > 1)
+						function_env = env.get_module(call.id.name.at(0));
+					else
+						function_env = env;
 
 					auto& param_tuple = std::get<values::tuple>(param_value);
 					for(auto i = 0; i < function.parameters.size(); i++)

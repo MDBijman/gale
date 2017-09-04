@@ -1,12 +1,32 @@
 #include "core_ast.h"
 #include <vector>
 
-#define AST_NODE std::variant<tuple, identifier, assignment, function_call, integer, string, function, conditional_branch, conditional_branch_path>
+#define AST_NODE std::variant<no_op, tuple, identifier, assignment, function_call, integer, string, function, conditional_branch, conditional_branch_path>
 
 namespace fe
 {
 	namespace core_ast
 	{
+		// No op
+
+		no_op::no_op() : type(types::unset_type()) {}
+
+		// Copy
+		no_op::no_op(const no_op& other) : type(other.type) {}
+		no_op& no_op::operator=(const no_op& other)
+		{
+			type = other.type;
+			return *this;
+		}
+
+		// Move
+		no_op::no_op(no_op&& other) : type(std::move(other.type)) {}
+		no_op& no_op::operator=(no_op&& other)
+		{
+			this->type = std::move(other.type);
+			return *this;
+		}
+
 		// Integer
 
 		integer::integer(values::integer val) : type(types::integer_type()), value(val) {}

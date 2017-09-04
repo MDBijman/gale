@@ -1,0 +1,6 @@
+module modeling
+
+type Vertex (std::i32, std::i32, std::i32)
+type Face (Vertex, Vertex, Vertex)
+
+export Face

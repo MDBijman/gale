@@ -9,6 +9,7 @@ namespace fe
 {
 	namespace core_ast
 	{
+		struct no_op;
 		struct tuple;
 		struct identifier;
 		struct assignment;
@@ -18,10 +19,13 @@ namespace fe
 		struct function;
 		struct conditional_branch;
 		struct conditional_branch_path;
-		using node = std::variant<tuple, identifier, assignment, function_call, integer, string, function, conditional_branch, conditional_branch_path>;
+		using node = std::variant<no_op, tuple, identifier, assignment, function_call, integer, string, function, conditional_branch, conditional_branch_path>;
 		using unique_node = std::unique_ptr<node>;
 	}
 }
+
+// Also defined in values.cpp
+#define VALUE_NODE std::variant<void_value, string, integer, boolean, tuple, function, native_function, module, type>
 
 namespace fe
 {
@@ -185,7 +189,7 @@ namespace fe
 				return *this;
 			}
 
-			std::unordered_map<std::string, std::shared_ptr<std::variant<string, integer, boolean, tuple, function, native_function, module, type>>> exports;
+			std::unordered_map<std::string, std::shared_ptr<VALUE_NODE>> exports;
 
 			std::string to_string()
 			{
@@ -196,7 +200,7 @@ namespace fe
 		struct tuple
 		{
 			tuple();
-			tuple(std::vector<std::variant<string, integer, boolean, tuple, function, native_function, module, type>> values);
+			tuple(std::vector<VALUE_NODE> values);
 
 			// Copy
 			tuple(const tuple& other);
@@ -206,14 +210,14 @@ namespace fe
 			tuple(tuple&& other);
 			tuple& operator=(tuple&& other);
 
-			std::vector<std::variant<string, integer, boolean, tuple, function, native_function, module, type>> content;
+			std::vector<VALUE_NODE> content;
 
 			std::string to_string();
 		};
 
 		struct native_function
 		{
-			native_function(std::function<std::variant<string, integer, boolean, tuple, function, native_function, module, type>(std::variant<string, integer, boolean, tuple, function, native_function, module, type>)> f) : function(f) {}
+			native_function(std::function<VALUE_NODE(VALUE_NODE)> f) : function(f) {}
 
 			// Copy
 			native_function(const native_function& other);
@@ -223,17 +227,17 @@ namespace fe
 			native_function(native_function&& other);
 			native_function& operator=(native_function&& other);
 
-			std::function<std::variant<string, integer, boolean, tuple, function, native_function, module, type>(std::variant<string, integer, boolean, tuple, function, native_function, module, type>)> function;
+			std::function<VALUE_NODE(VALUE_NODE)> function;
 
 			std::string to_string();
 		};
 
-		using value = std::variant<string, integer, boolean, tuple, function, native_function, module, type>;
+		using value = VALUE_NODE;
 		using unique_value = std::unique_ptr<value>;
 		using shared_value = std::shared_ptr<value>;
 
 		const auto make_shared = [](auto value) {
-			return std::make_shared<std::variant<string, integer, boolean, tuple, function, native_function, module, type>>(value);
+			return std::make_shared<VALUE_NODE>(value);
 		};
 
 		const auto to_string = [](auto& value) -> std::string {
@@ -241,3 +245,5 @@ namespace fe
 		};
 	}
 }
+
+#undef VALUE_NODE

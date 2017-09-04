@@ -26,6 +26,7 @@ namespace fe
 			type_tuple_elements = parser.new_non_terminal();
 			type_function = parser.new_non_terminal();
 			type_definition = parser.new_non_terminal();
+			module_declaration = parser.new_non_terminal();
 
 			identifier = parser.new_terminal();
 			equals = parser.new_terminal();
@@ -45,11 +46,14 @@ namespace fe
 			right_square_bracket = parser.new_terminal();
 			branch_keyword = parser.new_terminal();
 			vertical_line = parser.new_terminal();
+			module_keyword = parser.new_terminal();
+			public_keyword = parser.new_terminal();
 
 			using namespace tools::ebnf::meta;
 			parser
 				// Starter non terminal
-				.new_rule({ file, { statement, star } })
+				.new_rule({ file, { lsb, module_declaration, rsb, statement, star } })
+				.new_rule({ module_declaration, { module_keyword, identifier } })
 				.new_rule({ statement, { type_definition, alt, export_stmt, alt, assignment } })
 				.new_rule({ export_stmt, { export_keyword, identifier } })
 				.new_rule({ assignment, { identifier, equals, expression } })
@@ -91,6 +95,7 @@ namespace fe
 				.new_transformation(tuple_element, tools::ebnfe::transformation_type::REPLACE_WITH_CHILDREN)
 				.new_transformation(type_tuple_elements, tools::ebnfe::transformation_type::REPLACE_WITH_CHILDREN)
 				.new_transformation(statement, tools::ebnfe::transformation_type::REPLACE_WITH_CHILDREN)
+				.new_transformation(module_keyword, tools::ebnfe::transformation_type::REMOVE)
 				.new_transformation(left_bracket, tools::ebnfe::transformation_type::REMOVE)
 				.new_transformation(right_bracket, tools::ebnfe::transformation_type::REMOVE)
 				.new_transformation(left_square_bracket, tools::ebnfe::transformation_type::REMOVE)

@@ -47,6 +47,13 @@ namespace fe
 					std::move(env)
 				);
 			}
+			else if (std::holds_alternative<extended_ast::module_declaration>(n))
+			{
+				auto& declaration = std::get<extended_ast::module_declaration>(n);
+				std::string module_name = declaration.name.name.at(0);
+				env.set_module_name(std::move(module_name));
+				return std::make_pair(std::move(n), std::move(env));
+			}
 			else if (std::holds_alternative<extended_ast::identifier>(n))
 			{
 				auto id = std::move(std::get<extended_ast::identifier>(n));
@@ -108,7 +115,7 @@ namespace fe
 					;
 					return typecheck_error{ 
 						"Function call signature does not match function signature:\n"
-						+ std::visit(types::to_string, argument_type) + " | " 
+						+ std::visit(types::to_string, argument_type) + " does not match " 
 						+ std::visit(types::to_string, *function_type.from)
 					};
 				}

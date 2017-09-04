@@ -7,7 +7,7 @@
 #include "values.h"
 #include "types.h"
 
-#define AST_NODE std::variant<atom_type, function_type, tuple_type, atom_declaration, function_declaration, tuple_declaration, value_tuple, identifier, assignment, function_call, type_declaration, export_stmt, integer, string, function, conditional_branch, conditional_branch_path>
+#define AST_NODE std::variant<module_declaration, atom_type, function_type, tuple_type, atom_declaration, function_declaration, tuple_declaration, value_tuple, identifier, assignment, function_call, type_declaration, export_stmt, integer, string, function, conditional_branch, conditional_branch_path>
 
 namespace fe
 {
@@ -70,6 +70,21 @@ namespace fe
 			{
 				type = std::move(other.type);
 				name = std::move(other.name);
+				return *this;
+			}
+
+			identifier name;
+			types::type type;
+		};
+
+		struct module_declaration
+		{
+			module_declaration(identifier&& name) : name(std::move(name)) {}
+			module_declaration(module_declaration&& other) : type(std::move(other.type)), name(std::move(other.name)) {}
+			module_declaration& operator=(module_declaration&& other)
+			{
+				this->name = std::move(other.name);
+				this->type = std::move(other.type);
 				return *this;
 			}
 

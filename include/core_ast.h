@@ -4,14 +4,27 @@
 #include <vector>
 #include <optional>
 
-// Also defined in core_ast.cpp
-#define AST_NODE std::variant<tuple, identifier, assignment, function_call, integer, string, function, conditional_branch, conditional_branch_path>
+// Also defined in core_ast.cpp and values.h
+#define AST_NODE std::variant<no_op, tuple, identifier, assignment, function_call, integer, string, function, conditional_branch, conditional_branch_path>
 
 namespace fe
 {
 	namespace core_ast
 	{
 		// Value nodes
+		struct no_op
+		{
+			no_op();
+
+			no_op(const no_op& other);
+			no_op& operator=(const no_op& other);
+
+			// Move
+			no_op(no_op&& other);
+			no_op& operator=(no_op&& other);
+
+			types::type type;
+		};
 
 		struct integer
 		{

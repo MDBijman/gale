@@ -1,6 +1,8 @@
 #include "values.h"
 #include "core_ast.h"
 
+#define VALUE_NODE std::variant<void_value, string, integer, boolean, tuple, function, native_function, module, type>
+
 namespace fe
 {
 	namespace values
@@ -35,7 +37,7 @@ namespace fe
 
 
 		tuple::tuple() {}
-		tuple::tuple(std::vector<std::variant<string, integer, boolean, tuple, function, native_function, module, type>> values) : content(values) {}
+		tuple::tuple(std::vector<VALUE_NODE> values) : content(values) {}
 
 		// Copy
 		tuple::tuple(const tuple& other) : content(other.content) {}
@@ -93,3 +95,5 @@ namespace fe
 
 	}	
 }
+
+#undef VALUE_NODE

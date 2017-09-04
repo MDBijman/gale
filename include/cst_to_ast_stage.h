@@ -17,8 +17,6 @@ namespace fe
 
 				if (node_type == file)
 				{
-					// File has children [statements*]
-
 					std::vector<extended_ast::node> children;
 					for (unsigned int i = 0; i < n.children.size(); i++)
 					{
@@ -28,6 +26,19 @@ namespace fe
 						children.push_back(std::move(get_node(converted_child)));
 					}
 					return extended_ast::value_tuple(std::move(children));
+				}
+				else if (node_type == module_declaration)
+				{
+					// Module declaration has children [identifier]
+
+					// Convert the identifier
+					auto converted_identifier = convert(std::move(n.children.at(0)));
+					if (holds_error(converted_identifier)) return get_error(converted_identifier);
+					auto& identifier = get_node(converted_identifier);
+
+					return extended_ast::module_declaration(
+						std::move(std::get<extended_ast::identifier>(identifier))
+					);
 				}
 				else if (node_type == assignment)
 				{

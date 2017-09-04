@@ -150,7 +150,7 @@ int main(int argc, char** argv)
 			code = std::get<std::string>(file_or_error);
 		}
 
-		auto result_or_error = pipeline.run_to_interp(std::move(code), std::move(environment));
+		auto result_or_error = pipeline.run_to_interp(std::move(code), fe::environment(environment));
 
 		if (std::holds_alternative<std::variant<tools::lexing::error, fe::lex_to_parse_error, tools::ebnfe::error, fe::cst_to_ast_error, fe::typecheck_error, fe::lower_error, fe::interp_error>>(result_or_error))
 		{
@@ -162,7 +162,16 @@ int main(int argc, char** argv)
 
 			std::cout << std::visit(fe::values::to_string, std::get<fe::values::value>(result)) << std::endl;
 
-			environment = std::move(std::get<fe::environment>(result));
+			auto& result_environment = std::get<fe::environment>(result);
+			if (result_environment.get_module_name() != "")
+			{
+				std::string module_name = result_environment.get_module_name();
+				environment.add_module(std::move(module_name), std::move(result_environment));
+			}
+			else
+			{
+				environment.extend(std::move(result_environment));
+			}
 		}
 	}
 }

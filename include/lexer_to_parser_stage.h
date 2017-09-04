@@ -33,6 +33,10 @@ namespace fe
 					return function_keyword;
 				if (token.text == "branch")
 					return branch_keyword;
+				if (token.text == "module")
+					return module_keyword;
+				if (token.text == "pub")
+					return public_keyword;
 				return identifier;
 			});
 		}

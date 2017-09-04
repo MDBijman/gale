@@ -31,6 +31,10 @@ namespace fe
 
 				return core_ast::node(core_ast::tuple(move(children), tuple.type));
 			}
+			if (holds_alternative<extended_ast::module_declaration>(n))
+			{
+				return core_ast::no_op();
+			}
 			else if (holds_alternative<extended_ast::identifier>(n))
 			{
 				auto& id = get<extended_ast::identifier>(n);

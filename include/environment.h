@@ -106,17 +106,19 @@ namespace fe
 	{
 	public:
 		environment() {}
-		environment(const environment& other) : type_environment(other.type_environment), value_environment(other.value_environment), modules(other.modules) {}
+		environment(const environment& other) : module_name(other.module_name), type_environment(other.type_environment), value_environment(other.value_environment), modules(other.modules) {}
 		environment& operator=(const environment& other)
 		{
+			this->module_name = other.module_name;
 			this->type_environment = other.type_environment;
 			this->value_environment = other.value_environment;
 			this->modules = other.modules;
 			return *this;
 		}
-		environment(environment&& other) : type_environment(std::move(other.type_environment)), value_environment(std::move(other.value_environment)), modules(std::move(other.modules)) {}
+		environment(environment&& other) : module_name(std::move(other.module_name)), type_environment(std::move(other.type_environment)), value_environment(std::move(other.value_environment)), modules(std::move(other.modules)) {}
 		environment& operator=(environment&& other)
 		{
+			this->module_name = std::move(other.module_name);
 			this->type_environment = std::move(other.type_environment);
 			this->value_environment = std::move(other.value_environment);
 			this->modules = std::move(other.modules);
@@ -126,6 +128,11 @@ namespace fe
 		void add_module(std::string name, environment module)
 		{
 			modules.insert({ name, std::move(module) });
+		}
+
+		environment get_module(std::string name)
+		{
+			return modules.find(name)->second;
 		}
 
 		void extend(environment&& other)
@@ -209,7 +216,19 @@ namespace fe
 			return r;
 		}
 
+		void set_module_name(std::string&& name)
+		{
+			this->module_name = std::move(name);
+		}
+
+		const std::string& get_module_name()
+		{
+			return module_name;
+		}
+
 	private:
+		std::string module_name;
+
 		type_environment type_environment;
 		value_environment value_environment;
 

@@ -77,6 +77,9 @@
     <None Include="snippets\testing.fe">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="snippets\modeling_module.fe">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
