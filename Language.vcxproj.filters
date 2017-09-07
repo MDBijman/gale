@@ -150,9 +150,6 @@
     <ClInclude Include="include\language_definition.h">
       <Filter>Source Files\fe</Filter>
     </ClInclude>
-    <ClInclude Include="include\environment.h">
-      <Filter>Source Files\fe\data</Filter>
-    </ClInclude>
     <ClInclude Include="include\language_module.h">
       <Filter>Source Files\library\language</Filter>
     </ClInclude>
@@ -179,6 +176,12 @@
     </ClInclude>
     <ClInclude Include="include\tests\grammar_tests.h">
       <Filter>Tests\fe</Filter>
+    </ClInclude>
+    <ClInclude Include="include\runtime_environment.h">
+      <Filter>Source Files\fe\data</Filter>
+    </ClInclude>
+    <ClInclude Include="include\typecheck_environment.h">
+      <Filter>Source Files\fe\data</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

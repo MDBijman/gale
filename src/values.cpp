@@ -1,7 +1,7 @@
 #include "values.h"
 #include "core_ast.h"
 
-#define VALUE_NODE std::variant<void_value, string, integer, boolean, tuple, function, native_function, module, type>
+#define VALUE_NODE std::variant<void_value, string, integer, boolean, tuple, function, native_function, module>
 
 namespace fe
 {

@@ -2,8 +2,9 @@
 #include "ebnfe_parser.h"
 #include "extended_ast.h"
 #include "core_ast.h"
-#include "environment.h"
 #include "error.h"
+#include "typecheck_environment.h"
+#include "runtime_environment.h"
 
 #include <memory>
 
@@ -27,7 +28,7 @@ namespace fe
 		right_arrow, comma, left_square_bracket, right_square_bracket,
 		branch_keyword, vertical_line, module_keyword, public_keyword;
 
-	using pipeline = language::pipeline <
+	using pipeline = language::pipeline<
 		tools::lexing::token,
 		tools::lexing::error,
 
@@ -49,6 +50,7 @@ namespace fe
 		values::value,
 		fe::interp_error,
 
-		environment
-	> ;
+		typecheck_environment, 
+		runtime_environment
+	>;
 }

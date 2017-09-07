@@ -4,6 +4,7 @@
 #include "values.h"
 #include "pipeline.h"
 #include "core_ast.h"
+#include "runtime_environment.h"
 #include "error.h"
 
 #include <iostream>
@@ -12,15 +13,15 @@
 
 namespace fe
 {
-	class interpreting_stage : public language::interpreting_stage<core_ast::node, values::value, environment, interp_error>
+	class interpreting_stage : public language::interpreting_stage<core_ast::node, values::value, runtime_environment, interp_error>
 	{
 	public:
 		interpreting_stage() {}
 
 		std::variant<
-			std::tuple<core_ast::node, values::value, environment>,
+			std::tuple<core_ast::node, values::value, runtime_environment>,
 			interp_error
-		> interpret(core_ast::node core_ast, environment&& env) override
+		> interpret(core_ast::node core_ast, runtime_environment&& env) override
 		{
 			using namespace std;
 			if (holds_alternative<core_ast::no_op>(core_ast))
@@ -38,7 +39,7 @@ namespace fe
 					if (holds_alternative<interp_error>(interpreted_line))
 						return get<interp_error>(interpreted_line);
 
-					auto[new_line, line_value, new_env] = std::move(get<tuple<core_ast::node, values::value, environment>>(interpreted_line));
+					auto[new_line, line_value, new_env] = std::move(get<tuple<core_ast::node, values::value, runtime_environment>>(interpreted_line));
 					line = move(new_line);
 					env = move(new_env);
 
@@ -63,11 +64,11 @@ namespace fe
 				if (holds_alternative<interp_error>(interpreted_value))
 					return get<interp_error>(interpreted_value);
 
-				auto&[new_code, new_value, new_env] = get<tuple<core_ast::node, values::value, environment>>(interpreted_value);
+				auto&[new_code, new_value, new_env] = get<tuple<core_ast::node, values::value, runtime_environment>>(interpreted_value);
 				assignment.value = make_unique<core_ast::node>(move(new_code));
 				env = move(new_env);
 
-				env.set_value(assignment.id.name, move(new_value));
+				env.set_value(assignment.id.name.at(0), move(new_value));
 
 				return make_tuple(move(core_ast), env.valueof(assignment.id.name), move(env));
 			}
@@ -76,11 +77,11 @@ namespace fe
 				auto& call = get<core_ast::function_call>(core_ast);
 				auto& function_value = env.valueof(call.id.name);
 
-				fe::environment param_env{ env };
+				runtime_environment param_env{ env };
 				auto res_or_error = interpret(std::move(*call.parameter), std::move(param_env));
 				if (std::holds_alternative<interp_error>(res_or_error))
 					return std::get<interp_error>(res_or_error);
-				auto& res = std::get<std::tuple<core_ast::node, values::value, environment>>(res_or_error);
+				auto& res = std::get<std::tuple<core_ast::node, values::value, runtime_environment>>(res_or_error);
 
 				call.parameter = core_ast::make_unique(std::get<core_ast::node>(res));
 				auto& param_value = std::get<values::value>(res);
@@ -101,7 +102,7 @@ namespace fe
 					auto& function = *get<values::function>(function_value).func;
 
 					// TODO improve
-					fe::environment function_env;
+					runtime_environment function_env;
 					if (call.id.name.size() > 1)
 						function_env = env.get_module(call.id.name.at(0));
 					else
@@ -111,14 +112,14 @@ namespace fe
 					for(auto i = 0; i < function.parameters.size(); i++)
 					{
 						const std::vector<std::string>& name = function.parameters.at(i).name;
-						function_env.set_value(std::vector<std::string>(name), std::move(param_tuple.content.at(i)));
+						function_env.set_value(name.at(0), std::move(param_tuple.content.at(i)));
 					}
 
 					auto interpreted_value = interpret(*function.body, move(function_env));
 					if (holds_alternative<interp_error>(interpreted_value))
 						return get<interp_error>(interpreted_value);
 
-					auto [_, result, _] = std::move(get<tuple<core_ast::node, values::value, environment>>(interpreted_value));
+					auto [_, result, _] = std::move(get<tuple<core_ast::node, values::value, runtime_environment>>(interpreted_value));
 
 					return make_tuple(move(core_ast), move(result), move(env));
 				}
@@ -150,8 +151,8 @@ namespace fe
 					auto interpreted_test_or_error = interpret(std::move(*branch.test_path), std::move(env));
 					if (std::holds_alternative<interp_error>(interpreted_test_or_error))
 						std::get<interp_error>(interpreted_test_or_error);
-					auto& interpreted_test = std::get<std::tuple<core_ast::node, values::value, environment>>(interpreted_test_or_error);
-					env = std::move(std::get<environment>(interpreted_test));
+					auto& interpreted_test = std::get<std::tuple<core_ast::node, values::value, runtime_environment>>(interpreted_test_or_error);
+					env = std::move(std::get<runtime_environment>(interpreted_test));
 					branch.test_path = core_ast::make_unique(std::move(std::get<core_ast::node>(interpreted_test)));
 
 					auto& value = std::get<values::value>(interpreted_test);
@@ -160,8 +161,8 @@ namespace fe
 						auto interpreted_code_or_error = interpret(std::move(*branch.code_path), std::move(env));
 						if (std::holds_alternative<interp_error>(interpreted_code_or_error))
 							std::get<interp_error>(interpreted_code_or_error);
-						auto& interpreted_code = std::get<std::tuple<core_ast::node, values::value, environment>>(interpreted_code_or_error);
-						env = std::move(std::get<environment>(interpreted_code));
+						auto& interpreted_code = std::get<std::tuple<core_ast::node, values::value, runtime_environment>>(interpreted_code_or_error);
+						env = std::move(std::get<runtime_environment>(interpreted_code));
 						branch.code_path = core_ast::make_unique(std::move(std::get<core_ast::node>(interpreted_code)));
 						
 						return make_tuple(move(core_ast), std::get<values::value>(interpreted_code), std::move(env));

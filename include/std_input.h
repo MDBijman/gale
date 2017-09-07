@@ -2,7 +2,8 @@
 #include "core_ast.h"
 #include "values.h"
 #include "types.h"
-#include "environment.h"
+#include "runtime_environment.h"
+#include "typecheck_environment.h"
 
 namespace fe
 {
@@ -10,18 +11,16 @@ namespace fe
 	{
 		namespace input
 		{
-			static environment load()
+			static std::tuple<typecheck_environment, runtime_environment> load()
 			{
-				environment e{};
-				e.set(
-					"get",
-					fe::types::function_type(fe::types::make_unique(fe::types::product_type()), fe::types::make_unique(fe::types::integer_type())),
-					values::native_function([](values::value t) -> values::value {
-						return values::integer(std::cin.get());
-					}
-				));
+				typecheck_environment te{};
+				runtime_environment re{};
+				te.set_type("get", fe::types::function_type(fe::types::make_unique(fe::types::product_type()), fe::types::make_unique(fe::types::integer_type())));
+				re.set_value("get", values::native_function([](values::value t) -> values::value {
+					return values::integer(std::cin.get());
+				}));
 
-				return e;
+				return { te, re };
 			}
 		}
 	}

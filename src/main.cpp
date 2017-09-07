@@ -100,15 +100,42 @@ int main(int argc, char** argv)
 	auto pipeline = create_pipeline();
 
 	// Load modules
-	auto environment = fe::environment{};
+	auto runtime_environment = fe::runtime_environment{};
+	auto typecheck_environment = fe::typecheck_environment{};
 
-	environment.extend(fe::core::operations::load());
-	environment.add_module("language", fe::language_module::load(pipeline));
+	// Core (global namespace)
+	{
+		auto core = fe::core::operations::load();
+		runtime_environment.add_module(std::move(std::get<fe::runtime_environment>(core)));
+		typecheck_environment.add_module(std::move(std::get<fe::typecheck_environment>(core)));
+	}
 
-	auto stdlib = fe::environment{};
-	stdlib.extend(fe::stdlib::input::load());
-	stdlib.extend(fe::stdlib::types::load());
-	environment.add_module("std", stdlib);
+	// Std lib
+	{
+		auto std_runtime = fe::runtime_environment{};
+		std_runtime.name = "std";
+
+		auto std_typeset = fe::typecheck_environment{};
+		std_typeset.name = "std";
+
+		// IO utilities
+		auto[te, re] = fe::stdlib::input::load();
+		std_typeset.add_module(std::move(te));
+		std_runtime.add_module(std::move(re));
+		
+		// Standard types
+		std_typeset.add_module(fe::stdlib::types::load());
+
+		typecheck_environment.add_module(std::move(std_typeset));
+		runtime_environment.add_module(std::move(std_runtime));
+	}
+
+	// Language module
+	{
+		auto language = fe::language_module::load(pipeline);
+		runtime_environment.add_module(std::move(std::get<fe::runtime_environment>(language)));
+		typecheck_environment.add_module(std::move(std::get<fe::typecheck_environment>(language)));
+	}
 
 
 	while (1) {
@@ -128,7 +155,8 @@ int main(int argc, char** argv)
 
 		if (code == "env")
 		{
-			std::cout << environment.to_string() << std::endl;
+			std::cout << typecheck_environment.to_string(true) << std::endl;
+			std::cout << runtime_environment.to_string(true) << std::endl;
 			continue;
 		}
 
@@ -150,28 +178,17 @@ int main(int argc, char** argv)
 			code = std::get<std::string>(file_or_error);
 		}
 
-		auto result_or_error = pipeline.run_to_interp(std::move(code), fe::environment(environment));
-
+		auto result_or_error = pipeline.process(std::move(code), std::move(typecheck_environment), std::move(runtime_environment));
 		if (std::holds_alternative<std::variant<tools::lexing::error, fe::lex_to_parse_error, tools::ebnfe::error, fe::cst_to_ast_error, fe::typecheck_error, fe::lower_error, fe::interp_error>>(result_or_error))
-		{
 			process_error(std::get<std::variant<tools::lexing::error, fe::lex_to_parse_error, tools::ebnfe::error, fe::cst_to_ast_error, fe::typecheck_error, fe::lower_error, fe::interp_error>>(result_or_error));
-		}
 		else
 		{
-			auto result = std::move(std::get<std::tuple<fe::core_ast::node, fe::values::value, fe::environment>>(result_or_error));
+			auto result = std::move(std::get<std::tuple<fe::values::value, fe::typecheck_environment, fe::runtime_environment>>(result_or_error));
 
 			std::cout << std::visit(fe::values::to_string, std::get<fe::values::value>(result)) << std::endl;
 
-			auto& result_environment = std::get<fe::environment>(result);
-			if (result_environment.get_module_name() != "")
-			{
-				std::string module_name = result_environment.get_module_name();
-				environment.add_module(std::move(module_name), std::move(result_environment));
-			}
-			else
-			{
-				environment.extend(std::move(result_environment));
-			}
+			auto& typecheck_environment = std::get<fe::typecheck_environment>(result);
+			auto& runtime_environment = std::get<fe::runtime_environment>(result);
 		}
 	}
 }

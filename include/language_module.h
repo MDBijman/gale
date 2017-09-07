@@ -6,16 +6,21 @@ namespace fe
 {
 	namespace language_module
 	{
-		environment load(const pipeline& pipeline)
+		std::tuple<typecheck_environment, runtime_environment> load(const pipeline& pipeline)
 		{
-			environment e{};
-			e.add_module("std", fe::stdlib::types::load());
+			typecheck_environment te{};
+			runtime_environment re{};
+
+			te.add_module(fe::stdlib::types::load());
 
 			auto language_module_contents = tools::files::read_file("./snippets/language_module.fe");
-			auto res = pipeline.run_to_interp(std::move(std::get<std::string>(language_module_contents)), std::move(e));
-			std::tie(std::ignore, std::ignore, e) = std::get<std::tuple<core_ast::node, fe::values::value, fe::environment>>(res);
+			auto result_or_error = pipeline.process(std::move(std::get<std::string>(language_module_contents)), std::move(te), std::move(re));
+			std::tie(std::ignore, te, re) = std::get<std::tuple<values::value, typecheck_environment, runtime_environment>>(result_or_error);
 
-			return e;
+			te.name = "language";
+			re.name = "language";
+
+			return { te, re };
 		}
 	}
 }

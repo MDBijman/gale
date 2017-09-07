@@ -25,7 +25,7 @@ namespace fe
 }
 
 // Also defined in values.cpp
-#define VALUE_NODE std::variant<void_value, string, integer, boolean, tuple, function, native_function, module, type>
+#define VALUE_NODE std::variant<void_value, string, integer, boolean, tuple, function, native_function, module>
 
 namespace fe
 {
@@ -120,34 +120,6 @@ namespace fe
 			std::string to_string()
 			{
 				return "void";
-			}
-		};
-
-		struct type
-		{
-			type(types::type t) : kind(t) {}
-
-			// Copy
-			type(const type& other) = default;
-			type& operator=(const type& other)
-			{
-				this->kind = other.kind;
-				return *this;
-			}
-
-			// Move
-			type(type&& other) : kind(std::move(other.kind)) {}
-			type& operator=(type&& other)
-			{
-				this->kind = std::move(other.kind);
-				return *this;
-			}
-
-			types::type kind;
-
-			std::string to_string()
-			{
-				return "type (" + std::visit(types::to_string, kind) + ")";
 			}
 		};
 

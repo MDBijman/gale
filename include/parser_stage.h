@@ -73,7 +73,8 @@ namespace fe
 				.new_rule({ branch_element, { vertical_line, expression, right_arrow, expression } })
 
 				.new_rule({ variable_declaration, {
-					left_bracket, type_expression, identifier, lrb, comma, type_expression, identifier, rrb, star, right_bracket
+					left_bracket, type_expression, identifier, lrb, comma, type_expression, identifier, rrb, star, right_bracket, alt,
+					identifier, identifier
 				} })
 
 				// Type system

@@ -2,7 +2,6 @@
 #include "core_ast.h"
 #include "values.h"
 #include "types.h"
-#include "environment.h"
 
 namespace fe
 {
@@ -10,19 +9,13 @@ namespace fe
 	{
 		namespace types
 		{
-			static environment load()
+			static typecheck_environment load()
 			{
-				environment e{};
+				typecheck_environment e{};
 
-				e.set("i32", 
-					fe::types::meta_type(), 
-					fe::values::type(fe::types::integer_type())
-				);
-
-				e.set("str", 
-					fe::types::meta_type(), 
-					fe::values::type(fe::types::string_type())
-				);
+				e.set_type("i32", fe::types::integer_type());
+				e.set_type("str", fe::types::string_type());
+				e.name = "std";
 
 				return e;
 			}

@@ -83,11 +83,11 @@ namespace fe
 
 				auto return_type = func_param_type;
 				auto return_statement = core_ast::make_unique(
-					core_ast::identifier(std::vector<std::string>{"_from"}, func_param_type)
+					core_ast::identifier(std::vector<std::string>{"_arg0"}, func_param_type)
 				);
 
 				auto parameter_names = std::vector<core_ast::identifier>();
-				parameter_names.push_back(core_ast::identifier("_from", func_param_type));
+				parameter_names.push_back(core_ast::identifier("_arg0", func_param_type));
 
 
 				return core_ast::assignment(
@@ -114,7 +114,7 @@ namespace fe
 			}
 			else if (holds_alternative<extended_ast::export_stmt>(n))
 			{
-				return core_ast::integer(1);
+				return core_ast::no_op();
 			}
 			else if (holds_alternative<extended_ast::function>(n))
 			{
