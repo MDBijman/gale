@@ -64,16 +64,16 @@ namespace fe
 
 		struct export_stmt 
 		{
-			export_stmt(identifier name) : name(std::move(name)) {}
-			export_stmt(export_stmt&& other) : type(std::move(other.type)), name(std::move(other.name)) {}
+			export_stmt(std::vector<identifier> name) : names(std::move(names)) {}
+			export_stmt(export_stmt&& other) : type(std::move(other.type)), names(std::move(other.names)) {}
 			export_stmt& operator=(export_stmt&& other)
 			{
 				type = std::move(other.type);
-				name = std::move(other.name);
+				names = std::move(other.names);
 				return *this;
 			}
 
-			identifier name;
+			std::vector<identifier> names;
 			types::type type;
 		};
 

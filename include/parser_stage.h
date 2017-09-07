@@ -55,7 +55,7 @@ namespace fe
 				.new_rule({ file, { lsb, module_declaration, rsb, statement, star } })
 				.new_rule({ module_declaration, { module_keyword, identifier } })
 				.new_rule({ statement, { type_definition, alt, export_stmt, alt, assignment } })
-				.new_rule({ export_stmt, { export_keyword, identifier } })
+				.new_rule({ export_stmt, { export_keyword, identifier, star } })
 				.new_rule({ assignment, { identifier, equals, expression } })
 				.new_rule({ expression, {
 					value_tuple, alt,

@@ -118,7 +118,7 @@ namespace fe
 					;
 					return typecheck_error{
 						"Function call signature does not match function signature:\n"
-						+ std::visit(types::to_string, argument_type) + " does not match "
+						+ std::visit(types::to_string, argument_type) + "\n"
 						+ std::visit(types::to_string, *function_type.from)
 					};
 				}

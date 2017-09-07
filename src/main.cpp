@@ -178,7 +178,7 @@ int main(int argc, char** argv)
 			code = std::get<std::string>(file_or_error);
 		}
 
-		auto result_or_error = pipeline.process(std::move(code), std::move(typecheck_environment), std::move(runtime_environment));
+		auto result_or_error = pipeline.process(std::move(code), fe::typecheck_environment(typecheck_environment), fe::runtime_environment(runtime_environment));
 		if (std::holds_alternative<std::variant<tools::lexing::error, fe::lex_to_parse_error, tools::ebnfe::error, fe::cst_to_ast_error, fe::typecheck_error, fe::lower_error, fe::interp_error>>(result_or_error))
 			process_error(std::get<std::variant<tools::lexing::error, fe::lex_to_parse_error, tools::ebnfe::error, fe::cst_to_ast_error, fe::typecheck_error, fe::lower_error, fe::interp_error>>(result_or_error));
 		else
@@ -187,8 +187,11 @@ int main(int argc, char** argv)
 
 			std::cout << std::visit(fe::values::to_string, std::get<fe::values::value>(result)) << std::endl;
 
-			auto& typecheck_environment = std::get<fe::typecheck_environment>(result);
-			auto& runtime_environment = std::get<fe::runtime_environment>(result);
+			auto te = std::move(std::get<fe::typecheck_environment>(result));
+			auto re = std::move(std::get<fe::runtime_environment>(result));
+			re.name = te.name;
+			typecheck_environment.add_module(std::move(te));
+			runtime_environment.add_module(std::move(re));
 		}
 	}
 }

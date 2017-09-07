@@ -123,15 +123,22 @@ namespace fe
 				}
 				else if (node_type == export_stmt)
 				{
-					// Export has children [identifier]
+					// Export has children [identifier*]
 
-					// Convert the identifier
-					auto converted_identifier = convert(std::move(n.children.at(0)));
-					if (holds_error(converted_identifier)) return get_error(converted_identifier);
-					auto& identifier = get_node(converted_identifier);
+					std::vector<extended_ast::identifier> children;
+
+					for (auto& child : n.children)
+					{
+						// Convert the identifier
+						auto converted_identifier = convert(std::move(n.children.at(0)));
+						if (holds_error(converted_identifier)) return get_error(converted_identifier);
+						auto& identifier = get_node(converted_identifier);
+
+						children.push_back(std::move(std::get<extended_ast::identifier>(identifier)));
+					}
 
 					return extended_ast::export_stmt(
-						std::move(std::get<extended_ast::identifier>(identifier))
+						std::move(children)
 					);
 				}
 				else if (node_type == variable_declaration)
@@ -139,7 +146,7 @@ namespace fe
 					// Variable Declaration has children [(type_expression identifier)*]
 					std::vector<std::variant<extended_ast::atom_declaration, extended_ast::function_declaration>> elements;
 
-					for(auto i = 0; i < n.children.size(); i += 2)
+					for (auto i = 0; i < n.children.size(); i += 2)
 					{
 						auto converted_child_or_error = convert(std::move(n.children.at(i)));
 						if (holds_error(converted_child_or_error)) return get_error(converted_child_or_error);
