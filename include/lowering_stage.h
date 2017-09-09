@@ -17,9 +17,10 @@ namespace fe
 		{
 			using namespace std;
 
-			if (holds_alternative<extended_ast::value_tuple>(n))
+			if (holds_alternative<extended_ast::tuple>(n))
 			{
-				auto tuple = move(get<extended_ast::value_tuple>(n));
+				auto& tuple = get<extended_ast::tuple>(n);
+
 				vector<core_ast::node> children;
 				for (decltype(auto) child : tuple.children)
 				{
@@ -30,6 +31,21 @@ namespace fe
 				}
 
 				return core_ast::node(core_ast::tuple(move(children), tuple.type));
+			}
+			if (holds_alternative<extended_ast::block>(n))
+			{
+				auto& block = get<extended_ast::block>(n);
+
+				vector<core_ast::node> children;
+				for (decltype(auto) child : block.children)
+				{
+					auto lowered_child = lower(std::move(child));
+					if (std::holds_alternative<lower_error>(lowered_child))
+						return std::get<lower_error>(lowered_child);
+					children.push_back(std::move(std::get<core_ast::node>(lowered_child)));
+				}
+
+				return core_ast::block(move(children), block.type);
 			}
 			if (holds_alternative<extended_ast::module_declaration>(n))
 			{
@@ -86,8 +102,7 @@ namespace fe
 					core_ast::identifier(std::vector<std::string>{"_arg0"}, func_param_type)
 				);
 
-				auto parameter_names = std::vector<core_ast::identifier>();
-				parameter_names.push_back(core_ast::identifier("_arg0", func_param_type));
+				auto parameter_name = core_ast::identifier("_arg0", func_param_type);
 
 
 				return core_ast::assignment(
@@ -95,7 +110,7 @@ namespace fe
 
 					core_ast::make_unique(core_ast::function(
 						std::optional<core_ast::identifier>(),
-						std::move(parameter_names),
+						parameter_name,
 						std::move(return_statement),
 						types::function_type(
 							types::make_unique(types::product_type(return_type)),

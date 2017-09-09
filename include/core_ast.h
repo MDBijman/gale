@@ -3,9 +3,10 @@
 #include "values.h"
 #include <vector>
 #include <optional>
+#include <variant>
 
 // Also defined in core_ast.cpp and values.h
-#define AST_NODE std::variant<no_op, tuple, identifier, assignment, function_call, integer, string, function, conditional_branch, conditional_branch_path>
+#define AST_NODE std::variant<no_op, tuple, block, identifier, assignment, function_call, integer, string, function, conditional_branch, conditional_branch_path>
 
 namespace fe
 {
@@ -85,7 +86,7 @@ namespace fe
 
 		struct function
 		{
-			function(std::optional<identifier>&& name, std::vector<identifier>&& parameters, std::unique_ptr<AST_NODE>&& body, types::type t);
+			function(std::optional<identifier>&& name, std::variant<std::vector<identifier>, identifier>&& parameters, std::unique_ptr<AST_NODE>&& body, types::type t);
 			
 			// Copy
 			function(const function& other);
@@ -97,7 +98,8 @@ namespace fe
 
 			// Name is set when the function is not anonymous, for recursion
 			std::optional<identifier> name;
-			std::vector<identifier> parameters;
+			// Either a named tuple or a single argument
+			std::variant<std::vector<identifier>, identifier> parameters;
 			std::unique_ptr<AST_NODE> body;
 			types::type type;
 		};
@@ -116,6 +118,22 @@ namespace fe
 			// Move
 			tuple(tuple&& other);
 			tuple& operator=(tuple&& other);
+
+			std::vector<AST_NODE> children;
+			types::type type;
+		};
+
+		struct block
+		{
+			block(std::vector<AST_NODE> children, types::type t);
+			
+			// Copy
+			block(const block& other);
+			block& operator=(const block& other);
+
+			// Move
+			block(block&& other);
+			block& operator=(block&& other);
 
 			std::vector<AST_NODE> children;
 			types::type type;

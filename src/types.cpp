@@ -1,5 +1,6 @@
 #include "types.h"
 
+#define TYPE std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, meta_type, unset_type>
 namespace fe
 {
 	namespace types
@@ -17,28 +18,28 @@ namespace fe
 
 		std::string string_type::to_string()
 		{
-			return "integer_type";
+			return "string_type";
 		}
 
 		std::string void_type::to_string()
 		{
-			return "integer_type";
+			return "void_type";
 		}
 
 		std::string unset_type::to_string()
 		{
-			return "integer_type";
+			return "unset_type";
 		}
 
 		std::string meta_type::to_string()
 		{
-			return "integer_type";
+			return "meta_type";
 		}
 
 		// Sum
 
 		sum_type::sum_type() {}
-		sum_type::sum_type(std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, meta_type, unset_type>> sum) : sum(sum) {}
+		sum_type::sum_type(std::vector<TYPE> sum) : sum(sum) {}
 
 		// Move
 		sum_type::sum_type(sum_type&& other)
@@ -65,7 +66,7 @@ namespace fe
 		std::string sum_type::to_string()
 		{
 			std::string r = "sum_type (";
-			
+
 			// Probably inefficient
 			for (auto it = sum.begin(); it != sum.end(); ++it)
 			{
@@ -84,7 +85,7 @@ namespace fe
 		// Product
 
 		product_type::product_type() {}
-		product_type::product_type(std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, meta_type, unset_type>> product) : product(product) {}
+		product_type::product_type(std::vector<std::pair<std::string, TYPE>> product) : product(product) {}
 
 		// Move
 		product_type::product_type(product_type&& other)
@@ -111,11 +112,11 @@ namespace fe
 		std::string product_type::to_string()
 		{
 			std::string r = "product_type (";
-			
+
 			// Probably inefficient
 			for (auto it = product.begin(); it != product.end(); ++it)
 			{
-				r.append(std::visit(types::to_string, *it));
+				r.append(std::visit(types::to_string, it->second));
 
 				if (it != product.end() - 1)
 				{
@@ -129,7 +130,7 @@ namespace fe
 
 		// Function Type
 
-		function_type::function_type(std::unique_ptr<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, meta_type, unset_type>> f, std::unique_ptr<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, meta_type, unset_type>> t) : from(std::move(f)), to(std::move(t)) {}
+		function_type::function_type(std::unique_ptr<TYPE> f, std::unique_ptr<TYPE> t) : from(std::move(f)), to(std::move(t)) {}
 
 		// Move
 		function_type::function_type(function_type&& other)
@@ -147,20 +148,20 @@ namespace fe
 		// Copy
 		function_type::function_type(const function_type& other)
 		{
-			from = std::make_unique<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, meta_type, unset_type>>(*other.from.get());
-			to = std::make_unique<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, meta_type, unset_type>>(*other.to.get());
+			from = std::make_unique<TYPE>(*other.from.get());
+			to = std::make_unique<TYPE>(*other.to.get());
 		}
 		function_type& function_type::operator=(const function_type& other)
 		{
-			this->from = std::make_unique<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, meta_type, unset_type>>(*other.from);
-			this->to = std::make_unique<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, meta_type, unset_type>>(*other.to);
+			this->from = std::make_unique<TYPE>(*other.from);
+			this->to = std::make_unique<TYPE>(*other.to);
 			return *this;
 		}
 
 		std::string function_type::to_string()
 		{
 			std::string r = "function_type (";
-			
+
 			r.append(std::visit(types::to_string, *from));
 			r.append(", ");
 			r.append(std::visit(types::to_string, *to));
@@ -186,7 +187,7 @@ namespace fe
 			return true;
 		}
 
-		bool operator==(const void_type& one, const void_type& two) 
+		bool operator==(const void_type& one, const void_type& two)
 		{
 			return true;
 		}
@@ -219,7 +220,7 @@ namespace fe
 
 			for (unsigned int i = 0; i < one.product.size(); i++)
 			{
-				if (!(one.product.at(i) == two.product.at(i))) return false;
+				if (!(one.product.at(i).second == two.product.at(i).second)) return false;
 			}
 
 			return true;
@@ -229,5 +230,6 @@ namespace fe
 		{
 			return (*one.from == *two.from) && (*one.to == *two.to);
 		}
+	}
 }
-}
+#undef TYPE

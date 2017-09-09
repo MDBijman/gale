@@ -11,6 +11,7 @@ namespace fe
 	{
 		struct no_op;
 		struct tuple;
+		struct block;
 		struct identifier;
 		struct assignment;
 		struct function_call;
@@ -19,7 +20,7 @@ namespace fe
 		struct function;
 		struct conditional_branch;
 		struct conditional_branch_path;
-		using node = std::variant<no_op, tuple, identifier, assignment, function_call, integer, string, function, conditional_branch, conditional_branch_path>;
+		using node = std::variant<no_op, tuple, block, identifier, assignment, function_call, integer, string, function, conditional_branch, conditional_branch_path>;
 		using unique_node = std::unique_ptr<node>;
 	}
 }

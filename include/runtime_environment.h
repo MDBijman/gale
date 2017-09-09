@@ -54,7 +54,9 @@ namespace fe
 				return std::regex_replace(text, std::regex("\\n"), "\n\t");
 			};
 
-			std::string r("runtime_environment (");
+			std::string r = name.has_value() ? 
+				"runtime_environment: " + name.value() + " (" : 
+				"runtime_environment (";
 
 			for (auto& pair : values)
 			{

@@ -3,6 +3,7 @@
 #include <variant>
 #include <memory>
 
+#define TYPE std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, meta_type, unset_type>
 namespace fe
 {
 	namespace types
@@ -47,7 +48,7 @@ namespace fe
 		struct sum_type 
 		{
 			sum_type();
-			sum_type(std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, meta_type, unset_type>> sum);
+			sum_type(std::vector<TYPE> sum);
 
 			// Move
 			sum_type(sum_type&& other);
@@ -59,13 +60,13 @@ namespace fe
 
 			std::string to_string();
 
-			std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, meta_type, unset_type>> sum;
+			std::vector<TYPE> sum;
 		};
 
 		struct product_type
 		{
 			product_type();
-			product_type(std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, meta_type, unset_type>> product);
+			product_type(std::vector<std::pair<std::string, TYPE>> product);
 
 			// Move
 			product_type(product_type&& other);
@@ -77,12 +78,12 @@ namespace fe
 
 			std::string to_string();
 
-			std::vector<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, meta_type, unset_type>> product;
+			std::vector<std::pair<std::string, TYPE>> product;
 		};
 
 		struct function_type
 		{
-			function_type(std::unique_ptr<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, meta_type, unset_type>> f, std::unique_ptr<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, meta_type, unset_type>> t);
+			function_type(std::unique_ptr<TYPE> f, std::unique_ptr<TYPE> t);
 
 			// Move
 			function_type(function_type&& other);
@@ -94,12 +95,12 @@ namespace fe
 
 			std::string to_string();
 
-			std::unique_ptr<std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, meta_type, unset_type>> from, to;
+			std::unique_ptr<TYPE> from, to;
 		};
 
 		// Variant
 
-		using type = std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, meta_type, unset_type>;
+		using type = TYPE;
 		using unique_type = std::unique_ptr<type>;
 
 		// Helper methods
@@ -133,3 +134,4 @@ namespace fe
 		bool operator==(const function_type& one, const function_type& two);
 	}
 }
+#undef TYPE

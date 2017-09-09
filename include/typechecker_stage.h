@@ -21,12 +21,12 @@ namespace fe
 		{
 			using namespace types;
 
-			if (std::holds_alternative<extended_ast::value_tuple>(n))
+			if (std::holds_alternative<extended_ast::tuple>(n))
 			{
-				auto value_tuple = std::move(std::get<extended_ast::value_tuple>(n));
+				auto& tuple = std::get<extended_ast::tuple>(n);
 				auto new_type = product_type();
 
-				for (decltype(auto) element : value_tuple.children)
+				for (decltype(auto) element : tuple.children)
 				{
 					auto res = typecheck(std::move(element), std::move(env));
 
@@ -38,13 +38,39 @@ namespace fe
 					element = std::move(std::get<extended_ast::node>(checked_element));
 					env = std::move(std::get<typecheck_environment>(checked_element));
 
-					new_type.product.push_back(std::visit(extended_ast::get_type, element));
+					new_type.product.push_back({ "", std::visit(extended_ast::get_type, element) });
 				}
 				
-				value_tuple.type = std::move(new_type);
+				tuple.type = std::move(new_type);
 
 				return std::make_tuple(
-					std::move(value_tuple),
+					std::move(tuple),
+					std::move(env)
+				);
+			}
+			else if (std::holds_alternative<extended_ast::block>(n))
+			{
+				auto& block = std::get<extended_ast::block>(n);
+
+				types::type final_type;
+				for (decltype(auto) element : block.children)
+				{
+					auto checked_element_or_error = typecheck(std::move(element), std::move(env));
+					if (std::holds_alternative<typecheck_error>(checked_element_or_error))
+						return std::get<typecheck_error>(checked_element_or_error);
+					
+					auto& checked_element = std::get<std::tuple<extended_ast::node, typecheck_environment>>(checked_element_or_error);
+
+					element = std::move(std::get<extended_ast::node>(checked_element));
+					env = std::move(std::get<typecheck_environment>(checked_element));
+
+					final_type = std::visit(extended_ast::get_type, element);
+				}
+
+				block.type = std::move(final_type);
+				
+				return std::make_tuple(
+					std::move(block),
 					std::move(env)
 				);
 			}
@@ -109,22 +135,67 @@ namespace fe
 
 				auto& argument_type = std::visit(extended_ast::get_type, *call.params);
 
-				auto function_or_type = env.typeof(call.id.name);
-				types::function_type function_type = std::get<types::function_type>(function_or_type);
-			
-				// Check function signature against call signature
-				if (!(argument_type == *function_type.from))
+				// TODO rework field access
+				// TODO implement actual type checking for get set
+				if (call.id.name.size() == 1 && call.id.name.at(0) == "get")
 				{
-					;
-					return typecheck_error{
-						"Function call signature does not match function signature:\n"
-						+ std::visit(types::to_string, argument_type) + "\n"
-						+ std::visit(types::to_string, *function_type.from)
-					};
+					auto& param_tuple = std::get<extended_ast::tuple>(*call.params);
+
+					auto& typeof_tuple = env.typeof(std::get<extended_ast::identifier>(param_tuple.children.at(0)).name);
+					auto& product_type = std::get<types::product_type>(typeof_tuple);
+
+					auto& field_name = std::get<extended_ast::identifier>(param_tuple.children.at(1));
+
+					auto field = std::find_if(product_type.product.begin(), product_type.product.end(), [&](auto& x) { return x.first == field_name.name.at(0); });
+
+					call.type = field->second;
 				}
+				else if (call.id.name.size() == 1 && call.id.name.at(0) == "set")
+				{
+					call.type = types::void_type();
+				}
+				else
+				{
+					auto function_or_type = env.typeof(call.id.name);
+					if (std::holds_alternative<types::function_type>(function_or_type))
+					{
+						auto function_type = std::get<types::function_type>(function_or_type);
 
-				call.type = std::move(*function_type.to);
+						// Check function signature against call signature
+						if (!(argument_type == *function_type.from))
+						{
+							return typecheck_error{
+								"Function call signature does not match function signature:\n"
+								+ std::visit(types::to_string, argument_type) + "\n"
+								+ std::visit(types::to_string, *function_type.from)
+							};
+						}
 
+						call.type = std::move(*function_type.to);
+					}
+					else if (std::holds_alternative<types::product_type>(function_or_type))
+					{
+						auto product_type = std::get<types::product_type>(function_or_type);
+
+						// Check type signature against call signature
+						if (!(argument_type == types::type(product_type)))
+						{
+							return typecheck_error{
+								"Function call signature does not match function signature:\n"
+								+ std::visit(types::to_string, argument_type) + "\n"
+								+ std::visit(types::to_string, types::type(product_type))
+							};
+						}
+
+						call.type = std::move(product_type);
+					}
+					else
+					{
+						return typecheck_error{
+							"Function call can only call constructor or function"
+						};
+					}
+				}
 
 				return std::make_tuple(
 					std::move(call),
@@ -145,12 +216,7 @@ namespace fe
 				auto type = interpret(type_declaration.types, env);
 				type_declaration.types.type = std::move(type);
 
-				auto ft = function_type(
-					types::make_unique(type_declaration.types.type),
-					types::make_unique(type_declaration.types.type)
-				);
-
-				env.set_type(type_declaration.id.name.at(0), std::move(ft));
+				env.set_type(type_declaration.id.name.at(0), type_declaration.types.type);
 
 				return std::make_tuple(std::move(type_declaration), std::move(env));
 			}
@@ -310,11 +376,11 @@ namespace fe
 			{
 				if (std::holds_alternative<extended_ast::atom_type>(child))
 				{
-					result.product.push_back(interpret(std::get<extended_ast::atom_type>(child), env));
+					result.product.push_back({ "", interpret(std::get<extended_ast::atom_type>(child), env) });
 				}
 				else if (std::holds_alternative<extended_ast::function_type>(child))
 				{
-					result.product.push_back(interpret(std::get<extended_ast::function_type>(child), env));
+					result.product.push_back({ "", interpret(std::get<extended_ast::function_type>(child), env) });
 				}
 			}
 			return result;
@@ -347,10 +413,19 @@ namespace fe
 			types::product_type res;
 			for (decltype(auto) elem : tuple.elements)
 			{
+				
 				if (std::holds_alternative<extended_ast::atom_declaration>(elem))
-					res.product.push_back(interpret(std::get<extended_ast::atom_declaration>(elem), env));
+				{
+					auto& atom = std::get<extended_ast::atom_declaration>(elem);
+					auto atom_type = interpret(atom, env);
+					res.product.push_back({ atom.name.name.at(0), atom_type });
+				}
 				else if (std::holds_alternative<extended_ast::function_declaration>(elem))
-					res.product.push_back(interpret(std::get<extended_ast::function_declaration>(elem), env));
+				{
+					auto& func = std::get<extended_ast::function_declaration>(elem);
+					auto func_type = interpret(func, env);
+					res.product.push_back({ func.name.name.at(0), func_type });
+				}
 			}
 			return res;
 		}

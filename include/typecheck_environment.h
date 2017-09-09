@@ -48,7 +48,9 @@ namespace fe
 				return std::regex_replace(text, std::regex("\\n"), "\n\t");
 			};
 			
-			std::string r("type_environment (");
+			std::string r = name.has_value() ? 
+				"type_environment: " + name.value() + " (" : 
+				"type_environment (";
 
 			uint32_t counter = 0;
 			for (auto& pair : types)

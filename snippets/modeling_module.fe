@@ -1,6 +1,20 @@
 module modeling
 
-type Vertex (std::i32, std::i32, std::i32)
-type Face (Vertex, Vertex, Vertex)
+type Vertex (std::i32 x, std::i32 y, std::i32 z)
+type Face (Vertex a, Vertex b, Vertex c)
 
-export Face
+translate_v = fn (Vertex v) -> Vertex = {
+	Vertex (add (get (v, x), 1), add (get (v, y), 1), add (get (v, z), 1))
+}
+
+translate_f = fn (Face f) -> Face = {
+	Face (translate_v (get (f, a)), translate_v (get (f, b)), translate_v (get (f, c)))
+}
+
+x = Vertex(1,1,1)
+y = Vertex(1,1,1)
+z = Vertex(1,1,1)
+n = Face(x,y,z)
+m = translate_f (n)
+
+export Face Vertex

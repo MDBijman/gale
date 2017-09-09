@@ -25,7 +25,7 @@ namespace fe
 
 						children.push_back(std::move(get_node(converted_child)));
 					}
-					return extended_ast::value_tuple(std::move(children));
+					return extended_ast::tuple(std::move(children));
 				}
 				else if (node_type == module_declaration)
 				{
@@ -68,9 +68,13 @@ namespace fe
 				}
 				else if (node_type == expression)
 				{
-					// Expression has children [value_tuple | number | word | identifier [value_tuple]]
+					// Expression has children [tuple | number | word | identifier [tuple],  expression*]
 
-					if (n.children.size() == 2)
+					if(n.children.size() == 1)
+					{
+						return convert(std::move(n.children.at(0)));
+					}
+					else if (n.children.size() == 2)
 					{
 						auto id = convert(std::move(n.children.at(0)));
 						if (holds_error(id)) return get_error(id);
@@ -85,7 +89,19 @@ namespace fe
 					}
 					else
 					{
-						return convert(std::move(n.children.at(0)));
+						std::vector<extended_ast::node> ast_children;
+
+						for (decltype(auto) child : n.children)
+						{
+							auto new_child_or_error = convert(std::move(child));
+							if (holds_error(new_child_or_error)) return get_error(new_child_or_error);
+
+							ast_children.push_back(std::move(get_node(new_child_or_error)));
+						}
+
+						return extended_ast::block{
+							std::move(ast_children)
+						};
 					}
 				}
 				else if (node_type == value_tuple)
@@ -100,25 +116,25 @@ namespace fe
 
 						children.push_back(std::move(get_node(converted_child)));
 					}
-					return extended_ast::value_tuple(std::move(children));
+					return extended_ast::tuple(std::move(children));
 				}
 				else if (node_type == type_definition)
 				{
-					// Type definition has children [identifier type_tuple]
+					// Type definition has children [identifier variable_declaration]
 
 					// Convert the identifier
 					auto converted_identifier = convert(std::move(n.children.at(0)));
 					if (holds_error(converted_identifier)) return get_error(converted_identifier);
 					auto& identifier = get_node(converted_identifier);
 
-					// Convert the tuple
-					auto converted_tuple = convert(std::move(n.children.at(1)));
-					if (holds_error(converted_tuple)) return get_error(converted_tuple);
-					auto& tuple = get_node(converted_tuple);
+					// Convert the variable_declaration
+					auto converted_variable_declaration = convert(std::move(n.children.at(1)));
+					if (holds_error(converted_variable_declaration)) return get_error(converted_variable_declaration);
+					auto& variable_declaration = get_node(converted_variable_declaration);
 
 					return extended_ast::type_declaration(
 						std::move(std::get<extended_ast::identifier>(identifier)),
-						std::move(std::get<extended_ast::tuple_type>(tuple))
+						std::move(std::get<extended_ast::tuple_declaration>(variable_declaration))
 					);
 				}
 				else if (node_type == export_stmt)
@@ -127,10 +143,10 @@ namespace fe
 
 					std::vector<extended_ast::identifier> children;
 
-					for (auto& child : n.children)
+					for (decltype(auto) child : n.children)
 					{
 						// Convert the identifier
-						auto converted_identifier = convert(std::move(n.children.at(0)));
+						auto converted_identifier = convert(std::move(child));
 						if (holds_error(converted_identifier)) return get_error(converted_identifier);
 						auto& identifier = get_node(converted_identifier);
 
@@ -143,7 +159,7 @@ namespace fe
 				}
 				else if (node_type == variable_declaration)
 				{
-					// Variable Declaration has children [(type_expression identifier)*]
+					// Variable Declaration has children [(type_expression identifier)*] 
 					std::vector<std::variant<extended_ast::atom_declaration, extended_ast::function_declaration>> elements;
 
 					for (auto i = 0; i < n.children.size(); i += 2)

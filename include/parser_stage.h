@@ -63,7 +63,8 @@ namespace fe
 					identifier, lsb, expression, rsb, alt,
 					number, alt,
 					function, alt,
-					branch
+					branch, alt,
+					left_curly_bracket, expression, star, right_curly_bracket
 				} })
 				.new_rule({ value_tuple, { left_bracket, lsb, tuple_element, rsb, right_bracket } })
 				.new_rule({ tuple_element, { expression, lsb, comma, tuple_element, rsb } })
@@ -88,7 +89,7 @@ namespace fe
 				
 				.new_rule({ type_function, { function_keyword, type_expression, right_arrow, type_expression } })
 
-				.new_rule({ type_definition, { type_keyword, identifier, type_tuple } })
+				.new_rule({ type_definition, { type_keyword, identifier, variable_declaration } })
 				;
 
 			parser
@@ -101,6 +102,8 @@ namespace fe
 				.new_transformation(right_bracket, tools::ebnfe::transformation_type::REMOVE)
 				.new_transformation(left_square_bracket, tools::ebnfe::transformation_type::REMOVE)
 				.new_transformation(right_square_bracket, tools::ebnfe::transformation_type::REMOVE)
+				.new_transformation(left_curly_bracket, tools::ebnfe::transformation_type::REMOVE)
+				.new_transformation(right_curly_bracket, tools::ebnfe::transformation_type::REMOVE)
 				.new_transformation(equals, tools::ebnfe::transformation_type::REMOVE)
 				.new_transformation(export_keyword, tools::ebnfe::transformation_type::REMOVE)
 				.new_transformation(type_keyword, tools::ebnfe::transformation_type::REMOVE)

@@ -1,7 +1,7 @@
 #include "core_ast.h"
 #include <vector>
 
-#define AST_NODE std::variant<no_op, tuple, identifier, assignment, function_call, integer, string, function, conditional_branch, conditional_branch_path>
+#define AST_NODE std::variant<no_op, tuple, block, identifier, assignment, function_call, integer, string, function, conditional_branch, conditional_branch_path>
 
 namespace fe
 {
@@ -77,7 +77,7 @@ namespace fe
 		// Function
 
 
-		function::function(std::optional<identifier>&& name, std::vector<identifier>&& parameters, std::unique_ptr<AST_NODE>&& body, types::type t) : name(std::move(name)), parameters(std::move(parameters)), type(t), body(std::move(body)) {}
+		function::function(std::optional<identifier>&& name, std::variant<std::vector<identifier>, identifier>&& parameters, std::unique_ptr<AST_NODE>&& body, types::type t) : name(std::move(name)), parameters(std::move(parameters)), type(t), body(std::move(body)) {}
 		
 		// Copy
 		function::function(const function& other) : name(other.name), parameters(other.parameters), body(core_ast::make_unique(*other.body)), type(other.type) {}
@@ -125,6 +125,30 @@ namespace fe
 			return *this;
 		}
 
+		
+		// Block
+
+		block::block(std::vector<AST_NODE> children, types::type t) : type(t), children(std::move(children)) {}
+		
+		// Copy
+		block::block(const block& other) : children(other.children), type(other.type) {}
+		block& block::operator=(const block& other)
+		{
+			this->children = other.children;
+			this->type = other.type;
+			return *this;
+		}
+
+		// Move
+		block::block(block&& other) : type(std::move(other.type)), children(std::move(other.children)) {}
+		block& block::operator=(block&& other)
+		{
+			this->type = std::move(other.type);
+			this->children = std::move(other.children);
+			return *this;
+		}
+
+		
 
 		// Identifier
 

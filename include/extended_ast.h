@@ -7,7 +7,7 @@
 #include "values.h"
 #include "types.h"
 
-#define AST_NODE std::variant<module_declaration, atom_type, function_type, tuple_type, atom_declaration, function_declaration, tuple_declaration, value_tuple, identifier, assignment, function_call, type_declaration, export_stmt, integer, string, function, conditional_branch, conditional_branch_path>
+#define AST_NODE std::variant<module_declaration, atom_type, function_type, tuple_type, atom_declaration, function_declaration, tuple_declaration, tuple, block, identifier, assignment, function_call, type_declaration, export_stmt, integer, string, function, conditional_branch, conditional_branch_path>
 
 namespace fe
 {
@@ -92,7 +92,8 @@ namespace fe
 			types::type type;
 		};
 
-		struct value_tuple;
+		struct tuple;
+		struct block;
 		struct function_call;
 		struct assignment;
 		struct type_declaration;
@@ -198,11 +199,26 @@ namespace fe
 			types::type type;
 		};
 
-		struct value_tuple
+		struct tuple
 		{
-			value_tuple(std::vector<AST_NODE>&& children) : type(types::unset_type()), children(std::move(children)) {}
-			value_tuple(value_tuple&& other) : type(std::move(other.type)), children(std::move(other.children)) {}
-			value_tuple& operator=(value_tuple&& other) 
+			tuple(std::vector<AST_NODE>&& children) : type(types::unset_type()), children(std::move(children)) {}
+			tuple(tuple&& other) : type(std::move(other.type)), children(std::move(other.children)) {}
+			tuple& operator=(tuple&& other) 
+			{
+				type = std::move(other.type);
+				children = std::move(other.children);
+				return *this;
+			}
+
+			std::vector<AST_NODE> children;
+			types::type type;
+		};
+
+		struct block
+		{
+			block(std::vector<AST_NODE>&& children) : type(types::unset_type()), children(std::move(children)) {}
+			block(block&& other) : type(std::move(other.type)), children(std::move(other.children)) {}
+			block& operator=(block&& other) 
 			{
 				type = std::move(other.type);
 				children = std::move(other.children);
@@ -232,7 +248,7 @@ namespace fe
 
 		struct type_declaration 
 		{
-			type_declaration(identifier&& name, tuple_type&& types) : type(types::void_type{}), id(std::move(name)), types(std::move(types)) {}
+			type_declaration(identifier&& name, tuple_declaration&& types) : type(types::void_type{}), id(std::move(name)), types(std::move(types)) {}
 			type_declaration(type_declaration&& other) : type(std::move(other.type)), id(std::move(other.id)), types(std::move(other.types)) {}
 			type_declaration& operator=(type_declaration&& other)
 			{
@@ -243,7 +259,7 @@ namespace fe
 			}
 
 			identifier id;
-			tuple_type types;
+			tuple_declaration types;
 			types::type type;
 		};
 

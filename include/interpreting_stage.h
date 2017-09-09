@@ -47,7 +47,26 @@ namespace fe
 				}
 
 				return make_tuple(move(tuple_node), move(res), move(env));
+			}
+			else if (holds_alternative<core_ast::block>(core_ast))
+			{
+				auto& block = get<core_ast::block>(core_ast);
+				values::value res;
+				 
+				for (auto& exp : block.children)
+				{
+					auto interpreted_exp = interpret(move(exp), move(env));
+					if (holds_alternative<interp_error>(interpreted_exp))
+						return get<interp_error>(interpreted_exp);
 
+					auto[new_exp, exp_value, new_env] = std::move(get<tuple<core_ast::node, values::value, runtime_environment>>(interpreted_exp));
+					exp = move(new_exp);
+					env = move(new_env);
+
+					res = exp_value;
+				}
+
+				return make_tuple(move(block), move(res), move(env));
 			}
 			else if (holds_alternative<core_ast::identifier>(core_ast))
 			{
@@ -64,7 +83,7 @@ namespace fe
 				if (holds_alternative<interp_error>(interpreted_value))
 					return get<interp_error>(interpreted_value);
 
-				auto&[new_code, new_value, new_env] = get<tuple<core_ast::node, values::value, runtime_environment>>(interpreted_value);
+				auto[new_code, new_value, new_env] = std::move(get<tuple<core_ast::node, values::value, runtime_environment>>(interpreted_value));
 				assignment.value = make_unique<core_ast::node>(move(new_code));
 				env = move(new_env);
 
@@ -75,6 +94,35 @@ namespace fe
 			else if (holds_alternative<core_ast::function_call>(core_ast))
 			{
 				auto& call = get<core_ast::function_call>(core_ast);
+
+				// TODO rework field access
+				if (call.id.name.at(0) == "get")
+				{
+					auto& parameters = std::get<core_ast::tuple>(*call.parameter);
+					auto& tuple_name = std::get<core_ast::identifier>(parameters.children.at(0));
+					auto& field_name = std::get<core_ast::identifier>(parameters.children.at(1));
+
+					auto& tuple_type = std::get<types::product_type>(tuple_name.type);
+
+					int i = 0;
+					for (; i < tuple_type.product.size(); i++)
+					{
+						if (tuple_type.product.at(i).first == field_name.name.at(0))
+							break;
+					}
+
+					auto& tuple_value = env.valueof(tuple_name.name);
+					return std::make_tuple(
+						move(core_ast),
+						std::get<values::tuple>(tuple_value).content.at(i),
+						move(env)
+					);
+				}
+				else if (call.id.name.at(0) == "set")
+				{
+					throw std::exception();
+			
+				}
 				auto& function_value = env.valueof(call.id.name);
 
 				runtime_environment param_env{ env };
@@ -109,17 +157,28 @@ namespace fe
 						function_env = env;
 
 					auto& param_tuple = std::get<values::tuple>(param_value);
-					for(auto i = 0; i < function.parameters.size(); i++)
+
+					if (std::holds_alternative<std::vector<core_ast::identifier>>(function.parameters))
 					{
-						const std::vector<std::string>& name = function.parameters.at(i).name;
-						function_env.set_value(name.at(0), std::move(param_tuple.content.at(i)));
+						auto& parameters = std::get<std::vector<core_ast::identifier>>(function.parameters);
+						for (auto i = 0; i < parameters.size(); i++)
+						{
+							const std::vector<std::string>& name = parameters.at(i).name;
+							function_env.set_value(name.at(0), std::move(param_tuple.content.at(i)));
+						}
+					}
+					else
+					{
+						// Single argument function
+						auto& parameter = std::get<core_ast::identifier>(function.parameters);
+						function_env.set_value(parameter.name.at(0), std::move(param_tuple));
 					}
 
 					auto interpreted_value = interpret(*function.body, move(function_env));
 					if (holds_alternative<interp_error>(interpreted_value))
 						return get<interp_error>(interpreted_value);
 
-					auto [_, result, _] = std::move(get<tuple<core_ast::node, values::value, runtime_environment>>(interpreted_value));
+					auto[_, result, _] = std::move(get<tuple<core_ast::node, values::value, runtime_environment>>(interpreted_value));
 
 					return make_tuple(move(core_ast), move(result), move(env));
 				}
@@ -164,7 +223,7 @@ namespace fe
 						auto& interpreted_code = std::get<std::tuple<core_ast::node, values::value, runtime_environment>>(interpreted_code_or_error);
 						env = std::move(std::get<runtime_environment>(interpreted_code));
 						branch.code_path = core_ast::make_unique(std::move(std::get<core_ast::node>(interpreted_code)));
-						
+
 						return make_tuple(move(core_ast), std::get<values::value>(interpreted_code), std::move(env));
 					}
 				}

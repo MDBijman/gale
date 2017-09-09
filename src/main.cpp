@@ -130,12 +130,12 @@ int main(int argc, char** argv)
 		runtime_environment.add_module(std::move(std_runtime));
 	}
 
-	// Language module
-	{
-		auto language = fe::language_module::load(pipeline);
-		runtime_environment.add_module(std::move(std::get<fe::runtime_environment>(language)));
-		typecheck_environment.add_module(std::move(std::get<fe::typecheck_environment>(language)));
-	}
+	//// Language module
+	//{
+	//	auto language = fe::language_module::load(pipeline);
+	//	runtime_environment.add_module(std::move(std::get<fe::runtime_environment>(language)));
+	//	typecheck_environment.add_module(std::move(std::get<fe::typecheck_environment>(language)));
+	//}
 
 
 	while (1) {
@@ -146,7 +146,7 @@ int main(int argc, char** argv)
 		// Debug
 
 		if (code == "1")
-			code = "load snippets/testing.fe";
+			code = "load snippets/modeling_module.fe";
 
 		// End Debug
 
