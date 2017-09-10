@@ -1,25 +1,10 @@
 #include "types.h"
 
-#define TYPE std::variant<name_type, sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, unset_type>
+#define TYPE std::variant<name_type, sum_type, product_type, void_type, function_type, unset_type>
 namespace fe
 {
 	namespace types
 	{
-
-		std::string integer_type::to_string()
-		{
-			return "integer_type";
-		}
-
-		std::string boolean_type::to_string()
-		{
-			return "boolean_type";
-		}
-
-		std::string string_type::to_string()
-		{
-			return "string_type";
-		}
 
 		std::string void_type::to_string()
 		{
@@ -198,22 +183,6 @@ namespace fe
 		}
 
 		// Operators
-
-		bool operator==(const integer_type& one, const integer_type& two)
-		{
-			return true;
-		}
-
-		bool operator==(const boolean_type & one, const boolean_type & two)
-		{
-			return true;
-		}
-
-		bool operator==(const string_type& one, const string_type& two)
-		{
-			return true;
-		}
-
 		bool operator==(const void_type& one, const void_type& two)
 		{
 			return true;

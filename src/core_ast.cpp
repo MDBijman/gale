@@ -29,7 +29,7 @@ namespace fe
 
 		// Integer
 
-		integer::integer(values::integer val) : type(types::integer_type()), value(val) {}
+		integer::integer(values::integer val) : type(types::name_type({"std", "i32"})), value(val) {}
 		
 		// Copy
 		integer::integer(const integer& other) : value(other.value), type(other.type) {}
@@ -53,7 +53,7 @@ namespace fe
 		// String
 
 
-		string::string(values::string val) : type(types::string_type()), value(val) {}
+		string::string(values::string val) : type(types::name_type({"std", "str"})), value(val) {}
 		
 		// Copy
 		string::string(const string& other) : value(other.value), type(other.type) {}

@@ -15,7 +15,7 @@ namespace fe
 			{
 				typecheck_environment te{};
 				runtime_environment re{};
-				te.set_type("get", fe::types::function_type(fe::types::make_unique(fe::types::product_type()), fe::types::make_unique(fe::types::integer_type())));
+				te.set_type("get", fe::types::function_type(fe::types::make_unique(fe::types::product_type()), fe::types::make_unique(fe::types::name_type({"std","i32"}))));
 				re.set_value("get", values::native_function([](values::value t) -> values::value {
 					return values::integer(std::cin.get());
 				}));

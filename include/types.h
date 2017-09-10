@@ -5,28 +5,12 @@
 #include <optional>
 
 // Also defined in types.cpp
-#define TYPE std::variant<name_type, sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, unset_type>
+#define TYPE std::variant<name_type, sum_type, product_type, void_type, function_type, unset_type>
 namespace fe
 {
 	namespace types
 	{
 		// Atomic types
-
-		struct integer_type 
-		{
-			std::string to_string();
-		};
-
-		struct boolean_type 
-		{
-			std::string to_string();
-		};
-
-		struct string_type 
-		{
-			std::string to_string();
-		};
-
 		struct void_type 
 		{
 			std::string to_string();
@@ -131,12 +115,6 @@ namespace fe
 		};
 
 		// Operators
-
-		bool operator==(const integer_type& one, const integer_type& two);
-
-		bool operator==(const boolean_type& one, const boolean_type& two);
-
-		bool operator==(const string_type& one, const string_type& two);
 
 		bool operator==(const void_type& one, const void_type& two);
 

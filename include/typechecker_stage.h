@@ -232,7 +232,7 @@ namespace fe
 		}
 		std::variant<std::tuple<extended_ast::node, typecheck_environment>, typecheck_error> typecheck(extended_ast::string&& string, typecheck_environment&& env)
 		{
-			string.type = types::string_type();
+			string.type = types::name_type({"std", "str"});
 			return std::make_tuple(std::move(string), std::move(env));
 		}
 		std::variant<std::tuple<extended_ast::node, typecheck_environment>, typecheck_error> typecheck(extended_ast::function&& func, typecheck_environment&& env)
@@ -317,7 +317,7 @@ namespace fe
 
 			// Check the validity of the type of the test path
 			auto test_type = std::visit(extended_ast::get_type, *branch_path.test_path);
-			if (!(test_type == types::type(types::boolean_type())))
+			if (!(test_type == types::type(types::name_type({"std", "bool"}))))
 				return typecheck_error{ std::string("Branch number does not have a boolean test") };
 
 			branch_path.type = std::visit(extended_ast::get_type, *branch_path.code_path);
