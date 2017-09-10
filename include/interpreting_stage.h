@@ -23,215 +23,205 @@ namespace fe
 			interp_error
 		> interpret(core_ast::node core_ast, runtime_environment&& env) override
 		{
-			using namespace std;
-			if (holds_alternative<core_ast::no_op>(core_ast))
+			auto visitor = [&](auto&& node) {
+				return interpret(std::move(node), std::move(env));
+			};
+
+			return std::visit(visitor, std::move(core_ast));
+		}
+
+		std::variant<std::tuple<core_ast::node, values::value, runtime_environment>, interp_error> interpret(core_ast::no_op&& no_op, runtime_environment&& env)
+		{
+			return make_tuple(std::move(no_op), values::value(values::void_value()), std::move(env));
+		}
+		std::variant<std::tuple<core_ast::node, values::value, runtime_environment>, interp_error> interpret(core_ast::tuple&& tuple_node, runtime_environment&& env)
+		{
+			values::tuple res = values::tuple();
+
+			for (auto& line : tuple_node.children)
 			{
-				return make_tuple(move(core_ast), values::value(values::void_value()), move(env));
+				auto interpreted_line = interpret(std::move(line), std::move(env));
+				if (std::holds_alternative<interp_error>(interpreted_line))
+					return std::get<interp_error>(interpreted_line);
+
+				auto[new_line, line_value, new_env] = std::move(std::get<std::tuple<core_ast::node, values::value, runtime_environment>>(interpreted_line));
+				line = std::move(new_line);
+				env = std::move(new_env);
+
+				res.content.push_back(line_value);
 			}
-			else if (holds_alternative<core_ast::tuple>(core_ast))
+
+			return std::make_tuple(std::move(tuple_node), std::move(res), std::move(env));
+		}
+		std::variant<std::tuple<core_ast::node, values::value, runtime_environment>, interp_error> interpret(core_ast::block&& block, runtime_environment&& env)
+		{
+			values::value res;
+
+			for (auto& exp : block.children)
 			{
-				auto& tuple_node = get<core_ast::tuple>(core_ast);
-				values::tuple res = values::tuple();
-				 
-				for (auto& line : tuple_node.children)
+				auto interpreted_exp = interpret(std::move(exp), std::move(env));
+				if (std::holds_alternative<interp_error>(interpreted_exp))
+					return std::get<interp_error>(interpreted_exp);
+
+				auto[new_exp, exp_value, new_env] = std::move(std::get<std::tuple<core_ast::node, values::value, runtime_environment>>(interpreted_exp));
+				exp = std::move(new_exp);
+				env = std::move(new_env);
+
+				res = exp_value;
+			}
+
+			return std::make_tuple(std::move(block), std::move(res), std::move(env));
+		}
+		std::variant<std::tuple<core_ast::node, values::value, runtime_environment>, interp_error> interpret(core_ast::identifier&& id, runtime_environment&& env)
+		{
+			auto& id_value = env.valueof(id.name);
+
+			return make_tuple(std::move(id), id_value, std::move(env));
+		}
+		std::variant<std::tuple<core_ast::node, values::value, runtime_environment>, interp_error> interpret(core_ast::assignment&& assignment, runtime_environment&& env)
+		{
+			auto interpreted_value = std::move(interpret(std::move(*assignment.value), std::move(env)));
+			if (std::holds_alternative<interp_error>(interpreted_value))
+				return std::get<interp_error>(interpreted_value);
+
+			auto[new_code, new_value, new_env] = std::move(std::get<std::tuple<core_ast::node, values::value, runtime_environment>>(interpreted_value));
+			assignment.value = std::make_unique<core_ast::node>(move(new_code));
+			env = std::move(new_env);
+
+			env.set_value(assignment.id.name.at(0), move(new_value));
+
+			return make_tuple(std::move(assignment), env.valueof(assignment.id.name), std::move(env));
+		}
+		std::variant<std::tuple<core_ast::node, values::value, runtime_environment>, interp_error> interpret(core_ast::function_call&& call, runtime_environment&& env)
+		{
+			// TODO rework field access
+			if (call.id.name.at(0) == "get")
+			{
+				auto& parameters = std::get<core_ast::tuple>(*call.parameter);
+				auto& tuple_name = std::get<core_ast::identifier>(parameters.children.at(0));
+				auto& field_name = std::get<core_ast::identifier>(parameters.children.at(1));
+
+				auto& tuple_type = std::get<types::product_type>(tuple_name.type);
+
+				int i = 0;
+				for (; i < tuple_type.product.size(); i++)
 				{
-					auto interpreted_line = interpret(move(line), move(env));
-					if (holds_alternative<interp_error>(interpreted_line))
-						return get<interp_error>(interpreted_line);
-
-					auto[new_line, line_value, new_env] = std::move(get<tuple<core_ast::node, values::value, runtime_environment>>(interpreted_line));
-					line = move(new_line);
-					env = move(new_env);
-
-					res.content.push_back(line_value);
+					if (tuple_type.product.at(i).first == field_name.name.at(0))
+						break;
 				}
 
-				return make_tuple(move(tuple_node), move(res), move(env));
+				auto& tuple_value = env.valueof(tuple_name.name);
+				return std::make_tuple(
+					std::move(call),
+					std::get<values::tuple>(tuple_value).content.at(i),
+					std::move(env)
+				);
 			}
-			else if (holds_alternative<core_ast::block>(core_ast))
+			else if (call.id.name.at(0) == "set")
 			{
-				auto& block = get<core_ast::block>(core_ast);
-				values::value res;
-				 
-				for (auto& exp : block.children)
+				throw std::exception();
+			}
+			auto& function_value = env.valueof(call.id.name);
+
+			runtime_environment param_env{ env };
+			auto res_or_error = interpret(std::move(*call.parameter), std::move(param_env));
+			if (std::holds_alternative<interp_error>(res_or_error))
+				return std::get<interp_error>(res_or_error);
+			auto& res = std::get<std::tuple<core_ast::node, values::value, runtime_environment>>(res_or_error);
+
+			call.parameter = core_ast::make_unique(std::get<core_ast::node>(res));
+			auto& param_value = std::get<values::value>(res);
+
+			// Function written in cpp
+			if (std::holds_alternative<values::native_function>(function_value))
+			{
+				auto& function = std::get<values::native_function>(function_value);
+
+				// Eval function
+				auto result = std::move(function.function(move(param_value)));
+
+				return std::make_tuple(std::move(call), std::move(result), std::move(env));
+			}
+			// Function written in language itself
+			else if (std::holds_alternative<values::function>(function_value))
+			{
+				auto& function = *std::get<values::function>(function_value).func;
+
+				// TODO improve
+				runtime_environment function_env;
+				if (call.id.name.size() > 1)
+					function_env = env.get_module(call.id.name.at(0));
+				else
+					function_env = env;
+
+				auto& param_tuple = std::get<values::tuple>(param_value);
+
+				if (std::holds_alternative<std::vector<core_ast::identifier>>(function.parameters))
 				{
-					auto interpreted_exp = interpret(move(exp), move(env));
-					if (holds_alternative<interp_error>(interpreted_exp))
-						return get<interp_error>(interpreted_exp);
-
-					auto[new_exp, exp_value, new_env] = std::move(get<tuple<core_ast::node, values::value, runtime_environment>>(interpreted_exp));
-					exp = move(new_exp);
-					env = move(new_env);
-
-					res = exp_value;
-				}
-
-				return make_tuple(move(block), move(res), move(env));
-			}
-			else if (holds_alternative<core_ast::identifier>(core_ast))
-			{
-				auto& id = get<core_ast::identifier>(core_ast);
-				auto& id_value = env.valueof(id.name);
-
-				return make_tuple(move(id), id_value, move(env));
-			}
-			else if (holds_alternative<core_ast::assignment>(core_ast))
-			{
-				auto& assignment = get<core_ast::assignment>(core_ast);
-
-				auto interpreted_value = std::move(interpret(move(*assignment.value), move(env)));
-				if (holds_alternative<interp_error>(interpreted_value))
-					return get<interp_error>(interpreted_value);
-
-				auto[new_code, new_value, new_env] = std::move(get<tuple<core_ast::node, values::value, runtime_environment>>(interpreted_value));
-				assignment.value = make_unique<core_ast::node>(move(new_code));
-				env = move(new_env);
-
-				env.set_value(assignment.id.name.at(0), move(new_value));
-
-				return make_tuple(move(core_ast), env.valueof(assignment.id.name), move(env));
-			}
-			else if (holds_alternative<core_ast::function_call>(core_ast))
-			{
-				auto& call = get<core_ast::function_call>(core_ast);
-
-				// TODO rework field access
-				if (call.id.name.at(0) == "get")
-				{
-					auto& parameters = std::get<core_ast::tuple>(*call.parameter);
-					auto& tuple_name = std::get<core_ast::identifier>(parameters.children.at(0));
-					auto& field_name = std::get<core_ast::identifier>(parameters.children.at(1));
-
-					auto& tuple_type = std::get<types::product_type>(tuple_name.type);
-
-					int i = 0;
-					for (; i < tuple_type.product.size(); i++)
+					auto& parameters = std::get<std::vector<core_ast::identifier>>(function.parameters);
+					for (auto i = 0; i < parameters.size(); i++)
 					{
-						if (tuple_type.product.at(i).first == field_name.name.at(0))
-							break;
-					}
-
-					auto& tuple_value = env.valueof(tuple_name.name);
-					return std::make_tuple(
-						move(core_ast),
-						std::get<values::tuple>(tuple_value).content.at(i),
-						move(env)
-					);
-				}
-				else if (call.id.name.at(0) == "set")
-				{
-					throw std::exception();
-			
-				}
-				auto& function_value = env.valueof(call.id.name);
-
-				runtime_environment param_env{ env };
-				auto res_or_error = interpret(std::move(*call.parameter), std::move(param_env));
-				if (std::holds_alternative<interp_error>(res_or_error))
-					return std::get<interp_error>(res_or_error);
-				auto& res = std::get<std::tuple<core_ast::node, values::value, runtime_environment>>(res_or_error);
-
-				call.parameter = core_ast::make_unique(std::get<core_ast::node>(res));
-				auto& param_value = std::get<values::value>(res);
-
-				// Function written in cpp
-				if (holds_alternative<values::native_function>(function_value))
-				{
-					auto& function = get<values::native_function>(function_value);
-
-					// Eval function
-					auto result = move(function.function(move(param_value)));
-
-					return make_tuple(move(core_ast), move(result), move(env));
-				}
-				// Function written in language itself
-				else if (holds_alternative<values::function>(function_value))
-				{
-					auto& function = *get<values::function>(function_value).func;
-
-					// TODO improve
-					runtime_environment function_env;
-					if (call.id.name.size() > 1)
-						function_env = env.get_module(call.id.name.at(0));
-					else
-						function_env = env;
-
-					auto& param_tuple = std::get<values::tuple>(param_value);
-
-					if (std::holds_alternative<std::vector<core_ast::identifier>>(function.parameters))
-					{
-						auto& parameters = std::get<std::vector<core_ast::identifier>>(function.parameters);
-						for (auto i = 0; i < parameters.size(); i++)
-						{
-							const std::vector<std::string>& name = parameters.at(i).name;
-							function_env.set_value(name.at(0), std::move(param_tuple.content.at(i)));
-						}
-					}
-					else
-					{
-						// Single argument function
-						auto& parameter = std::get<core_ast::identifier>(function.parameters);
-						function_env.set_value(parameter.name.at(0), std::move(param_tuple));
-					}
-
-					auto interpreted_value = interpret(*function.body, move(function_env));
-					if (holds_alternative<interp_error>(interpreted_value))
-						return get<interp_error>(interpreted_value);
-
-					auto[_, result, _] = std::move(get<tuple<core_ast::node, values::value, runtime_environment>>(interpreted_value));
-
-					return make_tuple(move(core_ast), move(result), move(env));
-				}
-
-				return interp_error{ "Function call calls non-function type value" };
-			}
-			else if (holds_alternative<core_ast::integer>(core_ast))
-			{
-				auto& num = get<core_ast::integer>(core_ast);
-				return make_tuple(move(core_ast), values::integer(num.value), move(env));
-			}
-			else if (holds_alternative<core_ast::string>(core_ast))
-			{
-				auto& string = get<core_ast::string>(core_ast);
-				return make_tuple(move(core_ast), values::string(string.value), move(env));
-			}
-			else if (holds_alternative<core_ast::function>(core_ast))
-			{
-				auto& function = get<core_ast::function>(core_ast);
-				auto value_function = function;
-				return make_tuple(move(core_ast), values::function(std::make_unique<core_ast::function>(std::move(value_function))), move(env));
-			}
-			else if (holds_alternative<core_ast::conditional_branch>(core_ast))
-			{
-				auto& conditional_branch = std::get<core_ast::conditional_branch>(core_ast);
-
-				for (decltype(auto) branch : conditional_branch.branches)
-				{
-					auto interpreted_test_or_error = interpret(std::move(*branch.test_path), std::move(env));
-					if (std::holds_alternative<interp_error>(interpreted_test_or_error))
-						std::get<interp_error>(interpreted_test_or_error);
-					auto& interpreted_test = std::get<std::tuple<core_ast::node, values::value, runtime_environment>>(interpreted_test_or_error);
-					env = std::move(std::get<runtime_environment>(interpreted_test));
-					branch.test_path = core_ast::make_unique(std::move(std::get<core_ast::node>(interpreted_test)));
-
-					auto& value = std::get<values::value>(interpreted_test);
-					if (std::get<values::boolean>(value).val)
-					{
-						auto interpreted_code_or_error = interpret(std::move(*branch.code_path), std::move(env));
-						if (std::holds_alternative<interp_error>(interpreted_code_or_error))
-							std::get<interp_error>(interpreted_code_or_error);
-						auto& interpreted_code = std::get<std::tuple<core_ast::node, values::value, runtime_environment>>(interpreted_code_or_error);
-						env = std::move(std::get<runtime_environment>(interpreted_code));
-						branch.code_path = core_ast::make_unique(std::move(std::get<core_ast::node>(interpreted_code)));
-
-						return make_tuple(move(core_ast), std::get<values::value>(interpreted_code), std::move(env));
+						const std::vector<std::string>& name = parameters.at(i).name;
+						function_env.set_value(name.at(0), std::move(param_tuple.content.at(i)));
 					}
 				}
+				else
+				{
+					// Single argument function
+					auto& parameter = std::get<core_ast::identifier>(function.parameters);
+					function_env.set_value(parameter.name.at(0), std::move(param_tuple));
+				}
 
-				return interp_error{ "None of the branches are evaluated" };
+				auto interpreted_value = interpret(*function.body, std::move(function_env));
+				if (std::holds_alternative<interp_error>(interpreted_value))
+					return std::get<interp_error>(interpreted_value);
+
+				auto[_, result, _] = std::move(std::get<std::tuple<core_ast::node, values::value, runtime_environment>>(interpreted_value));
+
+				return std::make_tuple(std::move(call), std::move(result), std::move(env));
 			}
 
-			return interp_error{ "Unknown core node" };
+			return interp_error{ "Function call calls non-function type value" };
+		}
+		std::variant<std::tuple<core_ast::node, values::value, runtime_environment>, interp_error> interpret(core_ast::integer&& num, runtime_environment&& env)
+		{
+			return std::make_tuple(std::move(num), values::integer(num.value), std::move(env));
+		}
+		std::variant<std::tuple<core_ast::node, values::value, runtime_environment>, interp_error> interpret(core_ast::string&& string, runtime_environment&& env)
+		{
+			return std::make_tuple(std::move(string), values::string(string.value), std::move(env));
+		}
+		std::variant<std::tuple<core_ast::node, values::value, runtime_environment>, interp_error> interpret(core_ast::function&& function, runtime_environment&& env)
+		{
+			auto value_function = function;
+			return std::make_tuple(std::move(function), values::function(std::make_unique<core_ast::function>(std::move(value_function))), std::move(env));
+		}
+		std::variant<std::tuple<core_ast::node, values::value, runtime_environment>, interp_error> interpret(core_ast::conditional_branch&& conditional_branch, runtime_environment&& env)
+		{
+			for (decltype(auto) branch : conditional_branch.branches)
+			{
+				auto interpreted_test_or_error = interpret(std::move(*branch.test_path), std::move(env));
+				if (std::holds_alternative<interp_error>(interpreted_test_or_error))
+					std::get<interp_error>(interpreted_test_or_error);
+				auto& interpreted_test = std::get<std::tuple<core_ast::node, values::value, runtime_environment>>(interpreted_test_or_error);
+				env = std::move(std::get<runtime_environment>(interpreted_test));
+				branch.test_path = core_ast::make_unique(std::move(std::get<core_ast::node>(interpreted_test)));
+
+				auto& value = std::get<values::value>(interpreted_test);
+				if (std::get<values::boolean>(value).val)
+				{
+					auto interpreted_code_or_error = interpret(std::move(*branch.code_path), std::move(env));
+					if (std::holds_alternative<interp_error>(interpreted_code_or_error))
+						std::get<interp_error>(interpreted_code_or_error);
+					auto& interpreted_code = std::get<std::tuple<core_ast::node, values::value, runtime_environment>>(interpreted_code_or_error);
+					env = std::move(std::get<runtime_environment>(interpreted_code));
+					branch.code_path = core_ast::make_unique(std::move(std::get<core_ast::node>(interpreted_code)));
+
+					return make_tuple(std::move(conditional_branch), std::get<values::value>(interpreted_code), std::move(env));
+				}
+			}
+
+			return interp_error{ "None of the conditional branches are evaluated" };
 		}
 	};
 }

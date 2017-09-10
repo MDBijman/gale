@@ -2,8 +2,10 @@
 #include <vector>
 #include <variant>
 #include <memory>
+#include <optional>
 
-#define TYPE std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, meta_type, unset_type>
+// Also defined in types.cpp
+#define TYPE std::variant<name_type, sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, unset_type>
 namespace fe
 {
 	namespace types
@@ -35,15 +37,12 @@ namespace fe
 			std::string to_string();
 		};
 
-		struct meta_type
-		{
-			std::string to_string();
-		};
 
 		// Composition types
 
 		struct function_type;
 		struct product_type;
+		struct name_type;
 
 		struct sum_type 
 		{
@@ -98,6 +97,24 @@ namespace fe
 			std::unique_ptr<TYPE> from, to;
 		};
 
+		struct name_type
+		{
+			name_type();
+			name_type(std::vector<std::string> name);
+
+			// Move
+			name_type(name_type&& other);
+			name_type& operator=(name_type&& other);
+
+			// Copy
+			name_type(const name_type& other);
+			name_type& operator=(const name_type& other);
+
+			std::string to_string();
+
+			std::vector<std::string> name;
+		};
+
 		// Variant
 
 		using type = TYPE;
@@ -125,13 +142,13 @@ namespace fe
 
 		bool operator==(const unset_type& one, const unset_type& two);
 
-		bool operator==(const meta_type& one, const meta_type& two);
-
 		bool operator==(const sum_type& one, const sum_type& two);
 
 		bool operator==(const product_type& one, const product_type& two);
 
 		bool operator==(const function_type& one, const function_type& two);
+
+		bool operator==(const name_type& one, const name_type& two);
 	}
 }
 #undef TYPE

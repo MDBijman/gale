@@ -1,5 +1,4 @@
 #include "pipeline.h"
-#include "ebnfe_parser.h"
 #include "reader.h"
 
 #include "lexer_stage.h"

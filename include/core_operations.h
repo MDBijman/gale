@@ -10,7 +10,7 @@ namespace fe
 			{
 				runtime_environment re{};
 				typecheck_environment te{};
-				te.set_type("add", fe::types::function_type(fe::types::make_unique(fe::types::product_type{ { {"a", fe::types::integer_type{}}, { "b", fe::types::integer_type{}} } }), fe::types::make_unique(fe::types::integer_type{})));
+				te.set_type("add", fe::types::function_type(fe::types::make_unique(fe::types::product_type{ { {"a", fe::types::name_type{{"std", "i32"}}}, { "b", fe::types::name_type{{"std", "i32"}}} }}), fe::types::make_unique(fe::types::integer_type{})));
 				re.set_value("add", fe::values::native_function([](fe::values::value t) -> fe::values::value {
 					auto& tuple = std::get<fe::values::tuple>(t);
 

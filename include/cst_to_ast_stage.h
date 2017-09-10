@@ -329,23 +329,18 @@ namespace fe
 					auto splitter = [](std::string identifier) -> std::vector<std::string> {
 						std::vector<std::string> split_identifier;
 
-						bool reading_infix = false;
 						std::string::iterator begin_word = identifier.begin();
 						for (auto it = identifier.begin(); it != identifier.end(); it++)
 						{
-							if (*it == ':')
+							if (*it == '.')
 							{
-								if (!reading_infix) reading_infix = true;
-								else
-								{ // Read infix
-									split_identifier.push_back(std::string(begin_word, it - 1));
-									begin_word = it + 1;
-									continue;
-								}
+								// Read infix
+								split_identifier.push_back(std::string(begin_word, it));
+								begin_word = it + 1;
+								continue;
 							}
 							else
 							{
-								if (reading_infix) reading_infix = false;
 								if (it == identifier.end() - 1)
 									split_identifier.push_back(std::string(begin_word, it + 1));
 							}

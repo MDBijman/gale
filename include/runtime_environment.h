@@ -15,10 +15,21 @@ namespace fe
 
 		void add_module(runtime_environment&& other)
 		{
-			// TODO fix issue of setting the module name after a module (with that name) -> modules are not merged
+			// TODO fix issue of setting the module name after a module (with that name) -> namespaces are not merged
 			if (other.name.has_value() && other.name.value() != this->name)
 			{
-				modules.insert({ other.name.value(), other });
+				auto existing_module_location = modules.find(other.name.value());
+
+				if (existing_module_location != modules.end())
+					// Merge module with the existing one
+				{
+					other.name = std::optional<std::string>();
+					existing_module_location->second.add_module(std::move(other));
+				}
+				else
+				{
+					modules.insert({ other.name.value(), other });
+				}
 			}
 			else
 			{

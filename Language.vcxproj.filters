@@ -100,6 +100,9 @@
     <ClCompile Include="include\std_input.h">
       <Filter>Source Files\library\std</Filter>
     </ClCompile>
+    <ClCompile Include="src\extended_ast.cpp">
+      <Filter>Source Files\fe\data</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\lexer.h">
@@ -189,6 +192,9 @@
       <Filter>Resource Files</Filter>
     </Text>
     <Text Include="snippets\language_module.fe">
+      <Filter>Resource Files</Filter>
+    </Text>
+    <Text Include="include\core_ast.txt">
       <Filter>Resource Files</Filter>
     </Text>
   </ItemGroup>

@@ -18,6 +18,11 @@ namespace fe
 		struct integer 
 		{
 			integer(values::integer val) : value(val) {}
+
+			// Copy
+			integer(const integer& other) : value(other.value), type(other.type) {}
+
+			// Move
 			integer(integer&& other) : type(std::move(other.type)), value(std::move(other.value)) {}
 			integer& operator=(integer&& other)
 			{
@@ -33,6 +38,11 @@ namespace fe
 		struct string 
 		{
 			string(values::string val) : value(val) {}
+
+			// Copy
+			string(const string& other) : value(other.value), type(other.type) {}
+
+			// Move
 			string(string&& other) : type(std::move(other.type)), value(std::move(other.value)) {}
 			string& operator=(string&& other)
 			{
@@ -48,8 +58,11 @@ namespace fe
 		struct identifier 
 		{
 			identifier(std::vector<std::string>&& name) : name(std::move(name)) {}
+
+			// Copy
 			identifier(const identifier& other) : name(other.name), type(other.type) {}
 
+			// Move
 			identifier(identifier&& other) : type(std::move(other.type)), name(std::move(other.name)) {}
 			identifier& operator=(identifier&& other)
 			{
@@ -65,6 +78,11 @@ namespace fe
 		struct export_stmt 
 		{
 			export_stmt(std::vector<identifier> name) : names(std::move(names)) {}
+
+			// Copy
+			export_stmt(const export_stmt& other) : names(other.names), type(other.type) {}
+
+			// Move
 			export_stmt(export_stmt&& other) : type(std::move(other.type)), names(std::move(other.names)) {}
 			export_stmt& operator=(export_stmt&& other)
 			{
@@ -80,6 +98,11 @@ namespace fe
 		struct module_declaration
 		{
 			module_declaration(identifier&& name) : name(std::move(name)) {}
+
+			// Copy
+			module_declaration(const module_declaration& other) : name(other.name), type(other.type) {}
+
+			// Move
 			module_declaration(module_declaration&& other) : type(std::move(other.type)), name(std::move(other.name)) {}
 			module_declaration& operator=(module_declaration&& other)
 			{
@@ -104,6 +127,11 @@ namespace fe
 		struct atom_type
 		{
 			atom_type(identifier&& name) : name(std::move(name)), type(types::unset_type()) {}
+
+			// Copy
+			atom_type(const atom_type& other) : name(other.name), type(other.type) {}
+
+			// Move
 			atom_type(atom_type&& other) : name(std::move(other.name)), type(std::move(other.type)) {}
 			atom_type& operator=(atom_type&& other)
 			{
@@ -121,6 +149,11 @@ namespace fe
 		struct tuple_type
 		{
 			tuple_type(std::vector<std::variant<atom_type, function_type>>&& elements) : elements(std::move(elements)), type(types::unset_type()) {}
+
+			// Copy
+			tuple_type(const tuple_type& other) : elements(other.elements), type(other.type) {}
+
+			// Move
 			tuple_type(tuple_type&& other) : elements(std::move(other.elements)), type(std::move(other.type)) {}
 			tuple_type& operator=(tuple_type&& other)
 			{
@@ -136,6 +169,11 @@ namespace fe
 		struct function_type
 		{
 			function_type(tuple_type&& from, tuple_type&& to) : from(std::move(from)), to(std::move(to)), type(types::unset_type()) {}
+
+			// Copy
+			function_type(const function_type& other) : from(other.from), to(other.to), type(other.type) {}
+
+			// Move
 			function_type(function_type&& other) : from(std::move(other.from)), to(std::move(other.to)), type(std::move(other.type)) {}
 			function_type& operator=(function_type&& other)
 			{
@@ -153,6 +191,11 @@ namespace fe
 		struct atom_declaration
 		{
 			atom_declaration(atom_type&& type_name, identifier&& name) : type_name(std::move(type_name)), name(std::move(name)), type(types::unset_type()) {}
+
+			// Copy
+			atom_declaration(const atom_declaration& other) : type_name(other.type_name), name(other.name), type(other.type) {}
+
+			// Move
 			atom_declaration(atom_declaration&& other) : type_name(std::move(other.type_name)), name(std::move(other.name)), type(std::move(other.type)) {}
 			atom_declaration& operator=(atom_declaration&& other)
 			{
@@ -170,6 +213,11 @@ namespace fe
 		struct function_declaration
 		{
 			function_declaration(function_type&& type_name, identifier&& name) : type_name(std::move(type_name)), name(std::move(name)), type(types::unset_type()) {}
+
+			// Copy
+			function_declaration(const function_declaration& other) : type_name(other.type_name), name(other.name), type(other.type) {}
+
+			// Move
 			function_declaration(function_declaration&& other) : type_name(std::move(other.type_name)), name(std::move(other.name)), type(std::move(other.type)) {}
 			function_declaration& operator=(function_declaration&& other)
 			{
@@ -187,6 +235,11 @@ namespace fe
 		struct tuple_declaration
 		{
 			tuple_declaration(std::vector<std::variant<atom_declaration, function_declaration>>&& elements) : elements(std::move(elements)), type(types::unset_type()) {}
+
+			// Copy
+			tuple_declaration(const tuple_declaration& other) : elements(other.elements), type(other.type) {}
+
+			// Move
 			tuple_declaration(tuple_declaration&& other) : elements(std::move(other.elements)), type(std::move(other.type)) {}
 			tuple_declaration& operator=(tuple_declaration&& other)
 			{
@@ -202,6 +255,11 @@ namespace fe
 		struct tuple
 		{
 			tuple(std::vector<AST_NODE>&& children) : type(types::unset_type()), children(std::move(children)) {}
+
+			// Copy
+			tuple(const tuple& other) : children(other.children), type(other.type) {}
+
+			// Move
 			tuple(tuple&& other) : type(std::move(other.type)), children(std::move(other.children)) {}
 			tuple& operator=(tuple&& other) 
 			{
@@ -217,6 +275,11 @@ namespace fe
 		struct block
 		{
 			block(std::vector<AST_NODE>&& children) : type(types::unset_type()), children(std::move(children)) {}
+
+			// Copy
+			block(const block& other) : children(other.children), type(other.type) {}
+
+			// Move
 			block(block&& other) : type(std::move(other.type)), children(std::move(other.children)) {}
 			block& operator=(block&& other) 
 			{
@@ -232,6 +295,11 @@ namespace fe
 		struct function_call 
 		{
 			function_call(identifier&& id, std::unique_ptr<AST_NODE>&& params) : id(std::move(id)), params(std::move(params)) {}
+
+			// Copy
+			function_call(const function_call& other);
+
+			// Move
 			function_call(function_call&& other) : type(std::move(other.type)), id(std::move(other.id)), params(std::move(other.params)) { }
 			function_call& operator=(function_call&& other)
 			{
@@ -249,6 +317,11 @@ namespace fe
 		struct type_declaration 
 		{
 			type_declaration(identifier&& name, tuple_declaration&& types) : type(types::void_type{}), id(std::move(name)), types(std::move(types)) {}
+
+			// Copy
+			type_declaration(const type_declaration& other) : id(other.id), types(other.types), type(other.type) {}
+
+			// Move
 			type_declaration(type_declaration&& other) : type(std::move(other.type)), id(std::move(other.id)), types(std::move(other.types)) {}
 			type_declaration& operator=(type_declaration&& other)
 			{
@@ -266,6 +339,11 @@ namespace fe
 		struct assignment 
 		{
 			assignment(identifier&& id, std::unique_ptr<AST_NODE>&& val) : type(types::unset_type()), id(std::move(id)), value(std::move(val)) {}
+
+			// Copy
+			assignment(const assignment& other);
+
+			// Move
 			assignment(assignment&& other) : type(std::move(other.type)), id(std::move(other.id)), value(std::move(other.value)) {}
 			assignment& operator=(assignment&& other)
 			{
@@ -283,6 +361,11 @@ namespace fe
 		struct function
 		{
 			function(std::optional<identifier>&& name, tuple_declaration&& from, std::unique_ptr<AST_NODE>&& to, std::unique_ptr<AST_NODE> body) : type(types::unset_type()), name(std::move(name)), from(std::move(from)), to(std::move(to)), body(std::move(body)) {}
+
+			// Copy
+			function(const function& other);
+
+			// Move
 			function(function&& other) : type(std::move(other.type)), name(std::move(other.name)), from(std::move(other.from)), to(std::move(other.to)), body(std::move(other.body)) {}
 			function& operator=(function&& other)
 			{
@@ -306,6 +389,11 @@ namespace fe
 		struct conditional_branch_path
 		{
 			conditional_branch_path(std::unique_ptr<AST_NODE> test, std::unique_ptr<AST_NODE> code) : test_path(std::move(test)), code_path(std::move(code)) {}
+
+			// Copy
+			conditional_branch_path(const conditional_branch_path& other);
+
+			// Move
 			conditional_branch_path(conditional_branch_path&& other) : code_path(std::move(other.code_path)), test_path(std::move(other.test_path)), type(std::move(other.type)) {}
 			conditional_branch_path& operator=(conditional_branch_path&& other) {
 				this->code_path = std::move(other.code_path);
@@ -313,6 +401,7 @@ namespace fe
 				this->type = std::move(other.type);
 				return *this;
 			}
+
 			std::unique_ptr<AST_NODE> test_path;
 			std::unique_ptr<AST_NODE> code_path;
 			types::type type;
@@ -321,6 +410,11 @@ namespace fe
 		struct conditional_branch
 		{
 			conditional_branch(std::vector<conditional_branch_path>&& branches) : branches(std::move(branches)) {}
+
+			// Copy
+			conditional_branch(const conditional_branch& other) : branches(other.branches), type(other.type) {}
+
+			// Move
 			conditional_branch(conditional_branch&& other) : branches(std::move(other.branches)), type(std::move(other.type)) {}
 			conditional_branch& operator=(conditional_branch&& other) {
 				this->branches = std::move(other.branches);
@@ -332,18 +426,18 @@ namespace fe
 			types::type type;
 		};
 
-		auto get_type = [](auto& node) -> types::type {
+		const auto get_type = [](auto& node) -> types::type {
 			return node.type;
 		};
 
-		auto set_type = [](auto& node, types::type t) -> void {
+		const auto set_type = [](auto& node, types::type t) -> void {
 			node.type = t;
 		};
 
 		using node = AST_NODE;
 		using unique_node = std::unique_ptr<node>;
 
-		auto make_unique = [](auto&& x) {
+		const auto make_unique = [](auto&& x) {
 			return std::make_unique<node>(std::move(x));
 		};
 	}

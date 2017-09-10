@@ -1,0 +1,18 @@
+((
+	(defun translate_v (v) 
+		(call Vertex 
+			((call get (v x))
+			(call get (v y))
+			(call get (v z)))))
+	(defun translate_f (f)
+		(call Face
+			((call translate_v (call get (f a)))
+			(call translate_v (call get (f b)))
+			(call translate_v (call get (f c))))))
+	(let 
+		(x (call Vertex (1 1 1)))
+		(y (call Vertex (1 1 1)))
+		(z (call Vertex (1 1 1)))
+		(n (call Face (x y z)))
+		(m (call translate_f (n)))
+		(list x y z n m))))

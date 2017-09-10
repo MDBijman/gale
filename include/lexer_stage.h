@@ -25,7 +25,7 @@ namespace fe
 			string_token = lexing_rules.create_token("\".*?\"");
 			number_token = lexing_rules.create_token("\\-?[1-9][0-9]*|0");
 			right_arrow_token = lexing_rules.create_token("\\->");
-			module_infix_token = lexing_rules.create_token("::");
+			module_infix_token = lexing_rules.create_token("\\.");
 			rrb_token = lexing_rules.create_token("\\)");
 			lrb_token = lexing_rules.create_token("\\(");
 			rcb_token = lexing_rules.create_token("\\}");
@@ -35,7 +35,7 @@ namespace fe
 			pipe_token = lexing_rules.create_token("\\|");
 			comma_token = lexing_rules.create_token(",");
 			equals_token = lexing_rules.create_token("=");
-			keyword_token = lexing_rules.create_token("[a-zA-Z][a-zA-Z0-9_:]*");
+			keyword_token = lexing_rules.create_token("[a-zA-Z][a-zA-Z0-9_.]*");
 			lexing_rules.compile();
 			return lexing_rules;
 		}

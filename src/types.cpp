@@ -1,6 +1,6 @@
 #include "types.h"
 
-#define TYPE std::variant<sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, meta_type, unset_type>
+#define TYPE std::variant<name_type, sum_type, product_type, integer_type, string_type, void_type, function_type, boolean_type, unset_type>
 namespace fe
 {
 	namespace types
@@ -29,11 +29,6 @@ namespace fe
 		std::string unset_type::to_string()
 		{
 			return "unset_type";
-		}
-
-		std::string meta_type::to_string()
-		{
-			return "meta_type";
 		}
 
 		// Sum
@@ -170,6 +165,38 @@ namespace fe
 			return r;
 		}
 
+		// Named Type
+
+		name_type::name_type() {}
+		name_type::name_type(std::vector<std::string> name) : name(name) {}
+
+		// Move
+
+		name_type::name_type(name_type&& other) : name(std::move(other.name)) {}
+
+		name_type& name_type::operator=(name_type&& other)
+		{
+			this->name = std::move(other.name);
+			return *this;
+		}
+
+		// Copy
+
+		name_type::name_type(const name_type& other) : name(other.name) {}
+
+		name_type& name_type::operator=(const name_type& other)
+		{
+			this->name = other.name;
+			return *this;
+		}
+
+		std::string name_type::to_string()
+		{
+			std::string res;
+			for (auto& s : name) res.append(s);
+			return res;
+		}
+
 		// Operators
 
 		bool operator==(const integer_type& one, const integer_type& two)
@@ -193,11 +220,6 @@ namespace fe
 		}
 
 		bool operator==(const unset_type& one, const unset_type& two)
-		{
-			return true;
-		}
-
-		bool operator==(const meta_type& one, const meta_type& two)
 		{
 			return true;
 		}
@@ -230,6 +252,13 @@ namespace fe
 		{
 			return (*one.from == *two.from) && (*one.to == *two.to);
 		}
+
+		bool operator==(const name_type& one, const name_type& two)
+		{
+			return one.name == two.name;
+		}
+
+
 	}
 }
 #undef TYPE

@@ -10,14 +10,25 @@ namespace fe
 	public:
 		typecheck_environment() {}
 		typecheck_environment(std::unordered_map<std::string, types::type> type_mapping) : types(type_mapping) {}
-		typecheck_environment(const typecheck_environment& other) : types(other.types), name(other.name), modules(other.modules) {}
+		typecheck_environment(const typecheck_environment& other) : types(other.types), name(other.name), namespaces(other.namespaces) {}
 
 		void add_module(typecheck_environment&& other)
 		{
-			// TODO fix issue of setting the module name after a module (with that name) -> modules are not merged
+			// TODO fix issue of setting the module name after a module (with that name) -> namespaces are not merged
 			if (other.name.has_value() && other.name.value() != this->name)
 			{
-				modules.insert({ other.name.value(), other });
+				auto existing_namespace_location = namespaces.find(other.name.value());
+
+				if (existing_namespace_location != namespaces.end())
+					// Merge module with the existing one
+				{
+					other.name = std::optional<std::string>();
+					existing_namespace_location->second.add_module(std::move(other));
+				}
+				else
+				{
+					namespaces.insert({ other.name.value(), other });
+				}
 			}
 			else
 			{
@@ -39,7 +50,24 @@ namespace fe
 		{
 			if (identifier.size() == 1)
 				return typeof(identifier.at(0));
-			else return modules.find(identifier.at(0))->second.typeof(std::vector<std::string>{ identifier.begin() + 1, identifier.end() });
+			else
+			{
+				auto location = namespaces.find(identifier.at(0));
+				if (location != namespaces.end())
+					return location->second.typeof(std::vector<std::string>{ identifier.begin() + 1, identifier.end() });
+				else
+				{
+					auto& product_type = std::get<types::product_type>(
+						typeof(std::get<types::name_type>(
+							types.at(identifier.at(0))
+						).name)
+					);
+					auto& nested_type = std::find_if(product_type.product.begin(), product_type.product.end(), [&identifier](auto& x) { return x.first == identifier.at(1); });
+
+					return nested_type->second;
+				}
+
+			}
 		}
 
 		std::string to_string(bool include_modules = false)
@@ -64,10 +92,10 @@ namespace fe
 			if (include_modules)
 			{
 				r.append(indent("\n" + std::string("modules (")));
-				for (auto& string_module_pair : modules)
+				for (auto& string_namespace_pair : namespaces)
 				{
 					r.append(indent(indent(
-						"\n" + string_module_pair.second.to_string(false) + ","
+						"\n" + string_namespace_pair.second.to_string(false) + ","
 					)));
 				}
 				r.append("\n\t)");
@@ -81,6 +109,6 @@ namespace fe
 
 	private:
 		std::unordered_map<std::string, types::type> types;
-		std::unordered_multimap<std::string, typecheck_environment> modules;
+		std::unordered_multimap<std::string, typecheck_environment> namespaces;
 	};
 }
