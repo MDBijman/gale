@@ -99,7 +99,7 @@ namespace fe
 			auto res = typecheck(std::move(*assignment.value), std::move(env));
 			if (std::holds_alternative<typecheck_error>(res))
 				return std::get<typecheck_error>(res);
-			auto& [new_node, new_env] = std::get<std::tuple<extended_ast::node, typecheck_environment>>(res);
+			auto&[new_node, new_env] = std::get<std::tuple<extended_ast::node, typecheck_environment>>(res);
 
 			assignment.value = extended_ast::make_unique(std::move(new_node));
 			env = std::move(new_env);

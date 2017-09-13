@@ -122,7 +122,7 @@ namespace fe
 
 				// TODO improve
 				runtime_environment function_env;
-				if (call.id.modules.size() > 1)
+				if (call.id.modules.size() > 0)
 					function_env = env.get_module(call.id.modules.at(0));
 				else
 					function_env = env;
