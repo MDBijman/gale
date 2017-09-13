@@ -6,7 +6,7 @@
 #include <variant>
 
 // Also defined in core_ast.cpp and values.h
-#define AST_NODE std::variant<no_op, tuple, block, identifier, assignment, function_call, integer, string, function, conditional_branch, conditional_branch_path>
+#define AST_NODE std::variant<identifier, no_op, set, tuple, block, function_call, integer, string, function, conditional_branch, conditional_branch_path>
 
 namespace fe
 {
@@ -61,8 +61,7 @@ namespace fe
 
 		struct identifier
 		{
-			identifier(std::vector<std::string>&& name, types::type t);
-			identifier(std::string&& name, types::type t);
+			identifier(std::vector<std::string>&& module_names, std::string&& variables, std::vector<int>&& offset);
 
 			// Copy
 			identifier(const identifier& other);
@@ -71,9 +70,53 @@ namespace fe
 			// Move
 			identifier(identifier&& other);
 			identifier& operator=(identifier&& other);
-			
 
-			std::vector<std::string> name;
+			identifier without_first_module() const
+			{
+				return
+					identifier(
+						std::vector<std::string>{modules.begin() + 1, modules.end()},
+						std::string(variable_name),
+						std::vector<int>(offsets)
+					);
+			}
+
+			std::vector<std::string> modules;
+			std::string variable_name;
+			std::vector<int> offsets;
+			types::type type;
+		};
+
+		//struct get
+		//{
+		//	get(identifier&& name, types::type t);
+
+		//	// Copy
+		//	get(const get& other);
+		//	get& operator=(const get& other);
+
+		//	// Move
+		//	get(get&& other);
+		//	get& operator=(get&& other);
+
+		//	identifier name;
+		//	types::type type;
+		//};
+
+		struct set
+		{
+			set(identifier&& id, std::unique_ptr<AST_NODE>&& value, types::type t);
+
+			// Copy
+			set(const set& other);
+			set& operator=(const set& other);
+
+			// Move
+			set(set&& other);
+			set& operator=(set&& other);
+
+			identifier id;
+			std::unique_ptr<AST_NODE> value;
 			types::type type;
 		};
 
@@ -87,7 +130,7 @@ namespace fe
 		struct function
 		{
 			function(std::optional<identifier>&& name, std::variant<std::vector<identifier>, identifier>&& parameters, std::unique_ptr<AST_NODE>&& body, types::type t);
-			
+
 			// Copy
 			function(const function& other);
 			function& operator=(const function& other);
@@ -110,7 +153,7 @@ namespace fe
 		struct tuple
 		{
 			tuple(std::vector<AST_NODE> children, types::type t);
-			
+
 			// Copy
 			tuple(const tuple& other);
 			tuple& operator=(const tuple& other);
@@ -123,10 +166,11 @@ namespace fe
 			types::type type;
 		};
 
+
 		struct block
 		{
 			block(std::vector<AST_NODE> children, types::type t);
-			
+
 			// Copy
 			block(const block& other);
 			block& operator=(const block& other);
@@ -139,27 +183,10 @@ namespace fe
 			types::type type;
 		};
 
-		struct assignment
-		{
-			assignment(identifier&& id, std::unique_ptr<AST_NODE>&& val);
-			
-			// Copy
-			assignment(const assignment& other);
-			assignment& operator=(const assignment& other);
-
-			// Move
-			assignment(assignment&& other);
-			assignment& operator=(assignment&& other);
-
-			identifier id;
-			std::unique_ptr<AST_NODE> value;
-			types::type type;
-		};
-
 		struct function_call
 		{
 			function_call(identifier&& id, std::unique_ptr<AST_NODE>&& parameter, types::type&& t);
-			
+
 			// Copy
 			function_call(const function_call& other);
 			function_call& operator=(const function_call& other);
@@ -194,7 +221,7 @@ namespace fe
 		struct conditional_branch
 		{
 			conditional_branch(std::vector<conditional_branch_path>&& branches, types::type&& t);
-	
+
 			// Copy
 			conditional_branch(const conditional_branch& other);
 			conditional_branch& operator=(const conditional_branch& other);

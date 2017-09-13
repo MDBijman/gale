@@ -57,21 +57,33 @@ namespace fe
 
 		struct identifier 
 		{
-			identifier(std::vector<std::string>&& name) : name(std::move(name)) {}
+			identifier(std::vector<std::string>&& modules) : segments(std::move(modules)) {}
 
 			// Copy
-			identifier(const identifier& other) : name(other.name), type(other.type) {}
+			identifier(const identifier& other) : segments(other.segments), type(other.type), offsets(other.offsets) {}
 
 			// Move
-			identifier(identifier&& other) : type(std::move(other.type)), name(std::move(other.name)) {}
+			identifier(identifier&& other) : type(std::move(other.type)), segments(std::move(other.segments)), offsets(std::move(other.offsets)) {}
 			identifier& operator=(identifier&& other)
 			{
 				type = std::move(other.type);
-				name = std::move(other.name);
+				segments = std::move(other.segments);
+				offsets = std::move(other.offsets);
 				return *this;
 			}
 
-			std::vector<std::string> name;
+			identifier without_first_segment() const
+			{
+				auto new_id = identifier{
+					std::vector<std::string>{ segments.begin() + 1, segments.end() }
+				};
+				new_id.type = type;
+				new_id.offsets = offsets;
+				return new_id;
+			}
+
+			std::vector<std::string> segments;
+			std::vector<int> offsets;
 			types::type type;
 		};
 
@@ -316,7 +328,7 @@ namespace fe
 
 		struct type_declaration 
 		{
-			type_declaration(identifier&& name, tuple_declaration&& types) : type(types::void_type{}), id(std::move(name)), types(std::move(types)) {}
+			type_declaration(identifier&& name, tuple_declaration&& types) : type(types::atom_type{"void"}), id(std::move(name)), types(std::move(types)) {}
 
 			// Copy
 			type_declaration(const type_declaration& other) : id(other.id), types(other.types), type(other.type) {}

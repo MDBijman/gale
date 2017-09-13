@@ -47,16 +47,25 @@ namespace fe
 			values.insert_or_assign(name, value);
 		}
 
-		const values::value& valueof(const std::string& name) const
+		const values::value& valueof(const core_ast::identifier& identifier) const
 		{
-			return values.at(name);
-		}
+			if (identifier.modules.size() > 0)
+			{
+				return modules.find(identifier.modules.at(0))->second.valueof(identifier.without_first_module());
+			}
+			else
+			{
+				std::reference_wrapper<const values::value> value = values.at(identifier.variable_name);
 
-		const values::value& valueof(const std::vector<std::string>& identifier) const
-		{
-			if (identifier.size() == 1)
-				return valueof(identifier.at(0));
-			else return modules.find(identifier.at(0))->second.valueof(std::vector<std::string>{ identifier.begin() + 1, identifier.end() });
+				for (int i = 0; i < identifier.offsets.size(); i++)
+				{
+					auto& product_value = std::get<values::tuple>(value.get());
+
+					value = product_value.content.at(identifier.offsets.at(i));
+				}
+
+				return value;
+			}
 		}
 
 		std::string to_string(bool include_modules = true)
@@ -65,8 +74,8 @@ namespace fe
 				return std::regex_replace(text, std::regex("\\n"), "\n\t");
 			};
 
-			std::string r = name.has_value() ? 
-				"runtime_environment: " + name.value() + " (" : 
+			std::string r = name.has_value() ?
+				"runtime_environment: " + name.value() + " (" :
 				"runtime_environment (";
 
 			for (auto& pair : values)

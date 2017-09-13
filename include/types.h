@@ -5,17 +5,28 @@
 #include <optional>
 
 // Also defined in types.cpp
-#define TYPE std::variant<name_type, sum_type, product_type, void_type, function_type, unset_type>
+#define TYPE std::variant<sum_type, product_type, atom_type, function_type, unset_type>
 namespace fe
 {
 	namespace types
 	{
 		// Atomic types
-		struct void_type 
+		struct atom_type 
 		{
+			atom_type(std::string name);
+
+			// Move
+			atom_type(atom_type&& other);
+			atom_type& operator=(atom_type&& other);
+
+			// Copy
+			atom_type(const atom_type& other);
+			atom_type& operator=(const atom_type& other);
+
+			std::string name;
 			std::string to_string();
 		};
-		
+
 		struct unset_type
 		{
 			std::string to_string();
@@ -28,7 +39,7 @@ namespace fe
 		struct product_type;
 		struct name_type;
 
-		struct sum_type 
+		struct sum_type
 		{
 			sum_type();
 			sum_type(std::vector<TYPE> sum);
@@ -81,23 +92,24 @@ namespace fe
 			std::unique_ptr<TYPE> from, to;
 		};
 
-		struct name_type
-		{
-			name_type();
-			name_type(std::vector<std::string> name);
+		//struct name_type
+		//{
+		//	name_type();
+		//	name_type(std::vector<std::string> modules, std::vector<std::string> variables);
 
-			// Move
-			name_type(name_type&& other);
-			name_type& operator=(name_type&& other);
+		//	// Move
+		//	name_type(name_type&& other);
+		//	name_type& operator=(name_type&& other);
 
-			// Copy
-			name_type(const name_type& other);
-			name_type& operator=(const name_type& other);
+		//	// Copy
+		//	name_type(const name_type& other);
+		//	name_type& operator=(const name_type& other);
 
-			std::string to_string();
+		//	std::string to_string();
 
-			std::vector<std::string> name;
-		};
+		//	std::vector<std::string> module_names;
+		//	std::vector<std::string> variables;
+		//};
 
 		// Variant
 
@@ -116,7 +128,7 @@ namespace fe
 
 		// Operators
 
-		bool operator==(const void_type& one, const void_type& two);
+		bool operator==(const atom_type& one, const atom_type& two);
 
 		bool operator==(const unset_type& one, const unset_type& two);
 
@@ -126,7 +138,7 @@ namespace fe
 
 		bool operator==(const function_type& one, const function_type& two);
 
-		bool operator==(const name_type& one, const name_type& two);
+		//bool operator==(const name_type& one, const name_type& two);
 	}
 }
 #undef TYPE

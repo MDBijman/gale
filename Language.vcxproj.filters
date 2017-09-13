@@ -197,5 +197,8 @@
     <Text Include="include\core_ast.txt">
       <Filter>Resource Files</Filter>
     </Text>
+    <Text Include="snippets\notes.txt">
+      <Filter>Resource Files</Filter>
+    </Text>
   </ItemGroup>
 </Project>

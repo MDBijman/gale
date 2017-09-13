@@ -2,6 +2,7 @@
 #include "pipeline.h"
 #include "language_definition.h"
 #include "error.h"
+#include <string_view>
 
 namespace fe
 {
@@ -34,10 +35,10 @@ namespace fe
 					// Convert the identifier
 					auto converted_identifier = convert(std::move(n.children.at(0)));
 					if (holds_error(converted_identifier)) return get_error(converted_identifier);
-					auto& identifier = get_node(converted_identifier);
+					auto& identifier = std::get<extended_ast::identifier>(get_node(converted_identifier));
 
 					return extended_ast::module_declaration(
-						std::move(std::get<extended_ast::identifier>(identifier))
+						std::move(identifier)
 					);
 				}
 				else if (node_type == assignment)
@@ -326,13 +327,13 @@ namespace fe
 				}
 				else if (node_type == identifier)
 				{
-					auto splitter = [](std::string identifier) -> std::vector<std::string> {
+					auto split_on = [](std::string identifier, char split_on) -> std::vector<std::string> {
 						std::vector<std::string> split_identifier;
 
 						std::string::iterator begin_word = identifier.begin();
 						for (auto it = identifier.begin(); it != identifier.end(); it++)
 						{
-							if (*it == '.')
+							if (*it == split_on)
 							{
 								// Read infix
 								split_identifier.push_back(std::string(begin_word, it));
@@ -348,8 +349,9 @@ namespace fe
 						return split_identifier;
 					};
 
-					auto words = splitter(n.token);
-					return extended_ast::identifier(std::move(words));
+					auto splitted = split_on(n.token, '.');
+
+					return extended_ast::identifier(std::move(splitted));
 				}
 				else
 				{

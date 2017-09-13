@@ -52,3 +52,29 @@ Matching
 	Data can be transformed through pattern matching
 
 
+ ///
+
+f.b.y
+f.c.x
+f.a
+f
+
+variable reference
+
+identifier (f b y)
+
+typecheck
+
+typeof f -> variable
+typeof b -> variable, and f product
+typeof y -> variable, and b product
+typeof f.b.y = typeof y
+
+lower
+
+id can become getter or setter
+
+interpret
+
+getter -> valueof
+setter -> set_value

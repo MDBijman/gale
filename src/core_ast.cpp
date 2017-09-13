@@ -1,7 +1,7 @@
 #include "core_ast.h"
 #include <vector>
 
-#define AST_NODE std::variant<no_op, tuple, block, identifier, assignment, function_call, integer, string, function, conditional_branch, conditional_branch_path>
+#define AST_NODE std::variant<identifier, no_op, set, tuple, block, function_call, integer, string, function, conditional_branch, conditional_branch_path>
 
 namespace fe
 {
@@ -29,7 +29,7 @@ namespace fe
 
 		// Integer
 
-		integer::integer(values::integer val) : type(types::name_type({"std", "i32"})), value(val) {}
+		integer::integer(values::integer val) : type(types::atom_type("i32")), value(val) {}
 		
 		// Copy
 		integer::integer(const integer& other) : value(other.value), type(other.type) {}
@@ -53,7 +53,7 @@ namespace fe
 		// String
 
 
-		string::string(values::string val) : type(types::name_type({"std", "str"})), value(val) {}
+		string::string(values::string val) : type(types::atom_type("str")), value(val) {}
 		
 		// Copy
 		string::string(const string& other) : value(other.value), type(other.type) {}
@@ -75,7 +75,6 @@ namespace fe
 		}
 
 		// Function
-
 
 		function::function(std::optional<identifier>&& name, std::variant<std::vector<identifier>, identifier>&& parameters, std::unique_ptr<AST_NODE>&& body, types::type t) : name(std::move(name)), parameters(std::move(parameters)), type(t), body(std::move(body)) {}
 		
@@ -125,11 +124,64 @@ namespace fe
 			return *this;
 		}
 
-		
+
+		// Get
+
+
+		//get::get(identifier&& modules, std::string variable, accessor field_offsets, types::type t) : modules(std::move(modules)), variable(variable), field_offsets(field_offsets), type(t) {};
+
+		//// Copy
+		//get::get(const get& other) : modules(other.modules), variable(other.variable), field_offsets(other.field_offsets), type(other.type) {};
+		//get& get::operator=(const get& other)
+		//{
+		//	this->modules = other.modules;
+		//	this->variable = other.variable;
+		//	this->field_offsets = other.field_offsets;
+		//	this->type = other.type;
+		//	return *this;
+		//}
+
+		//// Move
+		//get::get(get&& other) : modules(std::move(other.modules)), variable(std::move(other.variable)), field_offsets(std::move(other.field_offsets)), type(std::move(other.type)) {};
+		//get& get::operator=(get&& other)
+		//{
+		//	this->modules = std::move(other.modules);
+		//	this->variable = std::move(other.variable);
+		//	this->field_offsets = std::move(other.field_offsets);
+		//	this->type = std::move(other.type);
+		//	return *this;
+		//}
+
+
+		// Set
+
+		set::set(identifier&& id, std::unique_ptr<AST_NODE>&& value, types::type t) : id(std::move(id)), value(std::move(value)), type(t) {};
+
+		// Copy
+		set::set(const set& other) : id(other.id), value(std::make_unique<AST_NODE>(*other.value)), type(other.type) {};
+		set& set::operator=(const set& other)
+		{
+			this->id = other.id;
+			this->type = other.type;
+			this->value = std::make_unique<AST_NODE>(*other.value);
+			return *this;
+		}
+
+		// Move
+		set::set(set&& other) : id(std::move(other.id)), value(std::move(other.value)), type(std::move(other.type)) {};
+		set& set::operator=(set&& other)
+		{
+			this->id = std::move(other.id);
+			this->type = std::move(other.type);
+			this->value = std::move(other.value);
+			return *this;
+		}
+
+
 		// Block
 
 		block::block(std::vector<AST_NODE> children, types::type t) : type(t), children(std::move(children)) {}
-		
+
 		// Copy
 		block::block(const block& other) : children(other.children), type(other.type) {}
 		block& block::operator=(const block& other)
@@ -148,54 +200,30 @@ namespace fe
 			return *this;
 		}
 
-		
 
 		// Identifier
 
-		identifier::identifier(std::vector<std::string>&& name, types::type t) : type(t), name(std::move(name)) {}
-		identifier::identifier(std::string&& name, types::type t) : type(t), name({ name }) {}
+
+		identifier::identifier(std::vector<std::string>&& modules, std::string&& name, std::vector<int>&& offsets) : modules(std::move(modules)), variable_name(std::move(name)), offsets(std::move(offsets)) {};
 
 		// Copy
-		identifier::identifier(const identifier& other) : name(other.name), type(other.type) {}
+		identifier::identifier(const identifier& other) : modules(other.modules), variable_name(other.variable_name), offsets(other.offsets), type(other.type) {}
 		identifier& identifier::operator=(const identifier& other)
 		{
-			this->name = other.name;
+			this->modules = other.modules;
+			this->variable_name = other.variable_name;
+			this->offsets = other.offsets;
 			this->type = other.type;
 			return *this;
 		}
 
 		// Move
-		identifier::identifier(identifier&& other) : type(std::move(other.type)), name(std::move(other.name)) {}
+		identifier::identifier(identifier&& other) : modules(std::move(other.modules)), variable_name(std::move(other.variable_name)), offsets(std::move(other.offsets)), type(std::move(other.type)) {}
 		identifier& identifier::operator=(identifier&& other)
 		{
-			this->name = std::move(other.name);
-			this->type = std::move(other.type);
-			return *this;
-		}
-
-
-		// Assignment
-
-
-		assignment::assignment(identifier&& id, std::unique_ptr<AST_NODE>&& val)
-			: type(types::void_type()), id(std::move(id)), value(std::move(val)) {}
-
-		// Copy
-		assignment::assignment(const assignment& other) : id(other.id), value(std::make_unique<AST_NODE>(*other.value)), type(other.type) {}
-		assignment& assignment::operator=(const assignment& other)
-		{
-			this->id = other.id;
-			this->value = make_unique(*other.value);
-			this->type = other.type;
-			return *this;
-		}
-		
-		// Move
-		assignment::assignment(assignment&& other) : id(std::move(other.id)), value(std::move(other.value)), type(std::move(other.type)) {}
-		assignment& assignment::operator=(assignment&& other)
-		{
-			this->id = std::move(other.id);
-			this->value = std::move(other.value);
+			this->modules = std::move(other.modules);
+			this->variable_name = std::move(other.variable_name);
+			this->offsets = std::move(other.offsets);
 			this->type = std::move(other.type);
 			return *this;
 		}
@@ -206,7 +234,7 @@ namespace fe
 
 		function_call::function_call(identifier&& id, std::unique_ptr<AST_NODE>&& parameter, types::type&& t)
 			: type(std::move(t)), id(std::move(id)), parameter(std::move(parameter)) {}
-		
+
 		// Copy
 		function_call::function_call(const function_call& other) : id(other.id), parameter(make_unique(*other.parameter)), type(other.type) {}
 		function_call& function_call::operator=(const function_call& other)

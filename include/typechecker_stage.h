@@ -37,12 +37,13 @@ namespace fe
 				if (std::holds_alternative<typecheck_error>(res))
 					return std::get<typecheck_error>(res);
 
-				auto& checked_element = std::get<std::tuple<extended_ast::node, typecheck_environment>>(res);
+				auto& [new_node, new_env] = std::get<std::tuple<extended_ast::node, typecheck_environment>>(res);
 
-				element = std::move(std::get<extended_ast::node>(checked_element));
-				env = std::move(std::get<typecheck_environment>(checked_element));
+				element = std::move(new_node);
+				env = std::move(new_env);
 
 				new_type.product.push_back({ "", std::visit(extended_ast::get_type, element) });
+
 			}
 
 			tuple.type = std::move(new_type);
@@ -78,13 +79,14 @@ namespace fe
 		}
 		std::variant<std::tuple<extended_ast::node, typecheck_environment>, typecheck_error> typecheck(extended_ast::module_declaration&& declaration, typecheck_environment&& env)
 		{
-			std::string module_name = declaration.name.name.at(0);
+			std::string module_name = declaration.name.segments.at(0);
 			env.name = std::move(module_name);
 			return std::make_tuple(std::move(declaration), std::move(env));
 		}
 		std::variant<std::tuple<extended_ast::node, typecheck_environment>, typecheck_error> typecheck(extended_ast::identifier&& id, typecheck_environment&& env)
 		{
-			id.type = env.typeof(id.name);
+			id.type = env.typeof(id);
+			env.build_access_pattern(id);
 
 			return std::make_tuple(
 				std::move(id),
@@ -104,10 +106,10 @@ namespace fe
 
 			// Put id type in env
 			auto type = std::visit(extended_ast::get_type, *assignment.value);
-			env.set_type(assignment.id.name.at(0), type);
+			env.set_type(assignment.id, type);
 			assignment.id.type = std::move(type);
 
-			assignment.type = types::void_type();
+			assignment.type = types::atom_type("void");
 
 			return std::make_tuple(
 				std::move(assignment),
@@ -130,66 +132,44 @@ namespace fe
 
 			auto& argument_type = std::visit(extended_ast::get_type, *call.params);
 
-			// TODO rework field access
-			// TODO implement actual type checking for get set
-			if (call.id.name.size() == 1 && call.id.name.at(0) == "get")
+			auto function_or_type = env.typeof(call.id);
+			if (std::holds_alternative<types::function_type>(function_or_type))
 			{
-				auto& param_tuple = std::get<extended_ast::tuple>(*call.params);
+				auto function_type = std::get<types::function_type>(function_or_type);
 
-				auto& typeof_tuple = env.typeof(std::get<extended_ast::identifier>(param_tuple.children.at(0)).name);
-				auto& product_type = std::get<types::product_type>(typeof_tuple);
+				// Check function signature against call signature
+				if (!(argument_type == *function_type.from))
+				{
+					return typecheck_error{
+						"Function call signature does not match function signature:\n"
+						+ std::visit(types::to_string, argument_type) + "\n"
+						+ std::visit(types::to_string, *function_type.from)
+					};
+				}
 
-				auto& field_name = std::get<extended_ast::identifier>(param_tuple.children.at(1));
-
-				auto field = std::find_if(product_type.product.begin(), product_type.product.end(), [&](auto& x) { return x.first == field_name.name.at(0); });
-
-				call.type = field->second;
+				call.type = std::move(*function_type.to);
 			}
-			else if (call.id.name.size() == 1 && call.id.name.at(0) == "set")
+			else if (std::holds_alternative<types::product_type>(function_or_type))
 			{
-				call.type = types::void_type();
+				auto product_type = std::get<types::product_type>(function_or_type);
+
+				// Check type signature against call signature
+				if (!(argument_type == types::type(product_type)))
+				{
+					return typecheck_error{
+						"Function call signature does not match function signature:\n"
+						+ std::visit(types::to_string, argument_type) + "\n"
+						+ std::visit(types::to_string, types::type(product_type))
+					};
+				}
+
+				call.type = product_type;
 			}
 			else
 			{
-				auto function_or_type = env.typeof(call.id.name);
-				if (std::holds_alternative<types::function_type>(function_or_type))
-				{
-					auto function_type = std::get<types::function_type>(function_or_type);
-
-					// Check function signature against call signature
-					if (!(argument_type == *function_type.from))
-					{
-						return typecheck_error{
-							"Function call signature does not match function signature:\n"
-							+ std::visit(types::to_string, argument_type) + "\n"
-							+ std::visit(types::to_string, *function_type.from)
-						};
-					}
-
-					call.type = std::move(*function_type.to);
-				}
-				else if (std::holds_alternative<types::product_type>(function_or_type))
-				{
-					auto product_type = std::get<types::product_type>(function_or_type);
-
-					// Check type signature against call signature
-					if (!(argument_type == types::type(product_type)))
-					{
-						return typecheck_error{
-							"Function call signature does not match function signature:\n"
-							+ std::visit(types::to_string, argument_type) + "\n"
-							+ std::visit(types::to_string, types::type(product_type))
-						};
-					}
-
-					call.type = types::name_type(call.id.name);
-				}
-				else
-				{
-					return typecheck_error{
-						"Function call can only call constructor or function"
-					};
-				}
+				return typecheck_error{
+					"Function call can only call constructor or function"
+				};
 			}
 
 			return std::make_tuple(
@@ -199,12 +179,12 @@ namespace fe
 		}
 		std::variant<std::tuple<extended_ast::node, typecheck_environment>, typecheck_error> typecheck(extended_ast::export_stmt&& export_stmt, typecheck_environment&& env)
 		{
-			export_stmt.type = types::void_type();
+			export_stmt.type = types::atom_type("void");
 			return std::make_tuple(std::move(export_stmt), std::move(env));
 		}
 		std::variant<std::tuple<extended_ast::node, typecheck_environment>, typecheck_error> typecheck(extended_ast::type_declaration&& type_declaration, typecheck_environment&& env)
 		{
-			type_declaration.type = types::void_type();
+			type_declaration.type = types::atom_type("void");
 
 			auto type = interpret(type_declaration.types, env);
 
@@ -220,19 +200,19 @@ namespace fe
 
 			type_declaration.types.type = std::move(type);
 
-			env.set_type(type_declaration.id.name.at(0), type_declaration.types.type);
+			env.set_type(type_declaration.id.segments.at(0), type_declaration.types.type);
 
 
 			return std::make_tuple(std::move(type_declaration), std::move(env));
 		}
 		std::variant<std::tuple<extended_ast::node, typecheck_environment>, typecheck_error> typecheck(extended_ast::integer&& integer, typecheck_environment&& env)
 		{
-			integer.type = types::name_type({"std", "i32"});
+			integer.type = types::atom_type("i32");
 			return std::make_tuple(std::move(integer), std::move(env));
 		}
 		std::variant<std::tuple<extended_ast::node, typecheck_environment>, typecheck_error> typecheck(extended_ast::string&& string, typecheck_environment&& env)
 		{
-			string.type = types::name_type({"std", "str"});
+			string.type = types::atom_type("str");
 			return std::make_tuple(std::move(string), std::move(env));
 		}
 		std::variant<std::tuple<extended_ast::node, typecheck_environment>, typecheck_error> typecheck(extended_ast::function&& func, typecheck_environment&& env)
@@ -248,7 +228,7 @@ namespace fe
 			// Allow recursion
 			if (func.name.has_value())
 			{
-				env.set_type(func.name.value().name.at(0), func.type);
+				env.set_type(func.name.value(), func.type);
 			}
 
 			auto res = typecheck(std::move(*func.body), std::move(env));
@@ -256,7 +236,7 @@ namespace fe
 			if (std::holds_alternative<typecheck_error>(res))
 				return std::get<typecheck_error>(res);
 
-			auto& [new_body, new_env] = std::get<std::tuple<extended_ast::node, typecheck_environment>>(res);
+			auto&[new_body, new_env] = std::get<std::tuple<extended_ast::node, typecheck_environment>>(res);
 			func.body = extended_ast::make_unique(std::move(new_body));
 			env = std::move(new_env);
 
@@ -317,7 +297,7 @@ namespace fe
 
 			// Check the validity of the type of the test path
 			auto test_type = std::visit(extended_ast::get_type, *branch_path.test_path);
-			if (!(test_type == types::type(types::name_type({"std", "bool"}))))
+			if (!(test_type == types::type(types::atom_type("bool"))))
 				return typecheck_error{ std::string("Branch number does not have a boolean test") };
 
 			branch_path.type = std::visit(extended_ast::get_type, *branch_path.code_path);
@@ -338,8 +318,7 @@ namespace fe
 
 		types::type interpret(const extended_ast::atom_type& identifier, const typecheck_environment& env)
 		{
-			return types::name_type(identifier.name.name);
-			//return env.typeof(identifier.name.name);
+			return env.typeof(identifier.name);
 		}
 		types::type interpret(const extended_ast::tuple_type& tuple, const typecheck_environment& env)
 		{
@@ -368,13 +347,13 @@ namespace fe
 		types::type interpret(const extended_ast::atom_declaration& atom, typecheck_environment& env)
 		{
 			auto res = interpret(atom.type_name, env);
-			env.set_type(atom.name.name.at(0), res);
+			env.set_type(atom.name, res);
 			return res;
 		}
 		types::type interpret(const extended_ast::function_declaration& function, typecheck_environment& env)
 		{
 			auto res = interpret(function.type_name, env);
-			env.set_type(function.name.name.at(0), res);
+			env.set_type(function.name, res);
 			return res;
 		}
 		types::type interpret(const extended_ast::tuple_declaration& tuple, typecheck_environment& env)
@@ -387,13 +366,13 @@ namespace fe
 				{
 					auto& atom = std::get<extended_ast::atom_declaration>(elem);
 					auto atom_type = interpret(atom, env);
-					res.product.push_back({ atom.name.name.at(0), atom_type });
+					res.product.push_back({ atom.name.segments.at(0), atom_type });
 				}
 				else if (std::holds_alternative<extended_ast::function_declaration>(elem))
 				{
 					auto& func = std::get<extended_ast::function_declaration>(elem);
 					auto func_type = interpret(func, env);
-					res.product.push_back({ func.name.name.at(0), func_type });
+					res.product.push_back({ func.name.segments.at(0), func_type });
 				}
 			}
 			return res;

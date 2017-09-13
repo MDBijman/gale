@@ -36,7 +36,6 @@ namespace fe
 			word = parser.new_terminal();
 			export_keyword = parser.new_terminal();
 			type_keyword = parser.new_terminal();
-			module_infix = parser.new_terminal();
 			function_keyword = parser.new_terminal();
 			left_curly_bracket = parser.new_terminal();
 			right_curly_bracket = parser.new_terminal();

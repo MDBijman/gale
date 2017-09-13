@@ -22,7 +22,6 @@ namespace fe
 			add_mapping(pipe_token, vertical_line);
 			add_mapping(right_arrow_token, right_arrow);
 			add_mapping(equals_token, equals);
-			add_mapping(module_infix_token, module_infix);
 			add_mapping(comma_token, comma);
 			add_mapping(keyword_token, [&](tools::lexing::token token) {
 				if (token.text == "export")

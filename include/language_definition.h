@@ -12,7 +12,7 @@ namespace fe
 {
 	tools::lexing::token_id
 		equals_token, keyword_token, string_token, number_token,
-		lrb_token, rrb_token, module_infix_token, right_arrow_token,
+		lrb_token, rrb_token, right_arrow_token,
 		lcb_token, rcb_token, comma_token, lsb_token, rsb_token, pipe_token;
 	
 	tools::ebnfe::non_terminal
@@ -23,7 +23,7 @@ namespace fe
 
 	tools::ebnfe::terminal
 		identifier, equals, left_bracket, right_bracket,
-		number, word, export_keyword, type_keyword, module_infix,
+		number, word, export_keyword, type_keyword, 
 		function_keyword, left_curly_bracket, right_curly_bracket,
 		right_arrow, comma, left_square_bracket, right_square_bracket,
 		branch_keyword, vertical_line, module_keyword, public_keyword;

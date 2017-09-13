@@ -13,14 +13,14 @@ namespace fe
 		struct tuple;
 		struct block;
 		struct identifier;
-		struct assignment;
 		struct function_call;
 		struct integer;
 		struct string;
 		struct function;
 		struct conditional_branch;
 		struct conditional_branch_path;
-		using node = std::variant<no_op, tuple, block, identifier, assignment, function_call, integer, string, function, conditional_branch, conditional_branch_path>;
+		struct set;
+		using node = std::variant<identifier, no_op, set, tuple, block, function_call, integer, string, function, conditional_branch, conditional_branch_path>;
 		using unique_node = std::unique_ptr<node>;
 	}
 }

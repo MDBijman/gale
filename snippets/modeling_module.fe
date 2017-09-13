@@ -11,10 +11,10 @@ translate_f = fn (Face f) -> Face = {
 	Face (translate_v (f.a), translate_v (f.b), translate_v (f.c))
 }
 
-x = Vertex(1,1,1)
-y = Vertex(1,1,1)
-z = Vertex(1,1,1)
-n = Face(x,y,z)
+x = Vertex (1, 1, 1)
+y = Vertex (1, 1, 1)
+z = Vertex (1, 1, 1)
+n = Face (x, y, z)
 m = translate_f (n)
 
 export Face Vertex

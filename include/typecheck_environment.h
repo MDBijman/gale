@@ -1,5 +1,6 @@
 #pragma once
 #include "types.h"
+#include "extended_ast.h"
 #include <unordered_map>
 #include <string>
 
@@ -36,37 +37,73 @@ namespace fe
 			}
 		}
 
-		void set_type(const std::string& name, types::type type)
+		void set_type(const std::string& id, types::type type)
 		{
-			types.insert_or_assign(name, type);
+			types.insert_or_assign(id, type);
 		}
 
-		const types::type& typeof(const std::string& name) const
+		void set_type(const extended_ast::identifier& id, types::type type)
 		{
-			return types.at(name);
-		}
-
-		const types::type& typeof(const std::vector<std::string>& identifier) const
-		{
-			if (identifier.size() == 1)
-				return typeof(identifier.at(0));
+			if (id.segments.size() == 1)
+			{
+				types.insert_or_assign(id.segments.at(0), type);
+			}
 			else
 			{
-				auto location = namespaces.find(identifier.at(0));
-				if (location != namespaces.end())
-					return location->second.typeof(std::vector<std::string>{ identifier.begin() + 1, identifier.end() });
-				else
+				namespaces.find(id.segments.at(0))->second.set_type(id.without_first_segment(), type);
+			}
+		}
+
+		const types::type& typeof(const extended_ast::identifier& id) const
+		{
+			if (id.segments.size() == 1)
+			{
+				return types.at(id.segments.at(0));
+			}
+			else
+			{
+				const types::type* type = nullptr;
+
+				for (int i = 0; i < id.segments.size(); i++)
 				{
-					auto& product_type = std::get<types::product_type>(
-						typeof(std::get<types::name_type>(
-							types.at(identifier.at(0))
-						).name)
-					);
-					auto& nested_type = std::find_if(product_type.product.begin(), product_type.product.end(), [&identifier](auto& x) { return x.first == identifier.at(1); });
+					if (namespaces.find(id.segments.at(i)) != namespaces.end())
+					{
+						return namespaces.find(id.segments.at(0))->second.typeof(id.without_first_segment());
+					}
 
-					return nested_type->second;
+					type = &types.at(id.segments.at(i));
+
+					if (i == id.segments.size() - 1)
+						return *type;
+
+					auto& product_type = std::get<types::product_type>(*type);
+					auto type_location = std::find_if(product_type.product.begin(), product_type.product.end(), [&](const std::pair<std::string, types::type>& x) {
+						return x.first == id.segments.at(i + 1);
+					});
+
+					type = &type_location->second;
 				}
+			}
+		}
 
+		void build_access_pattern(extended_ast::identifier& id, int index = 0)
+		{
+			if (namespaces.find(id.segments.at(index)) != namespaces.end())
+				namespaces.find(id.segments.at(index))->second.build_access_pattern(id, index + 1);
+			else
+			{
+				auto variable_name = id.segments.at(index);
+
+				std::reference_wrapper<types::type> current_type = types.at(variable_name);
+				for (int i = index + 1; i < id.segments.size(); i++)
+				{
+					auto& product_type = std::get<types::product_type>(current_type.get());
+					auto next_loc = std::find_if(product_type.product.begin(), product_type.product.end(), [&](auto& x) {
+						return x.first == id.segments.at(i);
+					});
+
+					id.offsets.push_back(std::distance(product_type.product.begin(), next_loc));
+				}
 			}
 		}
 
@@ -75,9 +112,9 @@ namespace fe
 			auto indent = [](std::string& text) {
 				return std::regex_replace(text, std::regex("\\n"), "\n\t");
 			};
-			
-			std::string r = name.has_value() ? 
-				"type_environment: " + name.value() + " (" : 
+
+			std::string r = name.has_value() ?
+				"type_environment: " + name.value() + " (" :
 				"type_environment (";
 
 			uint32_t counter = 0;

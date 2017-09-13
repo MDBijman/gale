@@ -22,6 +22,16 @@ namespace fe
 			return std::visit(helper, std::move(n));
 		}
 
+		std::variant<core_ast::node, lower_error> lower(extended_ast::identifier&& id)
+		{
+			auto modules = std::vector<std::string>(id.segments.begin(), id.segments.end() - 1 - id.offsets.size());
+
+			return core_ast::identifier{
+				std::move(modules),
+				std::move(id.segments.at(modules.size())),
+				std::move(id.offsets)
+			};
+		}
 		std::variant<core_ast::node, lower_error> lower(extended_ast::tuple&& tuple)
 		{
 			std::vector<core_ast::node> children;
@@ -33,7 +43,7 @@ namespace fe
 				children.push_back(std::move(std::get<core_ast::node>(lowered_child)));
 			}
 
-			return core_ast::node(core_ast::tuple(move(children), tuple.type));
+			return core_ast::tuple(move(children), tuple.type);
 		}
 		std::variant<core_ast::node, lower_error> lower(extended_ast::block&& block)
 		{
@@ -52,10 +62,6 @@ namespace fe
 		{
 			return core_ast::no_op();
 		}
-		std::variant<core_ast::node, lower_error> lower(extended_ast::identifier&& id)
-		{
-			return core_ast::node(core_ast::identifier(std::move(id.name), id.type));
-		}
 		std::variant<core_ast::node, lower_error> lower(extended_ast::assignment&& assignment)
 		{
 			auto res = lower(move(*assignment.value));
@@ -63,9 +69,15 @@ namespace fe
 				return std::get<lower_error>(res);
 			auto& lowered_value = std::get<core_ast::node>(res);
 
-			return core_ast::assignment(
-				core_ast::identifier(move(assignment.id.name), assignment.id.type),
-				std::make_unique<core_ast::node>(move(lowered_value))
+			auto lowered_id = lower(std::move(assignment.id));
+			if (std::holds_alternative<lower_error>(lowered_id))
+				return std::get<lower_error>(lowered_id);
+			auto& getter = std::get<core_ast::identifier>(std::get<core_ast::node>(lowered_id));
+
+			return core_ast::set(
+				std::move(getter),
+				std::make_unique<core_ast::node>(move(lowered_value)),
+				assignment.id.type
 			);
 		}
 		std::variant<core_ast::node, lower_error> lower(extended_ast::function_call&& fc)
@@ -78,10 +90,10 @@ namespace fe
 			auto id_or_error = lower(std::move(fc.id));
 			if (std::holds_alternative<lower_error>(id_or_error))
 				return std::get<lower_error>(id_or_error);
-			auto& id = std::get<core_ast::identifier>(std::get<core_ast::node>(id_or_error));
+			auto& getter = std::get<core_ast::identifier>(std::get<core_ast::node>(id_or_error));
 
 			return core_ast::function_call(
-				std::move(id),
+				std::move(getter),
 				move(core_ast::make_unique(lowered_params)),
 				std::move(fc.type)
 			);
@@ -92,14 +104,18 @@ namespace fe
 
 			auto return_type = func_param_type;
 			auto return_statement = core_ast::make_unique(
-				core_ast::identifier(std::vector<std::string>{"_arg0"}, func_param_type)
+				core_ast::identifier({}, { "_arg0" }, {})
 			);
 
-			auto parameter_name = core_ast::identifier("_arg0", func_param_type);
+			auto parameter_name = core_ast::identifier({}, { "_arg0" }, {});
 
+			auto lowered_getter = lower(type_declaration.id);
+			if (std::holds_alternative<lower_error>(lowered_getter))
+				return std::get<lower_error>(lowered_getter);
+			auto& id = std::get<core_ast::identifier>(std::get<core_ast::node>(lowered_getter));
 
-			return core_ast::assignment(
-				core_ast::identifier(move(type_declaration.id.name), move(type_declaration.id.type)),
+			return core_ast::set(
+				std::move(id),
 
 				core_ast::make_unique(core_ast::function(
 					std::optional<core_ast::identifier>(),
@@ -109,7 +125,12 @@ namespace fe
 						types::make_unique(types::product_type(return_type)),
 						types::make_unique(types::product_type(return_type))
 					)
-				))
+				)),
+
+				types::function_type(
+					types::make_unique(types::product_type(return_type)),
+					types::make_unique(types::product_type(return_type))
+				)
 			);
 		}
 		std::variant<core_ast::node, lower_error> lower(extended_ast::integer&& integer)
@@ -132,8 +153,9 @@ namespace fe
 				auto name_or_error = lower(std::move(func.name.value()));
 				if (std::holds_alternative<lower_error>(name_or_error))
 					return std::get<lower_error>(name_or_error);
-				else
-					name = std::make_optional(std::move(std::get<core_ast::identifier>(std::get<core_ast::node>(name_or_error))));
+				auto getter = std::get<core_ast::identifier>(std::get<core_ast::node>(name_or_error));
+
+				name = std::make_optional(getter);
 			}
 
 			auto body_or_error = lower(std::move(*func.body));

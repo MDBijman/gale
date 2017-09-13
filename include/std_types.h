@@ -13,8 +13,8 @@ namespace fe
 			{
 				typecheck_environment e{};
 
-				e.set_type("i32", fe::types::void_type());
-				e.set_type("str", fe::types::void_type());
+				e.set_type("i32", fe::types::atom_type("i32"));
+				e.set_type("str", fe::types::atom_type("i32"));
 				e.name = "std";
 
 				return e;

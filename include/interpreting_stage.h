@@ -44,7 +44,7 @@ namespace fe
 				if (std::holds_alternative<interp_error>(interpreted_line))
 					return std::get<interp_error>(interpreted_line);
 
-				auto[new_line, line_value, new_env] = std::move(std::get<std::tuple<core_ast::node, values::value, runtime_environment>>(interpreted_line));
+				auto& [new_line, line_value, new_env] = std::get<std::tuple<core_ast::node, values::value, runtime_environment>>(interpreted_line);
 				line = std::move(new_line);
 				env = std::move(new_env);
 
@@ -74,54 +74,27 @@ namespace fe
 		}
 		std::variant<std::tuple<core_ast::node, values::value, runtime_environment>, interp_error> interpret(core_ast::identifier&& id, runtime_environment&& env)
 		{
-			auto& id_value = env.valueof(id.name);
+			auto& id_value = env.valueof(id);
 
 			return make_tuple(std::move(id), id_value, std::move(env));
 		}
-		std::variant<std::tuple<core_ast::node, values::value, runtime_environment>, interp_error> interpret(core_ast::assignment&& assignment, runtime_environment&& env)
+		std::variant<std::tuple<core_ast::node, values::value, runtime_environment>, interp_error> interpret(core_ast::set&& setter, runtime_environment&& env)
 		{
-			auto interpreted_value = std::move(interpret(std::move(*assignment.value), std::move(env)));
+			auto interpreted_value = std::move(interpret(std::move(*setter.value), std::move(env)));
 			if (std::holds_alternative<interp_error>(interpreted_value))
 				return std::get<interp_error>(interpreted_value);
 
-			auto[new_code, new_value, new_env] = std::move(std::get<std::tuple<core_ast::node, values::value, runtime_environment>>(interpreted_value));
-			assignment.value = std::make_unique<core_ast::node>(move(new_code));
+			auto& [new_code, new_value, new_env] = std::get<std::tuple<core_ast::node, values::value, runtime_environment>>(interpreted_value);
+			setter.value = std::make_unique<core_ast::node>(move(new_code));
 			env = std::move(new_env);
 
-			env.set_value(assignment.id.name.at(0), move(new_value));
+			env.set_value(setter.id.variable_name, move(new_value));
 
-			return make_tuple(std::move(assignment), env.valueof(assignment.id.name), std::move(env));
+			return make_tuple(std::move(setter), env.valueof(setter.id), std::move(env));
 		}
 		std::variant<std::tuple<core_ast::node, values::value, runtime_environment>, interp_error> interpret(core_ast::function_call&& call, runtime_environment&& env)
 		{
-			// TODO rework field access
-			if (call.id.name.at(0) == "get")
-			{
-				auto& parameters = std::get<core_ast::tuple>(*call.parameter);
-				auto& tuple_name = std::get<core_ast::identifier>(parameters.children.at(0));
-				auto& field_name = std::get<core_ast::identifier>(parameters.children.at(1));
-
-				auto& tuple_type = std::get<types::product_type>(tuple_name.type);
-
-				int i = 0;
-				for (; i < tuple_type.product.size(); i++)
-				{
-					if (tuple_type.product.at(i).first == field_name.name.at(0))
-						break;
-				}
-
-				auto& tuple_value = env.valueof(tuple_name.name);
-				return std::make_tuple(
-					std::move(call),
-					std::get<values::tuple>(tuple_value).content.at(i),
-					std::move(env)
-				);
-			}
-			else if (call.id.name.at(0) == "set")
-			{
-				throw std::exception();
-			}
-			auto& function_value = env.valueof(call.id.name);
+			auto& function_value = env.valueof(call.id);
 
 			runtime_environment param_env{ env };
 			auto res_or_error = interpret(std::move(*call.parameter), std::move(param_env));
@@ -149,8 +122,8 @@ namespace fe
 
 				// TODO improve
 				runtime_environment function_env;
-				if (call.id.name.size() > 1)
-					function_env = env.get_module(call.id.name.at(0));
+				if (call.id.modules.size() > 1)
+					function_env = env.get_module(call.id.modules.at(0));
 				else
 					function_env = env;
 
@@ -161,15 +134,15 @@ namespace fe
 					auto& parameters = std::get<std::vector<core_ast::identifier>>(function.parameters);
 					for (auto i = 0; i < parameters.size(); i++)
 					{
-						const std::vector<std::string>& name = parameters.at(i).name;
-						function_env.set_value(name.at(0), std::move(param_tuple.content.at(i)));
+						auto& id = parameters.at(i);
+						function_env.set_value(id.variable_name, std::move(param_tuple.content.at(i)));
 					}
 				}
 				else
 				{
 					// Single argument function
 					auto& parameter = std::get<core_ast::identifier>(function.parameters);
-					function_env.set_value(parameter.name.at(0), std::move(param_tuple));
+					function_env.set_value(parameter.variable_name, std::move(param_tuple));
 				}
 
 				auto interpreted_value = interpret(*function.body, std::move(function_env));

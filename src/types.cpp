@@ -1,14 +1,34 @@
 #include "types.h"
 
-#define TYPE std::variant<name_type, sum_type, product_type, void_type, function_type, unset_type>
+#define TYPE std::variant<sum_type, product_type, atom_type, function_type, unset_type>
 namespace fe
 {
 	namespace types
 	{
 
-		std::string void_type::to_string()
+		// Atom Type
+
+		atom_type::atom_type(std::string name) : name(name) {}
+
+		// Move
+		atom_type::atom_type(atom_type&& other) : name(std::move(other.name)) {}
+		atom_type& atom_type::operator=(atom_type&& other)
 		{
-			return "void_type";
+			this->name = std::move(other.name);
+			return *this;
+		}
+
+		// Copy
+		atom_type::atom_type(const atom_type& other) : name(other.name) {}
+		atom_type& atom_type::operator=(const atom_type& other)
+		{
+			this->name = other.name;
+			return *this;
+		}
+
+		std::string atom_type::to_string()
+		{
+			return "atom_type " + name;
 		}
 
 		std::string unset_type::to_string()
@@ -150,42 +170,45 @@ namespace fe
 			return r;
 		}
 
-		// Named Type
+		//// Named Type
 
-		name_type::name_type() {}
-		name_type::name_type(std::vector<std::string> name) : name(name) {}
+		//name_type::name_type() {}
+		//name_type::name_type(std::vector<std::string> modules, std::vector<std::string> variables) : module_names(modules), variables(variables) {}
 
-		// Move
+		//// Move
 
-		name_type::name_type(name_type&& other) : name(std::move(other.name)) {}
+		//name_type::name_type(name_type&& other) : module_names(std::move(other.module_names)), variables(std::move(other.variables)) {}
 
-		name_type& name_type::operator=(name_type&& other)
-		{
-			this->name = std::move(other.name);
-			return *this;
-		}
+		//name_type& name_type::operator=(name_type&& other)
+		//{
+		//	this->module_names = std::move(other.module_names);
+		//	this->variables = std::move(other.variables);
+		//	return *this;
+		//}
 
-		// Copy
+		//// Copy
 
-		name_type::name_type(const name_type& other) : name(other.name) {}
+		//name_type::name_type(const name_type& other) : module_names(other.module_names), variables(other.variables) {}
 
-		name_type& name_type::operator=(const name_type& other)
-		{
-			this->name = other.name;
-			return *this;
-		}
+		//name_type& name_type::operator=(const name_type& other)
+		//{
+		//	this->module_names = other.module_names;
+		//	this->variables = other.variables;
+		//	return *this;
+		//}
 
-		std::string name_type::to_string()
-		{
-			std::string res;
-			for (auto& s : name) res.append(s);
-			return res;
-		}
+		//std::string name_type::to_string()
+		//{
+		//	std::string res;
+		//	for (auto& s : module_names) res.append(s);
+		//	for (auto& s : variables) res.append(s);
+		//	return res;
+		//}
 
 		// Operators
-		bool operator==(const void_type& one, const void_type& two)
+		bool operator==(const atom_type& one, const atom_type& two)
 		{
-			return true;
+			return one.name == two.name;
 		}
 
 		bool operator==(const unset_type& one, const unset_type& two)
@@ -222,10 +245,27 @@ namespace fe
 			return (*one.from == *two.from) && (*one.to == *two.to);
 		}
 
-		bool operator==(const name_type& one, const name_type& two)
-		{
-			return one.name == two.name;
-		}
+		//bool operator==(const name_type& one, const name_type& two)
+		//{
+		//	if (one.module_names.size() != two.module_names.size())
+		//		return false;
+
+		//	if (one.variables.size() != two.variables.size())
+		//		return false;
+		//	
+		//	for (unsigned int i = 0; i < one.module_names.size(); i++)
+		//	{
+		//		if (one.module_names.at(i) != two.module_names.at(i))
+		//			return false;
+		//	}
+		//	for (unsigned int i = 0; i < one.variables.size(); i++)
+		//	{
+		//		if (one.variables.at(i) != two.variables.at(i))
+		//			return false;
+		//	}
+
+		//	return true;
+		//}
 
 
 	}
