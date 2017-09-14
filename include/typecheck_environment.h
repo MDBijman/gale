@@ -1,6 +1,7 @@
 #pragma once
 #include "types.h"
 #include "extended_ast.h"
+#include "error.h"
 #include <unordered_map>
 #include <string>
 
@@ -54,11 +55,14 @@ namespace fe
 			}
 		}
 
-		const types::type& typeof(const extended_ast::identifier& id) const
+		std::variant<std::reference_wrapper<const types::type>, type_env_error> typeof(const extended_ast::identifier& id) const
 		{
 			if (id.segments.size() == 1)
 			{
-				return types.at(id.segments.at(0));
+				if (types.find(id.segments.at(0)) == types.end())
+					return type_env_error{ "Identifier " + id.to_string() + " is unbounded" };
+
+				return std::ref(types.at(id.segments.at(0)));
 			}
 			else
 			{
@@ -68,7 +72,9 @@ namespace fe
 				{
 					if (namespaces.find(id.segments.at(i)) != namespaces.end())
 					{
-						return namespaces.find(id.segments.at(0))->second.typeof(id.without_first_segment());
+						return namespaces
+							.find(id.segments.at(0))->second
+							.typeof(id.without_first_segment());
 					}
 
 					type = &types.at(id.segments.at(i));
@@ -86,7 +92,7 @@ namespace fe
 			}
 		}
 
-		void build_access_pattern(extended_ast::identifier& id, int index = 0)
+		void build_access_pattern(extended_ast::identifier& id, int index = 0) const
 		{
 			if (namespaces.find(id.segments.at(index)) != namespaces.end())
 				namespaces.find(id.segments.at(index))->second.build_access_pattern(id, index + 1);
@@ -94,7 +100,7 @@ namespace fe
 			{
 				auto variable_name = id.segments.at(index);
 
-				std::reference_wrapper<types::type> current_type = types.at(variable_name);
+				std::reference_wrapper<const types::type> current_type = types.at(variable_name);
 				for (int i = index + 1; i < id.segments.size(); i++)
 				{
 					auto& product_type = std::get<types::product_type>(current_type.get());

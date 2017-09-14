@@ -26,4 +26,14 @@ namespace fe
 	{
 		std::string message;
 	};
+
+	struct type_env_error
+	{
+		std::string message;
+	};
+
+	struct value_env_error
+	{
+		std::string message;
+	};
 }

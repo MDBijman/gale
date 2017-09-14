@@ -85,7 +85,8 @@ namespace fe
 		}
 		std::variant<std::tuple<extended_ast::node, typecheck_environment>, typecheck_error> typecheck(extended_ast::identifier&& id, typecheck_environment&& env)
 		{
-			id.type = env.typeof(id);
+			id.type = std::get<std::reference_wrapper<const types::type>>(env.typeof(id)).get();
+
 			env.build_access_pattern(id);
 
 			return std::make_tuple(
@@ -132,7 +133,8 @@ namespace fe
 
 			auto& argument_type = std::visit(extended_ast::get_type, *call.params);
 
-			auto function_or_type = env.typeof(call.id);
+			auto function_or_type_or_error = env.typeof(call.id);
+			const types::type& function_or_type = std::get<std::reference_wrapper<const types::type>>(function_or_type_or_error).get();
 			if (std::holds_alternative<types::function_type>(function_or_type))
 			{
 				auto function_type = std::get<types::function_type>(function_or_type);
@@ -151,7 +153,7 @@ namespace fe
 			}
 			else if (std::holds_alternative<types::product_type>(function_or_type))
 			{
-				auto product_type = std::get<types::product_type>(function_or_type);
+				const types::product_type& product_type = std::get<types::product_type>(function_or_type);
 
 				// Check type signature against call signature
 				if (!(argument_type == types::type(product_type)))
@@ -318,7 +320,7 @@ namespace fe
 
 		types::type interpret(const extended_ast::atom_type& identifier, const typecheck_environment& env)
 		{
-			return env.typeof(identifier.name);
+			return std::get<std::reference_wrapper<const types::type>>(env.typeof(identifier.name)).get();
 		}
 		types::type interpret(const extended_ast::tuple_type& tuple, const typecheck_environment& env)
 		{

@@ -82,6 +82,15 @@ namespace fe
 				return new_id;
 			}
 
+			std::string to_string() const
+			{
+				std::string res;
+				for (auto segment : segments)
+					res.append(segment + ", ");
+				res.erase(res.size() - 2, 2);
+				return res;
+			}
+
 			std::vector<std::string> segments;
 			std::vector<int> offsets;
 			types::type type;

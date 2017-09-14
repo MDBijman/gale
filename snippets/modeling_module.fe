@@ -1,6 +1,6 @@
 module modeling
 
-type Vertex (std.i32 x, std.i32 y, std.i32 z)
+type Vertex (std.i32 x, std.i32 y, std.i32 z) 
 type Face (Vertex a, Vertex b, Vertex c)
 
 translate_v = fn (Vertex v, std.i32 x, std.i32 y, std.i32 z) -> Vertex = {
