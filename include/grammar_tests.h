@@ -40,6 +40,7 @@ namespace tests
 
 		void run_all()
 		{
+			std::cout << "Testing grammar parser\n";
 			test_id_as_arithmetic();
 			test_id_as_function_call();
 			test_id_as_expression();

@@ -11,6 +11,7 @@ namespace fe
 	{
 	public:
 		typecheck_environment() {}
+		typecheck_environment(std::optional<std::string> name) : name(name) {}
 		typecheck_environment(std::unordered_map<std::string, types::type> type_mapping) : types(type_mapping) {}
 		typecheck_environment(const typecheck_environment& other) : types(other.types), name(other.name), namespaces(other.namespaces) {}
 
@@ -68,34 +69,35 @@ namespace fe
 			{
 				const types::type* type = nullptr;
 
-				for (int i = 0; i < id.segments.size(); i++)
+				if (namespaces.find(id.segments.at(0)) != namespaces.end())
 				{
-					if (namespaces.find(id.segments.at(i)) != namespaces.end())
-					{
-						return namespaces
-							.find(id.segments.at(0))->second
-							.typeof(id.without_first_segment());
-					}
+					return namespaces
+						.find(id.segments.at(0))->second
+						.typeof(id.without_first_segment());
+				}
 
-					type = &types.at(id.segments.at(i));
+				type = &types.at(id.segments.at(0));
 
-					if (i == id.segments.size() - 1)
-						return *type;
-
+				for (int i = 1; i < id.segments.size(); i++)
+				{
 					auto& product_type = std::get<types::product_type>(*type);
 					auto type_location = std::find_if(product_type.product.begin(), product_type.product.end(), [&](const std::pair<std::string, types::type>& x) {
-						return x.first == id.segments.at(i + 1);
+						return x.first == id.segments.at(i);
 					});
 
 					type = &type_location->second;
 				}
+
+				return *type;
 			}
 		}
 
-		void build_access_pattern(extended_ast::identifier& id, int index = 0) const
+		extended_ast::identifier build_access_pattern(extended_ast::identifier&& id, int index = 0) const
 		{
 			if (namespaces.find(id.segments.at(index)) != namespaces.end())
-				namespaces.find(id.segments.at(index))->second.build_access_pattern(id, index + 1);
+			{
+				return namespaces.find(id.segments.at(index))->second.build_access_pattern(std::move(id), index + 1);
+			}
 			else
 			{
 				auto variable_name = id.segments.at(index);
@@ -103,14 +105,20 @@ namespace fe
 				std::reference_wrapper<const types::type> current_type = types.at(variable_name);
 				for (int i = index + 1; i < id.segments.size(); i++)
 				{
+					// Find the segment within the product type that has the correct name
 					auto& product_type = std::get<types::product_type>(current_type.get());
 					auto next_loc = std::find_if(product_type.product.begin(), product_type.product.end(), [&](auto& x) {
 						return x.first == id.segments.at(i);
 					});
 
-					id.offsets.push_back(std::distance(product_type.product.begin(), next_loc));
+					// Calculate offset
+					auto offset = std::distance(product_type.product.begin(), next_loc);
+					id.offsets.push_back(offset);
+					current_type = product_type.product.at(offset).second;
 				}
 			}
+
+			return id;
 		}
 
 		std::string to_string(bool include_modules = false)

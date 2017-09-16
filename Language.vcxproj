@@ -138,6 +138,7 @@
     <ClCompile Include="src\values.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\grammar_tests.h" />
     <ClInclude Include="include\runtime_environment.h" />
     <ClInclude Include="include\core_operations.h" />
     <ClInclude Include="include\error.h" />
@@ -158,10 +159,10 @@
     <ClInclude Include="include\lexer_stage.h" />
     <ClInclude Include="include\parser_stage.h" />
     <ClInclude Include="include\lexer.h" />
+    <ClInclude Include="include\test.h" />
     <ClInclude Include="include\tests.h" />
-    <ClInclude Include="include\tests\end2end_tests.h" />
-    <ClInclude Include="include\tests\grammar_tests.h" />
     <ClInclude Include="include\typechecker_stage.h" />
+    <ClInclude Include="include\typecheck_env_tests.h" />
     <ClInclude Include="include\types.h" />
     <ClInclude Include="include\typecheck_environment.h" />
     <ClInclude Include="include\values.h" />

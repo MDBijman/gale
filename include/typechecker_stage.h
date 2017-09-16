@@ -87,7 +87,7 @@ namespace fe
 		{
 			id.type = std::get<std::reference_wrapper<const types::type>>(env.typeof(id)).get();
 
-			env.build_access_pattern(id);
+			id = env.build_access_pattern(std::move(id));
 
 			return std::make_tuple(
 				std::move(id),

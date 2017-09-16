@@ -27,27 +27,6 @@
     <Filter Include="Source Files\fe\data">
       <UniqueIdentifier>{4daa90e2-78bc-4f8f-8bac-378becc88020}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Tests">
-      <UniqueIdentifier>{0c93d3ae-ca03-48db-a348-b87fc31b6c6a}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Tests\fe">
-      <UniqueIdentifier>{4e95b8f4-7cf0-4a8e-bd9e-eaa05ca6722d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Tests\fe\data">
-      <UniqueIdentifier>{2f104b29-8e23-42a2-8886-85e5623a8376}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Tests\tools">
-      <UniqueIdentifier>{41aecb1a-45c3-4599-9406-1a69c228a146}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Tests\tools\compilation">
-      <UniqueIdentifier>{b01d3415-f994-4aa2-8f24-be06b427774f}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Tests\tools\lexing">
-      <UniqueIdentifier>{97d6f300-48f8-45fc-b8fe-310fc4a882b4}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Tests\tools\parsing">
-      <UniqueIdentifier>{ffb901a3-576a-4b9a-80f0-3fcc8ed842d7}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source Files\fe\pipeline">
       <UniqueIdentifier>{8aacbe17-1c1f-4b03-a529-fe01fa3e41cd}</UniqueIdentifier>
     </Filter>
@@ -65,6 +44,30 @@
     </Filter>
     <Filter Include="Source Files\tools\files">
       <UniqueIdentifier>{be0ab643-ac95-4b90-86a9-f3e4d15c919d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\tests">
+      <UniqueIdentifier>{0c93d3ae-ca03-48db-a348-b87fc31b6c6a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\tests\fe">
+      <UniqueIdentifier>{4e95b8f4-7cf0-4a8e-bd9e-eaa05ca6722d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\tests\fe\data">
+      <UniqueIdentifier>{2f104b29-8e23-42a2-8886-85e5623a8376}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\tests\fe\pipeline">
+      <UniqueIdentifier>{300eaeb5-57dd-4f33-93d1-ec8f8fece721}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\tests\tools">
+      <UniqueIdentifier>{41aecb1a-45c3-4599-9406-1a69c228a146}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\tests\tools\compilation">
+      <UniqueIdentifier>{b01d3415-f994-4aa2-8f24-be06b427774f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\tests\tools\lexing">
+      <UniqueIdentifier>{97d6f300-48f8-45fc-b8fe-310fc4a882b4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\tests\tools\parsing">
+      <UniqueIdentifier>{ffb901a3-576a-4b9a-80f0-3fcc8ed842d7}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -172,19 +175,22 @@
       <Filter>Source Files\fe\pipeline</Filter>
     </ClInclude>
     <ClInclude Include="include\tests.h">
-      <Filter>Tests</Filter>
-    </ClInclude>
-    <ClInclude Include="include\tests\end2end_tests.h">
-      <Filter>Tests\fe</Filter>
-    </ClInclude>
-    <ClInclude Include="include\tests\grammar_tests.h">
-      <Filter>Tests\fe</Filter>
+      <Filter>Source Files\tests</Filter>
     </ClInclude>
     <ClInclude Include="include\runtime_environment.h">
       <Filter>Source Files\fe\data</Filter>
     </ClInclude>
     <ClInclude Include="include\typecheck_environment.h">
       <Filter>Source Files\fe\data</Filter>
+    </ClInclude>
+    <ClInclude Include="include\test.h">
+      <Filter>Source Files\tests</Filter>
+    </ClInclude>
+    <ClInclude Include="include\typecheck_env_tests.h">
+      <Filter>Source Files\tests\fe\data</Filter>
+    </ClInclude>
+    <ClInclude Include="include\grammar_tests.h">
+      <Filter>Source Files\tests\tools\parsing</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -2,6 +2,15 @@ module modeling
 
 type Vertex (std.i32 x, std.i32 y, std.i32 z) 
 type Face (Vertex a, Vertex b, Vertex c)
+type Model (ref Face[] faces)
+
+create_vertex = fn (std.i32 x, std.i32 y, std.i32 z) -> Vertex = {
+	Vertex (x, y, z)
+}
+
+create_face = fn (Vertex a, Vertex b, Vertex c) -> Face = {
+	Face (a, b, c)
+}
 
 translate_v = fn (Vertex v, std.i32 x, std.i32 y, std.i32 z) -> Vertex = {
 	Vertex (add (v.x, x), add (v.y, y), add (v.z, z))

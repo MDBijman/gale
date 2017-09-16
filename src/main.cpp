@@ -11,11 +11,11 @@
 
 #include "values.h"
 
+#include "tests.h"
 #include "language_module.h"
 #include "std_input.h"
 #include "std_types.h"
 #include "core_operations.h"
-#include "tests.h"
 #include <iostream>
 
 fe::pipeline create_pipeline()
