@@ -1,8 +1,6 @@
 #include "core_ast.h"
 #include <vector>
 
-#define AST_NODE std::variant<identifier, no_op, set, tuple, block, function_call, integer, string, function, conditional_branch, conditional_branch_path>
-
 namespace fe
 {
 	namespace core_ast
@@ -76,7 +74,7 @@ namespace fe
 
 		// Function
 
-		function::function(std::optional<identifier>&& name, std::variant<std::vector<identifier>, identifier>&& parameters, std::unique_ptr<AST_NODE>&& body, types::type t) : name(std::move(name)), parameters(std::move(parameters)), type(t), body(std::move(body)) {}
+		function::function(std::optional<identifier>&& name, std::variant<std::vector<identifier>, identifier>&& parameters, std::unique_ptr<node>&& body, types::type t) : name(std::move(name)), parameters(std::move(parameters)), type(t), body(std::move(body)) {}
 		
 		// Copy
 		function::function(const function& other) : name(other.name), parameters(other.parameters), body(core_ast::make_unique(*other.body)), type(other.type) {}
@@ -104,7 +102,7 @@ namespace fe
 		// Tuple
 
 
-		tuple::tuple(std::vector<AST_NODE> children, types::type t) : type(t), children(std::move(children)) {}
+		tuple::tuple(std::vector<node> children, types::type t) : type(t), children(std::move(children)) {}
 		
 		// Copy
 		tuple::tuple(const tuple& other) : children(other.children), type(other.type) {}
@@ -124,46 +122,17 @@ namespace fe
 			return *this;
 		}
 
-
-		// Get
-
-
-		//get::get(identifier&& modules, std::string variable, accessor field_offsets, types::type t) : modules(std::move(modules)), variable(variable), field_offsets(field_offsets), type(t) {};
-
-		//// Copy
-		//get::get(const get& other) : modules(other.modules), variable(other.variable), field_offsets(other.field_offsets), type(other.type) {};
-		//get& get::operator=(const get& other)
-		//{
-		//	this->modules = other.modules;
-		//	this->variable = other.variable;
-		//	this->field_offsets = other.field_offsets;
-		//	this->type = other.type;
-		//	return *this;
-		//}
-
-		//// Move
-		//get::get(get&& other) : modules(std::move(other.modules)), variable(std::move(other.variable)), field_offsets(std::move(other.field_offsets)), type(std::move(other.type)) {};
-		//get& get::operator=(get&& other)
-		//{
-		//	this->modules = std::move(other.modules);
-		//	this->variable = std::move(other.variable);
-		//	this->field_offsets = std::move(other.field_offsets);
-		//	this->type = std::move(other.type);
-		//	return *this;
-		//}
-
-
 		// Set
 
-		set::set(identifier&& id, std::unique_ptr<AST_NODE>&& value, types::type t) : id(std::move(id)), value(std::move(value)), type(t) {};
+		set::set(identifier&& id, std::unique_ptr<node>&& value, types::type t) : id(std::move(id)), value(std::move(value)), type(t) {};
 
 		// Copy
-		set::set(const set& other) : id(other.id), value(std::make_unique<AST_NODE>(*other.value)), type(other.type) {};
+		set::set(const set& other) : id(other.id), value(std::make_unique<node>(*other.value)), type(other.type) {};
 		set& set::operator=(const set& other)
 		{
 			this->id = other.id;
 			this->type = other.type;
-			this->value = std::make_unique<AST_NODE>(*other.value);
+			this->value = std::make_unique<node>(*other.value);
 			return *this;
 		}
 
@@ -180,7 +149,7 @@ namespace fe
 
 		// Block
 
-		block::block(std::vector<AST_NODE> children, types::type t) : type(t), children(std::move(children)) {}
+		block::block(std::vector<node> children, types::type t) : type(t), children(std::move(children)) {}
 
 		// Copy
 		block::block(const block& other) : children(other.children), type(other.type) {}
@@ -232,7 +201,7 @@ namespace fe
 		// Function Call
 
 
-		function_call::function_call(identifier&& id, std::unique_ptr<AST_NODE>&& parameter, types::type&& t)
+		function_call::function_call(identifier&& id, std::unique_ptr<node>&& parameter, types::type&& t)
 			: type(std::move(t)), id(std::move(id)), parameter(std::move(parameter)) {}
 
 		// Copy
@@ -256,52 +225,31 @@ namespace fe
 		}
 
 
-		// Conditional Branch Path
+		// Branch
 
-		conditional_branch_path::conditional_branch_path(std::unique_ptr<AST_NODE> test, std::unique_ptr<AST_NODE> code) : test_path(std::move(test)), code_path(std::move(code)) {}
+		branch::branch(unique_node test, unique_node true_path, unique_node false_path) : test_path(std::move(test)), true_path(std::move(true_path)), false_path(std::move(false_path)) {}
 
 		// Copy
-		conditional_branch_path::conditional_branch_path(const conditional_branch_path& other) : code_path(make_unique(*other.code_path)), test_path(make_unique(*other.test_path)), type(other.type) {}
-		conditional_branch_path& conditional_branch_path::operator=(const conditional_branch_path& other)
+		branch::branch(const branch& other) : 
+			test_path(std::make_unique<node>(*other.test_path)), true_path(std::make_unique<node>(*other.true_path)), false_path(std::make_unique<node>(*other.false_path)), type(other.type) {}
+		branch& branch::operator=(const branch& other)
 		{
-			this->test_path = make_unique(*other.test_path);
-			this->code_path = make_unique(*other.code_path);
+			this->test_path = std::make_unique<node>(*other.test_path);
+			this->true_path = std::make_unique<node>(*other.true_path);
+			this->false_path = std::make_unique<node>(*other.false_path);
 			this->type = other.type;
 			return *this;
 		}
 
 		// Move
-		conditional_branch_path::conditional_branch_path(conditional_branch_path&& other) : code_path(std::move(other.code_path)), test_path(std::move(other.test_path)), type(std::move(other.type)) {}
-		conditional_branch_path& conditional_branch_path::operator=(conditional_branch_path&& other) {
-			this->code_path = std::move(other.code_path);
+		branch::branch(branch&& other) : test_path(std::move(other.test_path)), true_path(std::move(other.true_path)), false_path(std::move(other.false_path)), type(std::move(other.type)) {}
+		branch& branch::operator=(branch&& other)
+		{
 			this->test_path = std::move(other.test_path);
-			this->type = std::move(other.type);
-			return *this;
-		}
-
-		// Conditional Branch
-
-
-		conditional_branch::conditional_branch(std::vector<conditional_branch_path>&& branches, types::type&& t) : branches(std::move(branches)), type(t) {}
-
-		// Copy
-		conditional_branch::conditional_branch(const conditional_branch& other) : branches(other.branches), type(other.type) {}
-		conditional_branch& conditional_branch::operator=(const conditional_branch& other)
-		{
-			this->branches = other.branches;
+			this->true_path = std::move(other.true_path);
+			this->false_path = std::move(other.false_path);
 			this->type = other.type;
-			return *this;
-		}
-
-		// Move
-		conditional_branch::conditional_branch(conditional_branch&& other) : branches(std::move(other.branches)), type(std::move(other.type)) {}
-		conditional_branch& conditional_branch::operator=(conditional_branch&& other)
-		{
-			this->branches = std::move(other.branches);
-			this->type = std::move(other.type);
 			return *this;
 		}
 	}
 }
-
-#undef AST_NODE

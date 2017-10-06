@@ -25,4 +25,9 @@ b = Vertex (2, 2, 2)
 c = Vertex (3, 4, 3)
 d = Face (a, b, c)
 
+z = case [
+	| gte(0, 1) -> 3
+	| lt(1, 3) -> 5
+]
+
 export Face Vertex

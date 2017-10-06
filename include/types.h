@@ -5,7 +5,7 @@
 #include <optional>
 
 // Also defined in types.cpp
-#define TYPE std::variant<sum_type, product_type, atom_type, function_type, unset_type>
+#define TYPE std::variant<reference_type, array_type, sum_type, product_type, atom_type, function_type, unset_type>
 namespace fe
 {
 	namespace types
@@ -38,6 +38,8 @@ namespace fe
 		struct function_type;
 		struct product_type;
 		struct name_type;
+		struct array_type;
+		struct reference_type;
 
 		struct sum_type
 		{
@@ -55,6 +57,42 @@ namespace fe
 			std::string to_string();
 
 			std::vector<TYPE> sum;
+		};
+
+		struct array_type
+		{
+			array_type();
+			array_type(std::unique_ptr<TYPE> t);
+
+			// Move
+			array_type(array_type&& other);
+			array_type& operator=(array_type&& other);
+
+			// Copy
+			array_type(const array_type& other);
+			array_type& operator=(const array_type& other);
+
+			std::string to_string();
+
+			std::unique_ptr<TYPE> type;
+		};
+
+		struct reference_type
+		{
+			reference_type();
+			reference_type(std::unique_ptr<TYPE> t);
+
+			// Move
+			reference_type(reference_type&& other);
+			reference_type& operator=(reference_type&& other);
+
+			// Copy
+			reference_type(const reference_type& other);
+			reference_type& operator=(const reference_type& other);
+
+			std::string to_string();
+
+			std::unique_ptr<TYPE> type;
 		};
 
 		struct product_type
@@ -92,25 +130,6 @@ namespace fe
 			std::unique_ptr<TYPE> from, to;
 		};
 
-		//struct name_type
-		//{
-		//	name_type();
-		//	name_type(std::vector<std::string> modules, std::vector<std::string> variables);
-
-		//	// Move
-		//	name_type(name_type&& other);
-		//	name_type& operator=(name_type&& other);
-
-		//	// Copy
-		//	name_type(const name_type& other);
-		//	name_type& operator=(const name_type& other);
-
-		//	std::string to_string();
-
-		//	std::vector<std::string> module_names;
-		//	std::vector<std::string> variables;
-		//};
-
 		// Variant
 
 		using type = TYPE;
@@ -138,7 +157,9 @@ namespace fe
 
 		bool operator==(const function_type& one, const function_type& two);
 
-		//bool operator==(const name_type& one, const name_type& two);
+		bool operator==(const array_type& one, const array_type& two);
+
+		bool operator==(const reference_type& one, const reference_type& two);
 	}
 }
 #undef TYPE

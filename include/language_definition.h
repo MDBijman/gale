@@ -26,7 +26,8 @@ namespace fe
 		number, word, export_keyword, type_keyword, 
 		function_keyword, left_curly_bracket, right_curly_bracket,
 		right_arrow, comma, left_square_bracket, right_square_bracket,
-		branch_keyword, vertical_line, module_keyword, public_keyword;
+		case_keyword, vertical_line, module_keyword, public_keyword,
+		ref_keyword;
 
 	using pipeline = language::pipeline<
 		tools::lexing::token,

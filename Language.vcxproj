@@ -139,6 +139,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\grammar_tests.h" />
+    <ClInclude Include="include\perf_test.h" />
     <ClInclude Include="include\runtime_environment.h" />
     <ClInclude Include="include\core_operations.h" />
     <ClInclude Include="include\error.h" />
@@ -159,6 +160,7 @@
     <ClInclude Include="include\lexer_stage.h" />
     <ClInclude Include="include\parser_stage.h" />
     <ClInclude Include="include\lexer.h" />
+    <ClInclude Include="include\tags.h" />
     <ClInclude Include="include\test.h" />
     <ClInclude Include="include\tests.h" />
     <ClInclude Include="include\typechecker_stage.h" />

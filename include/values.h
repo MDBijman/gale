@@ -17,10 +17,9 @@ namespace fe
 		struct integer;
 		struct string;
 		struct function;
-		struct conditional_branch;
-		struct conditional_branch_path;
+		struct branch;
 		struct set;
-		using node = std::variant<identifier, no_op, set, tuple, block, function_call, integer, string, function, conditional_branch, conditional_branch_path>;
+		using node = std::variant<identifier, no_op, set, tuple, block, function_call, integer, string, function, branch>;
 		using unique_node = std::unique_ptr<node>;
 	}
 }

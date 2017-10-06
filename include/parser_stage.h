@@ -43,10 +43,11 @@ namespace fe
 			comma = parser.new_terminal();
 			left_square_bracket = parser.new_terminal();
 			right_square_bracket = parser.new_terminal();
-			branch_keyword = parser.new_terminal();
+			case_keyword = parser.new_terminal();
 			vertical_line = parser.new_terminal();
 			module_keyword = parser.new_terminal();
 			public_keyword = parser.new_terminal();
+			ref_keyword = parser.new_terminal();
 
 			using namespace tools::ebnf::meta;
 			parser
@@ -57,6 +58,7 @@ namespace fe
 				.new_rule({ export_stmt, { export_keyword, identifier, star } })
 				.new_rule({ assignment, { identifier, equals, expression } })
 				.new_rule({ expression, {
+					ref_keyword, expression, alt,
 					value_tuple, alt,
 					word, alt,
 					identifier, lsb, expression, rsb, alt,
@@ -69,19 +71,19 @@ namespace fe
 				.new_rule({ tuple_element, { expression, lsb, comma, tuple_element, rsb } })
 				.new_rule({ function, { function_keyword, variable_declaration, right_arrow, type_expression, equals, expression} })
 
-				.new_rule({ branch, { branch_keyword, left_square_bracket, branch_element, star, right_square_bracket } })
+				.new_rule({ branch, { case_keyword, left_square_bracket, branch_element, star, right_square_bracket } })
 				.new_rule({ branch_element, { vertical_line, expression, right_arrow, expression } })
 
 				.new_rule({ variable_declaration, {
-					left_bracket, type_expression, identifier, lrb, comma, type_expression, identifier, rrb, star, right_bracket, alt,
+					left_bracket, lsb, ref_keyword, rsb, type_expression, identifier, lrb, comma, lsb, ref_keyword, rsb, type_expression, identifier, rrb, star, right_bracket, alt,
 					identifier, identifier
 				} })
 
 				// Type system
 				.new_rule({ type_expression, {
-					identifier, alt,
+					identifier, lsb, left_square_bracket, right_square_bracket, rsb, alt,
 					type_function, alt,
-					type_tuple
+					type_tuple, 
 				} })
 				.new_rule({ type_tuple, { left_bracket, type_tuple_elements, right_bracket } })
 				.new_rule({ type_tuple_elements, { type_expression, lsb, comma, type_tuple_elements, rsb } })
@@ -99,15 +101,15 @@ namespace fe
 				.new_transformation(module_keyword, tools::ebnfe::transformation_type::REMOVE)
 				.new_transformation(left_bracket, tools::ebnfe::transformation_type::REMOVE)
 				.new_transformation(right_bracket, tools::ebnfe::transformation_type::REMOVE)
-				.new_transformation(left_square_bracket, tools::ebnfe::transformation_type::REMOVE)
-				.new_transformation(right_square_bracket, tools::ebnfe::transformation_type::REMOVE)
+				//.new_transformation(left_square_bracket, tools::ebnfe::transformation_type::REMOVE)
+				//.new_transformation(right_square_bracket, tools::ebnfe::transformation_type::REMOVE)
 				.new_transformation(left_curly_bracket, tools::ebnfe::transformation_type::REMOVE)
 				.new_transformation(right_curly_bracket, tools::ebnfe::transformation_type::REMOVE)
 				.new_transformation(equals, tools::ebnfe::transformation_type::REMOVE)
 				.new_transformation(export_keyword, tools::ebnfe::transformation_type::REMOVE)
 				.new_transformation(type_keyword, tools::ebnfe::transformation_type::REMOVE)
 				.new_transformation(function_keyword, tools::ebnfe::transformation_type::REMOVE)
-				.new_transformation(branch_keyword, tools::ebnfe::transformation_type::REMOVE)
+				.new_transformation(case_keyword, tools::ebnfe::transformation_type::REMOVE)
 				.new_transformation(right_arrow, tools::ebnfe::transformation_type::REMOVE)
 				.new_transformation(comma, tools::ebnfe::transformation_type::REMOVE)
 				.new_transformation(vertical_line, tools::ebnfe::transformation_type::REMOVE)

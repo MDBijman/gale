@@ -187,38 +187,38 @@ namespace fe
 		}
 		std::variant<core_ast::node, lower_error> lower(extended_ast::conditional_branch&& branch)
 		{
-			std::vector<core_ast::conditional_branch_path> lowered_branches;
+			core_ast::branch child_branch(nullptr, nullptr, nullptr);
+			core_ast::branch* current_child = &child_branch;
 
-			for (decltype(auto) branch : branch.branches)
+			for (auto it = branch.branches.begin(); it != branch.branches.end(); it++)
 			{
-				auto lowered_branch_or_error = lower(std::move(branch));
-				if (std::holds_alternative<lower_error>(lowered_branch_or_error))
-					return std::get<lower_error>(lowered_branch_or_error);
-				auto& lowered_branch = std::get<core_ast::node>(lowered_branch_or_error);
+				if (it != branch.branches.begin())
+				{
+					current_child->false_path = std::make_unique<core_ast::node>(core_ast::branch(nullptr, nullptr, nullptr));
+					current_child = &std::get<core_ast::branch>(*current_child->false_path.get());
+				}
 
-				lowered_branches.push_back(std::move(std::get<core_ast::conditional_branch_path>(lowered_branch)));
+				auto lowered_test_or_error = lower(std::move(*it->test_path));
+				if (std::holds_alternative<lower_error>(lowered_test_or_error))
+					return std::get<lower_error>(lowered_test_or_error);
+				auto& lowered_test = std::get<core_ast::node>(lowered_test_or_error);
+
+				auto lowered_code_or_error = lower(std::move(*it->code_path));
+				if (std::holds_alternative<lower_error>(lowered_code_or_error))
+					return std::get<lower_error>(lowered_code_or_error);
+				auto& lowered_code = std::get<core_ast::node>(lowered_code_or_error);
+
+				current_child->test_path = core_ast::make_unique(std::move(lowered_test));
+				current_child->true_path = core_ast::make_unique(std::move(lowered_code));
+				current_child->false_path = core_ast::make_unique(core_ast::no_op());
 			}
 
-			return core_ast::conditional_branch{
-				std::move(lowered_branches),
-				std::move(branch.type)
-			};
+			return child_branch;
 		}
 		std::variant<core_ast::node, lower_error> lower(extended_ast::conditional_branch_path&& branch_path)
 		{
-			auto lowered_test_or_error = lower(std::move(*branch_path.test_path));
-			if (std::holds_alternative<lower_error>(lowered_test_or_error))
-				return std::get<lower_error>(lowered_test_or_error);
-			auto& lowered_test = std::get<core_ast::node>(lowered_test_or_error);
-
-			auto lowered_code_or_error = lower(std::move(*branch_path.code_path));
-			if (std::holds_alternative<lower_error>(lowered_code_or_error))
-				return std::get<lower_error>(lowered_code_or_error);
-			auto& lowered_code = std::get<core_ast::node>(lowered_code_or_error);
-
-			return core_ast::conditional_branch_path{
-				core_ast::make_unique(std::move(lowered_test)),
-				core_ast::make_unique(std::move(lowered_code))
+			return lower_error{
+				"Cannot lower conditional branch path outside of conditional branch"
 			};
 		}
 	};

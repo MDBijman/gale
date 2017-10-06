@@ -169,29 +169,40 @@ namespace fe
 			auto value_function = function;
 			return std::make_tuple(std::move(function), values::function(std::make_unique<core_ast::function>(std::move(value_function))), std::move(env));
 		}
-		std::variant<std::tuple<core_ast::node, values::value, runtime_environment>, interp_error> interpret(core_ast::conditional_branch&& conditional_branch, runtime_environment&& env)
+		std::variant<std::tuple<core_ast::node, values::value, runtime_environment>, interp_error> interpret(core_ast::branch&& branch, runtime_environment&& env)
 		{
-			for (decltype(auto) branch : conditional_branch.branches)
+			auto interpreted_test_or_err = interpret(*branch.test_path, std::move(env));
+			if (std::holds_alternative<interp_error>(interpreted_test_or_err))
+				return std::get<interp_error>(interpreted_test_or_err);
+			auto&[branch_test, test_value, env] = std::get<std::tuple<core_ast::node, values::value, runtime_environment>>(interpreted_test_or_err);
+
+			branch.test_path = core_ast::make_unique(std::move(branch_test));
+
+			auto& test_bool = std::get<values::boolean>(test_value);
+
+			if (test_bool.val)
 			{
-				auto interpreted_test_or_error = interpret(std::move(*branch.test_path), std::move(env));
-				if (std::holds_alternative<interp_error>(interpreted_test_or_error))
-					std::get<interp_error>(interpreted_test_or_error);
-				auto& interpreted_test = std::get<std::tuple<core_ast::node, values::value, runtime_environment>>(interpreted_test_or_error);
-				env = std::move(std::get<runtime_environment>(interpreted_test));
-				branch.test_path = core_ast::make_unique(std::move(std::get<core_ast::node>(interpreted_test)));
+				// interp true
+				auto interpreted_true_or_err = interpret(*branch.true_path, std::move(env));
+				if (std::holds_alternative<interp_error>(interpreted_true_or_err))
+					return std::get<interp_error>(interpreted_true_or_err);
+				auto&[branch_true, true_value, env] = std::get<std::tuple<core_ast::node, values::value, runtime_environment>>(interpreted_true_or_err);
 
-				auto& value = std::get<values::value>(interpreted_test);
-				if (std::get<values::boolean>(value).val)
-				{
-					auto interpreted_code_or_error = interpret(std::move(*branch.code_path), std::move(env));
-					if (std::holds_alternative<interp_error>(interpreted_code_or_error))
-						std::get<interp_error>(interpreted_code_or_error);
-					auto& interpreted_code = std::get<std::tuple<core_ast::node, values::value, runtime_environment>>(interpreted_code_or_error);
-					env = std::move(std::get<runtime_environment>(interpreted_code));
-					branch.code_path = core_ast::make_unique(std::move(std::get<core_ast::node>(interpreted_code)));
+				branch.true_path = core_ast::make_unique(std::move(branch_true));
 
-					return make_tuple(std::move(conditional_branch), std::get<values::value>(interpreted_code), std::move(env));
-				}
+				return std::make_tuple(std::move(branch), std::move(true_value), std::move(env));
+			}
+			else
+			{
+				// interp false
+				auto interpreted_false_or_err = interpret(*branch.false_path, std::move(env));
+				if (std::holds_alternative<interp_error>(interpreted_false_or_err))
+					return std::get<interp_error>(interpreted_false_or_err);
+				auto&[branch_false, false_value, env] = std::get<std::tuple<core_ast::node, values::value, runtime_environment>>(interpreted_false_or_err);
+
+				branch.false_path = core_ast::make_unique(std::move(branch_false));
+
+				return std::make_tuple(std::move(branch), std::move(false_value), std::move(env));
 			}
 
 			return interp_error{ "None of the conditional branches are evaluated" };

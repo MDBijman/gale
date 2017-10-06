@@ -192,6 +192,12 @@
     <ClInclude Include="include\grammar_tests.h">
       <Filter>Source Files\tests\tools\parsing</Filter>
     </ClInclude>
+    <ClInclude Include="include\tags.h">
+      <Filter>Source Files\fe\data</Filter>
+    </ClInclude>
+    <ClInclude Include="include\perf_test.h">
+      <Filter>Source Files\tests</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="snippets\language_core.fe">

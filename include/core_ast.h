@@ -5,8 +5,8 @@
 #include <optional>
 #include <variant>
 
-// Also defined in core_ast.cpp and values.h
-#define AST_NODE std::variant<identifier, no_op, set, tuple, block, function_call, integer, string, function, conditional_branch, conditional_branch_path>
+// Also defined in values.h
+#define AST_NODE std::variant<identifier, no_op, set, tuple, block, function_call, integer, string, function, branch>
 
 namespace fe
 {
@@ -86,22 +86,6 @@ namespace fe
 			std::vector<int> offsets;
 			types::type type;
 		};
-
-		//struct get
-		//{
-		//	get(identifier&& name, types::type t);
-
-		//	// Copy
-		//	get(const get& other);
-		//	get& operator=(const get& other);
-
-		//	// Move
-		//	get(get&& other);
-		//	get& operator=(get&& other);
-
-		//	identifier name;
-		//	types::type type;
-		//};
 
 		struct set
 		{
@@ -200,37 +184,21 @@ namespace fe
 			types::type type;
 		};
 
-		struct conditional_branch_path
+		struct branch
 		{
-			conditional_branch_path(std::unique_ptr<AST_NODE> test,
-				std::unique_ptr<AST_NODE> code);
+			branch(std::unique_ptr<AST_NODE> test, std::unique_ptr<AST_NODE> true_path, std::unique_ptr<AST_NODE> false_path);
 
 			// Copy
-			conditional_branch_path(const conditional_branch_path& other);
-			conditional_branch_path& operator=(const conditional_branch_path& other);
+			branch(const branch& other);
+			branch& operator=(const branch& other);
 
 			// Move
-			conditional_branch_path(conditional_branch_path&& other);
-			conditional_branch_path& operator=(conditional_branch_path&& other);
+			branch(branch&& other);
+			branch& operator=(branch&& other);
 
 			std::unique_ptr<AST_NODE> test_path;
-			std::unique_ptr<AST_NODE> code_path;
-			types::type type;
-		};
-
-		struct conditional_branch
-		{
-			conditional_branch(std::vector<conditional_branch_path>&& branches, types::type&& t);
-
-			// Copy
-			conditional_branch(const conditional_branch& other);
-			conditional_branch& operator=(const conditional_branch& other);
-
-			// Move
-			conditional_branch(conditional_branch&& other);
-			conditional_branch& operator=(conditional_branch&& other);
-
-			std::vector<conditional_branch_path> branches;
+			std::unique_ptr<AST_NODE> true_path;
+			std::unique_ptr<AST_NODE> false_path;
 			types::type type;
 		};
 

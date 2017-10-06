@@ -2,7 +2,9 @@
 #include "pipeline.h"
 #include "language_definition.h"
 #include "error.h"
+#include "tags.h"
 #include <string_view>
+#include <assert.h>
 
 namespace fe
 {
@@ -69,14 +71,17 @@ namespace fe
 				}
 				else if (node_type == expression)
 				{
-					// Expression has children [tuple | number | word | identifier [tuple],  expression*]
+					// Expression has children [tuple | number | word | identifier [tuple], expression* | ref expression]
+					assert(n.children.size() >= 1);
 
-					if(n.children.size() == 1)
+					if (n.children.size() == 1)
 					{
 						return convert(std::move(n.children.at(0)));
 					}
 					else if (n.children.size() == 2)
 					{
+						// Function call
+
 						auto id = convert(std::move(n.children.at(0)));
 						if (holds_error(id)) return get_error(id);
 
@@ -160,11 +165,19 @@ namespace fe
 				}
 				else if (node_type == variable_declaration)
 				{
-					// Variable Declaration has children [(type_expression identifier)*] 
+					// Heap reference
+
+					// Variable Declaration has children [([ref] type_expression identifier)*] 
 					std::vector<std::variant<extended_ast::atom_declaration, extended_ast::function_declaration>> elements;
 
-					for (auto i = 0; i < n.children.size(); i += 2)
+					int i = 0;
+					while (i < n.children.size())
 					{
+						bool is_reference = std::holds_alternative<tools::ebnfe::terminal_node>(*n.children.at(i))
+							&& (std::get<tools::ebnfe::terminal_node>(*n.children.at(i)).value == ref_keyword);
+
+						if (is_reference) i++;
+
 						auto converted_child_or_error = convert(std::move(n.children.at(i)));
 						if (holds_error(converted_child_or_error)) return get_error(converted_child_or_error);
 						auto& converted_child = std::get<extended_ast::node>(converted_child_or_error);
@@ -175,22 +188,32 @@ namespace fe
 
 						if (std::holds_alternative<extended_ast::atom_type>(converted_child))
 						{
-							elements.push_back(extended_ast::atom_declaration{
+							auto child = extended_ast::atom_declaration{
 								std::move(std::get<extended_ast::atom_type>(converted_child)),
 								std::move(std::get<extended_ast::identifier>(converted_id))
-							});
+							};
+
+							if(is_reference) child.tags.set(tags::ref);
+
+							elements.push_back(child);
 						}
 						else if (std::holds_alternative<extended_ast::function_type>(converted_child))
 						{
-							elements.push_back(extended_ast::function_declaration{
+							auto child = extended_ast::function_declaration{
 								std::move(std::get<extended_ast::function_type>(converted_child)),
 								std::move(std::get<extended_ast::identifier>(converted_id))
-							});
+							};
+
+							if (is_reference) child.tags.set(tags::ref);
+
+							elements.push_back(child);
 						}
 						else
 						{
 							return cst_to_ast_error{ "Variable declaration can only contain atom types and function types" };
 						}
+
+						i += 2;
 					}
 
 					return extended_ast::tuple_declaration{
@@ -244,18 +267,31 @@ namespace fe
 				}
 				else if (node_type == type_expression)
 				{
+					assert(n.children.size() >= 1 && n.children.size() <= 3);
+
+					// Identifier
 					if (std::holds_alternative<tools::ebnfe::terminal_node>(*n.children.at(0)))
 					{
+						assert(n.children.size() == 1 || n.children.size() == 3);
+
 						auto converted_first = convert(std::move(n.children.at(0)));
 						if (holds_error(converted_first)) return get_error(converted_first);
 						auto& first = get_node(converted_first);
+
+						if (n.children.size() == 3)
+						{
+							std::visit(extended_ast::add_tag, first)(tags::array);
+						}
 
 						return extended_ast::atom_type{
 							std::move(std::get<extended_ast::identifier>(first))
 						};
 					}
+					// Tuple or function type
 					else
 					{
+						assert(n.children.size() == 1);
+
 						return convert(std::move(n.children.at(0)));
 					}
 				}
@@ -279,12 +315,12 @@ namespace fe
 				}
 				else if (node_type == branch)
 				{
-					// Branch has children [branch_elements*]
+					// Branch has children [ [, branch_elements*, ] ]
 
 					std::vector<extended_ast::conditional_branch_path> branches;
-					for (auto&& child : n.children)
+					for(auto i = n.children.begin() + 1; i != n.children.end() - 1; i++)
 					{
-						auto converted_branch = convert(std::move(child));
+						auto converted_branch = convert(std::move(*i));
 						if (holds_error(converted_branch)) return get_error(converted_branch);
 
 						branches.push_back(std::move(std::get<extended_ast::conditional_branch_path>(get_node(std::move(converted_branch)))));
@@ -311,76 +347,76 @@ namespace fe
 							.append(std::to_string(node_type))
 					};
 				}
+				}
+				else if (std::holds_alternative<tools::ebnfe::terminal_node>(*node))
+				{
+					auto n = std::move(std::get<tools::ebnfe::terminal_node>(*node));
+					auto node_type = n.value;
+
+					if (node_type == number)
+					{
+						return extended_ast::integer(atoi(n.token.c_str()));
+					}
+					else if (node_type == word)
+					{
+						return extended_ast::string(n.token.substr(1, n.token.size() - 2));
+					}
+					else if (node_type == identifier)
+					{
+						auto split_on = [](std::string identifier, char split_on) -> std::vector<std::string> {
+							std::vector<std::string> split_identifier;
+
+							std::string::iterator begin_word = identifier.begin();
+							for (auto it = identifier.begin(); it != identifier.end(); it++)
+							{
+								if (*it == split_on)
+								{
+									// Read infix
+									split_identifier.push_back(std::string(begin_word, it));
+									begin_word = it + 1;
+									continue;
+								}
+								else
+								{
+									if (it == identifier.end() - 1)
+										split_identifier.push_back(std::string(begin_word, it + 1));
+								}
+							}
+							return split_identifier;
+						};
+
+						auto splitted = split_on(n.token, '.');
+
+						return extended_ast::identifier(std::move(splitted));
+					}
+					else
+					{
+						return cst_to_ast_error{
+							std::string("Unknown CST terminal node: ")
+								.append(std::to_string(node_type))
+						};
+					}
+				}
+
+				return cst_to_ast_error{
+					std::string("Empty/invalid CST node")
+				};
 			}
-			else if (std::holds_alternative<tools::ebnfe::terminal_node>(*node))
+
+		private:
+			bool holds_error(const std::variant<extended_ast::node, cst_to_ast_error>& node)
 			{
-				auto n = std::move(std::get<tools::ebnfe::terminal_node>(*node));
-				auto node_type = n.value;
-
-				if (node_type == number)
-				{
-					return extended_ast::integer(atoi(n.token.c_str()));
-				}
-				else if (node_type == word)
-				{
-					return extended_ast::string(n.token.substr(1, n.token.size() - 2));
-				}
-				else if (node_type == identifier)
-				{
-					auto split_on = [](std::string identifier, char split_on) -> std::vector<std::string> {
-						std::vector<std::string> split_identifier;
-
-						std::string::iterator begin_word = identifier.begin();
-						for (auto it = identifier.begin(); it != identifier.end(); it++)
-						{
-							if (*it == split_on)
-							{
-								// Read infix
-								split_identifier.push_back(std::string(begin_word, it));
-								begin_word = it + 1;
-								continue;
-							}
-							else
-							{
-								if (it == identifier.end() - 1)
-									split_identifier.push_back(std::string(begin_word, it + 1));
-							}
-						}
-						return split_identifier;
-					};
-
-					auto splitted = split_on(n.token, '.');
-
-					return extended_ast::identifier(std::move(splitted));
-				}
-				else
-				{
-					return cst_to_ast_error{
-						std::string("Unknown CST terminal node: ")
-							.append(std::to_string(node_type))
-					};
-				}
+				return std::holds_alternative<cst_to_ast_error>(node);
 			}
 
-			return cst_to_ast_error{
-				std::string("Empty/invalid CST node")
-			};
-		}
+			cst_to_ast_error get_error(std::variant<extended_ast::node, cst_to_ast_error>& node)
+			{
+				return std::get<cst_to_ast_error>(node);
+			}
 
-	private:
-		bool holds_error(const std::variant<extended_ast::node, cst_to_ast_error>& node)
-		{
-			return std::holds_alternative<cst_to_ast_error>(node);
-		}
-
-		cst_to_ast_error get_error(std::variant<extended_ast::node, cst_to_ast_error>& node)
-		{
-			return std::get<cst_to_ast_error>(node);
-		}
-
-		extended_ast::node& get_node(std::variant<extended_ast::node, cst_to_ast_error>& node)
-		{
-			return std::get<extended_ast::node>(node);
-		}
-	};
-}
+			extended_ast::node& get_node(std::variant<extended_ast::node, cst_to_ast_error>& node)
+			{
+				return std::get<extended_ast::node>(node);
+			}
+		};
+	}

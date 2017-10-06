@@ -5,6 +5,7 @@
 #include "extended_ast.h"
 #include "error.h"
 #include "typecheck_environment.h"
+#include "tags.h"
 
 namespace fe
 {
@@ -12,7 +13,7 @@ namespace fe
 	{
 	private:
 		typecheck_environment base_environment;
-
+	
 	public:
 		typechecker_stage() {}
 		typechecker_stage(typecheck_environment environment) : base_environment(environment) {}
@@ -22,6 +23,32 @@ namespace fe
 			auto visitor = [&](auto& n) {
 				return typecheck(std::move(n), std::move(env));
 			};
+
+			//// Pre- and post-order traversal of nodes
+			//std::function<std::pair<extended_ast::node, typecheck_environment>(extended_ast::node, typecheck_environment)> traverse = [&](auto node, auto env) {
+			//	auto pre_visitor = [&](auto& n) -> std::pair<extended_ast::node, typecheck_environment> {
+			//		return pre_typecheck(std::move(n), std::move(env));
+			//	};
+			//	auto[node, env] = std::visit(pre_visitor, node);
+
+			//	std::vector<extended_ast::node> children = std::visit(extended_ast::get_children, node);
+
+			//	for (decltype(auto) child : children)
+			//	{
+			//		auto[new_c, new_e] = traverse(std::move(child), std::move(env));
+			//		child = std::move(new_c);
+			//		env = std::move(new_e);
+			//	}
+
+			//	auto post_visitor = [&](auto& n) -> std::pair<extended_ast::node, typecheck_environment> {
+			//		return post_typecheck(std::move(n), std::move(env));
+			//	};
+			//	auto[node, env] = std::visit(post_visitor, node);
+
+			//	return std::make_pair(std::move(node), std::move(env));
+			//};
+
+
 
 			return std::visit(visitor, node);
 		}
@@ -37,7 +64,7 @@ namespace fe
 				if (std::holds_alternative<typecheck_error>(res))
 					return std::get<typecheck_error>(res);
 
-				auto& [new_node, new_env] = std::get<std::tuple<extended_ast::node, typecheck_environment>>(res);
+				auto&[new_node, new_env] = std::get<std::tuple<extended_ast::node, typecheck_environment>>(res);
 
 				element = std::move(new_node);
 				env = std::move(new_env);
@@ -279,6 +306,7 @@ namespace fe
 				std::move(env)
 			);
 		}
+
 		std::variant<std::tuple<extended_ast::node, typecheck_environment>, typecheck_error> typecheck(extended_ast::conditional_branch_path&& branch_path, typecheck_environment&& env)
 		{
 			// Typecheck the test path
@@ -320,7 +348,18 @@ namespace fe
 
 		types::type interpret(const extended_ast::atom_type& identifier, const typecheck_environment& env)
 		{
-			return std::get<std::reference_wrapper<const types::type>>(env.typeof(identifier.name)).get();
+			auto& type = std::get<std::reference_wrapper<const types::type>>(env.typeof(identifier.name)).get();
+
+			if (identifier.name.tags.test(tags::array))
+			{
+				return types::array_type(
+					types::make_unique(type)
+				);
+			}
+			else
+			{
+				return type;
+			}
 		}
 		types::type interpret(const extended_ast::tuple_type& tuple, const typecheck_environment& env)
 		{

@@ -30,12 +30,14 @@ namespace fe
 					return type_keyword;
 				if (token.text == "fn")
 					return function_keyword;
-				if (token.text == "branch")
-					return branch_keyword;
+				if (token.text == "case")
+					return case_keyword;
 				if (token.text == "module")
 					return module_keyword;
 				if (token.text == "pub")
 					return public_keyword;
+				if (token.text == "ref")
+					return ref_keyword;
 				return identifier;
 			});
 		}

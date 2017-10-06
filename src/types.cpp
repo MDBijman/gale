@@ -1,6 +1,5 @@
 #include "types.h"
 
-#define TYPE std::variant<sum_type, product_type, atom_type, function_type, unset_type>
 namespace fe
 {
 	namespace types
@@ -36,10 +35,68 @@ namespace fe
 			return "unset_type";
 		}
 
+		// Array
+
+		array_type::array_type() : type(types::make_unique(unset_type())) {}
+		array_type::array_type(std::unique_ptr<types::type> t) : type(std::move(t)) {}
+
+		// Move
+
+		array_type::array_type(array_type&& other) : type(std::move(other.type)) {}
+		array_type& array_type::operator=(array_type&& other)
+		{
+			this->type = std::move(other.type);
+			return *this;
+		}
+
+		// Copy
+
+		array_type::array_type(const array_type& other) : type(new types::type(*other.type)) {}
+		array_type& array_type::operator=(const array_type& other)
+		{
+			this->type.reset(new types::type(*other.type));
+			return *this;
+		}
+
+		std::string array_type::to_string()
+		{
+			return "array_type (" + std::visit(types::to_string, *type) + ")";
+		}
+
+
+		// Reference
+
+		reference_type::reference_type() : type(types::make_unique(unset_type())) {}
+		reference_type::reference_type(std::unique_ptr<types::type> t) : type(std::move(t)) {}
+
+		// Move
+
+		reference_type::reference_type(reference_type&& other) : type(std::move(other.type)) {}
+		reference_type& reference_type::operator=(reference_type&& other)
+		{
+			this->type = std::move(other.type);
+			return *this;
+		}
+
+		// Copy
+
+		reference_type::reference_type(const reference_type& other) : type(new types::type(*other.type)) {}
+		reference_type& reference_type::operator=(const reference_type& other)
+		{
+			this->type.reset(new types::type(*other.type));
+			return *this;
+		}
+
+		std::string reference_type::to_string()
+		{
+			return "reference_type (" + std::visit(types::to_string, *type) + ")";
+		}
+
+
 		// Sum
 
 		sum_type::sum_type() {}
-		sum_type::sum_type(std::vector<TYPE> sum) : sum(sum) {}
+		sum_type::sum_type(std::vector<type> sum) : sum(sum) {}
 
 		// Move
 		sum_type::sum_type(sum_type&& other)
@@ -85,7 +142,7 @@ namespace fe
 		// Product
 
 		product_type::product_type() {}
-		product_type::product_type(std::vector<std::pair<std::string, TYPE>> product) : product(product) {}
+		product_type::product_type(std::vector<std::pair<std::string, type>> product) : product(product) {}
 
 		// Move
 		product_type::product_type(product_type&& other)
@@ -130,7 +187,7 @@ namespace fe
 
 		// Function Type
 
-		function_type::function_type(std::unique_ptr<TYPE> f, std::unique_ptr<TYPE> t) : from(std::move(f)), to(std::move(t)) {}
+		function_type::function_type(std::unique_ptr<type> f, std::unique_ptr<type> t) : from(std::move(f)), to(std::move(t)) {}
 
 		// Move
 		function_type::function_type(function_type&& other)
@@ -148,13 +205,13 @@ namespace fe
 		// Copy
 		function_type::function_type(const function_type& other)
 		{
-			from = std::make_unique<TYPE>(*other.from.get());
-			to = std::make_unique<TYPE>(*other.to.get());
+			from = std::make_unique<type>(*other.from.get());
+			to = std::make_unique<type>(*other.to.get());
 		}
 		function_type& function_type::operator=(const function_type& other)
 		{
-			this->from = std::make_unique<TYPE>(*other.from);
-			this->to = std::make_unique<TYPE>(*other.to);
+			this->from = std::make_unique<type>(*other.from);
+			this->to = std::make_unique<type>(*other.to);
 			return *this;
 		}
 
@@ -169,41 +226,6 @@ namespace fe
 			r.append(")");
 			return r;
 		}
-
-		//// Named Type
-
-		//name_type::name_type() {}
-		//name_type::name_type(std::vector<std::string> modules, std::vector<std::string> variables) : module_names(modules), variables(variables) {}
-
-		//// Move
-
-		//name_type::name_type(name_type&& other) : module_names(std::move(other.module_names)), variables(std::move(other.variables)) {}
-
-		//name_type& name_type::operator=(name_type&& other)
-		//{
-		//	this->module_names = std::move(other.module_names);
-		//	this->variables = std::move(other.variables);
-		//	return *this;
-		//}
-
-		//// Copy
-
-		//name_type::name_type(const name_type& other) : module_names(other.module_names), variables(other.variables) {}
-
-		//name_type& name_type::operator=(const name_type& other)
-		//{
-		//	this->module_names = other.module_names;
-		//	this->variables = other.variables;
-		//	return *this;
-		//}
-
-		//std::string name_type::to_string()
-		//{
-		//	std::string res;
-		//	for (auto& s : module_names) res.append(s);
-		//	for (auto& s : variables) res.append(s);
-		//	return res;
-		//}
 
 		// Operators
 		bool operator==(const atom_type& one, const atom_type& two)
@@ -245,29 +267,14 @@ namespace fe
 			return (*one.from == *two.from) && (*one.to == *two.to);
 		}
 
-		//bool operator==(const name_type& one, const name_type& two)
-		//{
-		//	if (one.module_names.size() != two.module_names.size())
-		//		return false;
+		bool operator==(const array_type& one, const array_type& two)
+		{
+			return *one.type == *two.type;
+		}
 
-		//	if (one.variables.size() != two.variables.size())
-		//		return false;
-		//	
-		//	for (unsigned int i = 0; i < one.module_names.size(); i++)
-		//	{
-		//		if (one.module_names.at(i) != two.module_names.at(i))
-		//			return false;
-		//	}
-		//	for (unsigned int i = 0; i < one.variables.size(); i++)
-		//	{
-		//		if (one.variables.at(i) != two.variables.at(i))
-		//			return false;
-		//	}
-
-		//	return true;
-		//}
-
-
+		bool operator==(const reference_type& one, const reference_type& two)
+		{
+			return *one.type == *two.type;
+		}
 	}
 }
-#undef TYPE
