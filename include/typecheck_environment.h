@@ -4,6 +4,7 @@
 #include "error.h"
 #include <unordered_map>
 #include <string>
+#include <regex>
 
 namespace fe
 {
@@ -92,11 +93,11 @@ namespace fe
 			}
 		}
 
-		extended_ast::identifier build_access_pattern(extended_ast::identifier&& id, int index = 0) const
+		void build_access_pattern(extended_ast::identifier& id, int index = 0) 
 		{
 			if (namespaces.find(id.segments.at(index)) != namespaces.end())
 			{
-				return namespaces.find(id.segments.at(index))->second.build_access_pattern(std::move(id), index + 1);
+				namespaces.find(id.segments.at(index))->second.build_access_pattern(id, index + 1);
 			}
 			else
 			{
@@ -117,8 +118,6 @@ namespace fe
 					current_type = product_type.product.at(offset).second;
 				}
 			}
-
-			return id;
 		}
 
 		std::string to_string(bool include_modules = false)

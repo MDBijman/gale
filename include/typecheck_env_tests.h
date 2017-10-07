@@ -115,7 +115,7 @@ namespace tests
 			t_env.set_type(extended_ast::identifier{ {"x"} }, before_type);
 
 			auto id = extended_ast::identifier{ {"x", "b", "c"} };
-			id = t_env.build_access_pattern(std::move(id));
+			t_env.build_access_pattern(id);
 			assert(id.offsets.size() == 2);
 			assert(id.offsets.at(0) == 1);
 			assert(id.offsets.at(1) == 0);

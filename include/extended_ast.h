@@ -7,71 +7,126 @@
 #include "values.h"
 #include "types.h"
 #include "tags.h"
-
-#define AST_NODE std::variant<module_declaration, atom_type, function_type, tuple_type, atom_declaration, function_declaration, tuple_declaration, tuple, block, identifier, assignment, function_call, type_declaration, export_stmt, integer, string, function, conditional_branch, conditional_branch_path>
+#include "core_ast.h"
 
 namespace fe
 {
+	class typecheck_environment;
+
 	namespace extended_ast
 	{
+		struct node
+		{
+			node(types::type t) : type(t) {}
+			virtual ~node()
+			{
+
+			}
+			virtual node* copy() = 0;
+			virtual void typecheck(typecheck_environment&) = 0;
+			virtual core_ast::node lower() = 0;
+
+			types::type get_type() const
+			{
+				return type;
+			}
+
+			void set_type(types::type t)
+			{
+				type = t;
+			}
+
+		private:
+			types::type type;
+		};
+
+		struct type_expression
+		{
+			virtual types::type interpret() = 0;
+		};
+
+		using unique_node = std::unique_ptr<node>;
+
 		// Value nodes
 
-		struct integer
+		struct integer : public node
 		{
-			integer(values::integer val) : value(val) {}
+			integer(values::integer val) : node(types::unset_type()), value(val) {}
+
+			node* copy() override
+			{
+				return new integer(*this);
+			}
+
+			void typecheck(typecheck_environment&) override;
+			core_ast::node lower() override;
 
 			// Copy
-			integer(const integer& other) : value(other.value), type(other.type), tags(other.tags) {}
+			integer(const integer& other) : node(other), value(other.value), tags(other.tags) {}
 
 			// Move
-			integer(integer&& other) : type(std::move(other.type)), value(std::move(other.value)), tags(std::move(other.tags)) {}
+			integer(integer&& other) : node(std::move(other)), value(std::move(other.value)), tags(std::move(other.tags)) {}
 			integer& operator=(integer&& other)
 			{
-				type = std::move(other.type);
+				set_type(other.get_type());
 				value = std::move(other.value);
 				tags = std::move(other.tags);
 				return *this;
 			}
 
 			values::integer value;
-			types::type type;
 			tags::tags tags;
 		};
 
-		struct string
+		struct string : public node
 		{
-			string(values::string val) : value(val) {}
+			string(values::string val) : node(types::unset_type()), value(val) {}
+
+			node* copy() override
+			{
+				return new string(*this);
+			}
+
+			void typecheck(typecheck_environment& t_env) override;
+			core_ast::node lower() override;
 
 			// Copy
-			string(const string& other) : value(other.value), type(other.type), tags(other.tags) {}
+			string(const string& other) : node(other), value(other.value), tags(other.tags) {}
 
 			// Move
-			string(string&& other) : type(std::move(other.type)), value(std::move(other.value)), tags(std::move(other.tags)) {}
+			string(string&& other) : node(std::move(other)), value(std::move(other.value)), tags(std::move(other.tags)) {}
 			string& operator=(string&& other)
 			{
-				type = std::move(other.type);
+				set_type(other.get_type());
 				value = std::move(other.value);
 				tags = std::move(other.tags);
 				return *this;
 			}
 
 			values::string value;
-			types::type type;
 			tags::tags tags;
 		};
 
-		struct identifier
+		struct identifier : public node
 		{
-			identifier(std::vector<std::string>&& modules) : segments(std::move(modules)) {}
+			identifier(std::vector<std::string>&& modules) : node(types::unset_type()), segments(std::move(modules)) {}
+
+			node* copy() override
+			{
+				return new identifier(*this);
+			}
+
+			void typecheck(typecheck_environment& env) override;
+			core_ast::node lower() override;
 
 			// Copy
-			identifier(const identifier& other) : segments(other.segments), type(other.type), offsets(other.offsets), tags(other.tags) {}
+			identifier(const identifier& other) : node(other), segments(other.segments), offsets(other.offsets), tags(other.tags) {}
 
 			// Move
-			identifier(identifier&& other) : type(std::move(other.type)), segments(std::move(other.segments)), offsets(std::move(other.offsets)), tags(std::move(other.tags)) {}
+			identifier(identifier&& other) : node(std::move(other)), segments(std::move(other.segments)), offsets(std::move(other.offsets)), tags(std::move(other.tags)) {}
 			identifier& operator=(identifier&& other)
 			{
-				type = std::move(other.type);
+				set_type(other.get_type());
 				segments = std::move(other.segments);
 				offsets = std::move(other.offsets);
 				tags = std::move(other.tags);
@@ -83,7 +138,7 @@ namespace fe
 				auto new_id = identifier{
 					std::vector<std::string>{ segments.begin() + 1, segments.end() }
 				};
-				new_id.type = type;
+				new_id.set_type(this->get_type());
 				new_id.offsets = offsets;
 				return new_id;
 			}
@@ -99,51 +154,64 @@ namespace fe
 
 			std::vector<std::string> segments;
 			std::vector<int> offsets;
-			types::type type;
 			tags::tags tags;
 		};
 
-		struct export_stmt
+		struct export_stmt : public node
 		{
-			export_stmt(std::vector<identifier> name) : names(std::move(names)) {}
+			export_stmt(std::vector<identifier> name) : node(types::unset_type()), names(std::move(names)) {}
+
+			node* copy() override
+			{
+				return new export_stmt(*this);
+			}
+
+			void typecheck(typecheck_environment& env) override;
+			core_ast::node lower() override;
 
 			// Copy
-			export_stmt(const export_stmt& other) : names(other.names), type(other.type), tags(other.tags) {}
+			export_stmt(const export_stmt& other) : node(other), names(other.names), tags(other.tags) {}
 
 			// Move
-			export_stmt(export_stmt&& other) : type(std::move(other.type)), names(std::move(other.names)), tags(std::move(other.tags)) {}
+			export_stmt(export_stmt&& other) : node(std::move(other)), names(std::move(other.names)), tags(std::move(other.tags)) {}
 			export_stmt& operator=(export_stmt&& other)
 			{
-				type = std::move(other.type);
-				names = std::move(other.names);
-				tags = std::move(other.tags);
+				set_type(other.get_type());
+				this->names = std::move(other.names);
+				this->tags = std::move(other.tags);
 				return *this;
 			}
 
 			std::vector<identifier> names;
-			types::type type;
 			tags::tags tags;
 		};
 
-		struct module_declaration
+		struct module_declaration : public node
 		{
-			module_declaration(identifier&& name) : name(std::move(name)) {}
+			module_declaration(identifier&& name) : node(types::unset_type()), name(std::move(name)) {}
+
+			node* copy() override
+			{
+				return new module_declaration(*this);
+			}
+
+			void typecheck(typecheck_environment& env) override;
+			core_ast::node lower() override;
 
 			// Copy
-			module_declaration(const module_declaration& other) : name(other.name), type(other.type), tags(other.tags) {}
+			module_declaration(const module_declaration& other) : node(other), name(other.name), tags(other.tags) {}
 
 			// Move
-			module_declaration(module_declaration&& other) : type(std::move(other.type)), name(std::move(other.name)), tags(std::move(other.tags)) {}
+			module_declaration(module_declaration&& other) : node(std::move(other)), name(std::move(other.name)), tags(std::move(other.tags)) {}
 			module_declaration& operator=(module_declaration&& other)
 			{
+				set_type(other.get_type());
 				this->name = std::move(other.name);
-				this->type = std::move(other.type);
-				tags = std::move(other.tags);
+				this->tags = std::move(other.tags);
 				return *this;
 			}
 
 			identifier name;
-			types::type type;
 			tags::tags tags;
 		};
 
@@ -157,202 +225,279 @@ namespace fe
 		struct conditional_branch_path;
 		struct heap_allocation;
 
-		struct atom_type
+		struct atom_type : public node
 		{
-			atom_type(identifier&& name) : name(std::move(name)), type(types::unset_type()) {}
+			atom_type(identifier&& name) : node(name), name(std::move(name)) {}
+
+			node* copy() override
+			{
+				return new atom_type(*this);
+			}
+
+			void typecheck(typecheck_environment& env) override;
+			core_ast::node lower() override;
 
 			// Copy
-			atom_type(const atom_type& other) : name(other.name), type(other.type), tags(other.tags) {}
+			atom_type(const atom_type& other) : node(other), name(other.name), tags(other.tags) {}
 
 			// Move
-			atom_type(atom_type&& other) : name(std::move(other.name)), type(std::move(other.type)), tags(std::move(other.tags)) {}
+			atom_type(atom_type&& other) : node(std::move(other)), name(std::move(other.name)), tags(std::move(other.tags)) {}
 			atom_type& operator=(atom_type&& other)
 			{
+				set_type(other.get_type());
 				this->name = std::move(other.name);
-				this->type = std::move(other.type);
-				tags = std::move(other.tags);
+				this->tags = std::move(other.tags);
 				return *this;
 			}
 
 			identifier name;
-			types::type type;
 			tags::tags tags;
 		};
 
 		struct function_type;
+		struct atom_declaration;
 
-		struct tuple_type
+		struct tuple_type : public node
 		{
-			tuple_type(std::vector<std::variant<atom_type, function_type>>&& elements) : elements(std::move(elements)), type(types::unset_type()) {}
+			tuple_type(std::vector<std::variant<atom_type, function_type>>&& elements) : node(types::unset_type()), elements(std::move(elements)) {}
+
+			node* copy() override
+			{
+				return new tuple_type(*this);
+			}
+
+			void typecheck(typecheck_environment& env) override;
+			core_ast::node lower() override;
 
 			// Copy
-			tuple_type(const tuple_type& other) : elements(other.elements), type(other.type), tags(other.tags) {}
+			tuple_type(const tuple_type& other) : node(other), elements(other.elements), tags(other.tags) {}
 
 			// Move
-			tuple_type(tuple_type&& other) : elements(std::move(other.elements)), type(std::move(other.type)), tags(std::move(other.tags)) {}
+			tuple_type(tuple_type&& other) : node(std::move(other)), elements(std::move(other.elements)), tags(std::move(other.tags)) {}
 			tuple_type& operator=(tuple_type&& other)
 			{
+				set_type(other.get_type());
 				this->elements = std::move(other.elements);
-				this->type = std::move(other.type);
-				tags = std::move(other.tags);
+				this->tags = std::move(other.tags);
 				return *this;
 			}
 
 			std::vector<std::variant<atom_type, function_type>> elements;
-			types::type type;
 			tags::tags tags;
 		};
 
-		struct function_type
+		struct function_type : public node
 		{
-			function_type(tuple_type&& from, tuple_type&& to) : from(std::move(from)), to(std::move(to)), type(types::unset_type()) {}
+			function_type(tuple_type&& from, tuple_type&& to) : node(types::unset_type()), from(std::move(from)), to(std::move(to)) {}
+
+			node* copy() override
+			{
+				return new function_type(*this);
+			}
+
+			void typecheck(typecheck_environment& env) override;
+			core_ast::node lower() override;
 
 			// Copy
-			function_type(const function_type& other) : from(other.from), to(other.to), type(other.type), tags(other.tags) {}
+			function_type(const function_type& other) : node(other), from(other.from), to(other.to), tags(other.tags) {}
 
 			// Move
-			function_type(function_type&& other) : from(std::move(other.from)), to(std::move(other.to)), type(std::move(other.type)), tags(std::move(other.tags)) {}
+			function_type(function_type&& other) : node(std::move(other)), from(std::move(other.from)), to(std::move(other.to)), tags(std::move(other.tags)) {}
 			function_type& operator=(function_type&& other)
 			{
+				set_type(other.get_type());
 				this->from = std::move(other.from);
 				this->to = std::move(other.to);
-				this->type = std::move(other.type);
 				tags = std::move(other.tags);
 				return *this;
 			}
 
 			tuple_type from;
 			tuple_type to;
-			types::type type;
 			tags::tags tags;
 		};
 
-		struct atom_declaration
+		struct atom_declaration : public node
 		{
-			atom_declaration(atom_type&& type_name, identifier&& name) : type_name(std::move(type_name)), name(std::move(name)), type(types::unset_type()) {}
+			atom_declaration(atom_type&& type_name, identifier&& name) : node(types::unset_type()), type_name(std::move(type_name)), name(std::move(name)) {}
+
+			node* copy() override
+			{
+				return new atom_declaration(*this);
+			}
+
+			void typecheck(typecheck_environment& env) override;
+			core_ast::node lower() override;
 
 			// Copy
-			atom_declaration(const atom_declaration& other) : type_name(other.type_name), name(other.name), type(other.type), tags(other.tags) {}
+			atom_declaration(const atom_declaration& other) : node(other), type_name(other.type_name), name(other.name), tags(other.tags) {}
 
 			// Move
-			atom_declaration(atom_declaration&& other) : type_name(std::move(other.type_name)), name(std::move(other.name)), type(std::move(other.type)), tags(std::move(other.tags)) {}
+			atom_declaration(atom_declaration&& other) : node(std::move(other)), type_name(std::move(other.type_name)), name(std::move(other.name)), tags(std::move(other.tags)) {}
 			atom_declaration& operator=(atom_declaration&& other)
 			{
+				set_type(other.get_type());
 				this->type_name = std::move(other.type_name);
 				this->name = std::move(other.name);
-				this->type = std::move(other.type);
 				tags = std::move(other.tags);
 				return *this;
 			}
 
 			atom_type type_name;
 			identifier name;
-			types::type type;
 			tags::tags tags;
 		};
 
-		struct function_declaration
+		struct function_declaration : public node
 		{
-			function_declaration(function_type&& type_name, identifier&& name) : type_name(std::move(type_name)), name(std::move(name)), type(types::unset_type()) {}
+			function_declaration(function_type&& type_name, identifier&& name) : node(types::unset_type()), type_name(std::move(type_name)), name(std::move(name)) {}
+
+			node* copy() override
+			{
+				return new function_declaration(*this);
+			}
+
+			void typecheck(typecheck_environment& env) override;
+			core_ast::node lower() override;
 
 			// Copy
-			function_declaration(const function_declaration& other) : type_name(other.type_name), name(other.name), type(other.type), tags(other.tags) {}
+			function_declaration(const function_declaration& other) : node(other), type_name(other.type_name), name(other.name), tags(other.tags) {}
 
 			// Move
-			function_declaration(function_declaration&& other) : type_name(std::move(other.type_name)), name(std::move(other.name)), type(std::move(other.type)), tags(std::move(other.tags)) {}
+			function_declaration(function_declaration&& other) : node(std::move(other)), type_name(std::move(other.type_name)), name(std::move(other.name)), tags(std::move(other.tags)) {}
 			function_declaration& operator=(function_declaration&& other)
 			{
+				set_type(other.get_type());
 				this->type_name = std::move(other.type_name);
 				this->name = std::move(other.name);
-				this->type = std::move(other.type);
 				tags = std::move(other.tags);
 				return *this;
 			}
 
 			function_type type_name;
 			identifier name;
-			types::type type;
 			tags::tags tags;
 		};
 
-		struct tuple_declaration
+		struct tuple_declaration : public node
 		{
-			tuple_declaration(std::vector<std::variant<atom_declaration, function_declaration>>&& elements) : elements(std::move(elements)), type(types::unset_type()) {}
+			tuple_declaration(std::vector<std::variant<atom_declaration, function_declaration>>&& elements) : node(types::unset_type()), elements(std::move(elements)) {}
+
+			node* copy() override
+			{
+				return new tuple_declaration(*this);
+			}
+
+			void typecheck(typecheck_environment& env) override;
+			core_ast::node lower() override;
 
 			// Copy
-			tuple_declaration(const tuple_declaration& other) : elements(other.elements), type(other.type), tags(other.tags) {}
+			tuple_declaration(const tuple_declaration& other) : node(other), elements(other.elements), tags(other.tags) {}
 
 			// Move
-			tuple_declaration(tuple_declaration&& other) : elements(std::move(other.elements)), type(std::move(other.type)), tags(std::move(other.tags)) {}
+			tuple_declaration(tuple_declaration&& other) : node(std::move(other)), elements(std::move(other.elements)), tags(std::move(other.tags)) {}
 			tuple_declaration& operator=(tuple_declaration&& other)
 			{
+				set_type(other.get_type());
 				this->elements = std::move(other.elements);
-				this->type = std::move(other.type);
 				tags = std::move(other.tags);
 				return *this;
 			}
 
 			std::vector<std::variant<atom_declaration, function_declaration>> elements;
-			types::type type;
 			tags::tags tags;
 		};
 
-		struct tuple
+		struct tuple : public node
 		{
-			tuple(std::vector<AST_NODE>&& children) : type(types::unset_type()), children(std::move(children)) {}
+			tuple(std::vector<unique_node>&& children) : node(types::unset_type()), children(std::move(children)) {}
+
+			node* copy() override
+			{
+				return new tuple(*this);
+			}
+
+			void typecheck(typecheck_environment& env) override;
+			core_ast::node lower() override;
 
 			// Copy
-			tuple(const tuple& other) : children(other.children), type(other.type), tags(other.tags) {}
+			tuple(const tuple& other) : node(other), tags(other.tags) 
+			{
+				for (decltype(auto) child : other.children)
+				{
+					this->children.push_back(unique_node(child->copy()));
+				}
+			}
 
 			// Move
-			tuple(tuple&& other) : type(std::move(other.type)), children(std::move(other.children)), tags(std::move(other.tags)) {}
+			tuple(tuple&& other) : node(std::move(other)), children(std::move(other.children)), tags(std::move(other.tags)) {}
 			tuple& operator=(tuple&& other)
 			{
-				type = std::move(other.type);
+				set_type(other.get_type());
 				children = std::move(other.children);
 				tags = std::move(other.tags);
 				return *this;
 			}
 
-			std::vector<AST_NODE> children;
-			types::type type;
+			std::vector<unique_node> children;
 			tags::tags tags;
 		};
 
-		struct block
+		struct block : public node
 		{
-			block(std::vector<AST_NODE>&& children) : type(types::unset_type()), children(std::move(children)) {}
+			block(std::vector<unique_node>&& children) : node(types::unset_type()), children(std::move(children)) {}
+
+			node* copy() override
+			{
+				return new block(*this);
+			}
+
+			void typecheck(typecheck_environment& env) override;
+			core_ast::node lower() override;
 
 			// Copy
-			block(const block& other) : children(other.children), type(other.type), tags(other.tags) {}
+			block(const block& other) : node(other), tags(other.tags)
+			{
+				for (decltype(auto) child : other.children)
+				{
+					this->children.push_back(unique_node(child->copy()));
+				}
+			}
 
 			// Move
-			block(block&& other) : type(std::move(other.type)), children(std::move(other.children)), tags(std::move(other.tags)) {}
+			block(block&& other) : node(std::move(other)), children(std::move(other.children)), tags(std::move(other.tags)) {}
 			block& operator=(block&& other)
 			{
-				type = std::move(other.type);
+				set_type(other.get_type());
 				children = std::move(other.children);
 				tags = std::move(other.tags);
 				return *this;
 			}
 
-			std::vector<AST_NODE> children;
-			types::type type;
+			std::vector<unique_node> children;
 			tags::tags tags;
 		};
 
-		struct function_call
+		struct function_call : public node
 		{
-			function_call(identifier&& id, std::unique_ptr<AST_NODE>&& params) : id(std::move(id)), params(std::move(params)) {}
+			function_call(identifier&& id, unique_node params) : node(types::unset_type()), id(std::move(id)), params(std::move(params)) {}
+
+			node* copy() override
+			{
+				return new function_call(*this);
+			}
+
+			void typecheck(typecheck_environment& env) override;
+			core_ast::node lower() override;
 
 			// Copy
 			function_call(const function_call& other);
 
 			// Move
-			function_call(function_call&& other) : type(std::move(other.type)), id(std::move(other.id)), params(std::move(other.params)), tags(std::move(other.tags)) { }
+			function_call(function_call&& other) : node(std::move(other)), id(std::move(other.id)), params(std::move(other.params)), tags(std::move(other.tags)) { }
 			function_call& operator=(function_call&& other)
 			{
-				type = std::move(other.type);
+				set_type(other.get_type());
 				id = std::move(other.id);
 				params = std::move(other.params);
 				tags = std::move(other.tags);
@@ -360,23 +505,30 @@ namespace fe
 			}
 
 			identifier id;
-			std::unique_ptr<AST_NODE> params;
-			types::type type;
+			unique_node params;
 			tags::tags tags;
 		};
 
-		struct type_declaration
+		struct type_declaration : public node
 		{
-			type_declaration(identifier&& name, tuple_declaration&& types) : type(types::atom_type{ "void" }), id(std::move(name)), types(std::move(types)) {}
+			type_declaration(identifier&& name, tuple_declaration&& types) : node(types::atom_type{ "void" }), id(std::move(name)), types(std::move(types)) {}
+
+			node* copy() override
+			{
+				return new type_declaration(*this);
+			}
+
+			void typecheck(typecheck_environment& env) override;
+			core_ast::node lower() override;
 
 			// Copy
-			type_declaration(const type_declaration& other) : id(other.id), types(other.types), type(other.type), tags(other.tags) {}
+			type_declaration(const type_declaration& other) : node(other), id(other.id), types(other.types), tags(other.tags) {}
 
 			// Move
-			type_declaration(type_declaration&& other) : type(std::move(other.type)), id(std::move(other.id)), types(std::move(other.types)), tags(std::move(other.tags)) {}
+			type_declaration(type_declaration&& other) : node(std::move(other)), id(std::move(other.id)), types(std::move(other.types)), tags(std::move(other.tags)) {}
 			type_declaration& operator=(type_declaration&& other)
 			{
-				type = std::move(other.type);
+				set_type(other.get_type());
 				id = std::move(other.id);
 				types = std::move(other.types);
 				tags = std::move(other.tags);
@@ -385,22 +537,29 @@ namespace fe
 
 			identifier id;
 			tuple_declaration types;
-			types::type type;
 			tags::tags tags;
 		};
 
-		struct assignment
+		struct assignment : public node
 		{
-			assignment(identifier&& id, std::unique_ptr<AST_NODE>&& val) : type(types::unset_type()), id(std::move(id)), value(std::move(val)) {}
+			assignment(identifier&& id, unique_node val) : node(types::unset_type()), id(std::move(id)), value(std::move(val)) {}
+
+			node* copy() override
+			{
+				return new assignment(*this);
+			}
+
+			void typecheck(typecheck_environment& env) override;
+			core_ast::node lower() override;
 
 			// Copy
 			assignment(const assignment& other);
 
 			// Move
-			assignment(assignment&& other) : type(std::move(other.type)), id(std::move(other.id)), value(std::move(other.value)), tags(std::move(other.tags)) {}
+			assignment(assignment&& other) : node(std::move(other)), id(std::move(other.id)), value(std::move(other.value)), tags(std::move(other.tags)) {}
 			assignment& operator=(assignment&& other)
 			{
-				type = std::move(other.type);
+				set_type(other.get_type());
 				id = std::move(other.id);
 				value = std::move(other.value);
 				tags = std::move(other.tags);
@@ -408,23 +567,30 @@ namespace fe
 			}
 
 			identifier id;
-			std::unique_ptr<AST_NODE> value;
-			types::type type;
+			unique_node value;
 			tags::tags tags;
 		};
 
-		struct function
+		struct function : public node
 		{
-			function(std::optional<identifier>&& name, tuple_declaration&& from, std::unique_ptr<AST_NODE>&& to, std::unique_ptr<AST_NODE> body) : type(types::unset_type()), name(std::move(name)), from(std::move(from)), to(std::move(to)), body(std::move(body)) {}
+			function(std::optional<identifier>&& name, tuple_declaration&& from, unique_node to, unique_node body) : node(types::unset_type()), name(std::move(name)), from(std::move(from)), to(std::move(to)), body(std::move(body)) {}
+
+			node* copy() override
+			{
+				return new function(*this);
+			}
+
+			void typecheck(typecheck_environment& env) override;
+			core_ast::node lower() override;
 
 			// Copy
 			function(const function& other);
 
 			// Move
-			function(function&& other) : type(std::move(other.type)), name(std::move(other.name)), from(std::move(other.from)), to(std::move(other.to)), body(std::move(other.body)), tags(std::move(other.tags)) {}
+			function(function&& other) : node(std::move(other)), name(std::move(other.name)), from(std::move(other.from)), to(std::move(other.to)), body(std::move(other.body)), tags(std::move(other.tags)) {}
 			function& operator=(function&& other)
 			{
-				type = std::move(other.type);
+				set_type(other.get_type());
 				name = std::move(other.name);
 				from = std::move(other.from);
 				to = std::move(other.to);
@@ -436,90 +602,68 @@ namespace fe
 			// Name is set when the function is not anonymous, for recursion
 			std::optional<identifier> name;
 			tuple_declaration from;
-			std::unique_ptr<AST_NODE> to;
-			std::unique_ptr<AST_NODE> body;
+			unique_node to;
+			unique_node body;
 
-			types::type type;
 			tags::tags tags;
 		};
 
-		struct conditional_branch_path
+		struct conditional_branch_path : public node
 		{
-			conditional_branch_path(std::unique_ptr<AST_NODE> test, std::unique_ptr<AST_NODE> code) : test_path(std::move(test)), code_path(std::move(code)) {}
+			conditional_branch_path(unique_node test, unique_node code) : node(types::unset_type()), test_path(std::move(test)), code_path(std::move(code)) {}
+
+			node* copy() override
+			{
+				return new conditional_branch_path(*this);
+			}
+
+			void typecheck(typecheck_environment& env) override;
+			core_ast::node lower() override;
 
 			// Copy
 			conditional_branch_path(const conditional_branch_path& other);
 
 			// Move
-			conditional_branch_path(conditional_branch_path&& other) : code_path(std::move(other.code_path)), test_path(std::move(other.test_path)), type(std::move(other.type)), tags(std::move(other.tags)) {}
+			conditional_branch_path(conditional_branch_path&& other) : node(std::move(other)), code_path(std::move(other.code_path)), test_path(std::move(other.test_path)), tags(std::move(other.tags)) {}
 			conditional_branch_path& operator=(conditional_branch_path&& other) {
+				set_type(other.get_type());
 				this->code_path = std::move(other.code_path);
 				this->test_path = std::move(other.test_path);
-				this->type = std::move(other.type);
 				tags = std::move(other.tags);
 				return *this;
 			}
 
-			std::unique_ptr<AST_NODE> test_path;
-			std::unique_ptr<AST_NODE> code_path;
-			types::type type;
+			unique_node test_path;
+			unique_node code_path;
 			tags::tags tags;
 		};
 
-		struct conditional_branch
+		struct conditional_branch : public node
 		{
-			conditional_branch(std::vector<conditional_branch_path>&& branches) : branches(std::move(branches)) {}
+			conditional_branch(std::vector<conditional_branch_path>&& branches) : node(types::unset_type()), branches(std::move(branches)) {}
+
+			node* copy() override
+			{
+				return new conditional_branch(*this);
+			}
+
+			void typecheck(typecheck_environment& env) override;
+			core_ast::node lower() override;
 
 			// Copy
-			conditional_branch(const conditional_branch& other) : branches(other.branches), type(other.type), tags(other.tags) {}
+			conditional_branch(const conditional_branch& other) : node(other), branches(other.branches), tags(other.tags) {}
 
 			// Move
-			conditional_branch(conditional_branch&& other) : branches(std::move(other.branches)), type(std::move(other.type)), tags(std::move(other.tags)) {}
+			conditional_branch(conditional_branch&& other) : node(std::move(other)), branches(std::move(other.branches)), tags(std::move(other.tags)) {}
 			conditional_branch& operator=(conditional_branch&& other) {
+				set_type(other.get_type());
 				this->branches = std::move(other.branches);
-				this->type = std::move(other.type);
 				tags = std::move(other.tags);
 				return *this;
 			}
 
 			std::vector<conditional_branch_path> branches;
-			types::type type;
 			tags::tags tags;
-		};
-
-		using node = AST_NODE;
-		using unique_node = std::unique_ptr<node>;
-
-		const auto make_unique = [](auto&& x) {
-			return std::make_unique<node>(std::move(x));
-		};
-
-		const auto get_type = [](auto& node) -> types::type {
-			return node.type;
-		};
-
-		const auto set_type = [](auto& node) -> std::function<void(types::type)> {
-			return [&node](type::type t) {
-				node.type = t;
-			};
-		};
-
-		const auto set_tags = [](auto& node) -> std::function<void(tags::tags)> {
-			return [&node](tags::tags tags) {
-				node.tags = tags;
-			};
-		};
-
-		const auto add_tag = [](auto& node) -> std::function<void(tags::tag)> {
-			return [&node](tags::tag t) {
-				node.tags.set(t);
-			};
-		};
-
-		const auto get_tags = [](auto& node) -> tags::tags {
-			return node.tags;
 		};
 	}
 }
-
-#undef AST_NODE

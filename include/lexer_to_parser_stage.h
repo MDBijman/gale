@@ -11,6 +11,9 @@ namespace fe
 	public:
 		lexer_to_parser_stage()
 		{
+			using namespace terminals;
+			using namespace tokens;
+
 			add_mapping(string_token, word);
 			add_mapping(number_token, number);
 			add_mapping(lrb_token, left_bracket);

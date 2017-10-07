@@ -21,7 +21,7 @@ namespace fe
 		{
 			tools::lexing::rules lexing_rules;
 
-			using namespace fe;
+			using namespace fe::tokens;
 			string_token = lexing_rules.create_token("\".*?\"");
 			number_token = lexing_rules.create_token("\\-?[1-9][0-9]*|0");
 			right_arrow_token = lexing_rules.create_token("\\->");

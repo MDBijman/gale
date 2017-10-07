@@ -10,6 +10,9 @@ namespace fe
 	public:
 		parsing_stage()
 		{
+			using namespace terminals;
+			using namespace non_terminals;
+
 			file = parser.new_non_terminal();
 			statement = parser.new_non_terminal();
 			export_stmt = parser.new_non_terminal();
@@ -118,7 +121,7 @@ namespace fe
 
 		std::variant<std::unique_ptr<tools::ebnfe::node>, tools::ebnfe::error> parse(const std::vector<tools::bnf::terminal_node>& in) override
 		{
-			return parser.parse(fe::file, in);
+			return parser.parse(fe::non_terminals::file, in);
 		}
 
 	private:
