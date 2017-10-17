@@ -779,5 +779,24 @@ namespace fe
 
 			unique_node child;
 		};
+
+		struct array_value : public node
+		{
+			array_value(std::vector<unique_node>&& children);
+
+			// Copy
+			array_value(const array_value&);
+
+			// Move
+			array_value(array_value&&);
+			array_value& operator=(array_value&&);
+
+			node* copy() override;
+
+			void typecheck(typecheck_environment& env) override;
+			core_ast::node* lower() override;
+
+			std::vector<unique_node> children;
+		};
 	}
 }

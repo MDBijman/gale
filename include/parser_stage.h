@@ -37,6 +37,7 @@ namespace fe
 			reference_type = parser.new_non_terminal();
 			array_type = parser.new_non_terminal();
 			reference = parser.new_non_terminal();
+			array_value = parser.new_non_terminal();
 
 			identifier = parser.new_terminal();
 			equals = parser.new_terminal();
@@ -91,7 +92,8 @@ namespace fe
 					function, alt,
 					branch, alt,
 					block, alt,
-					reference
+					reference, alt,
+					array_value
 				} })
 
 				.new_rule({ value_tuple, { left_bracket, lsb, expression, lrb, comma, expression, rrb, star, rsb, right_bracket } })
@@ -101,6 +103,7 @@ namespace fe
 				.new_rule({ branch_element, { vertical_line, expression, right_arrow, expression } })
 				.new_rule({ block, { left_curly_bracket, expression, star, right_curly_bracket } })
 				.new_rule({ reference, { ref_keyword, expression } })
+				.new_rule({ array_value, { left_square_bracket, expression, lrb, comma, expression, rrb, star, right_square_bracket } })
 
 				// Declarations
 

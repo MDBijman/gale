@@ -100,6 +100,9 @@ namespace fe
 				else if (node_type == non_terminals::reference)
 					return std::make_unique<reference>(std::move(children));
 
+				else if (node_type == non_terminals::array_value)
+					return std::make_unique<array_value>(std::move(children));
+
 				else
 					throw cst_to_ast_error{
 						std::string("Unknown CST non terminal node: ")

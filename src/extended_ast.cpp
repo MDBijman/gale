@@ -599,5 +599,59 @@ namespace fe
 		{
 			return new core_ast::reference(core_ast::unique_node(this->child->lower()));
 		}
+
+		// Array Value
+
+		array_value::array_value(std::vector<unique_node>&& children) :
+			node(types::unset_type()),
+			children(std::move(children)) {}
+
+		array_value::array_value(const array_value& other) :
+			node(other)
+		{
+			for (decltype(auto) child : other.children)
+			{
+				children.push_back(unique_node(child->copy()));
+			}
+		}
+
+		array_value::array_value(array_value&& other) : 
+			node(std::move(other)), 
+			children(std::move(other.children)) {}
+
+		array_value& array_value::operator=(array_value&& other)
+		{
+			set_type(other.get_type());
+			this->children = std::move(other.children);
+			return *this;
+		}
+
+		node* array_value::copy() { return new array_value(*this); }
+
+		void array_value::typecheck(typecheck_environment& env)
+		{
+			for (decltype(auto) child : children)
+				child->typecheck(env);
+
+			if (children.size() > 0)
+				set_type(types::array_type(types::make_unique(children.at(0)->get_type())));
+			else
+				set_type(types::array_type(types::make_unique(types::atom_type{ "void" })));
+
+			for (decltype(auto) child : children)
+			{
+				if (!(child->get_type() == *std::get<types::array_type>(get_type()).type))
+					throw typecheck_error{ "All types in an array must be equal" };
+			}
+		}
+
+		core_ast::node* array_value::lower()
+		{
+			std::vector<core_ast::unique_node> lowered_children;
+			for (decltype(auto) child : children)
+				lowered_children.push_back(core_ast::unique_node(child->lower()));
+
+			return new core_ast::tuple(std::move(lowered_children), get_type());
+		}
 	}
-}	
+}
