@@ -2,7 +2,7 @@
 #include "lexer.h"
 #include <stack>
 #include <memory>
-
+#include <unordered_map>
 
 namespace tools
 {
@@ -117,62 +117,21 @@ namespace tools
 		{
 		public:
 			parser() {}
-			parser(parser&& other) : rules(std::move(other.rules)) {}
 
-			void operator= (parser&& other)
+			parser(parser&& other) : rules(std::move(other.rules)), table(std::move(other.table)) {}
+			parser& operator=(parser&& other)
 			{
 				rules = std::move(other.rules);
+				table = std::move(other.table);
+				return *this;
 			}
+
+			std::variant<const std::vector<symbol>*, error> match(non_terminal lhs, terminal input_token) const;
 
 			/*
 			* \brief Returns a parse tree (concrete syntax tree) describing the input.
 			*/
 			std::variant<std::unique_ptr<node>, error> parse(non_terminal begin_symbol, std::vector<terminal_node> input) const;
-
-			std::variant<const std::vector<symbol>*, error> match(non_terminal lhs, terminal input_token) const
-			{
-				// All rules with the given non terminal on the lhs
-				auto possible_matches = rules.equal_range(lhs);
-
-				if (possible_matches.first == possible_matches.second)
-					return error{ error_code::NO_MATCHING_RULE, std::to_string((int)input_token) };
-
-				// Set to true if the symbol can be the empty string
-				const std::vector<symbol>* null_rule = nullptr;
-
-				// Find a rule that matches
-				auto rule_location = std::find_if(possible_matches.first, possible_matches.second, [&](auto& rule) {
-					auto& first_on_rhs = rule.second.at(0);
-
-					if (first_on_rhs.is_terminal() && (first_on_rhs.get_terminal() == epsilon))
-					{
-						null_rule = &rule.second;
-						return false;
-					}
-
-					return first_on_rhs.matches(input_token, rules);
-				});
-
-				if (rule_location == possible_matches.second)
-				{
-					if (null_rule)
-					{
-						return null_rule;
-					}
-					else
-					{
-						return error{
-							error_code::NO_MATCHING_RULE,
-							std::string("No matching rule for lhs ")
-								.append(std::to_string(lhs))
-								.append(" attempted to match ")
-								.append(std::to_string(input_token))
-						};
-					}
-				}
-
-				return &rule_location->second;
-			}
 
 			parser& new_rule(const rule& r)
 			{
@@ -192,6 +151,7 @@ namespace tools
 
 		private:
 			std::multimap<non_terminal, std::vector<symbol>> rules;
+			std::unordered_map<std::pair<non_terminal, terminal>, std::vector<symbol>> table;
 
 			terminal t_generator = 1;
 			non_terminal nt_generator = 1;

@@ -6,6 +6,53 @@ namespace tools
 {
 	namespace bnf
 	{
+		std::variant<const std::vector<symbol>*, error> parser::match(non_terminal lhs, terminal input_token) const
+		{
+			// All rules with the given non terminal on the lhs
+			auto possible_matches = rules.equal_range(lhs);
+
+			if (possible_matches.first == possible_matches.second)
+				return error{ error_code::NO_MATCHING_RULE, std::to_string((int)input_token) };
+
+			// Set to true if the symbol can be the empty string
+			const std::vector<symbol>* null_rule = nullptr;
+
+			// Find a rule that matches
+			auto rule_location = std::find_if(possible_matches.first, possible_matches.second, [&](auto& rule) {
+				auto& first_on_rhs = rule.second.at(0);
+
+				if (first_on_rhs.is_terminal() && (first_on_rhs.get_terminal() == epsilon))
+				{
+					null_rule = &rule.second;
+					return false;
+				}
+
+				return first_on_rhs.matches(input_token, rules);
+			});
+
+			if (rule_location == possible_matches.second)
+			{
+				if (null_rule)
+				{
+					return null_rule;
+				}
+				else
+				{
+					return error{
+						error_code::NO_MATCHING_RULE,
+						std::string("No matching rule for lhs ")
+							.append(std::to_string(lhs))
+							.append(" attempted to match ")
+							.append(std::to_string(input_token))
+					};
+				}
+			}
+
+			return &rule_location->second;
+		}
+
+
+
 		std::variant<std::unique_ptr<node>, error> parser::parse(non_terminal begin_symbol, std::vector<terminal_node> input) const
 		{
 			input.push_back({ end_of_input, "" });
@@ -40,7 +87,8 @@ namespace tools
 					}
 					else
 					{
-						return error{ error_code::TERMINAL_MISMATCH, 
+						return error{
+							error_code::TERMINAL_MISMATCH,
 							std::string("Got: ")
 							.append(std::to_string((int)input_token.value))
 							.append(" Expected: ")
