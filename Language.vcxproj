@@ -171,6 +171,7 @@
   <ItemGroup>
     <Text Include="include\core_ast.txt" />
     <Text Include="snippets\language_core.fe" />
+    <Text Include="snippets\language_grammar.txt" />
     <Text Include="snippets\language_module.fe" />
     <Text Include="snippets\notes.txt" />
   </ItemGroup>

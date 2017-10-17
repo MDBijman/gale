@@ -41,6 +41,8 @@ namespace fe
 					return public_keyword;
 				if (token.text == "ref")
 					return ref_keyword;
+				if (token.text == "call")
+					return call_keyword;
 				return identifier;
 			});
 		}

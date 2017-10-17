@@ -1,5 +1,6 @@
 #pragma once
 #include "values.h"
+#include "core_ast.h"
 #include <unordered_map>
 #include <regex>
 #include <string>

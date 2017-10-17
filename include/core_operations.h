@@ -8,8 +8,9 @@ namespace fe
 		{
 			static std::tuple<runtime_environment, typecheck_environment> load()
 			{
-				runtime_environment re{};
-				typecheck_environment te{};
+				runtime_environment re;
+				typecheck_environment te;
+
 				te.set_type("add", fe::types::function_type(fe::types::make_unique(fe::types::product_type{ { {"a", fe::types::atom_type{"i32"}}, { "b", fe::types::atom_type{"i32"}} } }), fe::types::make_unique(fe::types::atom_type{ "i32" })));
 				re.set_value("add", fe::values::native_function([](fe::values::value t) -> fe::values::value {
 					auto& tuple = std::get<fe::values::tuple>(t);
@@ -64,6 +65,16 @@ namespace fe
 
 					return fe::values::boolean(a.val >= b.val);
 				}));
+				te.set_type("eq", fe::types::function_type(fe::types::make_unique(fe::types::product_type{ { {"a", fe::types::atom_type{"i32"}}, { "b", fe::types::atom_type{"i32"}} } }), fe::types::make_unique(fe::types::atom_type{"bool"})));
+				re.set_value("eq", fe::values::native_function([](fe::values::value t) -> fe::values::value {
+					auto& tuple = std::get<fe::values::tuple>(t);
+
+					auto a = std::get<fe::values::integer>(tuple.content[0]);
+					auto b = std::get<fe::values::integer>(tuple.content[1]);
+
+					return fe::values::boolean(a.val == b.val);
+				}));
+				
 				return { re, te };
 			}
 		}

@@ -6,17 +6,36 @@
 #include <variant>
 
 // Also defined in values.h
-#define AST_NODE std::variant<identifier, no_op, set, tuple, block, function_call, integer, string, function, branch>
 
 namespace fe
 {
+	class runtime_environment;
+
 	namespace core_ast
 	{
+		struct node
+		{
+			virtual ~node() {};
+			virtual node* copy() = 0;
+			virtual values::value interp(runtime_environment&) = 0;
+		};
+
+		using unique_node = std::unique_ptr<node>;
+
+
+		struct assignment;
+		struct function_call;
+		struct conditional_branch;
+		struct atom_variable;
+		struct composite_variable;
+		struct function_variable;
+
 		// Value nodes
-		struct no_op
+		struct no_op : public node
 		{
 			no_op();
 
+			// Copy
 			no_op(const no_op& other);
 			no_op& operator=(const no_op& other);
 
@@ -24,13 +43,19 @@ namespace fe
 			no_op(no_op&& other);
 			no_op& operator=(no_op&& other);
 
+			node* copy()
+			{
+				return new no_op(*this);
+			}
+			values::value interp(runtime_environment&) override;
+
 			types::type type;
 		};
 
-		struct integer
+		struct integer : public node
 		{
 			integer(values::integer val);
-			
+
 			// Copy
 			integer(const integer& other);
 			integer& operator=(const integer& other);
@@ -39,14 +64,20 @@ namespace fe
 			integer(integer&& other);
 			integer& operator=(integer&& other);
 
+			node* copy()
+			{
+				return new integer(*this);
+			}
+			values::value interp(runtime_environment&) override;
+
 			values::integer value;
 			types::type type;
 		};
 
-		struct string
+		struct string : public node
 		{
 			string(values::string val);
-			
+
 			// Copy
 			string(const string& other);
 			string& operator=(const string& other);
@@ -55,11 +86,17 @@ namespace fe
 			string(string&& other);
 			string& operator=(string&& other);
 
+			node* copy()
+			{
+				return new string(*this);
+			}
+			values::value interp(runtime_environment&) override;
+
 			values::string value;
 			types::type type;
 		};
 
-		struct identifier
+		struct identifier : public node
 		{
 			identifier(std::vector<std::string>&& module_names, std::string&& variables, std::vector<int>&& offset);
 
@@ -70,6 +107,12 @@ namespace fe
 			// Move
 			identifier(identifier&& other);
 			identifier& operator=(identifier&& other);
+
+			node* copy()
+			{
+				return new identifier(*this);
+			}
+			values::value interp(runtime_environment&) override;
 
 			identifier without_first_module() const
 			{
@@ -87,9 +130,9 @@ namespace fe
 			types::type type;
 		};
 
-		struct set
+		struct set : public node
 		{
-			set(identifier&& id, std::unique_ptr<AST_NODE>&& value, types::type t);
+			set(identifier&& id, unique_node&& value, types::type t);
 
 			// Copy
 			set(const set& other);
@@ -99,21 +142,20 @@ namespace fe
 			set(set&& other);
 			set& operator=(set&& other);
 
+			node* copy()
+			{
+				return new set(*this);
+			}
+			values::value interp(runtime_environment&) override;
+
 			identifier id;
-			std::unique_ptr<AST_NODE> value;
+			unique_node value;
 			types::type type;
 		};
 
-		struct assignment;
-		struct function_call;
-		struct conditional_branch;
-		struct atom_variable;
-		struct composite_variable;
-		struct function_variable;
-
-		struct function
+		struct function : public node
 		{
-			function(std::optional<identifier>&& name, std::variant<std::vector<identifier>, identifier>&& parameters, std::unique_ptr<AST_NODE>&& body, types::type t);
+			function(std::optional<identifier>&& name, std::variant<std::vector<identifier>, identifier>&& parameters, unique_node&& body, types::type t);
 
 			// Copy
 			function(const function& other);
@@ -123,20 +165,26 @@ namespace fe
 			function(function&& other);
 			function& operator=(function&& other);
 
+			node* copy()
+			{
+				return new function(*this);
+			}
+			values::value interp(runtime_environment&) override;
+
 			// Name is set when the function is not anonymous, for recursion
 			std::optional<identifier> name;
 			// Either a named tuple or a single argument
 			std::variant<std::vector<identifier>, identifier> parameters;
-			std::unique_ptr<AST_NODE> body;
+			unique_node body;
 			types::type type;
 		};
 
 		// Derivatives
 
 
-		struct tuple
+		struct tuple : public node
 		{
-			tuple(std::vector<AST_NODE> children, types::type t);
+			tuple(std::vector<unique_node> children, types::type t);
 
 			// Copy
 			tuple(const tuple& other);
@@ -146,14 +194,20 @@ namespace fe
 			tuple(tuple&& other);
 			tuple& operator=(tuple&& other);
 
-			std::vector<AST_NODE> children;
+			node* copy()
+			{
+				return new tuple(*this);
+			}
+			values::value interp(runtime_environment&) override;
+
+			std::vector<unique_node> children;
 			types::type type;
 		};
 
 
-		struct block
+		struct block : public node
 		{
-			block(std::vector<AST_NODE> children, types::type t);
+			block(std::vector<unique_node> children, types::type t);
 
 			// Copy
 			block(const block& other);
@@ -163,13 +217,19 @@ namespace fe
 			block(block&& other);
 			block& operator=(block&& other);
 
-			std::vector<AST_NODE> children;
+			node* copy()
+			{
+				return new block(*this);
+			}
+			values::value interp(runtime_environment&) override;
+
+			std::vector<unique_node> children;
 			types::type type;
 		};
 
-		struct function_call
+		struct function_call : public node
 		{
-			function_call(identifier&& id, std::unique_ptr<AST_NODE>&& parameter, types::type&& t);
+			function_call(identifier&& id, unique_node&& parameter, types::type&& t);
 
 			// Copy
 			function_call(const function_call& other);
@@ -179,14 +239,20 @@ namespace fe
 			function_call(function_call&& other);
 			function_call& operator=(function_call&& other);
 
+			node* copy()
+			{
+				return new function_call(*this);
+			}
+			values::value interp(runtime_environment&) override;
+
 			identifier id;
-			std::unique_ptr<AST_NODE> parameter;
+			unique_node parameter;
 			types::type type;
 		};
 
-		struct branch
+		struct branch : public node
 		{
-			branch(std::unique_ptr<AST_NODE> test, std::unique_ptr<AST_NODE> true_path, std::unique_ptr<AST_NODE> false_path);
+			branch(unique_node test, unique_node true_path, unique_node false_path);
 
 			// Copy
 			branch(const branch& other);
@@ -196,19 +262,36 @@ namespace fe
 			branch(branch&& other);
 			branch& operator=(branch&& other);
 
-			std::unique_ptr<AST_NODE> test_path;
-			std::unique_ptr<AST_NODE> true_path;
-			std::unique_ptr<AST_NODE> false_path;
+			node* copy() override
+			{
+				return new branch(*this);
+			}
+			values::value interp(runtime_environment&) override;
+
+			unique_node test_path;
+			unique_node true_path;
+			unique_node false_path;
 			types::type type;
 		};
 
-		using node = AST_NODE;
-		using unique_node = std::unique_ptr<node>;
+		struct reference : public node
+		{
+			reference(unique_node exp);
 
-		const auto make_unique = [](auto&& x) {
-			return std::make_unique<node>(x);
+			reference(const reference& other);
+			reference& operator=(const reference& other);
+
+			reference(reference&& other);
+			reference& operator=(reference&& other);
+
+			node* copy() override
+			{
+				return new reference(*this);
+			}
+			values::value interp(runtime_environment&) override;
+
+			unique_node exp;
+			types::type type;
 		};
 	}
 }
-
-#undef AST_NODE

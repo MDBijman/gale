@@ -24,7 +24,9 @@ namespace fe
 			file, statement, export_stmt, assignment, expression, value_tuple,
 			tuple_element, function, branch,
 			branch_element, variable_declaration, type_expression, type_tuple,
-			type_tuple_elements, type_function, type_definition, module_declaration;
+			type_tuple_elements, function_type, type_definition, module_declaration,
+			block, function_call, atom_variable_declaration, tuple_variable_declaration,
+			type_atom, reference_type, array_type, reference;
 	}
 
 	namespace terminals
@@ -35,7 +37,7 @@ namespace fe
 			function_keyword, left_curly_bracket, right_curly_bracket,
 			right_arrow, comma, left_square_bracket, right_square_bracket,
 			case_keyword, vertical_line, module_keyword, public_keyword,
-			ref_keyword;
+			ref_keyword, call_keyword;
 	}
 
 
@@ -55,7 +57,7 @@ namespace fe
 		extended_ast::unique_node,
 		fe::typecheck_error,
 
-		core_ast::node,
+		core_ast::unique_node,
 		fe::lower_error,
 
 		values::value,

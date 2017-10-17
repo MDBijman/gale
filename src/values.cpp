@@ -9,14 +9,13 @@ namespace fe
 	{
 		// Function
 
-
-		function::function(std::unique_ptr<core_ast::function> func) : func(std::move(func)) {}
+		function::function(std::unique_ptr<core_ast::node> func) : func(std::move(func)) {}
 
 		// Copy
-		function::function(const function& other) : func(std::make_unique<core_ast::function>(*other.func)) {}
+		function::function(const function& other) : func(std::unique_ptr<core_ast::node>(other.func->copy())) {}
 		function& function::operator=(const function& other)
 		{
-			this->func = std::make_unique<core_ast::function>(*other.func);
+			this->func = std::unique_ptr<core_ast::node>(other.func->copy());
 			return *this;
 		}
 

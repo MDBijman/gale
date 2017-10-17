@@ -9,18 +9,7 @@ namespace fe
 {
 	namespace core_ast
 	{
-		struct no_op;
-		struct tuple;
-		struct block;
-		struct identifier;
-		struct function_call;
-		struct integer;
-		struct string;
-		struct function;
-		struct branch;
-		struct set;
-		using node = std::variant<identifier, no_op, set, tuple, block, function_call, integer, string, function, branch>;
-		using unique_node = std::unique_ptr<node>;
+		struct node;
 	}
 }
 
@@ -125,7 +114,7 @@ namespace fe
 
 		struct function
 		{
-			function(std::unique_ptr<core_ast::function> func);
+			function(std::unique_ptr<core_ast::node> func);
 
 			// Copy
 			function(const function& other);
@@ -135,7 +124,7 @@ namespace fe
 			function(function&& other);
 			function& operator=(function&& other);
 
-			std::unique_ptr<core_ast::function> func;
+			std::unique_ptr<core_ast::node> func;
 
 			std::string to_string();
 		};

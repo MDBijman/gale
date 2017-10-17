@@ -209,5 +209,8 @@
     <Text Include="snippets\notes.txt">
       <Filter>Resource Files</Filter>
     </Text>
+    <Text Include="snippets\language_grammar.txt">
+      <Filter>Resource Files</Filter>
+    </Text>
   </ItemGroup>
 </Project>
