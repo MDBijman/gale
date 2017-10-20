@@ -48,3 +48,23 @@ type_tuple_elements :=
 type_function := 'function', type_expression, '->', type_expression
 
 type_definition := 'type', identifier, variable_declaration
+
+///
+sum = fn ([] std.i32 values) -> std.i32 = {
+	call add (call sum (call slice (values, 1, call sub (call length (values), 1))), call get (values, 0))
+}
+
+
+c = call Vertex (3, 4, 3)
+d = call Face (a, b, c)
+e = call Model (ref [d])
+
+
+t = 4 = )
+nt = 37
+
+
+.abc -> 0
+a.bc -> 1
+ab.c -> 2
+

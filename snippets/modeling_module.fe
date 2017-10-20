@@ -27,13 +27,6 @@ translate_f = fn (Face f, std.i32 x, std.i32 y, std.i32 z) -> Face = {
 
 a = call Vertex (1, 1, 1)
 b = call Vertex (2, 2, 2)
-c = call Vertex (3, 4, 3)
-d = call Face (a, b, c)
-e = call Model (ref [d])
-
-sum = fn ([] std.i32 values) -> std.i32 = {
-	call add (call sum (call slice (values, 1, call sub (call length (values), 1))), call get (values, 0))
-}
 
 z = case [
 	| call gte(0, 1) -> 3
