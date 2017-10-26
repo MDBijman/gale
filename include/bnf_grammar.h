@@ -61,7 +61,7 @@ namespace tools::bnf
 			return false;
 		}
 
-		bool operator== (const symbol& other)
+		bool operator==(const symbol& other) const
 		{
 			if (is_terminal() != other.is_terminal()) return false;
 			if (is_terminal())
@@ -93,7 +93,24 @@ namespace tools::bnf
 	{
 		rule(const non_terminal& lhs, const std::vector<symbol>& rhs) : lhs(lhs), rhs(rhs) {}
 
+		bool operator==(const rule& other) const
+		{
+			return (lhs == other.lhs) && (rhs == other.rhs);
+		}
+
 		const non_terminal lhs;
 		const std::vector<symbol> rhs;
 	};
 }
+
+namespace std
+{
+	template<> struct std::hash<tools::bnf::symbol>
+	{
+		std::size_t operator()(const tools::bnf::symbol& s) const
+		{
+			return std::hash<decltype(s.value)>()(s.value);
+		}
+	};
+}
+

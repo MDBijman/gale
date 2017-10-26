@@ -58,13 +58,3 @@ sum = fn ([] std.i32 values) -> std.i32 = {
 c = call Vertex (3, 4, 3)
 d = call Face (a, b, c)
 e = call Model (ref [d])
-
-
-t = 4 = )
-nt = 37
-
-
-.abc -> 0
-a.bc -> 1
-ab.c -> 2
-

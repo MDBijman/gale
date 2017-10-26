@@ -226,6 +226,7 @@ namespace tools::bnf
 			}
 		}
 
+		// Generate table
 		for (auto it = rules.begin(); it != rules.end(); it++)
 		{
 			auto first = it->second.at(0);
