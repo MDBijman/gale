@@ -33,7 +33,7 @@ namespace tools::lalr
 
 		const bnf::rule rule;
 		std::size_t bullet_offset;
-		std::unordered_set<bnf::terminal> lookahead;
+		bnf::terminal lookahead;
 	};
 
 	struct item_set
@@ -114,7 +114,7 @@ namespace tools::lalr
 	* The first set of a nonterminal N contains all terminals that are first on
 	* the rules with N on the lhs, including epsilon if there could be no tokens consumed.
 	*/
-	using first_set = std::unordered_map<bnf::non_terminal, std::unordered_set<bnf::terminal>>;
+	using first_set = std::unordered_map<bnf::non_terminal, std::unordered_set<bnf::symbol>>;
 
 	/*
 	* The follow set of a nonterminal N contains all terminals that could be the first token
