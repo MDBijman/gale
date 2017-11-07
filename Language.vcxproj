@@ -134,22 +134,25 @@
     <ClCompile Include="src\extended_ast.cpp" />
     <ClCompile Include="src\lalr_parser.cpp" />
     <ClCompile Include="src\main.cpp" />
-    <ClCompile Include="src\bnf_parser.cpp" />
+    <ClCompile Include="src\ll_parser.cpp" />
     <ClCompile Include="src\types.cpp" />
     <ClCompile Include="src\values.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\bnf_grammar.h" />
+    <ClInclude Include="include\bnf_parser.h" />
     <ClInclude Include="include\grammar_tests.h" />
     <ClInclude Include="include\lalr_parser.h" />
     <ClInclude Include="include\lalr_tests.h" />
+    <ClInclude Include="include\parser.h" />
+    <ClInclude Include="include\performance_tests.h" />
     <ClInclude Include="include\runtime_environment.h" />
     <ClInclude Include="include\core_operations.h" />
     <ClInclude Include="include\error.h" />
     <ClInclude Include="include\reader.h" />
     <ClInclude Include="include\std_types.h" />
     <ClInclude Include="include\extended_ast.h" />
-    <ClInclude Include="include\bnf_parser.h" />
+    <ClInclude Include="include\ll_parser.h" />
     <ClInclude Include="include\core_ast.h" />
     <ClInclude Include="include\language_module.h" />
     <ClInclude Include="include\lowering_stage.h" />
@@ -164,7 +167,6 @@
     <ClInclude Include="include\parser_stage.h" />
     <ClInclude Include="include\lexer.h" />
     <ClInclude Include="include\tags.h" />
-    <ClInclude Include="include\test.h" />
     <ClInclude Include="include\tests.h" />
     <ClInclude Include="include\typechecker_stage.h" />
     <ClInclude Include="include\typecheck_env_tests.h" />

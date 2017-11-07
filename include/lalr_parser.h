@@ -1,5 +1,6 @@
 #pragma once
 #include "bnf_grammar.h"
+#include "parser.h"
 #include <variant>
 #include <unordered_map>
 #include <unordered_set>
@@ -15,6 +16,11 @@ namespace tools::lalr
 
 	struct item
 	{
+		bool is_parsed() const
+		{
+			return bullet_offset >= rule.rhs.size();
+		}
+
 		bnf::symbol expected_symbol() const
 		{
 			return rule.rhs.at(bullet_offset);
@@ -22,11 +28,12 @@ namespace tools::lalr
 
 		bool operator==(const item& other) const
 		{
-			return (rule == other.rule) && (bullet_offset == other.bullet_offset);
+			return (rule == other.rule) && (bullet_offset == other.bullet_offset) && (lookahead == other.lookahead);
 		}
 
 		const bnf::rule rule;
 		std::size_t bullet_offset;
+		std::unordered_set<bnf::terminal> lookahead;
 	};
 
 	struct item_set
@@ -42,19 +49,44 @@ namespace tools::lalr
 
 	using state = std::size_t;
 
-	struct goto_action 
+	struct goto_action
 	{
 		state new_state;
 	};
-	struct reduce_action 
+	
+	static bool operator==(const goto_action& a, const goto_action& b)
+	{
+		return a.new_state == b.new_state;
+	}
+
+	struct reduce_action
 	{
 		std::size_t rule_index;
 	};
+	
+	static bool operator==(const reduce_action& a, const reduce_action& b)
+	{
+		return a.rule_index == b.rule_index;
+	}
+
 	struct shift_action
 	{
 		state new_state;
 	};
-	struct accept_action {};
+	
+	static bool operator==(const shift_action& a, const shift_action& b)
+	{
+		return a.new_state == b.new_state;
+	}
+
+	struct accept_action
+	{
+	};
+	
+	static bool operator==(const accept_action& a, const accept_action& b)
+	{
+		return true;
+	}
 
 	/*
 	* An action can be either a goto, reduce, or an accept.
@@ -74,7 +106,7 @@ namespace tools::lalr
 
 	/*
 	* The parse table maps a state and a symbol to an action for the parser. The action can be
-	* a goto, a reduce, or an accept.
+	* a goto, a reduce, a shift, or an accept.
 	*/
 	using parse_table = std::unordered_map<std::pair<state, bnf::symbol>, action, detail::parse_table_hasher>;
 
@@ -82,7 +114,7 @@ namespace tools::lalr
 	* The first set of a nonterminal N contains all terminals that are first on
 	* the rules with N on the lhs, including epsilon if there could be no tokens consumed.
 	*/
-	using first_set = std::unordered_map<bnf::non_terminal, std::unordered_set<bnf::symbol>>;
+	using first_set = std::unordered_map<bnf::non_terminal, std::unordered_set<bnf::terminal>>;
 
 	/*
 	* The follow set of a nonterminal N contains all terminals that could be the first token
@@ -90,33 +122,19 @@ namespace tools::lalr
 	*/
 	using follow_set = std::unordered_map<bnf::non_terminal, std::unordered_set<bnf::symbol>>;
 
-	class parser
+	class parser : public tools::parser
 	{
 	public:
-		void generate_item_sets();
+		void generate(bnf::non_terminal start_symbol, std::multimap<bnf::non_terminal, std::vector<bnf::symbol>>& rules) override;
 
-		void parse(std::vector<bnf::terminal> input);
+		std::unique_ptr<bnf::node> parse(std::vector<bnf::terminal_node> input) override;
 
-		parser& new_rule(bnf::rule& r)
-		{
-			rules.push_back(r);
-			return *this;
-		}
-
-		bnf::non_terminal start_symbol;
 		std::vector<bnf::rule> rules;
-
 		std::vector<item_set> item_sets;
 		std::vector<item_set_transition> transitions;
 		first_set first;
 		follow_set follow;
 
 		parse_table table;
-
-	private:
-		bnf::rule& rule_of(bnf::non_terminal nt)
-		{
-			return *std::find_if(rules.begin(), rules.end(), [&](const bnf::rule& rule) { return rule.lhs == nt; });
-		}
 	};
 }

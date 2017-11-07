@@ -31,7 +31,8 @@ namespace tools
 			REMOVE,
 			REPLACE_WITH_CHILDREN,
 			KEEP,
-			REMOVE_IF_ONE_CHILD
+			REMOVE_IF_ONE_CHILD,
+			REPLACE_IF_ONE_CHILD
 		};
 
 		struct terminal_node
@@ -93,6 +94,14 @@ namespace tools
 						auto nt_child = &std::get<non_terminal_node>(*child);
 						auto rule = transformation_rules(nt_child->value);
 
+						if (rule == transformation_type::REPLACE_IF_ONE_CHILD)
+						{
+							if (nt_child->children.size() == 1)
+								rule = transformation_type::REPLACE_WITH_CHILDREN;
+							else
+								rule = transformation_type::KEEP;
+						}
+
 						switch (rule)
 						{
 							// Remove if there is a single child
@@ -103,6 +112,7 @@ namespace tools
 								it++;
 								break;
 							}
+							// Fallthrough
 							// Remove node and children
 						case transformation_type::REMOVE:
 							it = children.erase(it);
@@ -141,10 +151,10 @@ namespace tools
 				if (std::holds_alternative<ebnf::error>(ebnf_results))
 					return error{ error_code::EBNF_PARSER_ERROR, std::get<ebnf::error>(ebnf_results).message };
 
-				auto extended_ast = 
+				auto extended_ast =
 					std::get<ebnf::non_terminal_node>(
 						std::move(*std::get<std::unique_ptr<ebnf::node>>(ebnf_results))
-					);
+						);
 
 				auto ebnfe_ast = std::make_unique<node>(non_terminal_node(&extended_ast, [&](std::variant<terminal, non_terminal> s) {
 					return transformation_rules.find(s) == transformation_rules.end() ?

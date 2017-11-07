@@ -64,6 +64,7 @@ namespace fe
 		struct reference_type;
 		struct atom_declaration;
 		struct tuple_declaration;
+		struct arithmetic;
 
 		// Definitions
 
@@ -463,7 +464,7 @@ namespace fe
 
 		struct function : public node
 		{
-			function(std::optional<identifier> name, tuple_declaration from, unique_node to, unique_node body) : node(types::unset_type()), name(std::move(name)), from(std::move(from)), to(std::move(to)), body(std::move(body)) {}
+			function(std::optional<identifier> name, unique_node from, unique_node to, unique_node body) : node(types::unset_type()), name(std::move(name)), from(std::move(from)), to(std::move(to)), body(std::move(body)) {}
 			function(std::vector<unique_node>&& children);
 
 			node* copy() override
@@ -492,7 +493,7 @@ namespace fe
 
 			// Name is set when the function is not anonymous, for recursion
 			std::optional<identifier> name;
-			tuple_declaration from;
+			unique_node from;
 			unique_node to;
 			unique_node body;
 
@@ -503,7 +504,8 @@ namespace fe
 
 		struct type_definition : public node
 		{
-			type_definition(identifier&& name, tuple_declaration types) : node(types::atom_type{ "void" }), id(std::move(name)), types(std::move(types)) {}
+			//type_definition(identifier&& name, tuple_declaration types) : node(types::atom_type{ "void" }), id(std::move(name)), types(std::move(types)) {}
+			//type_definition(identifier&& name, atom_declaration types) : node(types::atom_type{ "void" }), id(std::move(name)), types(std::move(types)) {}
 			type_definition(std::vector<unique_node>&& children);
 
 			node* copy() override
@@ -515,7 +517,7 @@ namespace fe
 			core_ast::node* lower() override;
 
 			// Copy
-			type_definition(const type_definition& other) : node(other), id(other.id), types(other.types), tags(other.tags) {}
+			type_definition(const type_definition& other) : node(other), id(other.id), types(other.types->copy()), tags(other.tags) {}
 
 			// Move
 			type_definition(type_definition&& other) : node(std::move(other)), id(std::move(other.id)), types(std::move(other.types)), tags(std::move(other.tags)) {}
@@ -529,7 +531,7 @@ namespace fe
 			}
 
 			identifier id;
-			tuple_declaration types;
+			unique_node types;
 			tags::tags tags;
 		};
 
@@ -797,6 +799,55 @@ namespace fe
 			core_ast::node* lower() override;
 
 			std::vector<unique_node> children;
+		};
+
+		struct arithmetic : public node
+		{
+			arithmetic(std::vector<unique_node>&& children);
+
+			// Copy
+			arithmetic(const arithmetic&);
+
+			// Move
+			arithmetic(arithmetic&&);
+			arithmetic& operator=(arithmetic&&);
+
+			node* copy() override;
+			void typecheck(typecheck_environment& env) override;
+			core_ast::node* lower() override;
+		};
+
+		struct term : public node
+		{
+			term(std::vector<unique_node>&& children);
+
+			// Copy
+			term(const term&);
+
+			// Move
+			term(term&&);
+			term& operator=(term&&);
+
+			node* copy() override;
+			void typecheck(typecheck_environment& env) override;
+			core_ast::node* lower() override;
+
+		};
+
+		struct factor : public node
+		{
+			factor(std::vector<unique_node>&& children);
+
+			// Copy
+			factor(const factor&);
+
+			// Move
+			factor(factor&&);
+			factor& operator=(factor&&);
+
+			node* copy() override;
+			void typecheck(typecheck_environment& env) override;
+			core_ast::node* lower() override;
 		};
 	}
 }

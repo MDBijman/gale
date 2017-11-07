@@ -22,10 +22,13 @@ namespace fe
 			add_mapping(rcb_token, right_curly_bracket); 
 			add_mapping(lsb_token, left_square_bracket);
 			add_mapping(rsb_token, right_square_bracket);
+			add_mapping(lab_token, left_angle_bracket);
+			add_mapping(rab_token, right_angle_bracket);
 			add_mapping(pipe_token, vertical_line);
 			add_mapping(right_arrow_token, right_arrow);
 			add_mapping(equals_token, equals);
 			add_mapping(comma_token, comma);
+			add_mapping(semicolon_token, semicolon);
 			add_mapping(keyword_token, [&](tools::lexing::token token) {
 				if (token.text == "export")
 					return export_keyword;
@@ -41,8 +44,8 @@ namespace fe
 					return public_keyword;
 				if (token.text == "ref")
 					return ref_keyword;
-				if (token.text == "call")
-					return call_keyword;
+				if (token.text == "var")
+					return var_keyword;
 				return identifier;
 			});
 		}

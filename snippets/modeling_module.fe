@@ -1,36 +1,38 @@
 module modeling
 
-type Vertex (std.i32 x, std.i32 y, std.i32 z) 
-type Face (Vertex a, Vertex b, Vertex c)
-type Model (ref [] Face faces)
+type Vertex = (std.i32 x, std.i32 y, std.i32 z)
+type Face = (Vertex a, Vertex b, Vertex c)
+type Model = ref [] Face faces
 
-factorial = fn (std.i32 n) -> std.i32 = case [
-	| call eq (n, 1) -> 1
-	| call eq (1, 1) -> call mul (n, call factorial (call sub (n, 1)))
+var factorial = fn std.i32 n -> std.i32 = case [
+	| eq (n, 1) -> 1
+	| eq (1, 1) -> mul (n, factorial sub (n, 1))
 ]
 
-create_vertex = fn (std.i32 x, std.i32 y, std.i32 z) -> Vertex = {
-	call Vertex (x, y, z)
+var create_vertex = fn (std.i32 x, std.i32 y, std.i32 z) -> Vertex = {
+	var x = Vertex (x, y, z);
+	x
 }
 
-create_face = fn (Vertex a, Vertex b, Vertex c) -> Face = {
-	call Face (a, b, c)
-}
 
-translate_v = fn (Vertex v, std.i32 x, std.i32 y, std.i32 z) -> Vertex = {
-	call Vertex (call add (v.x, x), call add (v.y, y), call add (v.z, z))
-}
+var create_face = fn (Vertex a, Vertex b, Vertex c) -> Face = 
+	Face (a, b, c)
 
-translate_f = fn (Face f, std.i32 x, std.i32 y, std.i32 z) -> Face = {
-	call Face (call translate_v (f.a, x, y, z), call translate_v (f.b, x, y, z), call translate_v (f.c, x, y, z))
-}
 
-a = call Vertex (1, 1, 1)
-b = call Vertex (2, 2, 2)
+var translate_v = fn (Vertex v, std.i32 x, std.i32 y, std.i32 z) -> Vertex = 
+	Vertex (add (v.x, x),  add (v.y, y),  add (v.z, z))
 
-z = case [
-	| call gte(0, 1) -> 3
-	| call lt(1, 3) -> call factorial (5)
+
+var translate_f = fn (Face f, std.i32 x, std.i32 y, std.i32 z) -> Face = 
+	 Face (translate_v (f.a, x, y, z),  translate_v (f.b, x, y, z),  translate_v (f.c, x, y, z))
+
+
+var a = Vertex (1, 1, 1)
+var b = Vertex (2, 2, 2)
+
+var z = case [
+	| gte(0, 1) -> 3
+	| lt(1, 3) -> factorial 5
 ]
 
 export Face Vertex

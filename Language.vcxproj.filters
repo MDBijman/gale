@@ -69,6 +69,9 @@
     <Filter Include="Source Files\tests\tools\parsing">
       <UniqueIdentifier>{ffb901a3-576a-4b9a-80f0-3fcc8ed842d7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\tools\parsing\imp">
+      <UniqueIdentifier>{790d3ab7-d2b5-4a83-a111-ce47a65c1f4c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="snippets\test.fe">
@@ -88,9 +91,6 @@
     <ClCompile Include="src\main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\bnf_parser.cpp">
-      <Filter>Source Files\tools\parsing</Filter>
-    </ClCompile>
     <ClCompile Include="src\values.cpp">
       <Filter>Source Files\fe\data</Filter>
     </ClCompile>
@@ -106,16 +106,16 @@
     <ClCompile Include="src\extended_ast.cpp">
       <Filter>Source Files\fe\data</Filter>
     </ClCompile>
+    <ClCompile Include="src\ll_parser.cpp">
+      <Filter>Source Files\tools\parsing\imp</Filter>
+    </ClCompile>
     <ClCompile Include="src\lalr_parser.cpp">
-      <Filter>Source Files\tools\parsing</Filter>
+      <Filter>Source Files\tools\parsing\imp</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\lexer.h">
       <Filter>Source Files\tools\lexing</Filter>
-    </ClInclude>
-    <ClInclude Include="include\bnf_parser.h">
-      <Filter>Source Files\tools\parsing</Filter>
     </ClInclude>
     <ClInclude Include="include\ebnf_parser.h">
       <Filter>Source Files\tools\parsing</Filter>
@@ -186,9 +186,6 @@
     <ClInclude Include="include\typecheck_environment.h">
       <Filter>Source Files\fe\data</Filter>
     </ClInclude>
-    <ClInclude Include="include\test.h">
-      <Filter>Source Files\tests</Filter>
-    </ClInclude>
     <ClInclude Include="include\typecheck_env_tests.h">
       <Filter>Source Files\tests\fe\data</Filter>
     </ClInclude>
@@ -201,10 +198,22 @@
     <ClInclude Include="include\bnf_grammar.h">
       <Filter>Source Files\tools\parsing</Filter>
     </ClInclude>
-    <ClInclude Include="include\lalr_parser.h">
+    <ClInclude Include="include\lalr_tests.h">
+      <Filter>Source Files\tests\tools\parsing</Filter>
+    </ClInclude>
+    <ClInclude Include="include\parser.h">
       <Filter>Source Files\tools\parsing</Filter>
     </ClInclude>
-    <ClInclude Include="include\lalr_tests.h">
+    <ClInclude Include="include\bnf_parser.h">
+      <Filter>Source Files\tools\parsing</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ll_parser.h">
+      <Filter>Source Files\tools\parsing\imp</Filter>
+    </ClInclude>
+    <ClInclude Include="include\lalr_parser.h">
+      <Filter>Source Files\tools\parsing\imp</Filter>
+    </ClInclude>
+    <ClInclude Include="include\performance_tests.h">
       <Filter>Source Files\tests\tools\parsing</Filter>
     </ClInclude>
   </ItemGroup>

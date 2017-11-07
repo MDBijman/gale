@@ -1,21 +1,20 @@
 #pragma once
 #include "typecheck_environment.h"
-#include "test.h"
 #include "types.h"
 
 #include <variant>
 
 namespace tests
 {
-	struct typecheck_environment_tests : public test
+	struct typecheck_environment_tests 
 	{
 		fe::typecheck_environment t_env;
 
-		typecheck_environment_tests() : test("typecheck_environment")
+		typecheck_environment_tests() 
 		{
 		}
 		
-		void run_all() override
+		void run_all()
 		{
 			std::cout << "Testing typecheck environment\n";
 			test_types();

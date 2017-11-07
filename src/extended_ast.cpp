@@ -354,11 +354,11 @@ namespace fe
 
 		// Function
 
-		function::function(const function& other) : node(other), name(other.name), from(other.from), to(other.to->copy()), body(other.body->copy()), tags(other.tags) {}
+		function::function(const function& other) : node(other), name(other.name), from(other.from->copy()), to(other.to->copy()), body(other.body->copy()), tags(other.tags) {}
 		function::function(std::vector<unique_node>&& children) :
 			node(types::unset_type()),
 			name(std::optional<identifier>()),
-			from(*dynamic_cast<tuple_declaration*>(children.at(0).get())),
+			from(std::move(children.at(0))),
 			to(std::move(children.at(1))),
 			body(std::move(children.at(2))) {}
 
@@ -367,12 +367,12 @@ namespace fe
 			auto function_env = env;
 
 			// Check 'from' type expression
-			from.typecheck(function_env);
+			from->typecheck(function_env);
 
 			// Check 'to' type expression
 			to->typecheck(function_env);
 
-			set_type(types::function_type(types::make_unique(from.get_type()), types::make_unique(to->get_type())));
+			set_type(types::function_type(types::make_unique(from->get_type()), types::make_unique(to->get_type())));
 
 			// Allow recursion
 			if (name.has_value())
@@ -401,18 +401,28 @@ namespace fe
 
 			auto lowered_body = body->lower();
 
-			std::vector<core_ast::identifier> parameter_names;
-			for (decltype(auto) identifier : from.elements)
-			{
-				if (auto atom = dynamic_cast<atom_declaration*>(identifier.get()))
+			auto parameters = ([&]() -> std::variant<std::vector<core_ast::identifier>, core_ast::identifier> {
+				if (auto tuple = dynamic_cast<tuple_declaration*>(from.get()))
 				{
-					parameter_names.push_back(*dynamic_cast<core_ast::identifier*>(atom->name.lower()));
+					std::vector<core_ast::identifier> parameter_names;
+					for (decltype(auto) identifier : tuple->elements)
+					{
+						if (auto atom = dynamic_cast<atom_declaration*>(identifier.get()))
+						{
+							parameter_names.push_back(*dynamic_cast<core_ast::identifier*>(atom->name.lower()));
+						}
+					}
+					return parameter_names;
 				}
-			}
+				else if (auto atom = dynamic_cast<atom_declaration*>(from.get()))
+				{
+					return *dynamic_cast<core_ast::identifier*>(atom->name.lower());
+				}
+			})();
 
 			return new core_ast::function{
 				std::move(name),
-				std::move(parameter_names),
+				std::move(parameters),
 				core_ast::unique_node(std::move(lowered_body)),
 				std::move(get_type())
 			};
@@ -485,26 +495,24 @@ namespace fe
 
 			return child_branch;
 		}
-	
+
 		// Type Definition
-		
+
 		type_definition::type_definition(std::vector<unique_node>&& children) :
 			node(types::atom_type{ "void" }),
 			id(std::move(*dynamic_cast<identifier*>(children.at(0).get()))),
-			types(std::move(*dynamic_cast<tuple_declaration*>(children.at(1).get()))) {}
+			types(std::move(children.at(1))) {}
 
 		void type_definition::typecheck(typecheck_environment& env)
 		{
-			types.typecheck(env);
-			env.set_type(id, types.get_type());
-			id.set_type(types.get_type());
-			set_type(types.get_type());
+			types->typecheck(env);
+			env.set_type(id, types->get_type());
+			id.set_type(types->get_type());
+			set_type(types->get_type());
 		}
 
 		core_ast::node* type_definition::lower()
 		{
-			auto function_type = std::get<types::product_type>(types.get_type());
-
 			auto return_statement = core_ast::unique_node(new core_ast::identifier({}, { "_arg0" }, {}));
 			auto parameter_name = core_ast::identifier({}, { "_arg0" }, {});
 
@@ -516,14 +524,14 @@ namespace fe
 					parameter_name,
 					std::move(return_statement),
 					types::function_type(
-						types::make_unique(types::product_type(function_type)),
-						types::make_unique(types::product_type(function_type))
+						types::make_unique(types->get_type()),
+						types::make_unique(types->get_type())
 					)
 				)),
 
 				types::function_type(
-					types::make_unique(types::product_type(function_type)),
-					types::make_unique(types::product_type(function_type))
+					types::make_unique(types->get_type()),
+					types::make_unique(types->get_type())
 				)
 			);
 		}
@@ -545,7 +553,7 @@ namespace fe
 			return *this;
 		}
 
-		node* array_type::copy() 
+		node* array_type::copy()
 		{
 			return new array_type(*this);
 		}
@@ -583,7 +591,7 @@ namespace fe
 			return *this;
 		}
 
-		node* reference::copy() 
+		node* reference::copy()
 		{
 			return new reference(*this);
 		}
@@ -615,8 +623,8 @@ namespace fe
 			}
 		}
 
-		array_value::array_value(array_value&& other) : 
-			node(std::move(other)), 
+		array_value::array_value(array_value&& other) :
+			node(std::move(other)),
 			children(std::move(other.children)) {}
 
 		array_value& array_value::operator=(array_value&& other)

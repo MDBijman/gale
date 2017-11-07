@@ -38,6 +38,9 @@ namespace fe
 			array_type = parser.new_non_terminal();
 			reference = parser.new_non_terminal();
 			array_value = parser.new_non_terminal();
+			operation = parser.new_non_terminal();
+			factor = parser.new_non_terminal();
+			term = parser.new_non_terminal();
 
 			identifier = parser.new_terminal();
 			equals = parser.new_terminal();
@@ -59,34 +62,42 @@ namespace fe
 			module_keyword = parser.new_terminal();
 			public_keyword = parser.new_terminal();
 			ref_keyword = parser.new_terminal();
-			call_keyword = parser.new_terminal();
+			var_keyword = parser.new_terminal();
+			semicolon = parser.new_terminal();
+			plus = parser.new_terminal();
+			minus = parser.new_terminal();
+			mul = parser.new_terminal();
+			div = parser.new_terminal();
+			left_angle_bracket = parser.new_terminal();
+			right_angle_bracket = parser.new_terminal();
+			
 
 			using namespace tools::ebnf::meta;
 			parser
 				// Initial non terminal
+				.new_rule({ file, {expression} })
 				.new_rule({ file, { lsb, module_declaration, rsb, statement, star } })
 				.new_rule({ module_declaration, { module_keyword, identifier } })
-				
+
 				// Statements
 
-				.new_rule({ statement, { 
-					type_definition, alt, 
-					export_stmt, alt, 
-					assignment 
+				.new_rule({ statement, {
+					type_definition, alt,
+					export_stmt, alt,
+					assignment
 				} })
 
-				.new_rule({ type_definition, { type_keyword, identifier, variable_declaration } })
+				.new_rule({ type_definition, { type_keyword, identifier, equals, variable_declaration } })
 				.new_rule({ export_stmt, { export_keyword, identifier, star } })
-				.new_rule({ assignment, { identifier, equals, expression } })
+				.new_rule({ assignment, { var_keyword, identifier, equals, expression } })
 
 				// Expressions
 
 				.new_rule({ expression, {
 					// Terminals
-					number, alt,
 					word, alt,
-					identifier, alt,
 					// Non terminals
+					operation, alt,
 					value_tuple, alt,
 					function_call, alt,
 					function, alt,
@@ -96,14 +107,23 @@ namespace fe
 					array_value
 				} })
 
-				.new_rule({ value_tuple, { left_bracket, lsb, expression, lrb, comma, expression, rrb, star, rsb, right_bracket } })
-				.new_rule({ function_call, { call_keyword, identifier, expression } })
+
+				.new_rule({ value_tuple, {
+					left_bracket, right_bracket, alt,
+					left_bracket, expression, lrb, comma, expression, rrb, star, right_bracket 
+				} })
+				.new_rule({ function_call, { identifier, expression } })
 				.new_rule({ function, { function_keyword, variable_declaration, right_arrow, type_expression, equals, expression} })
 				.new_rule({ branch, { case_keyword, left_square_bracket, branch_element, star, right_square_bracket } })
 				.new_rule({ branch_element, { vertical_line, expression, right_arrow, expression } })
-				.new_rule({ block, { left_curly_bracket, expression, star, right_curly_bracket } })
+				.new_rule({ block, { left_curly_bracket, lrb, statement, semicolon, rrb, star, expression, right_curly_bracket } })
 				.new_rule({ reference, { ref_keyword, expression } })
 				.new_rule({ array_value, { left_square_bracket, expression, lrb, comma, expression, rrb, star, right_square_bracket } })
+				
+				.new_rule({ operation, { term, plus, operation, alt, term, minus, operation, alt, term } })
+				.new_rule({ term, { factor, mul, term, alt, factor, div, term, alt, factor } })
+				.new_rule({ factor, { left_bracket, number, right_bracket, alt, number, alt, identifier } })
+
 
 				// Declarations
 
@@ -113,7 +133,10 @@ namespace fe
 				} })
 
 				.new_rule({ atom_variable_declaration, { type_expression, identifier } })
-				.new_rule({ tuple_variable_declaration, { left_bracket, variable_declaration, lrb, comma, variable_declaration, rrb, star, right_bracket } })
+				.new_rule({ tuple_variable_declaration, { 
+					left_bracket, right_bracket, alt,
+					left_bracket, variable_declaration, comma, variable_declaration, lrb, comma, variable_declaration, rrb, star, right_bracket 
+				} })
 
 				// Type Expressions
 
@@ -132,7 +155,11 @@ namespace fe
 				;
 
 			using tools::ebnfe::transformation_type;
-			parser
+				parser
+				.new_transformation(operation, transformation_type::REPLACE_IF_ONE_CHILD)
+				.new_transformation(term, transformation_type::REPLACE_IF_ONE_CHILD)
+				.new_transformation(factor, transformation_type::REPLACE_IF_ONE_CHILD)
+				.new_transformation(semicolon, transformation_type::REMOVE)
 				.new_transformation(ref_keyword, transformation_type::REMOVE)
 				.new_transformation(expression, transformation_type::REPLACE_WITH_CHILDREN)
 				.new_transformation(variable_declaration, transformation_type::REPLACE_WITH_CHILDREN)
@@ -152,7 +179,7 @@ namespace fe
 				.new_transformation(export_keyword, transformation_type::REMOVE)
 				.new_transformation(type_keyword, transformation_type::REMOVE)
 				.new_transformation(function_keyword, transformation_type::REMOVE)
-				.new_transformation(call_keyword, transformation_type::REMOVE)
+				.new_transformation(var_keyword, transformation_type::REMOVE)
 				.new_transformation(case_keyword, transformation_type::REMOVE)
 				.new_transformation(right_arrow, transformation_type::REMOVE)
 				.new_transformation(comma, transformation_type::REMOVE)

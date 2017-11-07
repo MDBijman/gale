@@ -11,21 +11,28 @@ namespace tests::lalr
 
 			auto p = tools::lalr::parser();
 
-			auto S = non_terminal(0), N = non_terminal(1), V = non_terminal(2), E = non_terminal(3);
-			int eq = 4, x = 5, mul = 6;
+			non_terminal E = 1, O = 2, V = 3, T = 4, F = 5;
+			int n = 1, lb = 2, rb = 3, mul = 4, plus = 5, comma = 6, minus = 7, div = 8;
 
-			p.start_symbol = 0;
-			p.new_rule(rule(S, { N }));
-			p.new_rule(rule(N, { V, eq, E }));
-			p.new_rule(rule(N, { E }));
-			p.new_rule(rule(E, { V }));
-			p.new_rule(rule(V, { x }));
-			p.new_rule(rule(V, { mul, E }));
-			p.generate_item_sets();
-			p.parse({ { x, eq, mul, x } });
+			std::multimap<non_terminal, std::vector<symbol>> rules;
+			rules.insert({ E, { F } });
+			rules.insert({ E, { V } });
 
-			assert(p.item_sets.size() == 10);
-			assert(p.transitions.size() == 14);
+			rules.insert({ V, { lb, rb } });
+			rules.insert({ V, { lb, E, E, rb } });
+
+			rules.insert({ O, { T, plus, E } });
+			rules.insert({ O, { T } });
+
+			rules.insert({ T, { F, mul, T } });
+			rules.insert({ T, { F } });
+
+			rules.insert({ F, { lb, n, rb } });
+			rules.insert({ F, { n } });
+
+
+			p.generate(E, rules);
+			auto res = p.parse({ {n, ""} });
 
 			//auto Sc = non_terminal(0), S = non_terminal(1), A = non_terminal(2), E = non_terminal(3);
 			//int eoi = 4, semicolon = 5, id = 6, set = 7, plus = 8;

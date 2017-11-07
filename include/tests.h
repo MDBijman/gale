@@ -2,11 +2,15 @@
 #include "grammar_tests.h"
 #include "typecheck_env_tests.h"
 #include "lalr_tests.h"
+#include "performance_tests.h"
 
 namespace tests
 {
 	void run_all()
 	{
+		performance_tests()
+			.run_all();
+
 		lalr::lalr_generator_tests()
 			.run_all();
 

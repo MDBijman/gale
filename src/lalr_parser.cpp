@@ -6,36 +6,67 @@
 
 namespace tools::lalr
 {
-	void parser::generate_item_sets()
+	void parser::generate(bnf::non_terminal start_symbol, std::multimap<bnf::non_terminal, std::vector<bnf::symbol>>& r)
 	{
+		for (auto& rule : r)
+		{
+			this->rules.push_back(bnf::rule{ rule.first, rule.second });
+		}
+		this->rules.push_back(bnf::rule{ 0, { start_symbol } });
+
 		item_sets.push_back(item_set());
 
 		auto expand_item_set = [&](item_set& i) {
-			std::size_t index = 0;
-			for (; index < i.items.size(); index++)
+			for(std::size_t index = 0; index < i.items.size(); index++)
 			{
-				const auto& set_item = i.items.at(index);
-
-				if (set_item.bullet_offset >= set_item.rule.rhs.size())
+				if (i.items.at(index).is_parsed())
 					continue;
 
-				auto expected_symbol = set_item.rule.rhs.at(set_item.bullet_offset);
-				if (expected_symbol.is_terminal())
+				if (i.items.at(index).expected_symbol().is_terminal())
 					continue;
 
-				// TODO multiple rules for one nt dont work
+
 				// Bullet is not too far right and the symbol after it is a non terminal
-
 				for (
-					auto it = std::find_if(rules.begin(), rules.end(), [&](const bnf::rule& r) { return r.lhs == expected_symbol.get_non_terminal(); });
-					it != rules.end();
-					it = std::find_if(++it, rules.end(), [&](const bnf::rule& r) { return r.lhs == expected_symbol.get_non_terminal(); })
-					)
+					auto it = std::find_if(rules.begin(), rules.end(), [&](const bnf::rule& r) {
+						return r.lhs == i.items.at(index).expected_symbol().get_non_terminal(); 
+					}); 
+					it != rules.end(); 
+					it = std::find_if(it + 1, rules.end(), [&](const bnf::rule& r) { 
+						return r.lhs == i.items.at(index).expected_symbol().get_non_terminal(); 
+					}))
 				{
-					auto new_item = item{ *it, 0 };
-				
-					if(std::find(i.items.begin(), i.items.end(), new_item) == i.items.end())
-						i.items.push_back(new_item);
+					auto& set_item = i.items.at(index);
+
+					auto add_item = [&](item new_item) { 
+						if (std::find(i.items.begin(), i.items.end(), new_item) == i.items.end())
+							i.items.push_back(new_item);
+					};
+
+					// If there are more symbols to parse after the next one
+					if (set_item.bullet_offset < set_item.rule.rhs.size() - 1)
+					{
+						auto next_expected = set_item.rule.rhs.at(set_item.bullet_offset + 1);
+
+						if (next_expected.is_terminal())
+						{
+							auto new_item = item{ *it, 0, { next_expected.get_terminal() } };
+							add_item(new_item);
+						}
+						else
+						{
+							auto next_expected_nt = next_expected.get_non_terminal();
+
+							auto new_item = item{ *it, 0, this->first.at(next_expected_nt) };
+							add_item(new_item);
+						}
+					}
+					// No more symbols to parse after the expected symbol
+					else
+					{
+						auto new_item = item{ *it, 0, set_item.lookahead };
+						add_item(new_item);
+					}
 				}
 			}
 		};
@@ -87,14 +118,16 @@ namespace tools::lalr
 			}
 		};
 
+		std::unordered_map<bnf::non_terminal, std::unordered_set<bnf::symbol>> unfinished_first;
+
 		auto create_first_follow_sets = [&]() {
 			for (const auto& rule : rules)
 			{
 				// If first set doesnt exist yet make one
 				if (auto loc = first.find(rule.lhs); loc == first.end())
-					first.insert({ rule.lhs, std::unordered_set<bnf::symbol>() });
-				if(!(rule.rhs.at(0) == rule.lhs))
-					first.at(rule.lhs).insert(rule.rhs.at(0).value);
+					unfinished_first.insert({ rule.lhs, std::unordered_set<bnf::symbol>() });
+				if (!(rule.rhs.at(0) == rule.lhs))
+					unfinished_first.at(rule.lhs).insert(rule.rhs.at(0).value);
 
 				// If following set doesnt exist yet make one
 				if (auto loc = follow.find(rule.lhs); loc == follow.end())
@@ -108,15 +141,15 @@ namespace tools::lalr
 			{
 				changing = false;
 
-				
-				for (std::pair<const bnf::non_terminal, std::unordered_set<bnf::symbol>>& first_set : first)
+
+				for (std::pair<const bnf::non_terminal, std::unordered_set<bnf::symbol>>& first_set : unfinished_first)
 				{
 
 					// For each non terminal A in the first sets, add the first set of A to the set
 					std::vector<bnf::non_terminal> non_terminals;
 					for (const bnf::symbol& element : first_set.second)
 					{
-						if(!element.is_terminal())
+						if (!element.is_terminal())
 						{
 							auto nt = element.get_non_terminal();
 
@@ -130,8 +163,25 @@ namespace tools::lalr
 					}
 
 					for (auto nt : non_terminals) first_set.second.erase(nt);
-					for (auto nt : non_terminals) first_set.second.insert(first.at(nt).begin(), first.at(nt).end());
+					for (auto nt : non_terminals)
+					{
+						for (const auto& symbol : unfinished_first.at(nt))
+						{
+							if (!symbol.is_terminal() && (symbol.get_non_terminal() == first_set.first))
+								continue;
+							first_set.second.insert(symbol);
+						}
+					}
 				}
+			}
+
+			for (std::pair<const bnf::non_terminal, std::unordered_set<bnf::symbol>>& first_set : unfinished_first)
+			{
+				std::unordered_set<bnf::terminal> terminal_set;
+				std::transform(first_set.second.begin(), first_set.second.end(), std::inserter(terminal_set, terminal_set.begin()), [](const bnf::symbol& s) {
+					return s.get_terminal();
+				});
+				first.insert({ first_set.first, terminal_set });
 			}
 		};
 
@@ -149,7 +199,6 @@ namespace tools::lalr
 						if (it->is_terminal()) continue;
 
 						auto nt = it->get_non_terminal();
-						auto& first_set = first.at(nt);
 						auto& following_set = follow.at(nt);
 
 						// For each production X -> wA put FOLLOW(X) in FOLLOW(A)
@@ -173,7 +222,7 @@ namespace tools::lalr
 							auto& next_first_set = first.at(next_nt);
 
 							auto pre = follow.at(nt).size();
-							if (auto it = std::find(next_first_set.begin(), next_first_set.end(), bnf::symbol(bnf::terminal(bnf::epsilon))); it != next_first_set.end())
+							if (auto it = std::find(next_first_set.begin(), next_first_set.end(), bnf::terminal(bnf::epsilon)); it != next_first_set.end())
 							{
 								// If epsilon is in FIRST(beta) then put FOLLOW(X) in FOLLOW(A)
 								following_set.insert(follow.at(rule.lhs).begin(), follow.at(rule.lhs).end());
@@ -192,7 +241,19 @@ namespace tools::lalr
 
 		};
 
-		item_sets.at(0).items.push_back(item{ rule_of(start_symbol), 0 });
+		auto first_rule = std::find_if(rules.begin(), rules.end(), [&](const auto& r) {return r.lhs == 0; });
+
+		// Create all first and follow sets
+		create_first_follow_sets();
+
+		// Fill first sets
+		generate_first_sets();
+
+		follow.at(0).insert(bnf::end_of_input);
+
+		// Fill follow sets, which depend on the first sets
+		generate_follow_sets();
+		item_sets.at(0).items.push_back(item{ *first_rule, 0, { bnf::end_of_input } });
 
 		std::queue<std::size_t> set_to_do;
 		expand_item_set(item_sets.at(0));
@@ -211,16 +272,6 @@ namespace tools::lalr
 				set_to_do.push(i);
 		}
 
-		// Create all first and follow sets
-		create_first_follow_sets();
-
-		// Fill first sets
-		generate_first_sets();
-
-		follow.at(start_symbol).insert(bnf::end_of_input);
-
-		// Fill follow sets, which depend on the first sets
-		generate_follow_sets();
 
 		// For each item set
 		// For each rule
@@ -237,18 +288,29 @@ namespace tools::lalr
 				// Reduce or Accept
 				if (item.bullet_offset == item.rule.rhs.size())
 				{
-					const auto& follow_set = follow.at(item.rule.lhs);
-					for (const auto& follower : follow_set)
+					auto followers = item.lookahead;
+
+					if ((item.rule.rhs.size() == 1) && (item.rule.lhs == 0))
 					{
-						if ((item.rule.rhs.size() == 1) && (item.rule.lhs == start_symbol))
+						for (auto follower : followers)
 						{
+							if (table.find({ i, follower }) != table.end())
+								throw std::runtime_error("Conflict");
 							table.insert({ { i, follower }, accept_action{} });
 						}
-						else
+					}
+					else
+					{
+						for (auto follower : followers)
 						{
 							auto n = std::make_pair(std::make_pair(i, follower), reduce_action{
-								static_cast<std::size_t>(std::find(rules.begin(), rules.end(), item.rule) - rules.begin())
+													static_cast<std::size_t>(std::distance(rules.begin(), std::find(rules.begin(), rules.end(), item.rule)))
 							});
+							if (table.find({ i, follower }) != table.end())
+							{
+								auto x = table.at({ i, follower });
+								throw std::runtime_error("Conflict");
+							}
 							table.insert(n);
 						}
 					}
@@ -260,7 +322,18 @@ namespace tools::lalr
 					{
 						if (transition.from == i)
 						{
-							if(transition.symbol.is_terminal())
+							action new_action = transition.symbol.is_terminal() ?
+								action(shift_action{ transition.to }) : action(goto_action{ transition.to });
+
+							if (auto it = table.find({ i, transition.symbol }); it != table.end())
+							{
+								if (!(it->second == new_action))
+									throw std::runtime_error("Conflict");
+								else
+									continue;
+							}
+
+							if (transition.symbol.is_terminal())
 								table.insert({ { i, transition.symbol }, shift_action{ transition.to } });
 							else
 								table.insert({ { i, transition.symbol }, goto_action{ transition.to } });
@@ -271,51 +344,83 @@ namespace tools::lalr
 		}
 	}
 
-	void parser::parse(std::vector<bnf::terminal> input)
+	std::unique_ptr<bnf::node> parser::parse(std::vector<bnf::terminal_node> input)
 	{
-		input.push_back(-2);
+		input.push_back(bnf::terminal_node(-2, ""));
 		auto it = input.begin();
 
-		bnf::non_terminal_node root(start_symbol);
+		bnf::non_terminal_node root(0);
 
 		std::stack<state> history;
+		std::stack<std::unique_ptr<bnf::node>> result;
 		history.push(0);
 
 		while (history.size() > 0)
 		{
 			auto current_state = history.top();
 
-			auto action = table.at({ current_state, *it });
+			bool read_epsilon = false;
+			auto action = ([&]() {
+				if (it != input.end() && (table.find({ current_state, it->value }) != table.end()))
+				{
+					return table.at({ current_state, it->value });
+				}
+				else if (table.find({ current_state, bnf::epsilon }) != table.end())
+				{
+					read_epsilon = true;
+					return table.at({ current_state, bnf::epsilon });
+				}
+				else
+				{
+					auto offset = std::distance(input.begin(), it);
+					throw std::runtime_error(std::string("Syntax error at ").append(std::to_string(offset)));
+				}
+			})();
 
 			if (std::holds_alternative<shift_action>(action))
 			{
-				history.push(std::get<shift_action>(action).new_state);
-				it++;
+				if (read_epsilon)
+				{
+					history.push(std::get<shift_action>(action).new_state);
+					result.push(std::make_unique<bnf::node>(bnf::terminal_node(bnf::epsilon, "")));
+				}
+				else
+				{
+					history.push(std::get<shift_action>(action).new_state);
+					result.push(std::make_unique<bnf::node>(bnf::terminal_node(it->value, it->token)));
+					it++;
+				}
 			}
 			else if (std::holds_alternative<reduce_action>(action))
 			{
-				auto rule_index = std::get<reduce_action>(action).rule_index;
-				auto reduced_nt = rules.at(rule_index).lhs;
+				auto reduce = std::get<reduce_action>(action);
+				auto rule = rules.at(reduce.rule_index);
 
-				int i = 0;
-				for (; i < rules.at(rule_index).rhs.size(); i++)
+				std::vector<std::unique_ptr<bnf::node>> reduced_states;
+
+				reduced_states.resize(rule.rhs.size());
+				for (int i = 0; i < rule.rhs.size(); i++)
 				{
+					reduced_states.at(rule.rhs.size() - 1 - i) = std::move(result.top());
+
+					result.pop();
 					history.pop();
 				}
 
+				auto new_node = std::make_unique<bnf::node>(bnf::non_terminal(rule.lhs));
+				std::get<bnf::non_terminal_node>(*new_node).children = std::move(reduced_states);
+				result.push(std::move(new_node));
 
-				auto next_state = table.at({ history.top(), reduced_nt });
+				auto next_state = table.at({ history.top(), rule.lhs });
 
 				if (!std::holds_alternative<goto_action>(next_state))
 					throw std::runtime_error("Error 1");
 
 				history.push(std::get<goto_action>(next_state).new_state);
-				std::cout << rule_index << "\n";
 			}
 			else if (std::holds_alternative<accept_action>(action))
 			{
-				std::cout << "accept\n";
-				return;
+				return std::move(result.top());
 			}
 		}
 	}

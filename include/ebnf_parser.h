@@ -1,5 +1,6 @@
 #pragma once
 #include "bnf_parser.h"
+#include "bnf_grammar.h"
 #include <functional>
 #include <memory>
 #include <set>

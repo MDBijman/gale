@@ -290,10 +290,10 @@ namespace fe
 				else
 					function_env = env;
 
-				auto& param_tuple = std::get<values::tuple>(param_value);
-
 				if (std::holds_alternative<std::vector<core_ast::identifier>>(function->parameters))
 				{
+					auto& param_tuple = std::get<values::tuple>(param_value);
+
 					auto& parameters = std::get<std::vector<core_ast::identifier>>(function->parameters);
 					for (auto i = 0; i < parameters.size(); i++)
 					{
@@ -305,7 +305,7 @@ namespace fe
 				{
 					// Single argument function
 					auto& parameter = std::get<core_ast::identifier>(function->parameters);
-					function_env.set_value(parameter.variable_name, std::move(param_tuple));
+					function_env.set_value(parameter.variable_name, std::move(param_value));
 				}
 
 				return function->body->interp(function_env);
