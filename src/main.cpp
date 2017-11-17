@@ -44,7 +44,7 @@ fe::pipeline create_pipeline()
 int main(int argc, char** argv)
 {
 	auto mode = std::string(argv[1]);
-	if (argc == 2 && (mode != "test") && (mode != "project"))
+	if (argc == 2 && (mode != "test") && (mode != "project") && (mode != "help"))
 	{
 		std::cout << "Unknown commandline argument(s)" << std::endl;
 		std::cin.get();
@@ -80,8 +80,23 @@ int main(int argc, char** argv)
 
 			fe::project proj(argv[2], argv[3], std::move(pipeline));
 			auto[te, re] = proj.interp();
-			std::cout << te.to_string() << std::endl;
+			std::cout << te.to_string() << "\n";
 			std::cout << re.to_string() << std::endl;
+		}
+		else if (mode == "help")
+		{
+			std::cout 
+				<< "The {language} toolset v0.0.1\n"
+				<< "Commands:\n"
+				<< "{language} project {project folder} {main module}\n"
+				<< "\tInterprets each module in the project folder, taking the main module as root\n"
+				<< "{language} test\n"
+				<< "\tRuns the toolset tests\n"
+				<< "{language} repl\n"
+				<< "\tStarts a REPL session\n"
+				<< std::endl;
+			std::cin.get();
+			return 0;
 		}
 	}
 	catch (const utils::lexing::error& e)
