@@ -27,7 +27,7 @@ namespace tools::bnf
 	class parser
 	{
 	public:
-		parser() : implementation(new lalr::parser()) {}
+		parser() : implementation(new lr::parser()) {}
 
 		parser(parser&& other) : rules(std::move(other.rules)), implementation(std::move(other.implementation)) {}
 		parser& operator=(parser&& other)
