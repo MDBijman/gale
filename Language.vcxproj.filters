@@ -27,9 +27,6 @@
     <Filter Include="Source Files\tests\tools">
       <UniqueIdentifier>{41aecb1a-45c3-4599-9406-1a69c228a146}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Resource Files\Source">
-      <UniqueIdentifier>{14e6f4e8-a14a-4fbb-bda8-b98a46a2af1a}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source Files\fe\modes">
       <UniqueIdentifier>{20b41d34-941f-405b-8bbf-af897becab04}</UniqueIdentifier>
     </Filter>
@@ -57,19 +54,22 @@
     <Filter Include="Source Files\fe\libraries\core">
       <UniqueIdentifier>{d757ac8a-8534-4f2f-9e99-1574bfd48cef}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Resource Files\snippets">
+      <UniqueIdentifier>{9e9feb0e-a547-4a57-bd90-2ebc58caa34c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource Files\snippets\project">
+      <UniqueIdentifier>{da177d42-7c82-4372-9f4a-0ef4b0669307}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="snippets\grammar_extension.fe">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="snippets\modeling_module.fe">
-      <Filter>Resource Files\Source</Filter>
-    </None>
     <None Include="snippets\project\sub_module.fe">
-      <Filter>Resource Files\Source</Filter>
+      <Filter>Resource Files\snippets\project</Filter>
     </None>
     <None Include="snippets\project\test.fe">
-      <Filter>Resource Files\Source</Filter>
+      <Filter>Resource Files\snippets\project</Filter>
+    </None>
+    <None Include="snippets\modeling_module.fe">
+      <Filter>Resource Files\snippets</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -156,13 +156,7 @@
     <ClInclude Include="include\tests\fe\typecheck_env_tests.h">
       <Filter>Source Files\tests\fe</Filter>
     </ClInclude>
-    <ClInclude Include="include\tests\tests.h">
-      <Filter>Source Files\tests</Filter>
-    </ClInclude>
     <ClInclude Include="include\tests\tools\grammar_tests.h">
-      <Filter>Source Files\tests\tools</Filter>
-    </ClInclude>
-    <ClInclude Include="include\tests\tools\lalr_tests.h">
       <Filter>Source Files\tests\tools</Filter>
     </ClInclude>
     <ClInclude Include="include\tests\tools\performance_tests.h">
@@ -213,19 +207,14 @@
     <ClInclude Include="include\utils\parsing\lr_parser.h">
       <Filter>Source Files\utils\parsing</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <Text Include="include\core_ast.txt">
-      <Filter>Resource Files</Filter>
-    </Text>
-    <Text Include="snippets\notes.txt">
-      <Filter>Resource Files</Filter>
-    </Text>
-    <Text Include="snippets\language_grammar.txt">
-      <Filter>Resource Files</Filter>
-    </Text>
-    <Text Include="snippets\language_module.fe">
-      <Filter>Resource Files\Source</Filter>
-    </Text>
+    <ClInclude Include="include\tests\fe\branching_tests.h">
+      <Filter>Source Files\tests\fe</Filter>
+    </ClInclude>
+    <ClInclude Include="include\tests\tools\lr_tests.h">
+      <Filter>Source Files\tests\tools</Filter>
+    </ClInclude>
+    <ClInclude Include="include\tests\tests.h">
+      <Filter>Source Files\tests</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

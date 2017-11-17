@@ -75,7 +75,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(ProjectDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)lib;$(ProjectDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
@@ -85,7 +85,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(ProjectDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)lib;$(ProjectDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
@@ -97,7 +97,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(ProjectDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)lib;$(ProjectDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
@@ -113,7 +113,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(ProjectDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)lib;$(ProjectDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
@@ -123,7 +123,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <None Include="snippets\grammar_extension.fe" />
     <None Include="snippets\modeling_module.fe" />
     <None Include="snippets\project\sub_module.fe" />
     <None Include="snippets\project\test.fe" />
@@ -163,10 +162,11 @@
     <ClInclude Include="include\fe\pipeline\parser_stage.h" />
     <ClInclude Include="include\fe\pipeline\pipeline.h" />
     <ClInclude Include="include\fe\pipeline\typechecker_stage.h" />
+    <ClInclude Include="include\tests\fe\branching_tests.h" />
     <ClInclude Include="include\tests\fe\typecheck_env_tests.h" />
     <ClInclude Include="include\tests\tests.h" />
     <ClInclude Include="include\tests\tools\grammar_tests.h" />
-    <ClInclude Include="include\tests\tools\lalr_tests.h" />
+    <ClInclude Include="include\tests\tools\lr_tests.h" />
     <ClInclude Include="include\tests\tools\performance_tests.h" />
     <ClInclude Include="include\utils\lexing\lexer.h" />
     <ClInclude Include="include\utils\parsing\bnf_grammar.h" />
@@ -177,12 +177,6 @@
     <ClInclude Include="include\utils\parsing\ll_parser.h" />
     <ClInclude Include="include\utils\parsing\parser.h" />
     <ClInclude Include="include\utils\reading\reader.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <Text Include="include\core_ast.txt" />
-    <Text Include="snippets\language_grammar.txt" />
-    <Text Include="snippets\language_module.fe" />
-    <Text Include="snippets\notes.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

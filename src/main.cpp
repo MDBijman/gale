@@ -61,8 +61,7 @@ int main(int argc, char** argv)
 		}
 		else if (mode == "test")
 		{
-			tests::run_all();
-			return 0;
+			return tests::run();
 		}
 		else if (mode == "project")
 		{
