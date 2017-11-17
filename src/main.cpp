@@ -43,10 +43,13 @@ fe::pipeline create_pipeline()
 
 int main(int argc, char** argv)
 {
-	auto mode = std::string(argv[1]);
-	if (argc == 2 && (mode != "test") && (mode != "project") && (mode != "help"))
+	auto mode = argc > 1 ? std::string(argv[1]) : "help";
+
+	auto possible_modes = { "test", "project", "help", "repl" };
+
+	if (argc == 2 && (std::find(possible_modes.begin(), possible_modes.end(), mode) == possible_modes.end()))
 	{
-		std::cout << "Unknown commandline argument(s)" << std::endl;
+		std::cout << "Unknown commandline argument: " << mode << std::endl;
 		std::cin.get();
 		return -1;
 	}
@@ -57,7 +60,9 @@ int main(int argc, char** argv)
 	{
 		if (mode == "repl" || argc == 1)
 		{
-			fe::repl(std::move(pipeline));
+			auto repl = fe::repl(std::move(pipeline));
+			repl.run();
+			return 0;
 		}
 		else if (mode == "test")
 		{
