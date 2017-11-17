@@ -9,6 +9,11 @@
 
 namespace tools::lr
 {
+	/*
+	* An item set transition describes as the name suggests a possible transition
+	* from one item set to another. When the parser is in the
+	* item set at index 'from' and reads the 'symbol', it moves to the item set at index 'to'.
+	*/
 	struct item_set_transition
 	{
 		const std::size_t from;
@@ -16,6 +21,15 @@ namespace tools::lr
 		bnf::symbol symbol;
 	};
 
+	/*
+	* An item is a combination of a rule an offset, and a lookahead
+	* The offset within the rule indicates the progress of parsing.
+	* The lookahead contains the symbol that must follow this item.
+	* There are often many different lookaheads possible, thus many
+	* copies of an item within an item set differing only by their lookahead.
+	*
+	* TODO find efficient way of merging these items
+	*/
 	struct item
 	{
 		bool is_parsed() const
@@ -38,6 +52,9 @@ namespace tools::lr
 		bnf::terminal lookahead;
 	};
 
+	/*
+	* An item set contains the set of items that could correspond to the input when the parser is in this state.
+	*/
 	struct item_set
 	{
 	public:
@@ -51,6 +68,9 @@ namespace tools::lr
 
 	using state = std::size_t;
 
+	/*
+	* A goto action is performed after a reduce to move to the right state to resume parsing.
+	*/
 	struct goto_action
 	{
 		state new_state;
@@ -61,6 +81,10 @@ namespace tools::lr
 		return a.new_state == b.new_state;
 	}
 
+	/*
+	* A reduce action is performed after the entire RHS of a rule is parsed. The rule_index is
+	* the index of the reduced rule in the vector of rules.
+	*/
 	struct reduce_action
 	{
 		std::size_t rule_index;
@@ -71,6 +95,9 @@ namespace tools::lr
 		return a.rule_index == b.rule_index;
 	}
 
+	/*
+	* A shift action is performed to shift a symbol from the input onto the stack.
+	*/
 	struct shift_action
 	{
 		state new_state;
@@ -81,6 +108,9 @@ namespace tools::lr
 		return a.new_state == b.new_state;
 	}
 
+	/*
+	* An accept action is performed when parsing is finished and indicates a syntactically correct input.
+	*/
 	struct accept_action
 	{
 	};
@@ -90,6 +120,10 @@ namespace tools::lr
 		return true;
 	}
 
+	/*
+	* A concflict is thrown when during the generation of the parse table two different actions end up
+	* in the same position. This indicates a conflict in the given ruleset.
+	*/
 	struct conflict
 	{
 		int item_set;
@@ -102,12 +136,15 @@ namespace tools::lr
 	};
 
 	/*
-	* An action can be either a goto, reduce, or an accept.
+	* An action can be either a goto, reduce, shift, or an accept.
 	*/
 	using action = std::variant<goto_action, reduce_action, accept_action, shift_action>;
 
 	namespace detail
 	{
+		/*
+		* Implements a hash for a pair of a state and a symbol. The hash is used in the parse table.
+		*/
 		struct parse_table_hasher
 		{
 			std::size_t operator()(const std::pair<state, bnf::symbol>& key) const
