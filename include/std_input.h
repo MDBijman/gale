@@ -15,10 +15,19 @@ namespace fe
 			{
 				typecheck_environment te{};
 				runtime_environment re{};
-				te.set_type("get", fe::types::function_type(fe::types::make_unique(fe::types::product_type()), fe::types::make_unique(fe::types::atom_type("i32"))));
-				re.set_value("get", values::native_function([](values::value t) -> values::value {
-					return values::integer(std::cin.get());
-				}));
+
+				{
+					using namespace fe::types;
+					using namespace fe::values;
+					te.set_type("get", unique_type(new function_type(
+						unique_type(new product_type()), unique_type(new atom_type("i32"))
+					)));
+					re.set_value("get", unique_value(new native_function(
+						[](unique_value t) -> unique_value {
+							return unique_value(new integer(std::cin.get()));
+						}
+					)));
+				}
 
 				return { te, re };
 			}

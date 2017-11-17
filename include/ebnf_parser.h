@@ -355,25 +355,57 @@ namespace tools
 
 			std::variant<std::unique_ptr<node>, error> parse(non_terminal init, std::vector<bnf::terminal_node> input)
 			{
-				auto ast_or_error = bnf_parser.parse(init, input);
+				try {
+					auto ast_or_error = bnf_parser.parse(init, input);
 
-				// Handle error of bnf parser
-				if (std::holds_alternative<bnf::error>(ast_or_error))
-					return error{ error_code::BNF_ERROR, std::get<bnf::error>(ast_or_error).message };
+					// Handle error of bnf parser
+					if (std::holds_alternative<bnf::error>(ast_or_error))
+						return error{ error_code::BNF_ERROR, std::get<bnf::error>(ast_or_error).message };
 
-				auto& extended_ast = std::get<std::unique_ptr<bnf::node>>(ast_or_error);
+					auto& extended_ast = std::get<std::unique_ptr<bnf::node>>(ast_or_error);
 
-				// Convert from bnf to ebnf
-				if (std::holds_alternative<bnf::terminal_node>(*extended_ast))
-					return std::make_unique<node>(terminal_node{ &std::get<bnf::terminal_node>(*extended_ast) });
-				else if (std::holds_alternative<bnf::non_terminal_node>(*extended_ast))
-					return std::make_unique<node>(non_terminal_node{ &std::get<bnf::non_terminal_node>(*extended_ast), nt_child_parents });
-				else
-					return error{ error_code::BNF_ERROR, "BNF parser returned empty value" };
+					// Convert from bnf to ebnf
+					if (std::holds_alternative<bnf::terminal_node>(*extended_ast))
+						return std::make_unique<node>(terminal_node{ &std::get<bnf::terminal_node>(*extended_ast) });
+					else if (std::holds_alternative<bnf::non_terminal_node>(*extended_ast))
+						return std::make_unique<node>(non_terminal_node{ &std::get<bnf::non_terminal_node>(*extended_ast), nt_child_parents });
+					else
+						return error{ error_code::BNF_ERROR, "BNF parser returned empty value" };
+				}
+				catch (lalr::conflict e) {
+					std::string error_message;
+
+					switch (e.type)
+					{
+					case tools::lalr::conflict::type::SHIFT_SHIFT:
+						error_message.append("Shift/Shift conflict\n");
+						break;
+					case tools::lalr::conflict::type::SHIFT_REDUCE:
+						error_message.append("Shift/Reduce conflict\n");
+						break;
+					}
+
+					error_message.append("Item set: ").append(std::to_string(e.item_set)).append("\n");
+					error_message.append("Expected: ").append(e.expected).append("\n");
+
+					if (auto it = nt_child_parents.find(e.rule.lhs); it != nt_child_parents.end())
+					{
+						auto rule = std::find_if(rules.begin(), rules.end(), [&](auto& rule) { return rule.lhs == it->first; });
+						error_message.append("Rule: ").append(std::to_string(rule->lhs));
+					}
+					else
+					{
+						error_message.append("Rule: ").append(std::to_string(e.rule.lhs));
+					}
+
+					return error{ error_code::BNF_ERROR, error_message };
+				}
+
 			}
 
 			parser& new_rule(rule r)
 			{
+				rules.push_back(r);
 				auto bnf_rules = r.to_bnf([&](non_terminal p, child_type type) { return generate_child_non_terminal(p, type); });
 				for (auto& bnf_rule : bnf_rules)
 				{
@@ -394,6 +426,7 @@ namespace tools
 
 		private:
 			bnf::parser bnf_parser;
+			std::vector<rule> rules;
 
 			std::unordered_map<non_terminal, std::pair<non_terminal, child_type>> nt_child_parents;
 

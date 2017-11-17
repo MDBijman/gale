@@ -88,6 +88,17 @@ namespace tools::lalr
 		return true;
 	}
 
+	struct conflict
+	{
+		int item_set;
+		bnf::symbol expected;
+		bnf::rule rule;
+
+		enum class type {
+			SHIFT_SHIFT, SHIFT_REDUCE
+		} type;
+	};
+
 	/*
 	* An action can be either a goto, reduce, or an accept.
 	*/

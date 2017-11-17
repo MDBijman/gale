@@ -1,0 +1,23 @@
+module test
+import [submodule std.ui std.io std.types]
+
+var window = std.ui.create_window "Window Name";
+var m = submodule.z + 1;
+
+var get_string = fn std.i32 a -> std.str = a match { 
+	| a == 1 -> "test"
+	| a == 2 -> "second"
+	| a == 3 -> "three"
+	| a == 6 -> "six"
+	| 1 == 1 -> "other"
+};
+
+var fact = fn std.i32 a -> std.i32 = a match {
+	| a == 1 -> a
+	| 1 == 1 -> a * fact (a - 1)
+};
+
+while 1 == 1 do {
+	std.ui.poll window;
+	std.io.print get_string fact 3;
+};

@@ -72,19 +72,34 @@
     <Filter Include="Source Files\tools\parsing\imp">
       <UniqueIdentifier>{790d3ab7-d2b5-4a83-a111-ce47a65c1f4c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\library\std\ui">
+      <UniqueIdentifier>{a031b6c8-6531-4f90-aaa4-58212c7da36e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource Files\Source">
+      <UniqueIdentifier>{14e6f4e8-a14a-4fbb-bda8-b98a46a2af1a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\library\std\io">
+      <UniqueIdentifier>{bc1450f4-5a57-4852-83f0-e7169ac5fd8e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\fe\modes">
+      <UniqueIdentifier>{20b41d34-941f-405b-8bbf-af897becab04}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\library\std\types">
+      <UniqueIdentifier>{7bcf74f1-a341-44a8-9db4-4562b42d986f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="snippets\test.fe">
-      <Filter>Resource Files</Filter>
-    </None>
     <None Include="snippets\grammar_extension.fe">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="snippets\testing.fe">
-      <Filter>Resource Files</Filter>
-    </None>
     <None Include="snippets\modeling_module.fe">
-      <Filter>Resource Files</Filter>
+      <Filter>Resource Files\Source</Filter>
+    </None>
+    <None Include="snippets\project\sub_module.fe">
+      <Filter>Resource Files\Source</Filter>
+    </None>
+    <None Include="snippets\project\test.fe">
+      <Filter>Resource Files\Source</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -100,9 +115,6 @@
     <ClCompile Include="src\types.cpp">
       <Filter>Source Files\fe\data</Filter>
     </ClCompile>
-    <ClCompile Include="include\std_input.h">
-      <Filter>Source Files\library\std</Filter>
-    </ClCompile>
     <ClCompile Include="src\extended_ast.cpp">
       <Filter>Source Files\fe\data</Filter>
     </ClCompile>
@@ -111,6 +123,9 @@
     </ClCompile>
     <ClCompile Include="src\lalr_parser.cpp">
       <Filter>Source Files\tools\parsing\imp</Filter>
+    </ClCompile>
+    <ClCompile Include="include\std_input.h">
+      <Filter>Source Files\library\std\io</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -165,9 +180,6 @@
     <ClInclude Include="include\core_operations.h">
       <Filter>Source Files\library\core</Filter>
     </ClInclude>
-    <ClInclude Include="include\std_types.h">
-      <Filter>Source Files\library\std</Filter>
-    </ClInclude>
     <ClInclude Include="include\reader.h">
       <Filter>Source Files\tools\files</Filter>
     </ClInclude>
@@ -216,14 +228,26 @@
     <ClInclude Include="include\performance_tests.h">
       <Filter>Source Files\tests\tools\parsing</Filter>
     </ClInclude>
+    <ClInclude Include="include\std_ui.h">
+      <Filter>Source Files\library\std\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\project.h">
+      <Filter>Source Files\fe\modes</Filter>
+    </ClInclude>
+    <ClInclude Include="include\repl.h">
+      <Filter>Source Files\fe\modes</Filter>
+    </ClInclude>
+    <ClInclude Include="include\module.h">
+      <Filter>Source Files\fe\modes</Filter>
+    </ClInclude>
+    <ClInclude Include="include\std_output.h">
+      <Filter>Source Files\library\std\io</Filter>
+    </ClInclude>
+    <ClInclude Include="include\std_types.h">
+      <Filter>Source Files\library\std\types</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="snippets\language_core.fe">
-      <Filter>Resource Files</Filter>
-    </Text>
-    <Text Include="snippets\language_module.fe">
-      <Filter>Resource Files</Filter>
-    </Text>
     <Text Include="include\core_ast.txt">
       <Filter>Resource Files</Filter>
     </Text>
@@ -232,6 +256,9 @@
     </Text>
     <Text Include="snippets\language_grammar.txt">
       <Filter>Resource Files</Filter>
+    </Text>
+    <Text Include="snippets\language_module.fe">
+      <Filter>Resource Files\Source</Filter>
     </Text>
   </ItemGroup>
 </Project>

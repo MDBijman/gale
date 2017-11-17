@@ -13,11 +13,19 @@ namespace fe
 			{
 				typecheck_environment e{};
 
-				e.set_type("i32", fe::types::atom_type("i32"));
-				e.set_type("str", fe::types::atom_type("i32"));
+				using namespace fe::types;
+				// TODO fix typenames in namespaces
+				e.set_type("i32", make_unique(atom_type("std.i32")));
+				e.set_type("str", make_unique(atom_type("std.str")));
 				e.name = "std";
 
 				return e;
+			}
+
+			static native_module* load_as_module()
+			{
+				auto te  = load();
+				return new native_module("std.types", runtime_environment{}, std::move(te));
 			}
 		}
 	}

@@ -10,17 +10,61 @@ namespace fe
 	namespace core_ast
 	{
 		struct node;
+		using unique_node = std::unique_ptr<node>;
 	}
 }
 
 // Also defined in values.cpp
-#define VALUE_NODE std::variant<void_value, string, integer, boolean, tuple, function, native_function, module>
-
 namespace fe
 {
 	namespace values
 	{
-		struct string
+		struct value
+		{
+			virtual ~value() = 0 {};
+			virtual std::string to_string() const = 0;
+			virtual value* copy() const = 0;
+			virtual bool operator==(value* other) const = 0;
+		};
+
+		const auto make_shared = [](auto val) {
+			return std::make_shared<value>(val);
+		};
+
+		const auto make_unique = [](auto val) {
+			return std::unique_ptr<value>(val.copy());
+		};
+
+		using unique_value = std::unique_ptr<value>;
+		using shared_value = std::shared_ptr<value>;
+
+		template<class Derived, class Base>
+		struct comparable
+		{
+		public:
+			bool operator==(Base* o) const
+			{
+				if (typeid(Derived) != typeid(*o))
+					return false;
+
+				const Derived & a = static_cast<const Derived&>(*this);
+				const Derived & b = static_cast<const Derived&>(*o);
+
+				return a == b;
+			}
+		};
+
+		template<class Derived, class Base>
+		struct copyable
+		{
+		public:
+			Base* copy(const Derived& o) const
+			{
+				return new Derived(o);
+			}
+		};
+
+		struct string : public value, private comparable<string, value>, private copyable<string, value>
 		{
 			string(std::string s) : val(s) {}
 
@@ -40,15 +84,22 @@ namespace fe
 				return *this;
 			}
 
-			std::string to_string()
+			std::string to_string() const override
 			{
 				return "\"" + val + "\"";
+			}
+			bool operator==(value* other) const override { return comparable::operator==(other); }
+			value* copy() const override { return copyable::copy(*this); }
+
+			bool operator==(const string& other) const
+			{
+				return val == other.val;
 			}
 
 			std::string val;
 		};
 
-		struct integer
+		struct integer : public value, private comparable<integer, value>, private copyable<integer, value>
 		{
 			integer(int n) : val(n) {}
 
@@ -68,15 +119,22 @@ namespace fe
 				return *this;
 			}
 
-			int val;
-
-			std::string to_string()
+			std::string to_string() const override
 			{
 				return std::to_string(val);
 			}
+			bool operator==(value* other) const override { return comparable::operator==(other); }
+			value* copy() const override { return copyable::copy(*this); }
+
+			bool operator==(const integer& other) const
+			{
+				return val == other.val;
+			}
+
+			int val;
 		};
 
-		struct boolean
+		struct boolean : public value, private comparable<boolean, value>, private copyable<boolean, value>
 		{
 			boolean(bool b) : val(b) {}
 
@@ -96,25 +154,39 @@ namespace fe
 				return *this;
 			}
 
-			bool val;
-
-			std::string to_string()
+			std::string to_string() const override
 			{
 				return val ? "true" : "false";
 			}
+			bool operator==(value* other) const override { return comparable::operator==(other); }
+			value* copy() const override { return copyable::copy(*this); }
+
+			bool operator==(const boolean& other) const
+			{
+				return val == other.val;
+			}
+
+			bool val;
 		};
 
-		struct void_value
+		struct void_value : public value, private comparable<void_value, value>, private copyable<void_value, value>
 		{
-			std::string to_string()
+			std::string to_string() const override
 			{
 				return "void";
 			}
+			bool operator==(value* other) const override { return comparable::operator==(other); }
+			value* copy() const override { return copyable::copy(*this); }
+
+			bool operator==(const void_value& other) const
+			{
+				return true;
+			}
 		};
 
-		struct function
+		struct function : public value, private comparable<function, value>, private copyable<function, value>
 		{
-			function(std::unique_ptr<core_ast::node> func);
+			function(core_ast::unique_node func);
 
 			// Copy
 			function(const function& other);
@@ -124,15 +196,19 @@ namespace fe
 			function(function&& other);
 			function& operator=(function&& other);
 
-			std::unique_ptr<core_ast::node> func;
+			std::string to_string() const override;
+			bool operator==(value* other) const override { return comparable::operator==(other); }
+			value* copy() const override { return copyable::copy(*this); }
 
-			std::string to_string();
+			bool operator==(const function& other) const
+			{
+				return func.get() == other.func.get();
+			}
+
+			core_ast::unique_node func;
 		};
 
-		struct tuple;
-		struct native_function;
-
-		struct module
+		struct module : public value, private comparable<module, value>, private copyable<module, value>
 		{
 			// Copy
 			module(const module& other) {}
@@ -150,18 +226,25 @@ namespace fe
 				return *this;
 			}
 
-			std::unordered_map<std::string, std::shared_ptr<VALUE_NODE>> exports;
-
-			std::string to_string()
+			std::string to_string() const override
 			{
 				return "module";
 			}
+			bool operator==(value* other) const override { return comparable::operator==(other); }
+			value* copy() const override { return copyable::copy(*this); }
+
+			bool operator==(const module& other) const
+			{
+				return exports == other.exports;
+			}
+
+			std::unordered_map<std::string, shared_value> exports;
 		};
 
-		struct tuple
+		struct tuple : public value, private comparable<tuple, value>, private copyable<tuple, value>
 		{
 			tuple();
-			tuple(std::vector<VALUE_NODE> values);
+			tuple(std::vector<unique_value> values);
 
 			// Copy
 			tuple(const tuple& other);
@@ -171,14 +254,28 @@ namespace fe
 			tuple(tuple&& other);
 			tuple& operator=(tuple&& other);
 
-			std::vector<VALUE_NODE> content;
+			std::string to_string() const override;
+			bool operator==(value* other) const override { return comparable::operator==(other); }
+			value* copy() const override { return copyable::copy(*this); }
 
-			std::string to_string();
+			bool operator==(const tuple& other) const
+			{
+				if (content.size() != other.content.size()) return false;
+
+				for(int i = 0; i < other.content.size(); i++)
+				{
+					if (!(*content.at(i) == other.content.at(i).get()))
+						return false;
+				}
+				return true;
+			}
+
+			std::vector<unique_value> content;
 		};
 
-		struct native_function
+		struct native_function : public value, private comparable<native_function, value>, private copyable<native_function, value>
 		{
-			native_function(std::function<VALUE_NODE(VALUE_NODE)> f) : function(f) {}
+			native_function(std::function<unique_value(unique_value)> f) : function(f) {}
 
 			// Copy
 			native_function(const native_function& other);
@@ -188,23 +285,52 @@ namespace fe
 			native_function(native_function&& other);
 			native_function& operator=(native_function&& other);
 
-			std::function<VALUE_NODE(VALUE_NODE)> function;
+			std::string to_string() const override;
+			bool operator==(value* other) const override { return comparable::operator==(other); }
+			value* copy() const override { return copyable::copy(*this); }
 
-			std::string to_string();
+			bool operator==(const native_function& other) const
+			{
+				return function.target<unique_value(unique_value)>() == other.function.target<unique_value(unique_value)>();
+			}
+
+			std::function<unique_value(unique_value)> function;
 		};
 
-		using value = VALUE_NODE;
-		using unique_value = std::unique_ptr<value>;
-		using shared_value = std::shared_ptr<value>;
+		template<class T>
+		struct custom_value : public value, private comparable<custom_value<T>, value>, private copyable<custom_value<T>, value>
+		{
+			custom_value(T t) : val(std::move(t)) {}
 
-		const auto make_shared = [](auto value) {
-			return std::make_shared<VALUE_NODE>(value);
-		};
+			// Copy
+			custom_value(const custom_value& other) : val(other.val) {}
+			custom_value& operator=(const custom_value& other)
+			{
+				val = other.val;
+				return *this;
+			}
 
-		const auto to_string = [](auto& value) -> std::string {
-			return value.to_string();
+			// Move
+			custom_value(custom_value&& other) : val(std::move(other.val)) {}
+			custom_value& operator=(custom_value&& other)
+			{
+				this->val = std::move(other.val);
+				return *this;
+			}
+
+			std::string to_string() const override
+			{
+				return typeid(T).name();
+			}
+			bool operator==(value* other) const override { return comparable::operator==(other); }
+			value* copy() const override { return copyable::copy(*this); }
+
+			bool operator==(const custom_value& other) const
+			{
+				return val == other.val;
+			}
+
+			T val;
 		};
 	}
 }
-
-#undef VALUE_NODE

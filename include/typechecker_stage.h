@@ -18,7 +18,7 @@ namespace fe
 		typechecker_stage() {}
 		typechecker_stage(typecheck_environment environment) : base_environment(environment) {}
 
-		std::variant<std::tuple<extended_ast::unique_node, typecheck_environment>, typecheck_error> typecheck(extended_ast::unique_node node, typecheck_environment env) override
+		std::variant<std::pair<extended_ast::unique_node, typecheck_environment>, typecheck_error> typecheck(extended_ast::unique_node node, typecheck_environment env) override
 		{
 			try
 			{
@@ -29,7 +29,7 @@ namespace fe
 				return e;
 			}
 
-			return std::make_tuple(std::move(node), env);
+			return std::make_pair(std::move(node), env);
 		}
 	};
 }

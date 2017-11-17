@@ -1,4 +1,5 @@
 #pragma once
+#include "module.h"
 
 namespace fe
 {
@@ -11,71 +12,94 @@ namespace fe
 				runtime_environment re;
 				typecheck_environment te;
 
-				te.set_type("add", fe::types::function_type(fe::types::make_unique(fe::types::product_type{ { {"a", fe::types::atom_type{"i32"}}, { "b", fe::types::atom_type{"i32"}} } }), fe::types::make_unique(fe::types::atom_type{ "i32" })));
-				re.set_value("add", fe::values::native_function([](fe::values::value t) -> fe::values::value {
-					auto& tuple = std::get<fe::values::tuple>(t);
+				using namespace fe::types;
+				using namespace fe::values;
 
-					auto a = std::get<fe::values::integer>(tuple.content[0]);
-					auto b = std::get<fe::values::integer>(tuple.content[1]);
+				auto from = product_type();
+				from.product.emplace_back("a", types::make_unique(atom_type{"i32"}));
+				from.product.emplace_back("b", types::make_unique(atom_type{"i32"}));
 
-					return fe::values::integer(a.val + b.val);
-				}));
-				te.set_type("sub", fe::types::function_type(fe::types::make_unique(fe::types::product_type{ { {"a", fe::types::atom_type{"i32"}}, { "b", fe::types::atom_type{"i32"}} } }), fe::types::make_unique(fe::types::atom_type{ "i32" })));
-				re.set_value("sub", fe::values::native_function([](fe::values::value t) -> fe::values::value {
-					auto& tuple = std::get<fe::values::tuple>(t);
 
-					auto a = std::get<fe::values::integer>(tuple.content[0]);
-					auto b = std::get<fe::values::integer>(tuple.content[1]);
+				te.set_type("add", types::make_unique(function_type(from, atom_type{ "i32" })));
+				re.set_value("add", values::make_unique(native_function([](unique_value val) -> unique_value {
+					auto t = dynamic_cast<tuple*>(val.get());
 
-					return fe::values::integer(a.val - b.val);
-				}));
-				te.set_type("mul", fe::types::function_type(fe::types::make_unique(fe::types::product_type{ { {"a", fe::types::atom_type{"i32"}}, { "b", fe::types::atom_type{"i32"}} } }), fe::types::make_unique(fe::types::atom_type{ "i32" })));
-				re.set_value("mul", fe::values::native_function([](fe::values::value t) -> fe::values::value {
-					auto& tuple = std::get<fe::values::tuple>(t);
+					auto a = dynamic_cast<integer*>(t->content[0].get());
+					auto b = dynamic_cast<integer*>(t->content[1].get());
 
-					auto a = std::get<fe::values::integer>(tuple.content[0]);
-					auto b = std::get<fe::values::integer>(tuple.content[1]);
+					return values::make_unique(integer(a->val + b->val));
+				})));
+				te.set_type("sub", types::make_unique(function_type(from, atom_type{ "i32" })));
+				re.set_value("sub", values::make_unique(native_function([](unique_value val) -> unique_value {
+					auto t = dynamic_cast<tuple*>(val.get());
 
-					return fe::values::integer(a.val * b.val);
-				}));
-				te.set_type("div", fe::types::function_type(fe::types::make_unique(fe::types::product_type{ { {"a", fe::types::atom_type{"i32"}}, { "b", fe::types::atom_type{"i32"}} } }), fe::types::make_unique(fe::types::atom_type{ "i32" })));
-				re.set_value("div", fe::values::native_function([](fe::values::value t) -> fe::values::value {
-					auto& tuple = std::get<fe::values::tuple>(t);
+					auto a = dynamic_cast<integer*>(t->content[0].get());
+					auto b = dynamic_cast<integer*>(t->content[1].get());
 
-					auto a = std::get<fe::values::integer>(tuple.content[0]);
-					auto b = std::get<fe::values::integer>(tuple.content[1]);
+					return values::make_unique(integer(a->val - b->val));
+				})));
+				te.set_type("mul", types::make_unique(function_type(from, atom_type{ "i32" })));
+				re.set_value("mul", values::make_unique(native_function([](unique_value val) -> unique_value {
+					auto t = dynamic_cast<tuple*>(val.get());
 
-					return fe::values::integer(a.val / b.val);
-				}));
-				te.set_type("lt", fe::types::function_type(fe::types::make_unique(fe::types::product_type{ { {"a", fe::types::atom_type{"i32"}}, { "b", fe::types::atom_type{"i32"}} } }), fe::types::make_unique(fe::types::atom_type{ "bool" })));
-				re.set_value("lt", fe::values::native_function([](fe::values::value t) -> fe::values::value {
-					auto& tuple = std::get<fe::values::tuple>(t);
+					auto a = dynamic_cast<integer*>(t->content[0].get());
+					auto b = dynamic_cast<integer*>(t->content[1].get());
 
-					auto a = std::get<fe::values::integer>(tuple.content[0]);
-					auto b = std::get<fe::values::integer>(tuple.content[1]);
+					return values::make_unique(integer(a->val * b->val));
+				})));
+				te.set_type("div", types::make_unique(function_type(from, atom_type{ "i32" })));
+				re.set_value("div", values::make_unique(native_function([](unique_value val) -> unique_value {
+					auto t = dynamic_cast<tuple*>(val.get());
 
-					return fe::values::boolean(a.val < b.val);
-				}));
-				te.set_type("gte", fe::types::function_type(fe::types::make_unique(fe::types::product_type{ { {"a", fe::types::atom_type{"i32"}}, { "b", fe::types::atom_type{"i32"}} } }), fe::types::make_unique(fe::types::atom_type{"bool"})));
-				re.set_value("gte", fe::values::native_function([](fe::values::value t) -> fe::values::value {
-					auto& tuple = std::get<fe::values::tuple>(t);
+					auto a = dynamic_cast<integer*>(t->content[0].get());
+					auto b = dynamic_cast<integer*>(t->content[1].get());
 
-					auto a = std::get<fe::values::integer>(tuple.content[0]);
-					auto b = std::get<fe::values::integer>(tuple.content[1]);
+					return values::make_unique(integer(a->val / b->val));
+				})));
+				te.set_type("lt", types::make_unique(function_type(from, atom_type{ "i32" })));
+				re.set_value("lt", values::make_unique(native_function([](unique_value val) -> unique_value {
+					auto t = dynamic_cast<tuple*>(val.get());
 
-					return fe::values::boolean(a.val >= b.val);
-				}));
-				te.set_type("eq", fe::types::function_type(fe::types::make_unique(fe::types::product_type{ { {"a", fe::types::atom_type{"i32"}}, { "b", fe::types::atom_type{"i32"}} } }), fe::types::make_unique(fe::types::atom_type{"bool"})));
-				re.set_value("eq", fe::values::native_function([](fe::values::value t) -> fe::values::value {
-					auto& tuple = std::get<fe::values::tuple>(t);
+					auto a = dynamic_cast<integer*>(t->content[0].get());
+					auto b = dynamic_cast<integer*>(t->content[1].get());
 
-					auto a = std::get<fe::values::integer>(tuple.content[0]);
-					auto b = std::get<fe::values::integer>(tuple.content[1]);
+					return values::make_unique(boolean(a->val < b->val));
+				})));
+				te.set_type("gte", types::make_unique(function_type(from, atom_type{ "boolean" })));
+				re.set_value("gte", values::make_unique(native_function([](unique_value val) -> unique_value {
+					auto t = dynamic_cast<tuple*>(val.get());
 
-					return fe::values::boolean(a.val == b.val);
-				}));
-				
+					auto a = dynamic_cast<integer*>(t->content[0].get());
+					auto b = dynamic_cast<integer*>(t->content[1].get());
+
+					return values::make_unique(boolean(a->val >= b->val));
+				})));
+				te.set_type("eq", types::make_unique(function_type(from, atom_type{ "boolean" })));
+				re.set_value("eq", values::make_unique(native_function([](unique_value val) -> unique_value {
+					auto t = dynamic_cast<tuple*>(val.get());
+
+					auto a = dynamic_cast<integer*>(t->content[0].get());
+					auto b = dynamic_cast<integer*>(t->content[1].get());
+
+					return values::make_unique(boolean(a->val == b->val));
+				})));
+				te.set_type("get", types::make_unique(function_type(from, atom_type{ "i32" })));
+				re.set_value("get", values::make_unique(native_function([](unique_value val) -> unique_value {
+					auto t = dynamic_cast<tuple*>(val.get());
+
+					auto a = dynamic_cast<tuple*>(t->content[0].get());
+					auto b = dynamic_cast<integer*>(t->content[1].get());
+
+					return unique_value(a->content.at(b->val)->copy());
+				})));
+
 				return { re, te };
+			}
+
+			static native_module* load_as_module()
+			{
+				auto[re, te] = load();
+				return new native_module("core", std::move(re), std::move(te));
 			}
 		}
 	}

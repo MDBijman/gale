@@ -79,11 +79,11 @@ namespace fe
 				else if (node_type == non_terminals::function)
 					return std::make_unique<function>(std::move(children));
 
-				else if (node_type == non_terminals::branch)
-					return std::make_unique<conditional_branch>(std::move(children));
+				else if (node_type == non_terminals::match)
+					return std::make_unique<match>(std::move(children));
 
-				else if (node_type == non_terminals::branch_element)
-					return std::make_unique<conditional_branch_path>(std::move(children));
+				else if (node_type == non_terminals::match_branch)
+					return std::make_unique<match_branch>(std::move(children));
 
 				else if (node_type == non_terminals::atom_variable_declaration)
 					return std::make_unique<atom_declaration>(std::move(children));
@@ -103,6 +103,33 @@ namespace fe
 				else if (node_type == non_terminals::array_value)
 					return std::make_unique<array_value>(std::move(children));
 
+				else if (node_type == non_terminals::addition)
+					return std::make_unique<addition>(std::move(children));
+
+				else if (node_type == non_terminals::subtraction)
+					return std::make_unique<subtraction>(std::move(children));
+
+				else if (node_type == non_terminals::multiplication)
+					return std::make_unique<multiplication>(std::move(children));
+
+				else if (node_type == non_terminals::division)
+					return std::make_unique<division>(std::move(children));
+
+				else if (node_type == non_terminals::index)
+					return std::make_unique<array_index>(std::move(children));
+
+				else if (node_type == non_terminals::module_declaration)
+					return std::make_unique<module_declaration>(std::move(children));
+
+				else if (node_type == non_terminals::module_imports)
+					return std::make_unique<import_declaration>(std::move(children));
+
+				else if (node_type == non_terminals::while_loop)
+					return std::make_unique<while_loop>(std::move(children));
+
+				else if (node_type == non_terminals::equality)
+					return std::make_unique<equality>(std::move(children));
+
 				else
 					throw cst_to_ast_error{
 						std::string("Unknown CST non terminal node: ")
@@ -113,7 +140,7 @@ namespace fe
 			{
 				auto n = std::move(std::get<tools::ebnfe::terminal_node>(*node));
 				auto node_type = n.value;
-
+				// Do false and true
 				if (node_type == terminals::number)
 				{
 					return std::make_unique<integer>(atoi(n.token.c_str()));

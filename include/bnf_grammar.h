@@ -70,6 +70,23 @@ namespace tools::bnf
 				return get_non_terminal() == other.get_non_terminal();
 		}
 
+		friend std::ostream& operator<< (std::ostream& stream, const symbol& sym)
+		{
+			if(std::holds_alternative<terminal>(sym.value))
+				stream << std::get<terminal>(sym.value);
+			else if(std::holds_alternative<non_terminal>(sym.value))
+				stream << std::get<non_terminal>(sym.value);
+			return stream;
+		}
+
+		operator std::string() const
+		{ 
+			if(std::holds_alternative<terminal>(value))
+				return std::to_string(std::get<terminal>(value));
+			else if(std::holds_alternative<non_terminal>(value))
+				return std::to_string(std::get<non_terminal>(value));
+		}
+
 		std::variant<terminal, non_terminal> value;
 	};
 
@@ -98,8 +115,8 @@ namespace tools::bnf
 			return (lhs == other.lhs) && (rhs == other.rhs);
 		}
 
-		const non_terminal lhs;
-		const std::vector<symbol> rhs;
+		non_terminal lhs;
+		std::vector<symbol> rhs;
 	};
 }
 

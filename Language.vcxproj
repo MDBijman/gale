@@ -125,8 +125,8 @@
   <ItemGroup>
     <None Include="snippets\grammar_extension.fe" />
     <None Include="snippets\modeling_module.fe" />
-    <None Include="snippets\test.fe" />
-    <None Include="snippets\testing.fe" />
+    <None Include="snippets\project\sub_module.fe" />
+    <None Include="snippets\project\test.fe" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="include\std_input.h" />
@@ -144,12 +144,16 @@
     <ClInclude Include="include\grammar_tests.h" />
     <ClInclude Include="include\lalr_parser.h" />
     <ClInclude Include="include\lalr_tests.h" />
+    <ClInclude Include="include\module.h" />
     <ClInclude Include="include\parser.h" />
     <ClInclude Include="include\performance_tests.h" />
+    <ClInclude Include="include\project.h" />
+    <ClInclude Include="include\repl.h" />
     <ClInclude Include="include\runtime_environment.h" />
     <ClInclude Include="include\core_operations.h" />
     <ClInclude Include="include\error.h" />
     <ClInclude Include="include\reader.h" />
+    <ClInclude Include="include\std_output.h" />
     <ClInclude Include="include\std_types.h" />
     <ClInclude Include="include\extended_ast.h" />
     <ClInclude Include="include\ll_parser.h" />
@@ -166,6 +170,7 @@
     <ClInclude Include="include\lexer_stage.h" />
     <ClInclude Include="include\parser_stage.h" />
     <ClInclude Include="include\lexer.h" />
+    <ClInclude Include="include\std_ui.h" />
     <ClInclude Include="include\tags.h" />
     <ClInclude Include="include\tests.h" />
     <ClInclude Include="include\typechecker_stage.h" />
@@ -176,7 +181,6 @@
   </ItemGroup>
   <ItemGroup>
     <Text Include="include\core_ast.txt" />
-    <Text Include="snippets\language_core.fe" />
     <Text Include="snippets\language_grammar.txt" />
     <Text Include="snippets\language_module.fe" />
     <Text Include="snippets\notes.txt" />

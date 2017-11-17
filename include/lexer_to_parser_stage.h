@@ -29,6 +29,13 @@ namespace fe
 			add_mapping(equals_token, equals);
 			add_mapping(comma_token, comma);
 			add_mapping(semicolon_token, semicolon);
+			add_mapping(mul_token, mul);
+			add_mapping(div_token, div);
+			add_mapping(plus_token, plus);
+			add_mapping(minus_token, minus);
+			add_mapping(colon_token, colon);
+			add_mapping(dot_token, dot);
+			add_mapping(equality_token, two_equals);
 			add_mapping(keyword_token, [&](tools::lexing::token token) {
 				if (token.text == "export")
 					return export_keyword;
@@ -36,8 +43,8 @@ namespace fe
 					return type_keyword;
 				if (token.text == "fn")
 					return function_keyword;
-				if (token.text == "case")
-					return case_keyword;
+				if (token.text == "match")
+					return match_keyword;
 				if (token.text == "module")
 					return module_keyword;
 				if (token.text == "pub")
@@ -46,6 +53,24 @@ namespace fe
 					return ref_keyword;
 				if (token.text == "var")
 					return var_keyword;
+				if (token.text == "import")
+					return import_keyword;
+				if (token.text == "qualified")
+					return qualified_keyword;
+				if (token.text == "as")
+					return as_keyword;
+				if (token.text == "from")
+					return from_keyword;
+				if (token.text == "while")
+					return while_keyword;
+				if (token.text == "do")
+					return do_keyword;
+				if (token.text == "on")
+					return on_keyword;
+				if (token.text == "true")
+					return true_keyword;
+				if (token.text == "false")
+					return false_keyword;
 				return identifier;
 			});
 		}

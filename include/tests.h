@@ -8,8 +8,8 @@ namespace tests
 {
 	void run_all()
 	{
-		performance_tests()
-			.run_all();
+		//performance_tests()
+		//	.run_all();
 
 		lalr::lalr_generator_tests()
 			.run_all();

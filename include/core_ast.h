@@ -17,7 +17,7 @@ namespace fe
 		{
 			virtual ~node() {};
 			virtual node* copy() = 0;
-			virtual values::value interp(runtime_environment&) = 0;
+			virtual values::unique_value interp(runtime_environment&) = 0;
 		};
 
 		using unique_node = std::unique_ptr<node>;
@@ -25,7 +25,7 @@ namespace fe
 
 		struct assignment;
 		struct function_call;
-		struct conditional_branch;
+		struct match;
 		struct atom_variable;
 		struct composite_variable;
 		struct function_variable;
@@ -47,9 +47,9 @@ namespace fe
 			{
 				return new no_op(*this);
 			}
-			values::value interp(runtime_environment&) override;
+			values::unique_value interp(runtime_environment&) override;
 
-			types::type type;
+			types::unique_type type;
 		};
 
 		struct integer : public node
@@ -68,10 +68,10 @@ namespace fe
 			{
 				return new integer(*this);
 			}
-			values::value interp(runtime_environment&) override;
+			values::unique_value interp(runtime_environment&) override;
 
 			values::integer value;
-			types::type type;
+			types::unique_type type;
 		};
 
 		struct string : public node
@@ -90,15 +90,15 @@ namespace fe
 			{
 				return new string(*this);
 			}
-			values::value interp(runtime_environment&) override;
+			values::unique_value interp(runtime_environment&) override;
 
 			values::string value;
-			types::type type;
+			types::unique_type type;
 		};
 
 		struct identifier : public node
 		{
-			identifier(std::vector<std::string>&& module_names, std::string&& variables, std::vector<int>&& offset);
+			identifier(std::vector<std::string> module_names, std::string variables, std::vector<int> offset, types::unique_type t);
 
 			// Copy
 			identifier(const identifier& other);
@@ -112,7 +112,7 @@ namespace fe
 			{
 				return new identifier(*this);
 			}
-			values::value interp(runtime_environment&) override;
+			values::unique_value interp(runtime_environment&) override;
 
 			identifier without_first_module() const
 			{
@@ -120,19 +120,20 @@ namespace fe
 					identifier(
 						std::vector<std::string>{modules.begin() + 1, modules.end()},
 						std::string(variable_name),
-						std::vector<int>(offsets)
+						std::vector<int>(offsets),
+						types::unique_type(type->copy())
 					);
 			}
 
 			std::vector<std::string> modules;
 			std::string variable_name;
 			std::vector<int> offsets;
-			types::type type;
+			types::unique_type type;
 		};
 
 		struct set : public node
 		{
-			set(identifier&& id, unique_node&& value, types::type t);
+			set(identifier id, unique_node value, types::unique_type t);
 
 			// Copy
 			set(const set& other);
@@ -146,16 +147,16 @@ namespace fe
 			{
 				return new set(*this);
 			}
-			values::value interp(runtime_environment&) override;
+			values::unique_value interp(runtime_environment&) override;
 
 			identifier id;
 			unique_node value;
-			types::type type;
+			types::unique_type type;
 		};
 
 		struct function : public node
 		{
-			function(std::optional<identifier>&& name, std::variant<std::vector<identifier>, identifier>&& parameters, unique_node&& body, types::type t);
+			function(std::optional<identifier>&& name, std::variant<std::vector<identifier>, identifier>&& parameters, unique_node&& body, types::unique_type t);
 
 			// Copy
 			function(const function& other);
@@ -169,14 +170,14 @@ namespace fe
 			{
 				return new function(*this);
 			}
-			values::value interp(runtime_environment&) override;
+			values::unique_value interp(runtime_environment&) override;
 
 			// Name is set when the function is not anonymous, for recursion
 			std::optional<identifier> name;
 			// Either a named tuple or a single argument
 			std::variant<std::vector<identifier>, identifier> parameters;
 			unique_node body;
-			types::type type;
+			types::unique_type type;
 		};
 
 		// Derivatives
@@ -184,7 +185,8 @@ namespace fe
 
 		struct tuple : public node
 		{
-			tuple(std::vector<unique_node> children, types::type t);
+			tuple(std::vector<unique_node> children, types::unique_type t);
+			tuple(std::vector<unique_node> children, types::type& t);
 
 			// Copy
 			tuple(const tuple& other);
@@ -198,16 +200,16 @@ namespace fe
 			{
 				return new tuple(*this);
 			}
-			values::value interp(runtime_environment&) override;
+			values::unique_value interp(runtime_environment&) override;
 
 			std::vector<unique_node> children;
-			types::type type;
+			types::unique_type type;
 		};
 
 
 		struct block : public node
 		{
-			block(std::vector<unique_node> children, types::type t);
+			block(std::vector<unique_node> children, types::unique_type t);
 
 			// Copy
 			block(const block& other);
@@ -221,15 +223,15 @@ namespace fe
 			{
 				return new block(*this);
 			}
-			values::value interp(runtime_environment&) override;
+			values::unique_value interp(runtime_environment&) override;
 
 			std::vector<unique_node> children;
-			types::type type;
+			types::unique_type type;
 		};
 
 		struct function_call : public node
 		{
-			function_call(identifier&& id, unique_node&& parameter, types::type&& t);
+			function_call(identifier id, unique_node parameter, types::unique_type t);
 
 			// Copy
 			function_call(const function_call& other);
@@ -243,11 +245,11 @@ namespace fe
 			{
 				return new function_call(*this);
 			}
-			values::value interp(runtime_environment&) override;
+			values::unique_value interp(runtime_environment&) override;
 
 			identifier id;
 			unique_node parameter;
-			types::type type;
+			types::unique_type type;
 		};
 
 		struct branch : public node
@@ -266,12 +268,12 @@ namespace fe
 			{
 				return new branch(*this);
 			}
-			values::value interp(runtime_environment&) override;
+			values::unique_value interp(runtime_environment&) override;
 
 			unique_node test_path;
 			unique_node true_path;
 			unique_node false_path;
-			types::type type;
+			types::unique_type type;
 		};
 
 		struct reference : public node
@@ -288,10 +290,33 @@ namespace fe
 			{
 				return new reference(*this);
 			}
-			values::value interp(runtime_environment&) override;
+			values::unique_value interp(runtime_environment&) override;
 
 			unique_node exp;
-			types::type type;
+			types::unique_type type;
+		};
+
+		struct while_loop : public node
+		{
+			while_loop(unique_node test_code, unique_node body);
+
+			// Copy
+			while_loop(const while_loop& other);
+			while_loop& operator=(const while_loop& other);
+
+			// Move
+			while_loop(while_loop&& other);
+			while_loop& operator=(while_loop&& other);
+
+			node* copy() override
+			{
+				return new while_loop(*this);
+			}
+			values::unique_value interp(runtime_environment&) override;
+
+			unique_node test;
+			unique_node body;
+			types::unique_type type;
 		};
 	}
 }

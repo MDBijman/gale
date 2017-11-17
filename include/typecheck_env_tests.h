@@ -3,6 +3,7 @@
 #include "types.h"
 
 #include <variant>
+#include <assert.h>
 
 namespace tests
 {
@@ -31,13 +32,13 @@ namespace tests
 			auto before_type = types::atom_type{ "i32" };
 
 			t_env.add_module(typecheck_environment{});
-			t_env.set_type(extended_ast::identifier{ {"i32"} }, before_type);
+			t_env.set_type(extended_ast::identifier{ {"i32"} }, types::make_unique(before_type));
 
-			auto after_type_or_error = t_env.typeof(extended_ast::identifier{ {"i32"} });
+			auto& after_type_or_error = t_env.typeof(extended_ast::identifier{ {"i32"} });
 			assert(!std::holds_alternative<type_env_error>(after_type_or_error));
 
-			auto after_type = std::get<std::reference_wrapper<const types::type>>(after_type_or_error);
-			assert(types::type(before_type) == after_type.get());
+			auto& after_type = std::get<std::reference_wrapper<types::type>>(after_type_or_error).get();
+			assert(before_type == &after_type);
 		}
 
 		void test_module()
@@ -47,13 +48,13 @@ namespace tests
 			auto before_type = types::atom_type{ "i32" };
 
 			t_env.add_module(typecheck_environment{ "std" });
-			t_env.set_type(extended_ast::identifier{ {"std", "i32"} }, before_type);
+			t_env.set_type(extended_ast::identifier{ {"std", "i32"} }, types::make_unique(before_type));
 
 			auto after_type_or_error = t_env.typeof(extended_ast::identifier{ {"std", "i32"} });
 			assert(!std::holds_alternative<type_env_error>(after_type_or_error));
 
-			auto after_type = std::get<std::reference_wrapper<const types::type>>(after_type_or_error);
-			assert(types::type(before_type) == after_type.get());
+			auto& after_type = std::get<std::reference_wrapper<types::type>>(after_type_or_error).get();
+			assert(before_type == &after_type);
 		}
 
 		void test_nested_module()
@@ -66,13 +67,13 @@ namespace tests
 			t_env.add_module(std::move(std_env));
 
 			auto before_type = types::atom_type{ "i32" };
-			t_env.set_type(extended_ast::identifier{ {"std", "child", "x"} }, before_type);
+			t_env.set_type(extended_ast::identifier{ {"std", "child", "x"} }, types::make_unique(before_type));
 
 			auto after_type_or_error = t_env.typeof(extended_ast::identifier{ {"std", "child", "x"} });
 			assert(!std::holds_alternative<type_env_error>(after_type_or_error));
 
-			auto after_type = std::get<std::reference_wrapper<const types::type>>(after_type_or_error);
-			assert(types::type(before_type) == after_type.get());
+			auto& after_type = std::get<std::reference_wrapper<types::type>>(after_type_or_error).get();
+			assert(before_type == &after_type);
 		}
 
 		void test_product_type()
@@ -80,25 +81,27 @@ namespace tests
 			using namespace fe;
 			t_env = typecheck_environment();
 
-			auto element_one = std::make_pair("a", types::atom_type("i32"));
-			auto element_two = std::make_pair("b", types::atom_type("str"));
-			auto before_type = types::product_type({ element_one, element_two });
+			auto element_one = std::make_pair("a", types::make_unique(types::atom_type("i32")));
+			auto element_two = std::make_pair("b", types::make_unique(types::atom_type("str")));
+			auto before_type = types::product_type();
+			before_type.product.push_back(std::move(element_one));
+			before_type.product.push_back(std::move(element_two));
 
-			t_env.set_type(extended_ast::identifier{ {"x"} }, before_type);
+			t_env.set_type(extended_ast::identifier{ {"x"} }, types::unique_type(before_type.copy()));
 
 			{
 				auto after_type_or_error = t_env.typeof(extended_ast::identifier{ {"x", "a" } });
 				assert(!std::holds_alternative<type_env_error>(after_type_or_error));
 
-				auto after_type = std::get<std::reference_wrapper<const types::type>>(after_type_or_error);
-				assert(types::type(after_type) == types::type(element_one.second));
+				auto& after_type = std::get<std::reference_wrapper<types::type>>(after_type_or_error).get();
+				assert(after_type == before_type.product.at(0).second.get());
 			}
 			{
 				auto after_type_or_error = t_env.typeof(extended_ast::identifier{ {"x", "b" } });
 				assert(!std::holds_alternative<type_env_error>(after_type_or_error));
 
-				auto after_type = std::get<std::reference_wrapper<const types::type>>(after_type_or_error);
-				assert(types::type(after_type) == types::type(element_two.second));
+				auto& after_type = std::get<std::reference_wrapper<types::type>>(after_type_or_error).get();
+				assert(after_type == before_type.product.at(1).second.get());
 			}
 		}
 
@@ -107,11 +110,18 @@ namespace tests
 			using namespace fe;
 			t_env = typecheck_environment();
 
-			auto element_one = std::make_pair("a", types::atom_type("i32"));
-			auto element_two = std::make_pair("b", types::product_type({ { "c", types::atom_type("str") } }));
-			auto before_type = types::product_type({ element_one, element_two });
+			auto element_one = std::make_pair("a", types::make_unique(types::atom_type("i32")));
+			auto element_two_product = types::product_type();
+			element_two_product.product.push_back({ "c", types::make_unique(types::atom_type("str")) });
 
-			t_env.set_type(extended_ast::identifier{ {"x"} }, before_type);
+			auto element_two = std::make_pair("b", types::make_unique(std::move(element_two_product)));
+
+			auto before_product = types::product_type();
+			before_product.product.push_back(std::move(element_one));
+			before_product.product.push_back(std::move(element_two));
+			auto before_type = types::make_unique(std::move(before_product));
+
+			t_env.set_type(extended_ast::identifier{ {"x"} }, types::unique_type(before_type->copy()));
 
 			auto id = extended_ast::identifier{ {"x", "b", "c"} };
 			t_env.build_access_pattern(id);

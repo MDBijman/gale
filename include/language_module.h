@@ -1,5 +1,8 @@
 #pragma once
 #include "std_types.h"
+#include "typecheck_environment.h"
+#include "runtime_environment.h"
+#include "pipeline.h"
 #include "reader.h"
 
 namespace fe
@@ -15,7 +18,7 @@ namespace fe
 
 			auto language_module_contents = tools::files::read_file("./snippets/language_module.fe");
 			auto result_or_error = pipeline.process(std::move(std::get<std::string>(language_module_contents)), std::move(te), std::move(re));
-			std::tie(std::ignore, te, re) = std::get<std::tuple<values::value, typecheck_environment, runtime_environment>>(result_or_error);
+			std::tie(std::ignore, te, re) = std::get<std::tuple<values::unique_value, typecheck_environment, runtime_environment>>(result_or_error);
 
 			te.name = "language";
 			re.name = "language";

@@ -13,20 +13,20 @@
 
 namespace fe
 {
-	class interpreting_stage : public language::interpreting_stage<core_ast::unique_node, values::value, runtime_environment, interp_error>
+	class interpreting_stage : public language::interpreting_stage<core_ast::unique_node, values::unique_value, runtime_environment, interp_error>
 	{
 	public:
 		interpreting_stage() {}
 
 		std::variant<
-			std::tuple<core_ast::unique_node, values::value, runtime_environment>,
+			std::tuple<core_ast::unique_node, values::unique_value, runtime_environment>,
 			interp_error
 		> interpret(core_ast::unique_node core_ast, runtime_environment&& env) override
 		{
 			try
 			{
 				auto res = core_ast->interp(env);
-				return std::make_tuple(std::move(core_ast), res, env);
+				return std::make_tuple(std::move(core_ast), std::move(res), env);
 			}
 			catch (interp_error e)
 			{

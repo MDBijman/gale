@@ -1,21 +1,19 @@
 #include "values.h"
 #include "core_ast.h"
 
-#define VALUE_NODE std::variant<void_value, string, integer, boolean, tuple, function, native_function, module>
-
 namespace fe
 {
 	namespace values
 	{
 		// Function
 
-		function::function(std::unique_ptr<core_ast::node> func) : func(std::move(func)) {}
+		function::function(core_ast::unique_node func) : func(std::move(func)) {}
 
 		// Copy
-		function::function(const function& other) : func(std::unique_ptr<core_ast::node>(other.func->copy())) {}
+		function::function(const function& other) : func(core_ast::unique_node(other.func->copy())) {}
 		function& function::operator=(const function& other)
 		{
-			this->func = std::unique_ptr<core_ast::node>(other.func->copy());
+			this->func = core_ast::unique_node(other.func->copy());
 			return *this;
 		}
 
@@ -27,7 +25,7 @@ namespace fe
 			return *this;
 		}
 
-		std::string function::to_string()
+		std::string function::to_string() const
 		{
 			return "function";
 		}
@@ -36,13 +34,22 @@ namespace fe
 
 
 		tuple::tuple() {}
-		tuple::tuple(std::vector<VALUE_NODE> values) : content(values) {}
+		tuple::tuple(std::vector<unique_value> values) : content(std::move(values)) {}
 
 		// Copy
-		tuple::tuple(const tuple& other) : content(other.content) {}
+		tuple::tuple(const tuple& other) 
+		{
+			for (decltype(auto) elem : other.content)
+			{
+				this->content.push_back(unique_value(elem->copy()));
+			}
+		}
 		tuple& tuple::operator=(const tuple& other)
 		{
-			this->content = other.content;
+			for (decltype(auto) elem : other.content)
+			{
+				this->content.push_back(unique_value(elem->copy()));
+			}
 			return *this;
 		}
 
@@ -54,13 +61,13 @@ namespace fe
 			return *this;
 		}
 
-		std::string tuple::to_string()
+		std::string tuple::to_string() const
 		{
 			std::string r("tuple (");
 
 			for (auto it = content.begin(); it != content.end(); it++)
 			{
-				r.append(std::visit(values::to_string, *it));
+				r.append(it->get()->to_string());
 				if (it != content.end() - 1)
 					r.append(", ");
 			}
@@ -87,12 +94,10 @@ namespace fe
 			return *this;
 		}
 
-		std::string native_function::to_string()
+		std::string native_function::to_string() const
 		{
 			return "native_function";
 		}
 
-	}	
+	}
 }
-
-#undef VALUE_NODE
