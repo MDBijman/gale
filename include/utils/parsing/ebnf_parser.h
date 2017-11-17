@@ -372,15 +372,15 @@ namespace tools
 					else
 						return error{ error_code::BNF_ERROR, "BNF parser returned empty value" };
 				}
-				catch (lalr::conflict e) {
+				catch (lr::conflict e) {
 					std::string error_message;
 
 					switch (e.type)
 					{
-					case tools::lalr::conflict::type::SHIFT_SHIFT:
+					case tools::lr::conflict::type::SHIFT_SHIFT:
 						error_message.append("Shift/Shift conflict\n");
 						break;
-					case tools::lalr::conflict::type::SHIFT_REDUCE:
+					case tools::lr::conflict::type::SHIFT_REDUCE:
 						error_message.append("Shift/Reduce conflict\n");
 						break;
 					}

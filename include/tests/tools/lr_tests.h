@@ -8,7 +8,7 @@ SCENARIO("an lr parser should generate a correct parse table", "[lr_parser]")
 	{
 		using namespace tools::bnf;
 
-		auto p = tools::lalr::parser();
+		auto p = tools::lr::parser();
 
 
 		non_terminal Expression = 1, Atom = 2;

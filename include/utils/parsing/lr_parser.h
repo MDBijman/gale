@@ -7,7 +7,7 @@
 #include <unordered_set>
 #include <vector>
 
-namespace tools::lalr
+namespace tools::lr
 {
 	struct item_set_transition
 	{

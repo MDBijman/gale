@@ -6,7 +6,7 @@
 #include <stack>
 #include <assert.h>
 
-namespace tools::lalr
+namespace tools::lr
 {
 	void parser::generate(bnf::non_terminal start_symbol, std::multimap<bnf::non_terminal, std::vector<bnf::symbol>>& r)
 	{
