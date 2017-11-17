@@ -9,18 +9,6 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="Source Files\tools">
-      <UniqueIdentifier>{0160b383-9719-4722-a120-3d409021331a}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\tools\lexing">
-      <UniqueIdentifier>{1f5f131c-f15b-4674-9733-58cafffbdacb}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\tools\compilation">
-      <UniqueIdentifier>{28d1ee4c-d654-4a6e-a8e4-f40e85ea1887}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\tools\parsing">
-      <UniqueIdentifier>{3fe32d4b-5211-4950-9e6e-2b0881877c31}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source Files\fe">
       <UniqueIdentifier>{201a128b-a669-4f6f-8bb8-dc3f1f7a921c}</UniqueIdentifier>
     </Filter>
@@ -30,62 +18,44 @@
     <Filter Include="Source Files\fe\pipeline">
       <UniqueIdentifier>{8aacbe17-1c1f-4b03-a529-fe01fa3e41cd}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\library">
-      <UniqueIdentifier>{b6786af6-755c-4594-9866-730840718fef}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\library\std">
-      <UniqueIdentifier>{12f383be-618f-4276-9927-7c0765a055ef}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\library\language">
-      <UniqueIdentifier>{09b0ec37-1ac6-44ad-979b-d7325c3f8c20}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\library\core">
-      <UniqueIdentifier>{d757ac8a-8534-4f2f-9e99-1574bfd48cef}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\tools\files">
-      <UniqueIdentifier>{be0ab643-ac95-4b90-86a9-f3e4d15c919d}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source Files\tests">
       <UniqueIdentifier>{0c93d3ae-ca03-48db-a348-b87fc31b6c6a}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\tests\fe">
       <UniqueIdentifier>{4e95b8f4-7cf0-4a8e-bd9e-eaa05ca6722d}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\tests\fe\data">
-      <UniqueIdentifier>{2f104b29-8e23-42a2-8886-85e5623a8376}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\tests\fe\pipeline">
-      <UniqueIdentifier>{300eaeb5-57dd-4f33-93d1-ec8f8fece721}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source Files\tests\tools">
       <UniqueIdentifier>{41aecb1a-45c3-4599-9406-1a69c228a146}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\tests\tools\compilation">
-      <UniqueIdentifier>{b01d3415-f994-4aa2-8f24-be06b427774f}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\tests\tools\lexing">
-      <UniqueIdentifier>{97d6f300-48f8-45fc-b8fe-310fc4a882b4}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\tests\tools\parsing">
-      <UniqueIdentifier>{ffb901a3-576a-4b9a-80f0-3fcc8ed842d7}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\tools\parsing\imp">
-      <UniqueIdentifier>{790d3ab7-d2b5-4a83-a111-ce47a65c1f4c}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\library\std\ui">
-      <UniqueIdentifier>{a031b6c8-6531-4f90-aaa4-58212c7da36e}</UniqueIdentifier>
     </Filter>
     <Filter Include="Resource Files\Source">
       <UniqueIdentifier>{14e6f4e8-a14a-4fbb-bda8-b98a46a2af1a}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\library\std\io">
-      <UniqueIdentifier>{bc1450f4-5a57-4852-83f0-e7169ac5fd8e}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source Files\fe\modes">
       <UniqueIdentifier>{20b41d34-941f-405b-8bbf-af897becab04}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\library\std\types">
-      <UniqueIdentifier>{7bcf74f1-a341-44a8-9db4-4562b42d986f}</UniqueIdentifier>
+    <Filter Include="Source Files\utils">
+      <UniqueIdentifier>{0160b383-9719-4722-a120-3d409021331a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\utils\lexing">
+      <UniqueIdentifier>{1f5f131c-f15b-4674-9733-58cafffbdacb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\utils\parsing">
+      <UniqueIdentifier>{3fe32d4b-5211-4950-9e6e-2b0881877c31}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\utils\reading">
+      <UniqueIdentifier>{1a9e7d7d-b9d0-4009-9ed9-d8cb993fdfee}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\fe\libraries">
+      <UniqueIdentifier>{b6786af6-755c-4594-9866-730840718fef}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\fe\libraries\std">
+      <UniqueIdentifier>{12f383be-618f-4276-9927-7c0765a055ef}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\fe\libraries\language">
+      <UniqueIdentifier>{09b0ec37-1ac6-44ad-979b-d7325c3f8c20}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\fe\libraries\core">
+      <UniqueIdentifier>{d757ac8a-8534-4f2f-9e99-1574bfd48cef}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -106,145 +76,142 @@
     <ClCompile Include="src\main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\values.cpp">
+    <ClCompile Include="src\fe\data\core_ast.cpp">
       <Filter>Source Files\fe\data</Filter>
     </ClCompile>
-    <ClCompile Include="src\core_ast.cpp">
+    <ClCompile Include="src\fe\data\extended_ast.cpp">
       <Filter>Source Files\fe\data</Filter>
     </ClCompile>
-    <ClCompile Include="src\types.cpp">
+    <ClCompile Include="src\fe\data\types.cpp">
       <Filter>Source Files\fe\data</Filter>
     </ClCompile>
-    <ClCompile Include="src\extended_ast.cpp">
+    <ClCompile Include="src\fe\data\values.cpp">
       <Filter>Source Files\fe\data</Filter>
     </ClCompile>
-    <ClCompile Include="src\ll_parser.cpp">
-      <Filter>Source Files\tools\parsing\imp</Filter>
+    <ClCompile Include="src\tools\ll_parser.cpp">
+      <Filter>Source Files\utils\parsing</Filter>
     </ClCompile>
-    <ClCompile Include="src\lalr_parser.cpp">
-      <Filter>Source Files\tools\parsing\imp</Filter>
-    </ClCompile>
-    <ClCompile Include="include\std_input.h">
-      <Filter>Source Files\library\std\io</Filter>
+    <ClCompile Include="src\tools\lr_parser.cpp">
+      <Filter>Source Files\utils\parsing</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="include\lexer.h">
-      <Filter>Source Files\tools\lexing</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ebnf_parser.h">
-      <Filter>Source Files\tools\parsing</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ebnfe_parser.h">
-      <Filter>Source Files\tools\parsing</Filter>
-    </ClInclude>
-    <ClInclude Include="include\values.h">
+    <ClInclude Include="include\fe\data\core_ast.h">
       <Filter>Source Files\fe\data</Filter>
     </ClInclude>
-    <ClInclude Include="include\types.h">
+    <ClInclude Include="include\fe\data\extended_ast.h">
       <Filter>Source Files\fe\data</Filter>
     </ClInclude>
-    <ClInclude Include="include\core_ast.h">
+    <ClInclude Include="include\fe\data\runtime_environment.h">
       <Filter>Source Files\fe\data</Filter>
     </ClInclude>
-    <ClInclude Include="include\extended_ast.h">
+    <ClInclude Include="include\fe\data\typecheck_environment.h">
       <Filter>Source Files\fe\data</Filter>
     </ClInclude>
-    <ClInclude Include="include\typechecker_stage.h">
+    <ClInclude Include="include\fe\data\types.h">
+      <Filter>Source Files\fe\data</Filter>
+    </ClInclude>
+    <ClInclude Include="include\fe\data\values.h">
+      <Filter>Source Files\fe\data</Filter>
+    </ClInclude>
+    <ClInclude Include="include\fe\modes\module.h">
+      <Filter>Source Files\fe\modes</Filter>
+    </ClInclude>
+    <ClInclude Include="include\fe\modes\project.h">
+      <Filter>Source Files\fe\modes</Filter>
+    </ClInclude>
+    <ClInclude Include="include\fe\modes\repl.h">
+      <Filter>Source Files\fe\modes</Filter>
+    </ClInclude>
+    <ClInclude Include="include\fe\pipeline\cst_to_ast_stage.h">
       <Filter>Source Files\fe\pipeline</Filter>
     </ClInclude>
-    <ClInclude Include="include\interpreting_stage.h">
+    <ClInclude Include="include\fe\pipeline\error.h">
       <Filter>Source Files\fe\pipeline</Filter>
     </ClInclude>
-    <ClInclude Include="include\lexer_stage.h">
+    <ClInclude Include="include\fe\pipeline\interpreting_stage.h">
       <Filter>Source Files\fe\pipeline</Filter>
     </ClInclude>
-    <ClInclude Include="include\lexer_to_parser_stage.h">
+    <ClInclude Include="include\fe\pipeline\lexer_stage.h">
       <Filter>Source Files\fe\pipeline</Filter>
     </ClInclude>
-    <ClInclude Include="include\lowering_stage.h">
+    <ClInclude Include="include\fe\pipeline\lexer_to_parser_stage.h">
       <Filter>Source Files\fe\pipeline</Filter>
     </ClInclude>
-    <ClInclude Include="include\parser_stage.h">
+    <ClInclude Include="include\fe\pipeline\lowering_stage.h">
       <Filter>Source Files\fe\pipeline</Filter>
     </ClInclude>
-    <ClInclude Include="include\cst_to_ast_stage.h">
+    <ClInclude Include="include\fe\pipeline\parser_stage.h">
       <Filter>Source Files\fe\pipeline</Filter>
     </ClInclude>
-    <ClInclude Include="include\language_definition.h">
+    <ClInclude Include="include\fe\pipeline\pipeline.h">
+      <Filter>Source Files\fe\pipeline</Filter>
+    </ClInclude>
+    <ClInclude Include="include\fe\pipeline\typechecker_stage.h">
+      <Filter>Source Files\fe\pipeline</Filter>
+    </ClInclude>
+    <ClInclude Include="include\fe\language_definition.h">
       <Filter>Source Files\fe</Filter>
     </ClInclude>
-    <ClInclude Include="include\language_module.h">
-      <Filter>Source Files\library\language</Filter>
+    <ClInclude Include="include\tests\fe\typecheck_env_tests.h">
+      <Filter>Source Files\tests\fe</Filter>
     </ClInclude>
-    <ClInclude Include="include\core_operations.h">
-      <Filter>Source Files\library\core</Filter>
-    </ClInclude>
-    <ClInclude Include="include\reader.h">
-      <Filter>Source Files\tools\files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\pipeline.h">
-      <Filter>Source Files\fe\pipeline</Filter>
-    </ClInclude>
-    <ClInclude Include="include\error.h">
-      <Filter>Source Files\fe\pipeline</Filter>
-    </ClInclude>
-    <ClInclude Include="include\tests.h">
+    <ClInclude Include="include\tests\tests.h">
       <Filter>Source Files\tests</Filter>
     </ClInclude>
-    <ClInclude Include="include\runtime_environment.h">
-      <Filter>Source Files\fe\data</Filter>
+    <ClInclude Include="include\tests\tools\grammar_tests.h">
+      <Filter>Source Files\tests\tools</Filter>
     </ClInclude>
-    <ClInclude Include="include\typecheck_environment.h">
-      <Filter>Source Files\fe\data</Filter>
+    <ClInclude Include="include\tests\tools\lalr_tests.h">
+      <Filter>Source Files\tests\tools</Filter>
     </ClInclude>
-    <ClInclude Include="include\typecheck_env_tests.h">
-      <Filter>Source Files\tests\fe\data</Filter>
+    <ClInclude Include="include\tests\tools\performance_tests.h">
+      <Filter>Source Files\tests\tools</Filter>
     </ClInclude>
-    <ClInclude Include="include\grammar_tests.h">
-      <Filter>Source Files\tests\tools\parsing</Filter>
+    <ClInclude Include="include\fe\libraries\std\std_ui.h">
+      <Filter>Source Files\fe\libraries\std</Filter>
     </ClInclude>
-    <ClInclude Include="include\tags.h">
-      <Filter>Source Files\fe\data</Filter>
+    <ClInclude Include="include\fe\libraries\std\std_types.h">
+      <Filter>Source Files\fe\libraries\std</Filter>
     </ClInclude>
-    <ClInclude Include="include\bnf_grammar.h">
-      <Filter>Source Files\tools\parsing</Filter>
+    <ClInclude Include="include\fe\libraries\std\std_output.h">
+      <Filter>Source Files\fe\libraries\std</Filter>
     </ClInclude>
-    <ClInclude Include="include\lalr_tests.h">
-      <Filter>Source Files\tests\tools\parsing</Filter>
+    <ClInclude Include="include\fe\libraries\std\std_input.h">
+      <Filter>Source Files\fe\libraries\std</Filter>
     </ClInclude>
-    <ClInclude Include="include\parser.h">
-      <Filter>Source Files\tools\parsing</Filter>
+    <ClInclude Include="include\fe\libraries\core\core_operations.h">
+      <Filter>Source Files\fe\libraries\core</Filter>
     </ClInclude>
-    <ClInclude Include="include\bnf_parser.h">
-      <Filter>Source Files\tools\parsing</Filter>
+    <ClInclude Include="include\fe\libraries\language\language_module.h">
+      <Filter>Source Files\fe\libraries\language</Filter>
     </ClInclude>
-    <ClInclude Include="include\ll_parser.h">
-      <Filter>Source Files\tools\parsing\imp</Filter>
+    <ClInclude Include="include\utils\lexing\lexer.h">
+      <Filter>Source Files\utils\lexing</Filter>
     </ClInclude>
-    <ClInclude Include="include\lalr_parser.h">
-      <Filter>Source Files\tools\parsing\imp</Filter>
+    <ClInclude Include="include\utils\reading\reader.h">
+      <Filter>Source Files\utils\reading</Filter>
     </ClInclude>
-    <ClInclude Include="include\performance_tests.h">
-      <Filter>Source Files\tests\tools\parsing</Filter>
+    <ClInclude Include="include\utils\parsing\bnf_grammar.h">
+      <Filter>Source Files\utils\parsing</Filter>
     </ClInclude>
-    <ClInclude Include="include\std_ui.h">
-      <Filter>Source Files\library\std\ui</Filter>
+    <ClInclude Include="include\utils\parsing\bnf_parser.h">
+      <Filter>Source Files\utils\parsing</Filter>
     </ClInclude>
-    <ClInclude Include="include\project.h">
-      <Filter>Source Files\fe\modes</Filter>
+    <ClInclude Include="include\utils\parsing\ebnf_parser.h">
+      <Filter>Source Files\utils\parsing</Filter>
     </ClInclude>
-    <ClInclude Include="include\repl.h">
-      <Filter>Source Files\fe\modes</Filter>
+    <ClInclude Include="include\utils\parsing\ebnfe_parser.h">
+      <Filter>Source Files\utils\parsing</Filter>
     </ClInclude>
-    <ClInclude Include="include\module.h">
-      <Filter>Source Files\fe\modes</Filter>
+    <ClInclude Include="include\utils\parsing\ll_parser.h">
+      <Filter>Source Files\utils\parsing</Filter>
     </ClInclude>
-    <ClInclude Include="include\std_output.h">
-      <Filter>Source Files\library\std\io</Filter>
+    <ClInclude Include="include\utils\parsing\parser.h">
+      <Filter>Source Files\utils\parsing</Filter>
     </ClInclude>
-    <ClInclude Include="include\std_types.h">
-      <Filter>Source Files\library\std\types</Filter>
+    <ClInclude Include="include\utils\parsing\lr_parser.h">
+      <Filter>Source Files\utils\parsing</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

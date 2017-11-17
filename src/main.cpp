@@ -1,15 +1,16 @@
-#include "pipeline.h"
-#include "lexer_stage.h"
-#include "lexer_to_parser_stage.h"
-#include "parser_stage.h"
-#include "cst_to_ast_stage.h"
-#include "typechecker_stage.h"
-#include "lowering_stage.h"
-#include "interpreting_stage.h"
+#include "fe/pipeline/pipeline.h"
+#include "fe/pipeline/lexer_stage.h"
+#include "fe/pipeline/lexer_to_parser_stage.h"
+#include "fe/pipeline/parser_stage.h"
+#include "fe/pipeline/cst_to_ast_stage.h"
+#include "fe/pipeline/typechecker_stage.h"
+#include "fe/pipeline/lowering_stage.h"
+#include "fe/pipeline/interpreting_stage.h"
 
-#include "tests.h"
-#include "project.h"
-#include "repl.h"
+#include "fe/modes/project.h"
+#include "fe/modes/repl.h"
+#include "tests/tests.h"
+
 #include <iostream>
 #include <filesystem>
 
