@@ -1,3 +1,0 @@
-module language
-type Terminal (std::i32, std::str)
-type NonTerminal (std::i32, std::str)
