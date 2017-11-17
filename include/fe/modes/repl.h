@@ -65,13 +65,6 @@ namespace fe
 				std::string code;
 				std::getline(std::cin, code);
 
-				// Debug
-
-				if (code == "1")
-					code = "load snippets/test.fe";
-
-				// End Debug
-
 				if (code == "")
 					continue;
 
