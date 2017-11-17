@@ -8,7 +8,7 @@
 #include <variant>
 #include <unordered_map>
 
-namespace tools::bnf
+namespace utils::bnf
 {
 	enum class error_code
 	{
@@ -66,7 +66,7 @@ namespace tools::bnf
 		}
 
 	private:
-		std::unique_ptr<tools::parser> implementation;
+		std::unique_ptr<utils::parser> implementation;
 
 		std::multimap<non_terminal, std::vector<symbol>> rules;
 		

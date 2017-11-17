@@ -7,7 +7,7 @@
 #include <unordered_set>
 #include <vector>
 
-namespace tools::lr
+namespace utils::lr
 {
 	/*
 	* An item set transition describes as the name suggests a possible transition
@@ -172,7 +172,7 @@ namespace tools::lr
 	*/
 	using follow_set = std::unordered_map<bnf::non_terminal, std::unordered_set<bnf::symbol>>;
 
-	class parser : public tools::parser
+	class parser : public utils::parser
 	{
 	public:
 		void generate(bnf::non_terminal start_symbol, std::multimap<bnf::non_terminal, std::vector<bnf::symbol>>& rules) override;

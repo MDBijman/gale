@@ -84,7 +84,7 @@ int main(int argc, char** argv)
 			std::cout << re.to_string() << std::endl;
 		}
 	}
-	catch (const tools::lexing::error& e)
+	catch (const utils::lexing::error& e)
 	{
 		std::cout << "Lexing error:\n" << e.message;
 	}
@@ -92,7 +92,7 @@ int main(int argc, char** argv)
 	{
 		std::cout << "Lex to parse error:\n" << e.message;
 	}
-	catch (const tools::ebnfe::error& e)
+	catch (const utils::ebnfe::error& e)
 	{
 		std::cout << "Parse error:\n" << e.message;
 	}

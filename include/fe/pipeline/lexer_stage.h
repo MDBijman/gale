@@ -5,21 +5,21 @@
 
 namespace fe
 {
-	class lexing_stage : public language::lexing_stage<tools::lexing::token, tools::lexing::error>
+	class lexing_stage : public language::lexing_stage<utils::lexing::token, utils::lexing::error>
 	{
 	public:
 		lexing_stage() : lexer(ruleset())
 		{
 		}
 
-		std::variant<std::vector<tools::lexing::token>, tools::lexing::error> lex(const std::string& in) override
+		std::variant<std::vector<utils::lexing::token>, utils::lexing::error> lex(const std::string& in) override
 		{
 			return lexer.parse(in);
 		}
 
-		tools::lexing::rules ruleset()
+		utils::lexing::rules ruleset()
 		{
-			tools::lexing::rules lexing_rules;
+			utils::lexing::rules lexing_rules;
 
 			using namespace fe::tokens;
 			string_token = lexing_rules.create_token("\".*?\"");
@@ -50,6 +50,6 @@ namespace fe
 		}
 
 	private:
-		tools::lexing::lexer lexer;
+		utils::lexing::lexer lexer;
 	};
 }

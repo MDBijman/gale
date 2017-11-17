@@ -8,40 +8,40 @@ SCENARIO("an ebnfe parser should parse correctly given a set of rules", "[ebnfe_
 {
 	GIVEN("an ebnfe parser with a set of rules")
 	{
-		tools::ebnfe::parser parser;
+		utils::ebnfe::parser parser;
 
-		parser = tools::ebnfe::parser{};
+		parser = utils::ebnfe::parser{};
 
-		tools::ebnfe::non_terminal Expression, Atom;
+		utils::ebnfe::non_terminal Expression, Atom;
 		Expression = parser.new_non_terminal();
 		Atom = parser.new_non_terminal();
 
-		tools::ebnfe::terminal id, plus, number;
+		utils::ebnfe::terminal id, plus, number;
 		id = parser.new_terminal();
 		plus = parser.new_terminal();
 		number = parser.new_terminal();
 
-		using namespace tools::ebnf::meta;
+		using namespace utils::ebnf::meta;
 		parser.new_rule({ Expression, { 
 			Atom, plus, Expression, alt, Atom
 		} });
 		parser.new_rule({ Atom, { number, alt, id } });
-		parser.new_transformation(Atom, tools::ebnfe::transformation_type::REPLACE_WITH_CHILDREN);
-		parser.new_transformation(Expression, tools::ebnfe::transformation_type::REPLACE_IF_ONE_CHILD);
+		parser.new_transformation(Atom, utils::ebnfe::transformation_type::REPLACE_WITH_CHILDREN);
+		parser.new_transformation(Expression, utils::ebnfe::transformation_type::REPLACE_IF_ONE_CHILD);
 
-			using namespace tools;
+			using namespace utils;
 		WHEN("an id as a value is parsed")
 		{
-			auto output_or_error = parser.parse(Expression, std::vector<tools::bnf::terminal_node>{
+			auto output_or_error = parser.parse(Expression, std::vector<utils::bnf::terminal_node>{
 				{ id, "a" }, { plus, "+" }, { number, "5" }
 			});
 
-			auto& output = std::get<std::unique_ptr<tools::ebnfe::node>>(output_or_error);
+			auto& output = std::get<std::unique_ptr<utils::ebnfe::node>>(output_or_error);
 
 			THEN("the resulting parse tree should be correct")
 			{
 				// Expression
-				auto& root = std::get<tools::ebnfe::non_terminal_node>(*output);
+				auto& root = std::get<utils::ebnfe::non_terminal_node>(*output);
 				REQUIRE(root.value == Expression);
 
 				// id
@@ -69,16 +69,16 @@ SCENARIO("an ebnfe parser should parse correctly given a set of rules", "[ebnfe_
 
 		WHEN("a single id is parsed")
 		{
-			auto output_or_error = parser.parse(Expression, std::vector<tools::bnf::terminal_node>{
+			auto output_or_error = parser.parse(Expression, std::vector<utils::bnf::terminal_node>{
 				{ id, "a" }
 			});
 
-			auto& output = std::get<std::unique_ptr<tools::ebnfe::node>>(output_or_error);
+			auto& output = std::get<std::unique_ptr<utils::ebnfe::node>>(output_or_error);
 
 			THEN("the resulting parse tree should be correct")
 			{
 				// Expression
-				auto& root = std::get<tools::ebnfe::non_terminal_node>(*output);
+				auto& root = std::get<utils::ebnfe::non_terminal_node>(*output);
 				REQUIRE(root.value == Expression);
 
 				// id 

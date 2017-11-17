@@ -6,7 +6,7 @@
 #include <set>
 #include <variant>
 
-namespace tools
+namespace utils
 {
 	namespace ebnf
 	{
@@ -377,10 +377,10 @@ namespace tools
 
 					switch (e.type)
 					{
-					case tools::lr::conflict::type::SHIFT_SHIFT:
+					case utils::lr::conflict::type::SHIFT_SHIFT:
 						error_message.append("Shift/Shift conflict\n");
 						break;
-					case tools::lr::conflict::type::SHIFT_REDUCE:
+					case utils::lr::conflict::type::SHIFT_REDUCE:
 						error_message.append("Shift/Reduce conflict\n");
 						break;
 					}

@@ -61,7 +61,7 @@ SCENARIO("the entire language pipeline should be fast enough", "[performance pip
 			p.parse({});
 			auto before = std::chrono::steady_clock::now();
 			auto filename = "snippets/tests/performance_empty.fe";
-			auto file_or_error = tools::files::read_file(filename);
+			auto file_or_error = utils::files::read_file(filename);
 			if (std::holds_alternative<std::exception>(file_or_error))
 			{
 				std::cout << "Test file not found\n";

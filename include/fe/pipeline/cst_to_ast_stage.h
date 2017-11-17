@@ -9,10 +9,10 @@
 
 namespace fe
 {
-	class cst_to_ast_stage : public language::cst_to_ast_stage<std::unique_ptr<tools::ebnfe::node>, extended_ast::unique_node, cst_to_ast_error>
+	class cst_to_ast_stage : public language::cst_to_ast_stage<std::unique_ptr<utils::ebnfe::node>, extended_ast::unique_node, cst_to_ast_error>
 	{
 	public:
-		std::variant<extended_ast::unique_node, cst_to_ast_error> convert(std::unique_ptr<tools::ebnfe::node> node)
+		std::variant<extended_ast::unique_node, cst_to_ast_error> convert(std::unique_ptr<utils::ebnfe::node> node)
 		{
 			try
 			{
@@ -24,13 +24,13 @@ namespace fe
 			}
 		}
 
-		extended_ast::unique_node conv(std::unique_ptr<tools::ebnfe::node> node)
+		extended_ast::unique_node conv(std::unique_ptr<utils::ebnfe::node> node)
 		{
 			using namespace extended_ast;
 
-			if (std::holds_alternative<tools::ebnfe::non_terminal_node>(*node))
+			if (std::holds_alternative<utils::ebnfe::non_terminal_node>(*node))
 			{
-				auto n = std::move(std::get<tools::ebnfe::non_terminal_node>(*node));
+				auto n = std::move(std::get<utils::ebnfe::non_terminal_node>(*node));
 				auto node_type = n.value;
 
 				// Convert children
@@ -136,9 +136,9 @@ namespace fe
 							.append(std::to_string(node_type))
 				};
 			}
-			else if (std::holds_alternative<tools::ebnfe::terminal_node>(*node))
+			else if (std::holds_alternative<utils::ebnfe::terminal_node>(*node))
 			{
-				auto n = std::move(std::get<tools::ebnfe::terminal_node>(*node));
+				auto n = std::move(std::get<utils::ebnfe::terminal_node>(*node));
 				auto node_type = n.value;
 				// Do false and true
 				if (node_type == terminals::number)

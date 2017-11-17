@@ -5,7 +5,7 @@
 #include <vector>
 #include <variant>
 
-namespace tools::bnf
+namespace utils::bnf
 {
 	using terminal = lexing::token_id;
 	constexpr terminal epsilon = -1;
@@ -123,9 +123,9 @@ namespace tools::bnf
 
 namespace std
 {
-	template<> struct std::hash<tools::bnf::symbol>
+	template<> struct std::hash<utils::bnf::symbol>
 	{
-		std::size_t operator()(const tools::bnf::symbol& s) const
+		std::size_t operator()(const utils::bnf::symbol& s) const
 		{
 			return std::hash<decltype(s.value)>()(s.value);
 		}

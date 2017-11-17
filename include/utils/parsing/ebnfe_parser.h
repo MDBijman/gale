@@ -6,7 +6,7 @@
 #include <vector>
 #include <variant>
 
-namespace tools
+namespace utils
 {
 	namespace ebnfe
 	{

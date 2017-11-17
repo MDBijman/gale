@@ -6,9 +6,9 @@ SCENARIO("an lr parser should generate a correct parse table", "[lr_parser]")
 {
 	GIVEN("an lr parser with a set of non-conflicting rules")
 	{
-		using namespace tools::bnf;
+		using namespace utils::bnf;
 
-		auto p = tools::lr::parser();
+		auto p = utils::lr::parser();
 
 
 		non_terminal Expression = 1, Atom = 2;

@@ -16,7 +16,7 @@ namespace fe
 
 			te.add_module(fe::stdlib::types::load());
 
-			auto language_module_contents = tools::files::read_file("./snippets/language_module.fe");
+			auto language_module_contents = utils::files::read_file("./snippets/language_module.fe");
 			auto result_or_error = pipeline.process(std::move(std::get<std::string>(language_module_contents)), std::move(te), std::move(re));
 			std::tie(std::ignore, te, re) = std::get<std::tuple<values::unique_value, typecheck_environment, runtime_environment>>(result_or_error);
 
