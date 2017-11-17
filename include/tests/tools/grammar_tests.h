@@ -1,176 +1,93 @@
 #pragma once
 #include "utils/parsing/ebnfe_parser.h"
 
+#include <catch2/catch.hpp>
 #include <vector>
-#include <assert.h>
 
-namespace tests
+SCENARIO("an ebnfe parser should parse correctly given a set of rules", "[ebnfe_parser]")
 {
-	struct id_parsing_tests
+	GIVEN("an ebnfe parser with a set of rules")
 	{
 		tools::ebnfe::parser parser;
+
+		parser = tools::ebnfe::parser{};
+
+		tools::ebnfe::non_terminal Expression, Atom;
+		Expression = parser.new_non_terminal();
+		Atom = parser.new_non_terminal();
+
 		tools::ebnfe::terminal id, plus, number;
-		tools::ebnfe::non_terminal id_rule, disambiguation, arithmetic, expression;
+		id = parser.new_terminal();
+		plus = parser.new_terminal();
+		number = parser.new_terminal();
 
-		id_parsing_tests()
+		using namespace tools::ebnf::meta;
+		parser.new_rule({ Expression, { 
+			Atom, plus, Expression, alt, Atom
+		} });
+		parser.new_rule({ Atom, { number, alt, id } });
+		parser.new_transformation(Atom, tools::ebnfe::transformation_type::REPLACE_WITH_CHILDREN);
+		parser.new_transformation(Expression, tools::ebnfe::transformation_type::REPLACE_IF_ONE_CHILD);
+
+			using namespace tools;
+		WHEN("an id as a value is parsed")
 		{
-			parser = tools::ebnfe::parser{};
-			id_rule = parser.new_non_terminal();
-			disambiguation = parser.new_non_terminal();
-
-			// 3 possibilities
-			arithmetic = parser.new_non_terminal();
-			expression = parser.new_non_terminal();
-			// Or epsilon
-
-			id = parser.new_terminal();
-			plus = parser.new_terminal();
-			number = parser.new_terminal();
-
-			using namespace tools::ebnf::meta;
-			parser.new_rule({ id_rule, { id, disambiguation } });
-			parser.new_rule({ disambiguation, {
-					tools::ebnf::epsilon, alt,
-					plus, expression, alt,
-					expression
-				}
-			});
-			parser.new_rule({ expression, { number, alt, id } });
-		}
-
-		void run_all()
-		{
-			std::cout << "Testing grammar parser\n";
-			test_id_as_arithmetic();
-			test_id_as_function_call();
-			test_id_as_expression();
-		}
-
-		void test_id_as_arithmetic()
-		{
-			auto output_or_error = parser.parse(id_rule, std::vector<tools::bnf::terminal_node>{
+			auto output_or_error = parser.parse(Expression, std::vector<tools::bnf::terminal_node>{
 				{ id, "a" }, { plus, "+" }, { number, "5" }
 			});
 
-			using std::move;
-			using namespace tools;
+			auto& output = std::get<std::unique_ptr<tools::ebnfe::node>>(output_or_error);
 
-			auto output = move(std::get<std::unique_ptr<tools::ebnfe::node>>(output_or_error));
-
-			// Id rule
-			auto root = move(std::get<tools::ebnfe::non_terminal_node>(*output));
-			assert(root.value == id_rule);
-
-			// Id 
+			THEN("the resulting parse tree should be correct")
 			{
-				auto id_t = std::get<ebnfe::terminal_node>(move(*root.children.at(0).release()));
-				assert(id_t.value == id);
-				assert(id_t.token == "a");
-			}
+				// Expression
+				auto& root = std::get<tools::ebnfe::non_terminal_node>(*output);
+				REQUIRE(root.value == Expression);
 
-			// Disambiguation
-			{
-				auto disambiguation_nt = std::get<ebnfe::non_terminal_node>(move(*root.children.at(1).release()));
-				assert(disambiguation_nt.value == disambiguation);
-
-				// Plus 
+				// id
 				{
-					auto plus_t = std::get<ebnfe::terminal_node>(move(*disambiguation_nt.children.at(0).release()));
-					assert(plus_t.value == plus);
+					auto& i = std::get<ebnfe::terminal_node>(*root.children.at(0).get());
+					REQUIRE(i.value == id);
+					REQUIRE(i.token == "a");
 				}
 
-				// Expression 
+				// plus
 				{
-					auto expression_nt = std::get<ebnfe::non_terminal_node>(move(*disambiguation_nt.children.at(1).release()));
-					assert(expression_nt.value == expression);
+					auto& p = std::get<ebnfe::terminal_node>(*root.children.at(1).get());
+					REQUIRE(p.value == plus);
+					REQUIRE(p.token == "+");
+				}
 
-					// Number
-					{
-						auto number_t = std::get<ebnfe::terminal_node>(move(*expression_nt.children.at(0).release()));
-						assert(number_t.value == number);
-						assert(number_t.token == "5");
-					}
-
+				// number
+				{
+					auto& num = std::get<ebnfe::terminal_node>(*root.children.at(2).get());
+					REQUIRE(num.value == number);
+					REQUIRE(num.token == "5");
 				}
 			}
 		}
 
-		void test_id_as_function_call()
+		WHEN("a single id is parsed")
 		{
-			auto output_or_error = parser.parse(id_rule, std::vector<tools::bnf::terminal_node>{
-				{ id, "a" }, { number, "5" }
-			});
-
-			using std::move;
-			using namespace tools;
-
-			auto output = move(std::get<std::unique_ptr<tools::ebnfe::node>>(output_or_error));
-
-			// Id rule
-			auto root = move(std::get<tools::ebnfe::non_terminal_node>(*output));
-			assert(root.value == id_rule);
-
-			// Id 
-			{
-				auto id_t = std::get<ebnfe::terminal_node>(move(*root.children.at(0).release()));
-				assert(id_t.value == id);
-				assert(id_t.token == "a");
-			}
-
-			// Disambiguation
-			{
-				auto disambiguation_nt = std::get<ebnfe::non_terminal_node>(move(*root.children.at(1).release()));
-				assert(disambiguation_nt.value == disambiguation);
-
-				// Expression 
-				{
-					auto expression_nt = std::get<ebnfe::non_terminal_node>(move(*disambiguation_nt.children.at(0).release()));
-					assert(expression_nt.value == expression);
-
-					// Number
-					{
-						auto number_t = std::get<ebnfe::terminal_node>(move(*expression_nt.children.at(0).release()));
-						assert(number_t.value == number);
-						assert(number_t.token == "5");
-					}
-
-				}
-			}
-		}
-
-		void test_id_as_expression()
-		{
-			auto output_or_error = parser.parse(id_rule, std::vector<tools::bnf::terminal_node>{
+			auto output_or_error = parser.parse(Expression, std::vector<tools::bnf::terminal_node>{
 				{ id, "a" }
 			});
 
-			using std::move;
-			using namespace tools;
+			auto& output = std::get<std::unique_ptr<tools::ebnfe::node>>(output_or_error);
 
-			auto output = move(std::get<std::unique_ptr<tools::ebnfe::node>>(output_or_error));
-
-			// Id rule
-			auto root = move(std::get<tools::ebnfe::non_terminal_node>(*output));
-			assert(root.value == id_rule);
-
-			// Id 
+			THEN("the resulting parse tree should be correct")
 			{
-				auto id_t = std::get<ebnfe::terminal_node>(move(*root.children.at(0).release()));
-				assert(id_t.value == id);
-				assert(id_t.token == "a");
-			}
+				// Expression
+				auto& root = std::get<tools::ebnfe::non_terminal_node>(*output);
+				REQUIRE(root.value == Expression);
 
-			// Disambiguation
-			{
-				auto disambiguation_nt = std::get<ebnfe::non_terminal_node>(move(*root.children.at(1).release()));
-				assert(disambiguation_nt.value == disambiguation);
-
-				// Epsilon 
+				// id 
 				{
-					auto epsilon_t = std::get<ebnfe::terminal_node>(move(*disambiguation_nt.children.at(0).release()));
-					assert(epsilon_t.value == tools::bnf::epsilon);
+					auto& i = std::get<ebnfe::terminal_node>(*root.children.at(0).get());
+					REQUIRE(i.value == id);
+					REQUIRE(i.token == "a");
 				}
 			}
 		}
-	};
+	}
 }

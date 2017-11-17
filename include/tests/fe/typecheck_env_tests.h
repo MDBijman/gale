@@ -2,110 +2,73 @@
 #include "fe/data/typecheck_environment.h"
 #include "fe/data/types.h"
 
+#include <catch2/catch.hpp>
 #include <variant>
-#include <assert.h>
 
-namespace tests
+SCENARIO("type environments can manage types", "[type_environment]")
 {
-	struct typecheck_environment_tests 
+	using namespace fe::types;
+
+	GIVEN("an empty type environment")
 	{
 		fe::typecheck_environment t_env;
 
-		typecheck_environment_tests() 
+		WHEN("a type is added to the environment")
 		{
-		}
-		
-		void run_all()
-		{
-			std::cout << "Testing typecheck environment\n";
-			test_types();
-			test_module();
-			test_nested_module();
-			test_product_type();
-			test_build_access_pattern();
-		}
+			auto before_type = atom_type("i32");
+			t_env.set_type("test", unique_type(before_type.copy()));
 
-		void test_types()
-		{
-			using namespace fe;
-			t_env = typecheck_environment();
-			auto before_type = types::atom_type{ "i32" };
+			THEN("retrieving a type with that name should return the correct type")
+			{
+				auto t = t_env.typeof("test");
+				REQUIRE(std::holds_alternative<std::reference_wrapper<type>>(t));
 
-			t_env.add_module(typecheck_environment{});
-			t_env.set_type(extended_ast::identifier{ {"i32"} }, types::make_unique(before_type));
-
-			auto& after_type_or_error = t_env.typeof(extended_ast::identifier{ {"i32"} });
-			assert(!std::holds_alternative<type_env_error>(after_type_or_error));
-
-			auto& after_type = std::get<std::reference_wrapper<types::type>>(after_type_or_error).get();
-			assert(before_type == &after_type);
+				auto& res = std::get<std::reference_wrapper<type>>(t);
+				REQUIRE(before_type == &res.get());
+			}
 		}
 
-		void test_module()
+		WHEN("a type is added to the environment within a namespace")
 		{
-			using namespace fe;
-			t_env = typecheck_environment();
-			auto before_type = types::atom_type{ "i32" };
+			auto before_type = atom_type("i32");
+			t_env.add_module(fe::typecheck_environment{ "std" });
+			t_env.set_type(fe::extended_ast::identifier{ {"std", "i32"} }, unique_type(before_type.copy()));
 
-			t_env.add_module(typecheck_environment{ "std" });
-			t_env.set_type(extended_ast::identifier{ {"std", "i32"} }, types::make_unique(before_type));
+			THEN("retrieving a type within a namespace should return the correct type")
+			{
+				auto after_type_or_error = t_env.typeof(fe::extended_ast::identifier{ {"std", "i32"} });
+				REQUIRE(std::holds_alternative<std::reference_wrapper<type>>(after_type_or_error));
 
-			auto after_type_or_error = t_env.typeof(extended_ast::identifier{ {"std", "i32"} });
-			assert(!std::holds_alternative<type_env_error>(after_type_or_error));
-
-			auto& after_type = std::get<std::reference_wrapper<types::type>>(after_type_or_error).get();
-			assert(before_type == &after_type);
+				auto& after_type = std::get<std::reference_wrapper<type>>(after_type_or_error).get();
+				REQUIRE(before_type == &after_type);
+			}
 		}
 
-		void test_nested_module()
+		WHEN("a named product type is added to the environment")
 		{
-			using namespace fe;
-			t_env = typecheck_environment();
-			auto std_env = typecheck_environment{ "std" };
-			auto child_env = typecheck_environment{"child"};
-			std_env.add_module(std::move(child_env));
-			t_env.add_module(std::move(std_env));
-
-			auto before_type = types::atom_type{ "i32" };
-			t_env.set_type(extended_ast::identifier{ {"std", "child", "x"} }, types::make_unique(before_type));
-
-			auto after_type_or_error = t_env.typeof(extended_ast::identifier{ {"std", "child", "x"} });
-			assert(!std::holds_alternative<type_env_error>(after_type_or_error));
-
-			auto& after_type = std::get<std::reference_wrapper<types::type>>(after_type_or_error).get();
-			assert(before_type == &after_type);
-		}
-
-		void test_product_type()
-		{
-			using namespace fe;
-			t_env = typecheck_environment();
-
-			auto element_one = std::make_pair("a", types::make_unique(types::atom_type("i32")));
-			auto element_two = std::make_pair("b", types::make_unique(types::atom_type("str")));
-			auto before_type = types::product_type();
+			auto element_one = std::make_pair("a", unique_type(new atom_type("i32")));
+			auto element_two = std::make_pair("b", unique_type(new atom_type("str")));
+			auto before_type = product_type();
 			before_type.product.push_back(std::move(element_one));
 			before_type.product.push_back(std::move(element_two));
 
-			t_env.set_type(extended_ast::identifier{ {"x"} }, types::unique_type(before_type.copy()));
+			t_env.set_type(fe::extended_ast::identifier{ {"x"} }, unique_type(before_type.copy()));
 
+			THEN("retrieving the type of an element of the product should return the correct type")
 			{
-				auto after_type_or_error = t_env.typeof(extended_ast::identifier{ {"x", "a" } });
-				assert(!std::holds_alternative<type_env_error>(after_type_or_error));
+				auto after_type_or_error = t_env.typeof(fe::extended_ast::identifier{ {"x", "a" } });
 
-				auto& after_type = std::get<std::reference_wrapper<types::type>>(after_type_or_error).get();
-				assert(after_type == before_type.product.at(0).second.get());
-			}
-			{
-				auto after_type_or_error = t_env.typeof(extended_ast::identifier{ {"x", "b" } });
-				assert(!std::holds_alternative<type_env_error>(after_type_or_error));
+				REQUIRE(std::holds_alternative<std::reference_wrapper<type>>(after_type_or_error));
+				auto& after_type = std::get<std::reference_wrapper<type>>(after_type_or_error).get();
 
-				auto& after_type = std::get<std::reference_wrapper<types::type>>(after_type_or_error).get();
-				assert(after_type == before_type.product.at(1).second.get());
+				REQUIRE(dynamic_cast<atom_type*>(&after_type));
+				auto pt = dynamic_cast<atom_type*>(&after_type);
+
+				REQUIRE(*before_type.product.at(0).second.get() == pt);
 			}
 		}
 
-		void test_build_access_pattern()
+		WHEN("a nested product type is added to the environment")
 		{
 			using namespace fe;
 			t_env = typecheck_environment();
@@ -123,11 +86,14 @@ namespace tests
 
 			t_env.set_type(extended_ast::identifier{ {"x"} }, types::unique_type(before_type->copy()));
 
-			auto id = extended_ast::identifier{ {"x", "b", "c"} };
-			t_env.build_access_pattern(id);
-			assert(id.offsets.size() == 2);
-			assert(id.offsets.at(0) == 1);
-			assert(id.offsets.at(1) == 0);
+			THEN("building the access pattern should calculate the correct offsets")
+			{
+				auto id = fe::extended_ast::identifier{ {"x", "b", "c"} };
+				t_env.build_access_pattern(id);
+				REQUIRE(id.offsets.size() == 2);
+				REQUIRE(id.offsets.at(0) == 1);
+				REQUIRE(id.offsets.at(1) == 0);
+			}
 		}
-	};
+	}
 }
