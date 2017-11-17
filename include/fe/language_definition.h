@@ -12,7 +12,7 @@ namespace fe
 {
 	namespace tokens
 	{
-		tools::lexing::token_id
+		utils::lexing::token_id
 			equals_token, keyword_token, string_token, number_token,
 			lrb_token, rrb_token, right_arrow_token, semicolon_token,
 			lcb_token, rcb_token, comma_token, lsb_token, rsb_token, pipe_token,
@@ -22,7 +22,7 @@ namespace fe
 
 	namespace non_terminals
 	{
-		tools::ebnfe::non_terminal
+		utils::ebnfe::non_terminal
 			file, statement, export_stmt, assignment, expression, value_tuple,
 			tuple_element, function, match, operation, term, factor, addition, subtraction,
 			multiplication, division, brackets, array_index, index, module_imports,
@@ -36,7 +36,7 @@ namespace fe
 
 	namespace terminals
 	{
-		tools::ebnfe::terminal
+		utils::ebnfe::terminal
 			identifier, equals, left_bracket, right_bracket,
 			number, word, export_keyword, type_keyword, function_keyword, 
 			left_curly_bracket, right_curly_bracket, right_arrow, comma, 
@@ -52,14 +52,14 @@ namespace fe
 
 
 	using pipeline = language::pipeline <
-		tools::lexing::token,
-		tools::lexing::error,
+		utils::lexing::token,
+		utils::lexing::error,
 
-		tools::bnf::terminal_node,
+		utils::bnf::terminal_node,
 		fe::lex_to_parse_error,
 
-		std::unique_ptr<tools::ebnfe::node>,
-		tools::ebnfe::error,
+		std::unique_ptr<utils::ebnfe::node>,
+		utils::ebnfe::error,
 
 		extended_ast::unique_node,
 		fe::cst_to_ast_error,

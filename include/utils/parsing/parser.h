@@ -1,7 +1,7 @@
 #pragma once
 #include "bnf_grammar.h"
 
-namespace tools
+namespace utils
 {
 	class parser
 	{

@@ -3,7 +3,7 @@
 #include <stack>
 #include <variant>
 
-namespace tools::ll
+namespace utils::ll
 {
 	std::unique_ptr<bnf::node> parser::parse(std::vector<bnf::terminal_node> input)
 	{

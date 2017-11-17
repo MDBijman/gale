@@ -8,7 +8,7 @@
 #include <unordered_set>
 #include <unordered_map>
 
-namespace tools::ll
+namespace utils::ll
 {
 	enum class error_code
 	{
@@ -24,7 +24,7 @@ namespace tools::ll
 		std::string message;
 	};
 
-	class parser : public tools::parser
+	class parser : public utils::parser
 	{
 	public:
 		parser() {}

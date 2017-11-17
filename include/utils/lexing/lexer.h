@@ -9,7 +9,7 @@
 #include <regex>
 #include <unordered_map>
 
-namespace tools
+namespace utils
 {
 	namespace lexing
 	{

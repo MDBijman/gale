@@ -90,7 +90,7 @@ namespace fe
 				if (code.size() > 4 && code.substr(0, 4) == "load")
 				{
 					auto filename = code.substr(5, code.size() - 4);
-					auto file_or_error = tools::files::read_file(filename);
+					auto file_or_error = utils::files::read_file(filename);
 					if (std::holds_alternative<std::exception>(file_or_error))
 					{
 						std::cout << "File not found\n";

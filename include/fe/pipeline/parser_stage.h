@@ -6,7 +6,7 @@
 
 namespace fe
 {
-	class parsing_stage : public language::parsing_stage<tools::bnf::terminal_node, std::unique_ptr<tools::ebnfe::node>, tools::ebnfe::error>
+	class parsing_stage : public language::parsing_stage<utils::bnf::terminal_node, std::unique_ptr<utils::ebnfe::node>, utils::ebnfe::error>
 	{
 	public:
 		parsing_stage()
@@ -102,7 +102,7 @@ namespace fe
 			}
 
 
-			using namespace tools::ebnf::meta;
+			using namespace utils::ebnf::meta;
 			parser
 				// Initial non terminal
 				.new_rule({ file, { lsb, module_declaration, rsb, lsb, module_imports, rsb, lrb, statement, semicolon, rrb, star } })
@@ -205,7 +205,7 @@ namespace fe
 				.new_rule({ type_tuple, { left_bracket, type_operation, lrb, comma, type_operation, rrb, star, right_bracket } })
 				;
 
-			using tools::ebnfe::transformation_type;
+			using utils::ebnfe::transformation_type;
 			parser
 				.new_transformation(type_operation, transformation_type::REPLACE_WITH_CHILDREN)
 				.new_transformation(type_modifiers, transformation_type::REPLACE_WITH_CHILDREN)
@@ -240,7 +240,7 @@ namespace fe
 				.new_transformation(variable_declaration, transformation_type::REPLACE_WITH_CHILDREN)
 				.new_transformation(left_square_bracket, transformation_type::REMOVE)
 				.new_transformation(right_square_bracket, transformation_type::REMOVE)
-				.new_transformation(tools::ebnfe::terminal(tools::ebnf::epsilon), transformation_type::REMOVE)
+				.new_transformation(utils::ebnfe::terminal(utils::ebnf::epsilon), transformation_type::REMOVE)
 				.new_transformation(tuple_element, transformation_type::REPLACE_WITH_CHILDREN)
 				.new_transformation(type_tuple_elements, transformation_type::REPLACE_WITH_CHILDREN)
 				.new_transformation(statement, transformation_type::REPLACE_WITH_CHILDREN)
@@ -261,12 +261,12 @@ namespace fe
 				;
 		}
 
-		std::variant<std::unique_ptr<tools::ebnfe::node>, tools::ebnfe::error> parse(const std::vector<tools::bnf::terminal_node>& in) override
+		std::variant<std::unique_ptr<utils::ebnfe::node>, utils::ebnfe::error> parse(const std::vector<utils::bnf::terminal_node>& in) override
 		{
 			return parser.parse(fe::non_terminals::file, in);
 		}
 
 	private:
-		tools::ebnfe::parser parser;
+		utils::ebnfe::parser parser;
 	};
 }

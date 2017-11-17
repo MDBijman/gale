@@ -7,7 +7,7 @@
 
 namespace fe
 {
-	class lexer_to_parser_stage : public language::lexer_to_parser_stage<tools::lexing::token, tools::bnf::terminal_node, lex_to_parse_error>
+	class lexer_to_parser_stage : public language::lexer_to_parser_stage<utils::lexing::token, utils::bnf::terminal_node, lex_to_parse_error>
 	{
 	public:
 		lexer_to_parser_stage()
@@ -37,7 +37,7 @@ namespace fe
 			add_mapping(colon_token, colon);
 			add_mapping(dot_token, dot);
 			add_mapping(equality_token, two_equals);
-			add_mapping(keyword_token, [&](tools::lexing::token token) {
+			add_mapping(keyword_token, [&](utils::lexing::token token) {
 				if (token.text == "export")
 					return export_keyword;
 				if (token.text == "type")
@@ -76,9 +76,9 @@ namespace fe
 			});
 		}
 
-		std::variant<std::vector<tools::bnf::terminal_node>, lex_to_parse_error> convert(const std::vector<tools::lexing::token>& in)
+		std::variant<std::vector<utils::bnf::terminal_node>, lex_to_parse_error> convert(const std::vector<utils::lexing::token>& in)
 		{
-			using namespace tools;
+			using namespace utils;
 
 			std::vector<bnf::terminal_node> result;
 
@@ -100,11 +100,11 @@ namespace fe
 		}
 
 	private:
-		void add_mapping(tools::lexing::token_id token, std::variant<tools::bnf::terminal, std::function<tools::bnf::terminal(tools::lexing::token)>> converter)
+		void add_mapping(utils::lexing::token_id token, std::variant<utils::bnf::terminal, std::function<utils::bnf::terminal(utils::lexing::token)>> converter)
 		{
 			mapping.insert({ token, converter });
 		}
 
-		std::unordered_map<tools::lexing::token_id, std::variant<tools::bnf::terminal, std::function<tools::bnf::terminal(tools::lexing::token)>>> mapping;
+		std::unordered_map<utils::lexing::token_id, std::variant<utils::bnf::terminal, std::function<utils::bnf::terminal(utils::lexing::token)>>> mapping;
 	};
 }

@@ -2,7 +2,7 @@
 #include <string>
 #include <fstream>
 
-namespace tools
+namespace utils
 {
 	namespace files
 	{

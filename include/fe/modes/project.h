@@ -114,7 +114,7 @@ namespace fe
 				auto path = item.path();
 				if (path.filename().extension() != ".fe") continue;
 
-				auto file_or_error = tools::files::read_file(path.string());
+				auto file_or_error = utils::files::read_file(path.string());
 				if (std::holds_alternative<std::exception>(file_or_error))
 				{
 					std::cout << "File not found\n";
