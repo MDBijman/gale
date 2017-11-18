@@ -1,0 +1,33 @@
+module modeling
+import [std.types]
+
+type Vertex = (std.i32 x, std.i32 y, std.i32 z);
+type Face = (Vertex a, Vertex b, Vertex c);
+type Model = ref [] Face faces;
+
+var new_vertex = fn (std.i32 x, std.i32 y, std.i32 z) -> Vertex = {
+	var o = Vertex (x, y, z);
+	o;
+};
+
+var new_face = fn (Vertex a, Vertex b, Vertex c) -> Face = 
+	Face (a, b, c);
+
+
+var translate_v = fn (Vertex v, std.i32 x, std.i32 y, std.i32 z) -> Vertex = 
+	Vertex (add (v.x, x),  add (v.y, y),  add (v.z, z));
+
+
+var translate_f = fn (Face f, std.i32 x, std.i32 y, std.i32 z) -> Face = 
+	 Face (translate_v (f.a, x, y, z),  translate_v (f.b, x, y, z),  translate_v (f.c, x, y, z));
+
+
+var a = Vertex (1, 1, 1);
+var b = Vertex (2, 2, 2);
+
+var r = [1, 2, 3, 4, 5, 6, 7];
+
+
+var h = r:0;
+
+export Face Vertex;

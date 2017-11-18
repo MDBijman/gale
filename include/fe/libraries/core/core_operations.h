@@ -18,11 +18,11 @@ namespace fe
 				using namespace fe::values;
 
 				auto from = product_type();
-				from.product.emplace_back("a", types::make_unique(atom_type{"i32"}));
-				from.product.emplace_back("b", types::make_unique(atom_type{"i32"}));
+				from.product.emplace_back("a", types::make_unique(atom_type{"std.i32"}));
+				from.product.emplace_back("b", types::make_unique(atom_type{"std.i32"}));
 
 
-				te.set_type("add", types::make_unique(function_type(from, atom_type{ "i32" })));
+				te.set_type("add", types::make_unique(function_type(from, atom_type{ "std.i32" })));
 				re.set_value("add", values::make_unique(native_function([](unique_value val) -> unique_value {
 					auto t = dynamic_cast<tuple*>(val.get());
 
@@ -31,7 +31,7 @@ namespace fe
 
 					return values::make_unique(integer(a->val + b->val));
 				})));
-				te.set_type("sub", types::make_unique(function_type(from, atom_type{ "i32" })));
+				te.set_type("sub", types::make_unique(function_type(from, atom_type{ "std.i32" })));
 				re.set_value("sub", values::make_unique(native_function([](unique_value val) -> unique_value {
 					auto t = dynamic_cast<tuple*>(val.get());
 
@@ -40,7 +40,7 @@ namespace fe
 
 					return values::make_unique(integer(a->val - b->val));
 				})));
-				te.set_type("mul", types::make_unique(function_type(from, atom_type{ "i32" })));
+				te.set_type("mul", types::make_unique(function_type(from, atom_type{ "std.i32" })));
 				re.set_value("mul", values::make_unique(native_function([](unique_value val) -> unique_value {
 					auto t = dynamic_cast<tuple*>(val.get());
 
@@ -49,7 +49,7 @@ namespace fe
 
 					return values::make_unique(integer(a->val * b->val));
 				})));
-				te.set_type("div", types::make_unique(function_type(from, atom_type{ "i32" })));
+				te.set_type("div", types::make_unique(function_type(from, atom_type{ "std.i32" })));
 				re.set_value("div", values::make_unique(native_function([](unique_value val) -> unique_value {
 					auto t = dynamic_cast<tuple*>(val.get());
 
@@ -58,7 +58,7 @@ namespace fe
 
 					return values::make_unique(integer(a->val / b->val));
 				})));
-				te.set_type("lt", types::make_unique(function_type(from, atom_type{ "i32" })));
+				te.set_type("lt", types::make_unique(function_type(from, atom_type{ "std.i32" })));
 				re.set_value("lt", values::make_unique(native_function([](unique_value val) -> unique_value {
 					auto t = dynamic_cast<tuple*>(val.get());
 
@@ -85,7 +85,7 @@ namespace fe
 
 					return values::make_unique(boolean(a->val == b->val));
 				})));
-				te.set_type("get", types::make_unique(function_type(from, atom_type{ "i32" })));
+				te.set_type("get", types::make_unique(function_type(from, atom_type{ "std.i32" })));
 				re.set_value("get", values::make_unique(native_function([](unique_value val) -> unique_value {
 					auto t = dynamic_cast<tuple*>(val.get());
 

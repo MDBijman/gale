@@ -1,5 +1,5 @@
 module test
-import [submodule std.ui std.io std.types]
+import [submodule modeling std.ui std.io std.types]
 
 var window = std.ui.create_window "Window Name";
 var m = submodule.z + 1;
