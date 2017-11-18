@@ -109,6 +109,9 @@ namespace fe
 
 		std::variant<std::reference_wrapper<types::type>, type_env_error> typeof(const extended_ast::identifier& id) const
 		{
+			if (id.segments.size() == 1 && id.segments.at(0) == "_")
+				return type_env_error{"Cannot use identifier _"};
+
 			if (id.segments.size() == 1)
 			{
 				if (types.find(id.segments.at(0)) == types.end())
