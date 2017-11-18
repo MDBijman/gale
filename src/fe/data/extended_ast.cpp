@@ -36,7 +36,7 @@ namespace fe
 		{
 			auto& t = env.typeof(*this);
 			if (std::holds_alternative<type_env_error>(t))
-				throw typecheck_error{"Unbounded id " + this->to_string()};
+				throw typecheck_error{ "Type environment error: " + std::get<type_env_error>(t).message };
 
 
 			set_type(std::get<std::reference_wrapper<types::type>>(t).get().copy());
