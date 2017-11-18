@@ -656,15 +656,19 @@ namespace fe
 				child->typecheck(env);
 
 			if (children.size() > 0)
-				set_type(types::make_unique(types::array_type(children.at(0)->get_type())));
+			{
+				auto element_type = children.at(0)->get_type().copy();
+
+				for (decltype(auto) child : children)
+				{
+					if (!(child->get_type() == element_type))
+						throw typecheck_error{ "All types in an array must be equal" };
+				}
+
+				set_type(types::make_unique(types::array_type(types::unique_type(element_type))));
+			}
 			else
 				set_type(types::make_unique(types::array_type(types::atom_type{ "void" })));
-
-			for (decltype(auto) child : children)
-			{
-				if (!(child->get_type() == &get_type()))
-					throw typecheck_error{ "All types in an array must be equal" };
-			}
 		}
 
 		core_ast::node* array_value::lower()
@@ -731,8 +735,8 @@ namespace fe
 			lowered_children.push_back(core_ast::unique_node(right->lower()));
 
 			types::product_type p;
-			p.product.push_back({"", types::make_unique(types::atom_type{"std.i32"})});
-			p.product.push_back({"", types::make_unique(types::atom_type{"std.i32"})});
+			p.product.push_back({ "", types::make_unique(types::atom_type{"std.i32"}) });
+			p.product.push_back({ "", types::make_unique(types::atom_type{"std.i32"}) });
 
 			return new core_ast::function_call{
 				core_ast::identifier{{}, "eq", {}, types::make_unique(types::unset_type())},
@@ -799,8 +803,8 @@ namespace fe
 			lowered_children.push_back(core_ast::unique_node(right->lower()));
 
 			types::product_type p;
-			p.product.push_back({"", types::make_unique(types::atom_type{"std.i32"})});
-			p.product.push_back({"", types::make_unique(types::atom_type{"std.i32"})});
+			p.product.push_back({ "", types::make_unique(types::atom_type{"std.i32"}) });
+			p.product.push_back({ "", types::make_unique(types::atom_type{"std.i32"}) });
 
 			return new core_ast::function_call{
 				core_ast::identifier{{}, "add", {}, types::make_unique(types::unset_type())},
@@ -867,8 +871,8 @@ namespace fe
 			lowered_children.push_back(core_ast::unique_node(right->lower()));
 
 			types::product_type p;
-			p.product.push_back({"", types::make_unique(types::atom_type{"std.i32"})});
-			p.product.push_back({"", types::make_unique(types::atom_type{"std.i32"})});
+			p.product.push_back({ "", types::make_unique(types::atom_type{"std.i32"}) });
+			p.product.push_back({ "", types::make_unique(types::atom_type{"std.i32"}) });
 
 			return new core_ast::function_call{
 				core_ast::identifier{{}, "sub", {}, types::make_unique(types::unset_type())},
@@ -935,8 +939,8 @@ namespace fe
 			lowered_children.push_back(core_ast::unique_node(right->lower()));
 
 			types::product_type p;
-			p.product.push_back({"", types::make_unique(types::atom_type{"std.i32"})});
-			p.product.push_back({"", types::make_unique(types::atom_type{"std.i32"})});
+			p.product.push_back({ "", types::make_unique(types::atom_type{"std.i32"}) });
+			p.product.push_back({ "", types::make_unique(types::atom_type{"std.i32"}) });
 
 			return new core_ast::function_call{
 				core_ast::identifier{{}, "mul", {}, types::make_unique(types::unset_type())},
@@ -1003,8 +1007,8 @@ namespace fe
 			lowered_children.push_back(core_ast::unique_node(right->lower()));
 
 			types::product_type p;
-			p.product.push_back({"", types::make_unique(types::atom_type{"std.i32"})});
-			p.product.push_back({"", types::make_unique(types::atom_type{"std.i32"})});
+			p.product.push_back({ "", types::make_unique(types::atom_type{"std.i32"}) });
+			p.product.push_back({ "", types::make_unique(types::atom_type{"std.i32"}) });
 
 			return new core_ast::function_call{
 				core_ast::identifier{{}, "div", {}, types::make_unique(types::unset_type())},
@@ -1073,8 +1077,8 @@ namespace fe
 			lowered_children.push_back(core_ast::unique_node(index_exp->lower()));
 
 			types::product_type p;
-			p.product.push_back({"", types::make_unique(types::atom_type{"std.i32"})});
-			p.product.push_back({"", types::make_unique(types::atom_type{"std.i32"})});
+			p.product.push_back({ "", types::make_unique(types::atom_type{"std.i32"}) });
+			p.product.push_back({ "", types::make_unique(types::atom_type{"std.i32"}) });
 
 			auto type = dynamic_cast<types::array_type*>(&array_exp->get_type());
 

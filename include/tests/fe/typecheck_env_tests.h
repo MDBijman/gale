@@ -15,7 +15,7 @@ SCENARIO("type environments can manage types", "[type_environment]")
 
 		WHEN("a type is added to the environment")
 		{
-			auto before_type = atom_type("i32");
+			auto before_type = atom_type("std.i32");
 			t_env.set_type("test", unique_type(before_type.copy()));
 
 			THEN("retrieving a type with that name should return the correct type")
@@ -30,7 +30,7 @@ SCENARIO("type environments can manage types", "[type_environment]")
 
 		WHEN("a type is added to the environment within a namespace")
 		{
-			auto before_type = atom_type("i32");
+			auto before_type = atom_type("std.i32");
 			t_env.add_module(fe::typecheck_environment{ "std" });
 			t_env.set_type(fe::extended_ast::identifier{ {"std", "i32"} }, unique_type(before_type.copy()));
 
@@ -46,8 +46,8 @@ SCENARIO("type environments can manage types", "[type_environment]")
 
 		WHEN("a named product type is added to the environment")
 		{
-			auto element_one = std::make_pair("a", unique_type(new atom_type("i32")));
-			auto element_two = std::make_pair("b", unique_type(new atom_type("str")));
+			auto element_one = std::make_pair("a", unique_type(new atom_type("std.i32")));
+			auto element_two = std::make_pair("b", unique_type(new atom_type("std.str")));
 			auto before_type = product_type();
 			before_type.product.push_back(std::move(element_one));
 			before_type.product.push_back(std::move(element_two));
@@ -73,9 +73,9 @@ SCENARIO("type environments can manage types", "[type_environment]")
 			using namespace fe;
 			t_env = typecheck_environment();
 
-			auto element_one = std::make_pair("a", types::make_unique(types::atom_type("i32")));
+			auto element_one = std::make_pair("a", types::make_unique(types::atom_type("std.i32")));
 			auto element_two_product = types::product_type();
-			element_two_product.product.push_back({ "c", types::make_unique(types::atom_type("str")) });
+			element_two_product.product.push_back({ "c", types::make_unique(types::atom_type("std.str")) });
 
 			auto element_two = std::make_pair("b", types::make_unique(std::move(element_two_product)));
 
