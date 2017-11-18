@@ -20,7 +20,7 @@ namespace fe
 					using namespace fe::types;
 					using namespace fe::values;
 					te.set_type("get", unique_type(new function_type(
-						unique_type(new product_type()), unique_type(new atom_type("i32"))
+						unique_type(new product_type()), unique_type(new atom_type("std.i32"))
 					)));
 					re.set_value("get", unique_value(new native_function(
 						[](unique_value t) -> unique_value {

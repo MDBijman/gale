@@ -58,7 +58,7 @@ int main(int argc, char** argv)
 
 	try
 	{
-		if (mode == "repl" || argc == 1)
+		if (mode == "repl")
 		{
 			auto repl = fe::repl(std::move(pipeline));
 			repl.run();
