@@ -123,7 +123,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <None Include="snippets\modeling_module.fe" />
+    <None Include="snippets\project\modeling_module.fe" />
     <None Include="snippets\project\sub_module.fe" />
     <None Include="snippets\project\test.fe" />
   </ItemGroup>
