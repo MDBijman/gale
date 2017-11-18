@@ -31,7 +31,7 @@ namespace fe
 
 		// Integer
 
-		integer::integer(values::integer val) : type(new types::atom_type("i32")), value(val) {}
+		integer::integer(values::integer val) : type(new types::atom_type("std.i32")), value(val) {}
 		
 		integer::integer(const integer& other) : value(other.value), type(other.type->copy()) {}
 		integer& integer::operator=(const integer& other)
