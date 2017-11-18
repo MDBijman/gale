@@ -68,8 +68,8 @@
     <None Include="snippets\project\test.fe">
       <Filter>Resource Files\snippets\project</Filter>
     </None>
-    <None Include="snippets\modeling_module.fe">
-      <Filter>Resource Files\snippets</Filter>
+    <None Include="snippets\project\modeling_module.fe">
+      <Filter>Resource Files\snippets\project</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
