@@ -30,7 +30,7 @@ namespace fe
 			type_tuple_elements, function_type, type_definition, module_declaration,
 			block, function_call, atom_variable_declaration, tuple_variable_declaration,
 			type_atom, reference_type, array_type, reference, array_value, while_loop,
-			arithmetic, equality, type_operation, type_modifiers
+			arithmetic, equality, type_operation, type_modifiers, lhs, identifier_tuple
 			;
 	}
 
