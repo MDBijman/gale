@@ -56,6 +56,8 @@ namespace fe
 				equality = parser.new_non_terminal();
 				type_operation = parser.new_non_terminal();
 				type_modifiers = parser.new_non_terminal();
+				lhs = parser.new_non_terminal();
+				identifier_tuple = parser.new_non_terminal();
 			}
 
 			{
@@ -123,7 +125,9 @@ namespace fe
 
 				.new_rule({ type_definition, { type_keyword, identifier, equals, variable_declaration } })
 				.new_rule({ export_stmt, { export_keyword, identifier, star } })
-				.new_rule({ assignment, { var_keyword, identifier, equals, operation } })
+				.new_rule({ assignment, { var_keyword, lhs, equals, operation } })
+				.new_rule({ lhs, { identifier, alt, identifier_tuple } })
+				.new_rule({ identifier_tuple, { left_bracket, identifier, comma, identifier, lrb, comma, identifier, rrb, star, right_bracket } })
 				.new_rule({ while_loop, { while_keyword, operation, do_keyword, operation } })
 
 				// Expressions/Operations
@@ -210,6 +214,7 @@ namespace fe
 				.new_transformation(type_operation, transformation_type::REPLACE_WITH_CHILDREN)
 				.new_transformation(type_modifiers, transformation_type::REPLACE_WITH_CHILDREN)
 				.new_transformation(function_type, transformation_type::REPLACE_IF_ONE_CHILD)
+				.new_transformation(lhs, transformation_type::REPLACE_WITH_CHILDREN)
 				.new_transformation(type_expression, transformation_type::REPLACE_WITH_CHILDREN)
 				.new_transformation(match, transformation_type::REPLACE_IF_ONE_CHILD)
 				.new_transformation(two_equals, transformation_type::REMOVE)
