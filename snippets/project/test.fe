@@ -19,9 +19,9 @@ var fact = fn std.i32 a -> std.i32 = a match {
 
 var test = fn std.i32 _ -> std.i32 = 3;
 
+var (c, b, _) = (1, 2, 6);
 while 1 == 1 do {
 	std.ui.poll window;
-	std.io.print get_string fact test 3;
+	std.io.print get_string fact c;
 };
 
-var _ = 3;
