@@ -207,14 +207,14 @@
     <ClInclude Include="include\utils\parsing\lr_parser.h">
       <Filter>Source Files\utils\parsing</Filter>
     </ClInclude>
-    <ClInclude Include="include\tests\fe\branching_tests.h">
-      <Filter>Source Files\tests\fe</Filter>
-    </ClInclude>
     <ClInclude Include="include\tests\tools\lr_tests.h">
       <Filter>Source Files\tests\tools</Filter>
     </ClInclude>
     <ClInclude Include="include\tests\tests.h">
       <Filter>Source Files\tests</Filter>
+    </ClInclude>
+    <ClInclude Include="include\tests\fe\destructuring_tests.h">
+      <Filter>Source Files\tests\fe</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
