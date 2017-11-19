@@ -162,7 +162,7 @@
     <ClInclude Include="include\fe\pipeline\parser_stage.h" />
     <ClInclude Include="include\fe\pipeline\pipeline.h" />
     <ClInclude Include="include\fe\pipeline\typechecker_stage.h" />
-    <ClInclude Include="include\tests\fe\branching_tests.h" />
+    <ClInclude Include="include\tests\fe\destructuring_tests.h" />
     <ClInclude Include="include\tests\fe\typecheck_env_tests.h" />
     <ClInclude Include="include\tests\tests.h" />
     <ClInclude Include="include\tests\tools\grammar_tests.h" />

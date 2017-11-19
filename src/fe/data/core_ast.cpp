@@ -2,6 +2,7 @@
 #include "fe/data/values.h"
 #include "fe/data/runtime_environment.h"
 #include <vector>
+#include <assert.h>
 
 namespace fe
 {
@@ -108,20 +109,25 @@ namespace fe
 
 		// Set
 
-		set::set(identifier id, unique_node value, types::unique_type t) : id(std::move(id)), value(std::move(value)), type(std::move(t)) {};
+		set::set(identifier id, unique_node value, types::unique_type t) : value(std::move(value)), type(std::move(t))
+		{
+			ids.push_back(std::move(id));
+		}
 
-		set::set(const set& other) : id(other.id), value(unique_node(other.value->copy())), type(other.type->copy()) {};
+		set::set(std::vector<identifier> ids, unique_node value, types::unique_type t) : ids(std::move(ids)), value(std::move(value)), type(std::move(t)) {}
+		
+		set::set(const set& other) : ids(other.ids), value(unique_node(other.value->copy())), type(other.type->copy()) {};
 		set& set::operator=(const set& other)
 		{
-			this->id = other.id;
+			this->ids = other.ids;
 			this->type = types::unique_type(other.type->copy());
 			this->value = unique_node(other.value->copy());
 			return *this;
 		}
-		set::set(set&& other) : id(std::move(other.id)), value(std::move(other.value)), type(std::move(other.type)) {};
+		set::set(set&& other) : ids(std::move(other.ids)), value(std::move(other.value)), type(std::move(other.type)) {};
 		set& set::operator=(set&& other)
 		{
-			this->id = std::move(other.id);
+			this->ids = std::move(other.ids);
 			this->type = std::move(other.type);
 			this->value = std::move(other.value);
 			return *this;
@@ -130,7 +136,23 @@ namespace fe
 		values::unique_value set::interp(runtime_environment& env)
 		{
 			auto val = this->value->interp(env);
-			env.set_value(this->id.variable_name, values::unique_value(val->copy()));
+
+			if (this->ids.size() > 1)
+			{
+				auto tuple = dynamic_cast<values::tuple*>(val.get());
+				assert(tuple != nullptr);
+				assert(this->ids.size() == tuple->content.size());
+
+				for(int i = 0; i < tuple->content.size(); i++)
+				{
+					env.set_value(this->ids.at(i).variable_name, values::unique_value(tuple->content.at(i)->copy()));
+				}
+			}
+			else
+			{
+				assert(this->ids.size() == 1);
+				env.set_value(this->ids.at(0).variable_name, values::unique_value(val->copy()));
+			}
 			return val;
 		}
 

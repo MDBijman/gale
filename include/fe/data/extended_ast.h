@@ -8,6 +8,7 @@
 #include <string>
 #include <memory>
 #include <optional>
+#include <assert.h>
 
 namespace fe
 {
@@ -527,18 +528,56 @@ namespace fe
 			std::vector<identifier> names;
 		};
 
+		struct identifier_tuple : public node
+		{
+			identifier_tuple(std::vector<unique_node>&& children) : node(new types::unset_type())
+			{
+				for (auto&& child : children) { identifiers.push_back(std::move(*dynamic_cast<identifier*>(child.get()))); }
+			}
+
+			// Copy
+			identifier_tuple(const identifier_tuple& other) : node(other), identifiers(other.identifiers) {}
+			identifier_tuple& operator=(const identifier_tuple& other)
+			{
+				set_type(other.get_type().copy());
+				identifiers = other.identifiers;
+				return *this;
+			}
+
+			// Move
+			identifier_tuple(identifier_tuple&& other) : node(std::move(other)), identifiers(std::move(other.identifiers)) {}
+			identifier_tuple& operator=(identifier_tuple&& other)
+			{
+				set_type(other.get_type().copy());
+				this->identifiers = std::move(other.identifiers);
+				return *this;
+			}
+			
+			node* copy() override { return new identifier_tuple(*this); }
+			void typecheck(typecheck_environment& env) override {}
+			core_ast::node* lower() override
+			{
+				throw typecheck_error{
+					"Cannot lower an identifier tuple"
+				};
+			}
+
+			std::vector<identifier> identifiers;
+		};
+
 		struct assignment : public node
 		{
-			assignment(identifier&& id, unique_node val) : node(new types::unset_type()), id(std::move(id)), value(std::move(val)) {}
-
 			assignment(std::vector<unique_node>&& children) :
 				node(new types::unset_type()),
-				id(std::move(*dynamic_cast<identifier*>(children.at(0).get()))),
-				value(std::move(children.at(1)))
+				value(std::move(children.at(1))),
+				lhs(dynamic_cast<identifier*>(children.at(0).get()) != nullptr 
+					? std::variant<identifier, identifier_tuple>(std::move(*dynamic_cast<identifier*>(children.at(0).get())))
+					: std::variant<identifier, identifier_tuple>(std::move(*dynamic_cast<identifier_tuple*>(children.at(0).get()))))
 			{
 				if (auto fun = dynamic_cast<function*>(value.get()))
 				{
-					fun->name = identifier(id);
+					assert(std::holds_alternative<identifier>(lhs));
+					fun->name = identifier(std::get<identifier>(lhs));
 				}
 			}
 
@@ -554,16 +593,16 @@ namespace fe
 			assignment(const assignment& other);
 
 			// Move
-			assignment(assignment&& other) : node(std::move(other)), id(std::move(other.id)), value(std::move(other.value)) {}
+			assignment(assignment&& other) : node(std::move(other)), lhs(std::move(other.lhs)), value(std::move(other.value)) {}
 			assignment& operator=(assignment&& other)
 			{
 				set_type(types::unique_type(other.get_type().copy()));
-				id = std::move(other.id);
+				lhs = std::move(other.lhs);
 				value = std::move(other.value);
 				return *this;
 			}
 
-			identifier id;
+			std::variant<identifier, identifier_tuple> lhs;
 			unique_node value;
 		};
 
@@ -933,5 +972,6 @@ namespace fe
 
 			std::vector<identifier> modules;
 		};
+
 	}
 }

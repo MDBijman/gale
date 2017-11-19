@@ -334,33 +334,71 @@ namespace fe
 
 		// Assignment
 
-		assignment::assignment(const assignment& other) : node(other), id(other.id), value(other.value->copy()) {}
+		assignment::assignment(const assignment& other) : node(other), lhs(other.lhs), value(other.value->copy()) {}
 
 		void assignment::typecheck(typecheck_environment& env)
 		{
-			if (auto fun = dynamic_cast<function*>(value.get()))
-			{
-				fun->name = this->id;
-			}
-
 			value->typecheck(env);
 
-			env.set_type(id, types::unique_type(value->get_type().copy()));
-			id.set_type(value->get_type().copy());
+
+			if (std::holds_alternative<identifier_tuple>(lhs))
+			{
+				auto product_type = dynamic_cast<types::product_type*>(&value->get_type());
+				assert(product_type != nullptr);
+
+				auto& ids = std::get<identifier_tuple>(lhs);
+				assert(ids.identifiers.size() > 1);
+				assert(ids.identifiers.size() == product_type->product.size());
+
+				for (int i = 0; i < ids.identifiers.size(); i++)
+				{
+					env.set_type(ids.identifiers.at(i), types::unique_type(product_type->product.at(i).second->copy()));
+				}
+			}
+			else if(std::holds_alternative<identifier>(lhs))
+			{
+				auto& id = std::get<identifier>(lhs);
+
+				env.set_type(id, types::unique_type(value->get_type().copy()));
+			}
+			else
+			{
+				assert(!"Invalid variant contents");
+			}
 
 			set_type(new types::atom_type("void"));
 		}
 
 		core_ast::node* assignment::lower()
 		{
-			auto name = *dynamic_cast<core_ast::identifier*>(id.lower());
 			auto value = this->value->lower();
 
-			return new core_ast::set(
-				std::move(name),
-				core_ast::unique_node(value),
-				types::make_unique(id.get_type())
-			);
+			if (std::holds_alternative<identifier>(lhs))
+			{
+				auto name = *dynamic_cast<core_ast::identifier*>(std::get<identifier>(lhs).lower());
+
+				return new core_ast::set(
+					std::move(name),
+					core_ast::unique_node(value),
+					types::unique_type(this->value->get_type().copy())
+				);
+			}
+			else if (std::holds_alternative<identifier_tuple>(lhs))
+			{
+				auto ids = std::get<identifier_tuple>(lhs);
+
+				std::vector<core_ast::identifier> core_ids;
+				for (auto& id : ids.identifiers)
+				{
+					core_ids.push_back(*dynamic_cast<core_ast::identifier*>(id.lower()));
+				}
+
+				return new core_ast::set(
+					std::move(core_ids),
+					core_ast::unique_node(value),
+					types::unique_type(this->value->get_type().copy())
+				);
+			}
 		}
 
 		// Function
