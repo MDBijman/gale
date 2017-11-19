@@ -60,6 +60,16 @@ namespace language
 	class pipeline 
 	{
 	public:
+		std::tuple<Value, TypecheckEnvironment, RuntimeEnvironment> process(std::string&& code, TypecheckEnvironment tenv, RuntimeEnvironment renv) const
+		{
+			auto lexed = lex(std::move(code));
+			auto parsed = parse(std::move(lexed));
+			auto tchecked = typecheck(std::move(parsed), std::move(tenv));
+			auto lowered = lower(std::move(tchecked.first));
+			auto interped = interp(std::move(lowered), std::move(renv));
+			return { std::move(interped.first), std::move(tchecked.second), std::move(interped.second) };
+		}
+
 		std::vector<Terminal> lex(std::string&& code) const
 		{
 			auto lex_output = lexing_stage->lex(std::move(code));
