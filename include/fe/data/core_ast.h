@@ -135,6 +135,7 @@ namespace fe
 		struct set : public node
 		{
 			set(identifier id, unique_node value, types::unique_type t);
+			set(std::vector<identifier> ids, unique_node value, types::unique_type t);
 
 			// Copy
 			set(const set& other);
@@ -150,7 +151,7 @@ namespace fe
 			}
 			values::unique_value interp(runtime_environment&) override;
 
-			identifier id;
+			std::vector<identifier> ids;
 			unique_node value;
 			types::unique_type type;
 		};
