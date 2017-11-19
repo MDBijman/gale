@@ -22,14 +22,16 @@ SCENARIO("an ebnfe parser should parse correctly given a set of rules", "[ebnfe_
 		number = parser.new_terminal();
 
 		using namespace utils::ebnf::meta;
-		parser.new_rule({ Expression, { 
+
+		parser.new_rule({ Expression, {
 			Atom, plus, Expression, alt, Atom
 		} });
 		parser.new_rule({ Atom, { number, alt, id } });
 		parser.new_transformation(Atom, utils::ebnfe::transformation_type::REPLACE_WITH_CHILDREN);
 		parser.new_transformation(Expression, utils::ebnfe::transformation_type::REPLACE_IF_ONE_CHILD);
 
-			using namespace utils;
+		using namespace utils;
+
 		WHEN("an id as a value is parsed")
 		{
 			auto output_or_error = parser.parse(Expression, std::vector<utils::bnf::terminal_node>{
