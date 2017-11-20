@@ -532,24 +532,34 @@ namespace fe
 		{
 			identifier_tuple(std::vector<unique_node>&& children) : node(new types::unset_type())
 			{
-				for (auto&& child : children) { identifiers.push_back(std::move(*dynamic_cast<identifier*>(child.get()))); }
+				for (auto&& child : children)
+				{ 
+					if (auto id = dynamic_cast<identifier*>(child.get()))
+					{
+						content.push_back(std::move(*id));
+					}
+					else if (auto id_tuple = dynamic_cast<identifier_tuple*>(child.get()))
+					{
+						content.push_back(std::move(*id_tuple));
+					}
+				}
 			}
 
 			// Copy
-			identifier_tuple(const identifier_tuple& other) : node(other), identifiers(other.identifiers) {}
+			identifier_tuple(const identifier_tuple& other) : node(other), content(other.content) {}
 			identifier_tuple& operator=(const identifier_tuple& other)
 			{
 				set_type(other.get_type().copy());
-				identifiers = other.identifiers;
+				content = other.content;
 				return *this;
 			}
 
 			// Move
-			identifier_tuple(identifier_tuple&& other) : node(std::move(other)), identifiers(std::move(other.identifiers)) {}
+			identifier_tuple(identifier_tuple&& other) : node(std::move(other)), content(std::move(other.content)) {}
 			identifier_tuple& operator=(identifier_tuple&& other)
 			{
 				set_type(other.get_type().copy());
-				this->identifiers = std::move(other.identifiers);
+				this->content = std::move(other.content);
 				return *this;
 			}
 			
@@ -562,7 +572,7 @@ namespace fe
 				};
 			}
 
-			std::vector<identifier> identifiers;
+			std::vector<std::variant<identifier, identifier_tuple>> content;
 		};
 
 		struct assignment : public node
