@@ -16,13 +16,11 @@ var fact = fn std.i32 a -> std.i32 = a match {
 	| 1 == 1 -> a * fact (a - 1)
 };
 
-var test = fn (std.i32 a, std.i32 b) -> (std.i32, (std.i32, std.i32)) = (1, 2);
+var test = fn (std.i32 a, std.i32 b) -> (std.i32, (std.i32, std.i32)) = (1, (2, 4));
 
 var (a, b) = test (3, 4);
 
-var (c, b, _) = (1, 2, 6);
 while 1 == 1 do {
-	std.ui.poll window;
-	std.io.print get_string fact c;
+	std.io.print get_string fact a;
 };
 

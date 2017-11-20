@@ -340,31 +340,30 @@ namespace fe
 		{
 			value->typecheck(env);
 
-
-			if (std::holds_alternative<identifier_tuple>(lhs))
-			{
-				auto product_type = dynamic_cast<types::product_type*>(&value->get_type());
-				assert(product_type != nullptr);
-
-				auto& ids = std::get<identifier_tuple>(lhs);
-				assert(ids.identifiers.size() > 1);
-				assert(ids.identifiers.size() == product_type->product.size());
-
-				for (int i = 0; i < ids.identifiers.size(); i++)
+			std::function<void(std::variant<identifier, identifier_tuple>&, types::type&)> typecheck_tuple = [&](std::variant<identifier, identifier_tuple>& lhs, types::type& type) {
+				if (std::holds_alternative<identifier_tuple>(lhs))
 				{
-					env.set_type(ids.identifiers.at(i), types::unique_type(product_type->product.at(i).second->copy()));
-				}
-			}
-			else if(std::holds_alternative<identifier>(lhs))
-			{
-				auto& id = std::get<identifier>(lhs);
+					auto product_type = dynamic_cast<types::product_type*>(&type);
+					assert(product_type != nullptr);
 
-				env.set_type(id, types::unique_type(value->get_type().copy()));
-			}
-			else
-			{
-				assert(!"Invalid variant contents");
-			}
+					auto& ids = std::get<identifier_tuple>(lhs);
+					assert(ids.content.size() > 1);
+					assert(ids.content.size() == product_type->product.size());
+
+					for (int i = 0; i < ids.content.size(); i++)
+					{
+						typecheck_tuple(ids.content.at(i), *product_type->product.at(i).second);
+					}
+				}
+				else if (std::holds_alternative<identifier>(lhs))
+				{
+					auto& id = std::get<identifier>(lhs);
+
+					env.set_type(id, types::unique_type(type.copy()));
+				}
+				else assert(!"Invalid variant contents");
+			};
+			typecheck_tuple(this->lhs, value->get_type());
 
 			set_type(new types::atom_type("void"));
 		}
@@ -373,32 +372,45 @@ namespace fe
 		{
 			auto value = this->value->lower();
 
-			if (std::holds_alternative<identifier>(lhs))
-			{
-				auto name = *dynamic_cast<core_ast::identifier*>(std::get<identifier>(lhs).lower());
-
-				return new core_ast::set(
-					std::move(name),
-					core_ast::unique_node(value),
-					types::unique_type(this->value->get_type().copy())
-				);
-			}
-			else if (std::holds_alternative<identifier_tuple>(lhs))
-			{
-				auto ids = std::get<identifier_tuple>(lhs);
-
-				std::vector<core_ast::identifier> core_ids;
-				for (auto& id : ids.identifiers)
+			std::function<std::variant<core_ast::identifier, core_ast::identifier_tuple>(std::variant<identifier, identifier_tuple>)> lower_ids = [&](std::variant<identifier, identifier_tuple>& lhs) {
+				if (std::holds_alternative<identifier>(lhs))
 				{
-					core_ids.push_back(*dynamic_cast<core_ast::identifier*>(id.lower()));
+					auto name = *dynamic_cast<core_ast::identifier*>(std::get<identifier>(lhs).lower());
+					return std::variant<core_ast::identifier, core_ast::identifier_tuple>(name);
 				}
+				else if (std::holds_alternative<identifier_tuple>(lhs))
+				{
+					auto ids = std::get<identifier_tuple>(lhs);
 
+					core_ast::identifier_tuple core_id_tuple;
+
+					for (auto& id : ids.content)
+					{
+						core_id_tuple.ids.push_back(lower_ids(id));
+					}
+
+					return std::variant<core_ast::identifier, core_ast::identifier_tuple>(core_id_tuple);
+				}
+			};
+			auto res = lower_ids(this->lhs);
+
+			if (std::holds_alternative<core_ast::identifier>(res))
+			{
 				return new core_ast::set(
-					std::move(core_ids),
+					std::move(std::get<core_ast::identifier>(res)),
 					core_ast::unique_node(value),
 					types::unique_type(this->value->get_type().copy())
 				);
 			}
+			else if(std::holds_alternative<core_ast::identifier_tuple>(res))
+			{
+				return new core_ast::set(
+					std::move(std::get<core_ast::identifier_tuple>(res)),
+					core_ast::unique_node(value),
+					types::unique_type(this->value->get_type().copy())
+				);
+			}
+			else assert(!"The lhs of an assignment must become either an identifier or an identifier tuple");
 		}
 
 		// Function
