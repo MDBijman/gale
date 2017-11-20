@@ -115,7 +115,7 @@ namespace fe
 		{
 			for (decltype(auto) child : children)
 			{
-				if(dynamic_cast<type_atom*>(child.get()) || dynamic_cast<function_type*>(child.get()))
+				if(dynamic_cast<type_atom*>(child.get()) || dynamic_cast<function_type*>(child.get()) || dynamic_cast<type_tuple*>(child.get()))
 					elements.push_back(std::move(child));
 				else
 					throw cst_to_ast_error{ "Type tuple can only contain atom and function declarations" };

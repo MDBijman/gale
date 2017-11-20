@@ -1,7 +1,6 @@
 module test
-import [submodule modeling std.ui std.io std.types]
+import [submodule modeling std.io std.types]
 
-var window = std.ui.create_window "Window Name";
 var m = submodule.z + 1;
 
 var get_string = fn std.i32 a -> std.str = a match { 
@@ -17,7 +16,9 @@ var fact = fn std.i32 a -> std.i32 = a match {
 	| 1 == 1 -> a * fact (a - 1)
 };
 
-var test = fn std.i32 _ -> std.i32 = 3;
+var test = fn (std.i32 a, std.i32 b) -> (std.i32, (std.i32, std.i32)) = (1, 2);
+
+var (a, b) = test (3, 4);
 
 var (c, b, _) = (1, 2, 6);
 while 1 == 1 do {

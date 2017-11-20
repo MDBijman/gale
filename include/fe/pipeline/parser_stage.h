@@ -203,8 +203,10 @@ namespace fe
 				.new_rule({ function_type, { type_expression, right_arrow, type_expression, alt, type_expression } })
 
 				.new_rule({ type_expression, {
-					type_tuple, alt, identifier
+					type_tuple, alt, type_atom
 				} })
+
+				.new_rule({ type_atom, { identifier } })
 
 				.new_rule({ type_tuple, { left_bracket, type_operation, lrb, comma, type_operation, rrb, star, right_bracket } })
 				;
