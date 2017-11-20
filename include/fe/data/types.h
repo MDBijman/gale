@@ -24,6 +24,9 @@ namespace fe
 		public:
 			bool operator==(Base* o) const
 			{
+				if (typeid(*o) == typeid(any_type))
+					return true;
+
 				if (typeid(Derived) != typeid(*o))
 					return false;
 
@@ -77,7 +80,7 @@ namespace fe
 			any_type& operator=(const any_type& other);
 
 			std::string to_string() const override;
-			bool operator==(type* other) const override { return comparable::operator==(other); }
+			bool operator==(type* other) const override { return true; }
 			type* copy() const override { return copyable::copy(*this); }
 
 			std::string name;
