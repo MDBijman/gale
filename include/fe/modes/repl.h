@@ -53,7 +53,9 @@ namespace fe
 
 				// Standard types
 				{
-					std_typeset.add_module(fe::stdlib::types::load());
+					auto[te, re] = fe::stdlib::ui::load();
+					std_typeset.add_module(std::move(te));
+					std_runtime.add_module(std::move(re));;
 				}
 
 				typecheck_environment.add_module(std::move(std_typeset));
