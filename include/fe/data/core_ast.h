@@ -132,10 +132,15 @@ namespace fe
 			types::unique_type type;
 		};
 
+		struct identifier_tuple
+		{
+			std::vector<std::variant<identifier, identifier_tuple>> ids;
+		};
+
 		struct set : public node
 		{
 			set(identifier id, unique_node value, types::unique_type t);
-			set(std::vector<identifier> ids, unique_node value, types::unique_type t);
+			set(identifier_tuple lhs, unique_node value, types::unique_type t);
 
 			// Copy
 			set(const set& other);
@@ -151,7 +156,7 @@ namespace fe
 			}
 			values::unique_value interp(runtime_environment&) override;
 
-			std::vector<identifier> ids;
+			std::variant<identifier, identifier_tuple> lhs;
 			unique_node value;
 			types::unique_type type;
 		};
