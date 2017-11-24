@@ -132,6 +132,7 @@
     <ClCompile Include="src\fe\data\extended_ast.cpp" />
     <ClCompile Include="src\fe\data\types.cpp" />
     <ClCompile Include="src\fe\data\values.cpp" />
+    <ClCompile Include="src\fe\pipeline\resolution_stage.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\tools\lr_parser.cpp" />
     <ClCompile Include="src\tools\ll_parser.cpp" />
@@ -140,6 +141,7 @@
     <ClInclude Include="include\fe\data\core_ast.h" />
     <ClInclude Include="include\fe\data\extended_ast.h" />
     <ClInclude Include="include\fe\data\runtime_environment.h" />
+    <ClInclude Include="include\fe\data\scope_environment.h" />
     <ClInclude Include="include\fe\data\typecheck_environment.h" />
     <ClInclude Include="include\fe\data\types.h" />
     <ClInclude Include="include\fe\data\values.h" />

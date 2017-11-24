@@ -13,23 +13,6 @@ SCENARIO("the entire language pipeline should be fast enough", "[performance pip
 	{
 		fe::pipeline p;
 
-		auto lexing_stage = new fe::lexing_stage{};
-		auto parsing_stage = new fe::parsing_stage{};
-		auto lexer_to_parser_stage = new fe::lexer_to_parser_stage{};
-		auto parser_to_lowerer_stage = new fe::cst_to_ast_stage{};
-		auto typechecker_stage = new fe::typechecker_stage{};
-		auto lowering_stage = new fe::lowering_stage{};
-		auto interpreting_stage = new fe::interpreting_stage{};
-
-		p
-			.lexer(lexing_stage)
-			.lexer_to_parser(lexer_to_parser_stage)
-			.parser(parsing_stage)
-			.cst_to_ast(parser_to_lowerer_stage)
-			.typechecker(typechecker_stage)
-			.lowerer(lowering_stage)
-			.interpreter(interpreting_stage);
-
 		WHEN("the first parse is performed")
 		{
 			auto now = std::chrono::steady_clock::now();

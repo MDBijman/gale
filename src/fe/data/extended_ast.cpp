@@ -20,6 +20,8 @@ namespace fe
 
 		// String
 
+		string::string(const values::string val): node(new types::unset_type()), value(val) {}
+
 		void string::typecheck(typecheck_environment& t_env)
 		{
 			this->set_type(new types::atom_type("std.str"));
@@ -34,7 +36,7 @@ namespace fe
 
 		void identifier::typecheck(typecheck_environment& env)
 		{
-			auto& t = env.typeof(*this);
+			auto t = env.typeof(*this);
 			if (std::holds_alternative<type_env_error>(t))
 				throw typecheck_error{ "Type environment error: " + std::get<type_env_error>(t).message };
 
@@ -129,7 +131,7 @@ namespace fe
 			for (auto& child : elements)
 			{
 				child->typecheck(env);
-				result.product.push_back({ "", types::unique_type(child->get_type().copy()) });
+				result.product.push_back(types::unique_type(child->get_type().copy()));
 			}
 
 			set_type(result.copy());
@@ -193,9 +195,9 @@ namespace fe
 			{
 				elem->typecheck(env);
 
-				if (auto atom = dynamic_cast<atom_declaration*>(elem.get()))
+				if (const auto atom = dynamic_cast<atom_declaration*>(elem.get()))
 				{
-					res.product.push_back({ atom->name.segments.at(0), types::unique_type(atom->get_type().copy()) });
+					res.product.push_back(types::unique_type(atom->get_type().copy()));
 				}
 			}
 			set_type(res.copy());
@@ -216,7 +218,7 @@ namespace fe
 			{
 				element->typecheck(env);
 
-				new_type.product.push_back({ "", types::unique_type(element->get_type().copy()) });
+				new_type.product.push_back(types::unique_type(element->get_type().copy()));
 			}
 
 			set_type(new_type.copy());
@@ -350,9 +352,9 @@ namespace fe
 					assert(ids.content.size() > 1);
 					assert(ids.content.size() == product_type->product.size());
 
-					for (int i = 0; i < ids.content.size(); i++)
+					for (auto i = 0; i < ids.content.size(); i++)
 					{
-						typecheck_tuple(ids.content.at(i), *product_type->product.at(i).second);
+						typecheck_tuple(ids.content.at(i), *product_type->product.at(i));
 					}
 				}
 				else if (std::holds_alternative<identifier>(lhs))
@@ -370,7 +372,7 @@ namespace fe
 
 		core_ast::node* assignment::lower()
 		{
-			auto value = this->value->lower();
+			const auto value = this->value->lower();
 
 			std::function<std::variant<core_ast::identifier, core_ast::identifier_tuple>(std::variant<identifier, identifier_tuple>)> lower_ids = [&](std::variant<identifier, identifier_tuple>& lhs) {
 				if (std::holds_alternative<identifier>(lhs))
@@ -402,7 +404,8 @@ namespace fe
 					types::unique_type(this->value->get_type().copy())
 				);
 			}
-			else if(std::holds_alternative<core_ast::identifier_tuple>(res))
+
+			if(std::holds_alternative<core_ast::identifier_tuple>(res))
 			{
 				return new core_ast::set(
 					std::move(std::get<core_ast::identifier_tuple>(res)),
@@ -410,7 +413,8 @@ namespace fe
 					types::unique_type(this->value->get_type().copy())
 				);
 			}
-			else assert(!"The lhs of an assignment must become either an identifier or an identifier tuple");
+			
+			throw std::runtime_error("The lhs of an assignment must become either an identifier or an identifier tuple");
 		}
 
 		// Function
@@ -455,8 +459,8 @@ namespace fe
 
 			if (this->name.has_value())
 			{
-				auto lowered_name = this->name.value().lower();
-				auto getter = dynamic_cast<core_ast::identifier*>(lowered_name);
+				const auto lowered_name = this->name.value().lower();
+				const auto getter = dynamic_cast<core_ast::identifier*>(lowered_name);
 				name = std::make_optional(*getter);
 			}
 
@@ -538,10 +542,10 @@ namespace fe
 
 		core_ast::node* match::lower()
 		{
-			core_ast::branch* child_branch = new core_ast::branch(nullptr, nullptr, nullptr);
-			core_ast::branch* current_child = child_branch;
+			const auto child_branch = new core_ast::branch(nullptr, nullptr, nullptr);
+			auto current_child = child_branch;
 
-			for (auto it = branches.begin(); it != branches.end(); it++)
+			for (auto it = branches.begin(); it != branches.end(); ++it)
 			{
 				if (it != branches.begin())
 				{
@@ -549,11 +553,8 @@ namespace fe
 					current_child = static_cast<core_ast::branch*>(current_child->false_path.get());
 				}
 
-				auto lowered_test = it->test_path->lower();
-				auto lowered_code = it->code_path->lower();
-
-				current_child->test_path = core_ast::unique_node(std::move(lowered_test));
-				current_child->true_path = core_ast::unique_node(std::move(lowered_code));
+				current_child->test_path = core_ast::unique_node(it->test_path->lower());
+				current_child->true_path = core_ast::unique_node(it->code_path->lower());
 				current_child->false_path = core_ast::unique_node(new core_ast::no_op());
 			}
 
@@ -707,7 +708,7 @@ namespace fe
 
 			if (children.size() > 0)
 			{
-				auto element_type = children.at(0)->get_type().copy();
+				const auto element_type = children.at(0)->get_type().copy();
 
 				for (decltype(auto) child : children)
 				{
@@ -785,8 +786,8 @@ namespace fe
 			lowered_children.push_back(core_ast::unique_node(right->lower()));
 
 			types::product_type p;
-			p.product.push_back({ "", types::make_unique(types::atom_type{"std.i32"}) });
-			p.product.push_back({ "", types::make_unique(types::atom_type{"std.i32"}) });
+			p.product.push_back(types::make_unique(types::atom_type{"std.i32"}));
+			p.product.push_back(types::make_unique(types::atom_type{"std.i32"}));
 
 			return new core_ast::function_call{
 				core_ast::identifier{{}, "eq", {}, types::make_unique(types::unset_type())},
@@ -853,8 +854,8 @@ namespace fe
 			lowered_children.push_back(core_ast::unique_node(right->lower()));
 
 			types::product_type p;
-			p.product.push_back({ "", types::make_unique(types::atom_type{"std.i32"}) });
-			p.product.push_back({ "", types::make_unique(types::atom_type{"std.i32"}) });
+			p.product.push_back(types::make_unique(types::atom_type{"std.i32"}));
+			p.product.push_back(types::make_unique(types::atom_type{"std.i32"}));
 
 			return new core_ast::function_call{
 				core_ast::identifier{{}, "add", {}, types::make_unique(types::unset_type())},
@@ -921,8 +922,8 @@ namespace fe
 			lowered_children.push_back(core_ast::unique_node(right->lower()));
 
 			types::product_type p;
-			p.product.push_back({ "", types::make_unique(types::atom_type{"std.i32"}) });
-			p.product.push_back({ "", types::make_unique(types::atom_type{"std.i32"}) });
+			p.product.push_back(types::make_unique(types::atom_type{"std.i32"}));
+			p.product.push_back(types::make_unique(types::atom_type{"std.i32"}));
 
 			return new core_ast::function_call{
 				core_ast::identifier{{}, "sub", {}, types::make_unique(types::unset_type())},
@@ -989,8 +990,8 @@ namespace fe
 			lowered_children.push_back(core_ast::unique_node(right->lower()));
 
 			types::product_type p;
-			p.product.push_back({ "", types::make_unique(types::atom_type{"std.i32"}) });
-			p.product.push_back({ "", types::make_unique(types::atom_type{"std.i32"}) });
+			p.product.push_back(types::make_unique(types::atom_type{"std.i32"}));
+			p.product.push_back(types::make_unique(types::atom_type{"std.i32"}));
 
 			return new core_ast::function_call{
 				core_ast::identifier{{}, "mul", {}, types::make_unique(types::unset_type())},
@@ -1057,8 +1058,8 @@ namespace fe
 			lowered_children.push_back(core_ast::unique_node(right->lower()));
 
 			types::product_type p;
-			p.product.push_back({ "", types::make_unique(types::atom_type{"std.i32"}) });
-			p.product.push_back({ "", types::make_unique(types::atom_type{"std.i32"}) });
+			p.product.push_back(types::make_unique(types::atom_type{"std.i32"}));
+			p.product.push_back(types::make_unique(types::atom_type{"std.i32"}));
 
 			return new core_ast::function_call{
 				core_ast::identifier{{}, "div", {}, types::make_unique(types::unset_type())},
@@ -1105,7 +1106,7 @@ namespace fe
 			array_exp->typecheck(env);
 			index_exp->typecheck(env);
 
-			if (auto type = dynamic_cast<types::array_type*>(&array_exp->get_type()))
+			if (const auto type = dynamic_cast<types::array_type*>(&array_exp->get_type()))
 			{
 				set_type(type->element_type->copy());
 			}
@@ -1127,10 +1128,10 @@ namespace fe
 			lowered_children.push_back(core_ast::unique_node(index_exp->lower()));
 
 			types::product_type p;
-			p.product.push_back({ "", types::make_unique(types::atom_type{"std.i32"}) });
-			p.product.push_back({ "", types::make_unique(types::atom_type{"std.i32"}) });
+			p.product.push_back(types::make_unique(types::atom_type{"std.i32"}));
+			p.product.push_back(types::make_unique(types::atom_type{"std.i32"}));
 
-			auto type = dynamic_cast<types::array_type*>(&array_exp->get_type());
+			const auto type = dynamic_cast<types::array_type*>(&array_exp->get_type());
 
 			return new core_ast::function_call{
 				core_ast::identifier{{}, "get", {}, types::make_unique(types::unset_type())},

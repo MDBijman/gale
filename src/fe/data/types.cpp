@@ -149,7 +149,7 @@ namespace fe
 		// Product
 
 		product_type::product_type() {}
-		product_type::product_type(std::vector<std::pair<std::string, unique_type>> product) : product(std::move(product)) {}
+		product_type::product_type(std::vector<unique_type> product) : product(std::move(product)) {}
 
 		// Move
 		product_type::product_type(product_type&& other)
@@ -167,14 +167,14 @@ namespace fe
 		{
 			for (const auto& pair : other.product)
 			{
-				product.push_back({ pair.first, types::unique_type(pair.second->copy()) });
+				product.push_back(types::unique_type(pair->copy()));
 			}
 		}
 		product_type& product_type::operator=(const product_type& other)
 		{
 			for (const auto& pair : other.product)
 			{
-				product.push_back({ pair.first, types::unique_type(pair.second->copy()) });
+				product.push_back(types::unique_type(pair->copy()));
 			}
 			return *this;
 		}
@@ -185,7 +185,7 @@ namespace fe
 
 			for (auto it = product.begin(); it != product.end(); ++it)
 			{
-				r.append(it->second->to_string());
+				r.append(it->get()->to_string());
 
 				if (it != product.end() - 1)
 				{
@@ -292,7 +292,7 @@ namespace fe
 
 			for (unsigned int i = 0; i < one.product.size(); i++)
 			{
-				if (!(*(one.product.at(i).second) == two.product.at(i).second.get())) return false;
+				if (!(*one.product.at(i) == two.product.at(i).get())) return false;
 			}
 
 			return true;

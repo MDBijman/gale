@@ -8,7 +8,7 @@
 
 namespace fe
 {
-	class typechecker_stage : public language::typechecking_stage<extended_ast::unique_node, extended_ast::unique_node, typecheck_environment, typecheck_error>
+	class typechecker_stage 
 	{
 	private:
 		typecheck_environment base_environment;
@@ -17,7 +17,7 @@ namespace fe
 		typechecker_stage() {}
 		typechecker_stage(typecheck_environment environment) : base_environment(environment) {}
 
-		std::variant<std::pair<extended_ast::unique_node, typecheck_environment>, typecheck_error> typecheck(extended_ast::unique_node node, typecheck_environment env) override
+		std::variant<std::pair<extended_ast::unique_node, typecheck_environment>, typecheck_error> typecheck(extended_ast::unique_node node, typecheck_environment env) const
 		{
 			try
 			{

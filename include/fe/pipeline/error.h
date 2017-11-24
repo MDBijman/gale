@@ -36,4 +36,9 @@ namespace fe
 	{
 		std::string message;
 	};
+
+	struct resolution_error
+	{
+		std::string message;
+	};
 }

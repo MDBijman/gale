@@ -7,7 +7,7 @@
 
 namespace fe
 {
-	class lexer_to_parser_stage : public language::lexer_to_parser_stage<utils::lexing::token, utils::bnf::terminal_node, lex_to_parse_error>
+	class lexer_to_parser_stage 
 	{
 	public:
 		lexer_to_parser_stage()
@@ -76,7 +76,7 @@ namespace fe
 			});
 		}
 
-		std::variant<std::vector<utils::bnf::terminal_node>, lex_to_parse_error> convert(const std::vector<utils::lexing::token>& in)
+		std::variant<std::vector<utils::bnf::terminal_node>, lex_to_parse_error> convert(const std::vector<utils::lexing::token>& in) const
 		{
 			using namespace utils;
 
@@ -84,7 +84,7 @@ namespace fe
 
 			std::transform(in.begin(), in.end(), std::back_inserter(result), [&](lexing::token x) 
 			{
-				std::variant<ebnf::terminal, std::function<ebnf::terminal(lexing::token)>>& mapped = mapping.at(x.value);
+				const std::variant<ebnf::terminal, std::function<ebnf::terminal(lexing::token)>>& mapped = mapping.at(x.value);
 
 				if (std::holds_alternative<ebnf::terminal>(mapped))
 				{

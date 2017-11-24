@@ -37,7 +37,7 @@ namespace utils::bnf
 			return *this;
 		}
 
-		std::variant<std::unique_ptr<node>, error> parse(non_terminal init, std::vector<bnf::terminal_node> input)
+		std::variant<std::unique_ptr<node>, error> parse(non_terminal init, std::vector<bnf::terminal_node> input) 
 		{
 			if (table_is_old)
 			{

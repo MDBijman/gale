@@ -14,7 +14,7 @@
 
 namespace fe
 {
-	class interpreting_stage : public language::interpreting_stage<core_ast::unique_node, values::unique_value, runtime_environment, interp_error>
+	class interpreting_stage 
 	{
 	public:
 		interpreting_stage() {}
@@ -22,7 +22,7 @@ namespace fe
 		std::variant<
 			std::tuple<core_ast::unique_node, values::unique_value, runtime_environment>,
 			interp_error
-		> interpret(core_ast::unique_node core_ast, runtime_environment&& env) override
+		> interpret(core_ast::unique_node core_ast, runtime_environment&& env) const
 		{
 			try
 			{
