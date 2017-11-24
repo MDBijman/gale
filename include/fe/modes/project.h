@@ -94,7 +94,7 @@ namespace fe
 	class project
 	{
 	public:
-		project(std::string folder, std::string main_file, fe::pipeline pipeline) : pl(pipeline)
+		project(const std::string folder, const std::string main_file, fe::pipeline pipeline) : pl(std::move(pipeline))
 		{
 			graph = parse_project(folder, main_file);
 		}
@@ -106,7 +106,7 @@ namespace fe
 
 
 	private:
-		module_graph parse_project(std::string folder, std::string main) const
+		module_graph parse_project(const std::string folder, const std::string main) 
 		{
 			std::vector<std::string> code_files;
 			for (auto& item : std::experimental::filesystem::recursive_directory_iterator(folder))

@@ -353,7 +353,7 @@ namespace utils
 		public:
 			parser() {}
 
-			std::variant<std::unique_ptr<node>, error> parse(non_terminal init, std::vector<bnf::terminal_node> input)
+			std::variant<std::unique_ptr<node>, error> parse(non_terminal init, std::vector<bnf::terminal_node> input) 
 			{
 				try {
 					auto ast_or_error = bnf_parser.parse(init, input);

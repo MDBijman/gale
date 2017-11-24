@@ -119,32 +119,30 @@ namespace fe
 
 				return *types.at(id.segments.at(0));
 			}
-			else
+			
+			if (namespaces.find(id.segments.at(0)) != namespaces.end())
 			{
-				if (namespaces.find(id.segments.at(0)) != namespaces.end())
-				{
-					return namespaces
-						.find(id.segments.at(0))->second
-						.typeof(id.without_first_segment());
-				}
-
-				std::reference_wrapper<types::type> type = *types.at(id.segments.at(0));
-
-				for (int i = 1; i < id.segments.size(); i++)
-				{
-					const auto product_type = dynamic_cast<const types::product_type*>(&type.get());
-					auto type_location = std::find_if(product_type->product.begin(), product_type->product.end(), [&](const auto& x) {
-						return x.first == id.segments.at(i);
-					});
-
-					type = *type_location->second;
-				}
-
-				return type;
+				return namespaces
+					.find(id.segments.at(0))->second
+					.typeof(id.without_first_segment());
 			}
+
+			std::reference_wrapper<types::type> type = *types.at(id.segments.at(0));
+
+			for (auto i = 1; i < id.segments.size(); i++)
+			{
+				const auto product_type = dynamic_cast<const types::product_type*>(&type.get());
+				auto type_location = std::find_if(product_type->product.begin(), product_type->product.end(), [&](const auto& x) {
+					return false;//x.first == id.segments.at(i);
+				});
+
+				type = **type_location;
+			}
+
+			return type;
 		}
 
-		void build_access_pattern(extended_ast::identifier& id, int index = 0)
+		void build_access_pattern(extended_ast::identifier& id, const int index = 0)
 		{
 			if (namespaces.find(id.segments.at(index)) != namespaces.end())
 			{
@@ -152,39 +150,39 @@ namespace fe
 			}
 			else
 			{
-				auto variable_name = id.segments.at(index);
+				const auto variable_name = id.segments.at(index);
 
 				auto current_type = types.at(variable_name).get();
-				for (int i = index + 1; i < id.segments.size(); i++)
+				for (auto i = index + 1; i < id.segments.size(); i++)
 				{
 					// Find the segment within the product type that has the correct name
 					const auto product_type = dynamic_cast<const types::product_type*>(current_type);
 					auto next_loc = std::find_if(product_type->product.begin(), product_type->product.end(), [&](auto& x) {
-						return x.first == id.segments.at(i);
+						return false;//x.first == id.segments.at(i);
 					});
 
 					// Calculate offset
 					auto offset = std::distance(product_type->product.begin(), next_loc);
 					id.offsets.push_back(offset);
-					current_type = product_type->product.at(offset).second.get();
+					current_type = product_type->product.at(offset).get();
 				}
 			}
 		}
 
-		std::string to_string(bool include_modules = false)
+		std::string to_string(const bool include_modules = false)
 		{
 			auto indent = [](std::string& text) {
 				return std::regex_replace(text, std::regex("\\n"), "\n\t");
 			};
 
-			std::string r = name.has_value() ?
+			auto r = name.has_value() ?
 				"type_environment: " + name.value() + " (" :
 				"type_environment (";
 
 			uint32_t counter = 0;
 			for (decltype(auto) pair : types)
 			{
-				std::string t = "\n\t" + pair.first + ": ";
+				auto t = "\n\t" + pair.first + ": ";
 				t.append(pair.second->to_string());
 				r.append(t);
 				r.append(",");

@@ -10,11 +10,10 @@
 
 namespace fe
 {
-
-	class lowering_stage : public language::lowering_stage<extended_ast::unique_node, core_ast::unique_node, lower_error>
+	class lowering_stage 
 	{
 	public:
-		std::variant<core_ast::unique_node, lower_error> lower(extended_ast::unique_node n) override
+		std::variant<core_ast::unique_node, lower_error> lower(extended_ast::unique_node n) const
 		{
 			try
 			{

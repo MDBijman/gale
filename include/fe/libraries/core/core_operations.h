@@ -18,8 +18,8 @@ namespace fe
 				using namespace fe::values;
 
 				auto from = product_type();
-				from.product.emplace_back("a", types::make_unique(atom_type{"std.i32"}));
-				from.product.emplace_back("b", types::make_unique(atom_type{"std.i32"}));
+				from.product.emplace_back(types::make_unique(atom_type{"std.i32"}));
+				from.product.emplace_back(types::make_unique(atom_type{"std.i32"}));
 
 
 				te.set_type("add", types::make_unique(function_type(from, atom_type{ "std.i32" })));

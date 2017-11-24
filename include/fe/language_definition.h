@@ -49,31 +49,4 @@ namespace fe
 			false_keyword
 			;
 	}
-
-
-	using pipeline = language::pipeline <
-		utils::lexing::token,
-		utils::lexing::error,
-
-		utils::bnf::terminal_node,
-		fe::lex_to_parse_error,
-
-		std::unique_ptr<utils::ebnfe::node>,
-		utils::ebnfe::error,
-
-		extended_ast::unique_node,
-		fe::cst_to_ast_error,
-
-		extended_ast::unique_node,
-		fe::typecheck_error,
-
-		core_ast::unique_node,
-		fe::lower_error,
-
-		values::unique_value,
-		fe::interp_error,
-
-		typecheck_environment,
-		runtime_environment
-	> ;
 }

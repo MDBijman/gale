@@ -9,10 +9,10 @@
 
 namespace fe
 {
-	class cst_to_ast_stage : public language::cst_to_ast_stage<std::unique_ptr<utils::ebnfe::node>, extended_ast::unique_node, cst_to_ast_error>
+	class cst_to_ast_stage 
 	{
 	public:
-		std::variant<extended_ast::unique_node, cst_to_ast_error> convert(std::unique_ptr<utils::ebnfe::node> node)
+		std::variant<extended_ast::unique_node, cst_to_ast_error> convert(std::unique_ptr<utils::ebnfe::node> node) const
 		{
 			try
 			{
@@ -24,7 +24,7 @@ namespace fe
 			}
 		}
 
-		extended_ast::unique_node conv(std::unique_ptr<utils::ebnfe::node> node)
+		extended_ast::unique_node conv(std::unique_ptr<utils::ebnfe::node> node) const
 		{
 			using namespace extended_ast;
 

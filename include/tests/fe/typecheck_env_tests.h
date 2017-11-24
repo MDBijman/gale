@@ -46,8 +46,8 @@ SCENARIO("type environments can manage types", "[type_environment]")
 
 		WHEN("a named product type is added to the environment")
 		{
-			auto element_one = std::make_pair("a", unique_type(new atom_type("std.i32")));
-			auto element_two = std::make_pair("b", unique_type(new atom_type("std.str")));
+			auto element_one = std::unique_ptr<type>(std::make_unique<atom_type>("std.i32"));
+			auto element_two = std::unique_ptr<type>(std::make_unique<atom_type>("std.str"));
 			auto before_type = product_type();
 			before_type.product.push_back(std::move(element_one));
 			before_type.product.push_back(std::move(element_two));
@@ -64,7 +64,7 @@ SCENARIO("type environments can manage types", "[type_environment]")
 				REQUIRE(dynamic_cast<atom_type*>(&after_type));
 				auto pt = dynamic_cast<atom_type*>(&after_type);
 
-				REQUIRE(*before_type.product.at(0).second.get() == pt);
+				REQUIRE(*before_type.product.at(0).get() == pt);
 			}
 		}
 
@@ -73,11 +73,11 @@ SCENARIO("type environments can manage types", "[type_environment]")
 			using namespace fe;
 			t_env = typecheck_environment();
 
-			auto element_one = std::make_pair("a", types::make_unique(types::atom_type("std.i32")));
+			auto element_one = types::make_unique(types::atom_type("std.i32"));
 			auto element_two_product = types::product_type();
-			element_two_product.product.push_back({ "c", types::make_unique(types::atom_type("std.str")) });
+			element_two_product.product.push_back(types::make_unique(types::atom_type("std.str")));
 
-			auto element_two = std::make_pair("b", types::make_unique(std::move(element_two_product)));
+			auto element_two = types::make_unique(std::move(element_two_product));
 
 			auto before_product = types::product_type();
 			before_product.product.push_back(std::move(element_one));

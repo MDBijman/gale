@@ -1,7 +1,6 @@
 #pragma once
 #include "fe/language_definition.h"
 #include "fe/libraries/std/std_input.h"
-#include "fe/libraries/std/std_types.h"
 #include "fe/libraries/std/std_ui.h"
 #include "fe/libraries/core/core_operations.h"
 #include "utils/reading/reader.h"
@@ -12,7 +11,7 @@ namespace fe
 	class repl
 	{
 	public:
-		repl(fe::pipeline pipeline) : pipeline(pipeline) {}
+		explicit repl(fe::pipeline pipeline) : pipeline(std::move(pipeline)) {}
 
 		void run()
 		{
