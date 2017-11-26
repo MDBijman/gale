@@ -32,6 +32,7 @@ namespace fe
 		{
 			auto lexed = lex(std::move(code));
 			auto parsed = parse(std::move(lexed));
+			resolve(*parsed);
 			auto tchecked = typecheck(std::move(parsed), std::move(tenv));
 			auto lowered = lower(std::move(tchecked.first));
 			auto interped = interp(std::move(lowered), std::move(renv));

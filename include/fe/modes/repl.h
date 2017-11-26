@@ -96,6 +96,7 @@ namespace fe
 
 				auto lexed = pipeline.lex(std::move(code));
 				auto parsed = pipeline.parse(std::move(lexed));
+				pipeline.resolve(*parsed);
 				auto typechecked = pipeline.typecheck(std::move(parsed), fe::typecheck_environment(typecheck_environment));
 				auto lowered = pipeline.lower(std::move(typechecked.first));
 				auto interped = pipeline.interp(std::move(lowered), fe::runtime_environment(runtime_environment));

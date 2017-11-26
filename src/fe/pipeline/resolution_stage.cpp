@@ -1,5 +1,6 @@
 #include "fe/data/extended_ast.h"
 #include "fe/data/scope_environment.h"
+#include <locale>
 
 namespace fe::extended_ast
 {
@@ -20,6 +21,7 @@ namespace fe::extended_ast
 	void function_call::resolve(scope_environment& s_env)
 	{
 		this->params->resolve(s_env);
+		// Define params
 	}
 
 	void match_branch::resolve(scope_environment& s_env)
@@ -71,19 +73,12 @@ namespace fe::extended_ast
 		for (auto& child : this->names) child.resolve(s_env);
 	}
 
-	void identifier_tuple::resolve(scope_environment& s_env)
-	{
-		for (auto& child : this->content)
-		{
-			if (std::holds_alternative<identifier>(child)) s_env.define(std::get<identifier>(child));
-			else std::get<identifier_tuple>(child).resolve(s_env);
-		}
-	}
+	void identifier_tuple::resolve(scope_environment& s_env) {}
 
 	void assignment::resolve(scope_environment& s_env)
 	{
-		if (std::holds_alternative<identifier>(this->lhs)) s_env.define(std::get<identifier>(this->lhs));
-		else std::get<identifier_tuple>(this->lhs).resolve(s_env);
+		std::visit([&](auto& c) { s_env.declare(c); }, this->lhs);
+		std::visit([&](auto& c) { s_env.define(c); }, this->lhs);
 
 		this->value->resolve(s_env);
 	}

@@ -38,6 +38,7 @@ namespace fe
 				re.add_module(std::move(sub_re));
 			}
 
+			p.resolve(*root);
 			auto[new_root, new_te] = p.typecheck(std::move(root), std::move(te));
 			auto core_root = p.lower(std::move(new_root));
 			auto[new_core_root, new_re] = p.interp(std::move(core_root), std::move(re));

@@ -65,6 +65,8 @@ namespace fe
 	class scope_environment
 	{
 	public:
+		scope_environment() { push(); }
+
 		void push()
 		{
 			scopes.push_back(detail::scope{});
@@ -88,9 +90,21 @@ namespace fe
 			throw resolution_error{ "Cannot resolve identifier" };
 		}
 
+		void declare(const extended_ast::identifier_tuple& id)
+		{
+			for(auto& child : id.content)
+				std::visit([this](auto& c) { this->declare(c); }, child);
+		}
+
 		void declare(const extended_ast::identifier& id)
 		{
 			scopes.rbegin()->declare(id);
+		}
+
+		void define(const extended_ast::identifier_tuple& id)
+		{
+			for(auto& child : id.content)
+				std::visit([this](auto& c) { this->define(c); }, child);
 		}
 
 		void define(const extended_ast::identifier& id)
