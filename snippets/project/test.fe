@@ -9,3 +9,5 @@ var fact = fn std.i32 a -> std.i32 = a match {
 std.io.print std.to_string fact 10;
 std.io.print std.to_string fact 4;
 
+type X = (std.i32 x, std.i32 y);
+var r = X.x;
