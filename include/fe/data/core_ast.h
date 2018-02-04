@@ -163,7 +163,7 @@ namespace fe
 
 		struct function : public node
 		{
-			function(std::optional<identifier>&& name, std::variant<std::vector<identifier>, identifier>&& parameters, unique_node&& body, types::unique_type t);
+			function(identifier&& name, std::variant<std::vector<identifier>, identifier>&& parameters, unique_node&& body, types::unique_type t);
 
 			// Copy
 			function(const function& other);
@@ -179,8 +179,7 @@ namespace fe
 			}
 			values::unique_value interp(runtime_environment&) override;
 
-			// Name is set when the function is not anonymous, for recursion
-			std::optional<identifier> name;
+			identifier name;
 			// Either a named tuple or a single argument
 			std::variant<std::vector<identifier>, identifier> parameters;
 			unique_node body;

@@ -3,7 +3,7 @@
 #include "fe/data/values.h"
 #include "fe/data/types.h"
 #include "fe/data/runtime_environment.h"
-#include "fe/data/typecheck_environment.h"
+#include "fe/data/type_environment.h"
 
 namespace fe
 {
@@ -11,15 +11,18 @@ namespace fe
 	{
 		namespace input
 		{
-			static std::tuple<typecheck_environment, runtime_environment> load()
+			static std::tuple<type_environment, runtime_environment, scope_environment> load()
 			{
-				typecheck_environment te{};
+				type_environment te{};
 				runtime_environment re{};
+				scope_environment se{};
 
 				{
 					using namespace fe::types;
 					using namespace fe::values;
-					te.set_type("get", unique_type(new function_type(
+					se.declare(extended_ast::identifier({ "get" }), extended_ast::identifier({ "_function" }));
+					se.define(extended_ast::identifier({ "get" }));
+					te.set_type(extended_ast::identifier({ "get" }), unique_type(new function_type(
 						unique_type(new product_type()), unique_type(new atom_type("std.i32"))
 					)));
 					re.set_value("get", unique_value(new native_function(
@@ -29,7 +32,7 @@ namespace fe
 					)));
 				}
 
-				return { te, re };
+				return { te, re, se };
 			}
 		}
 	}

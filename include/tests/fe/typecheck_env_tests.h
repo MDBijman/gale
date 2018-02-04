@@ -1,17 +1,18 @@
 #pragma once
-#include "fe/data/typecheck_environment.h"
+#include "fe/data/type_environment.h"
 #include "fe/data/types.h"
 
 #include <catch2/catch.hpp>
 #include <variant>
 
+/*
 SCENARIO("type environments can manage types", "[type_environment]")
 {
 	using namespace fe::types;
 
 	GIVEN("an empty type environment")
 	{
-		fe::typecheck_environment t_env;
+		fe::type_environment t_env;
 
 		WHEN("a type is added to the environment")
 		{
@@ -31,7 +32,7 @@ SCENARIO("type environments can manage types", "[type_environment]")
 		WHEN("a type is added to the environment within a namespace")
 		{
 			auto before_type = atom_type("std.i32");
-			t_env.add_module(fe::typecheck_environment{ "std" });
+			t_env.add_module(fe::type_environment{ "std" });
 			t_env.set_type(fe::extended_ast::identifier{ {"std", "i32"} }, unique_type(before_type.copy()));
 
 			THEN("retrieving a type within a namespace should return the correct type")
@@ -67,33 +68,6 @@ SCENARIO("type environments can manage types", "[type_environment]")
 				REQUIRE(*before_type.product.at(0).get() == pt);
 			}
 		}
-
-		WHEN("a nested product type is added to the environment")
-		{
-			using namespace fe;
-			t_env = typecheck_environment();
-
-			auto element_one = types::make_unique(types::atom_type("std.i32"));
-			auto element_two_product = types::product_type();
-			element_two_product.product.push_back(types::make_unique(types::atom_type("std.str")));
-
-			auto element_two = types::make_unique(std::move(element_two_product));
-
-			auto before_product = types::product_type();
-			before_product.product.push_back(std::move(element_one));
-			before_product.product.push_back(std::move(element_two));
-			auto before_type = types::make_unique(std::move(before_product));
-
-			t_env.set_type(extended_ast::identifier{ {"x"} }, types::unique_type(before_type->copy()));
-
-			THEN("building the access pattern should calculate the correct offsets")
-			{
-				auto id = fe::extended_ast::identifier{ {"x", "b", "c"} };
-				t_env.build_access_pattern(id);
-				REQUIRE(id.offsets.size() == 2);
-				REQUIRE(id.offsets.at(0) == 1);
-				REQUIRE(id.offsets.at(1) == 0);
-			}
-		}
 	}
 }
+*/

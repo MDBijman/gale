@@ -49,13 +49,13 @@ int main(int argc, char** argv)
 			}
 
 			fe::project proj(argv[2], argv[3], std::move(pipeline));
-			auto[te, re] = proj.interp();
+			auto[te, re, se] = proj.interp();
 			std::cout << te.to_string() << "\n";
 			std::cout << re.to_string() << std::endl;
 		}
 		else if (mode == "help")
 		{
-			std::cout 
+			std::cout
 				<< "The {language} toolset v0.0.1\n"
 				<< "Commands:\n"
 				<< "{language} project {project folder} {main module}\n"

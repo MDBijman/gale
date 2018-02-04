@@ -74,5 +74,8 @@ namespace utils::bnf
 
 		terminal t_generator = 1;
 		non_terminal nt_generator = 1;
+
+		// TODO check if it still breaks when removing this pragma
+#pragma optimize("", off)
 	};
 }

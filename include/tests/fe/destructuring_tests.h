@@ -16,7 +16,7 @@ SCENARIO("destructuring of product values", "[language_feature destructuring]")
 R"code(
 var (a, b, c, _) = (1, 2, 3, 4);
 )code";
-			auto res = p.process(std::move(code), fe::typecheck_environment{}, fe::runtime_environment{});
+			auto res = p.process(std::move(code), fe::type_environment{}, fe::runtime_environment{}, fe::scope_environment{});
 
 			THEN("the variable values should be correct")
 			{

@@ -3,7 +3,6 @@
 #include "fe/pipeline/lexer_to_parser_stage.h"
 #include "fe/pipeline/parser_stage.h"
 #include "fe/pipeline/cst_to_ast_stage.h"
-#include "fe/pipeline/typechecker_stage.h"
 #include "fe/pipeline/lowering_stage.h"
 #include "fe/pipeline/interpreting_stage.h"
 #include "fe/data/scope_environment.h"
@@ -23,20 +22,19 @@ namespace fe
 			parser(parsing_stage{}),
 			lex_to_parse_converter(lexer_to_parser_stage{}),
 			cst_to_ast_converter(cst_to_ast_stage{}),
-			typechecker(typechecker_stage{}),
 			lowerer(lowering_stage{}),
 			interpreter(interpreting_stage{})
 		{}
 
-		std::tuple<values::unique_value, typecheck_environment, runtime_environment> process(std::string&& code, typecheck_environment tenv, runtime_environment renv) 
+		std::tuple<values::unique_value, type_environment, runtime_environment, scope_environment> process(std::string&& code, type_environment tenv, runtime_environment renv, scope_environment senv) 
 		{
 			auto lexed = lex(std::move(code));
 			auto parsed = parse(std::move(lexed));
-			resolve(*parsed);
+			auto scope_env = resolve(*parsed, senv);
 			auto tchecked = typecheck(std::move(parsed), std::move(tenv));
 			auto lowered = lower(std::move(tchecked.first));
 			auto interped = interp(std::move(lowered), std::move(renv));
-			return { std::move(interped.first), std::move(tchecked.second), std::move(interped.second) };
+			return { std::move(interped.first), std::move(tchecked.second), std::move(interped.second), std::move(scope_env) };
 		}
 
 		std::vector<utils::bnf::terminal_node> lex(std::string&& code) const
@@ -66,19 +64,16 @@ namespace fe
 			return std::move(std::get<extended_ast::unique_node>(cst_to_ast_output));
 		}
 
-		static void resolve(extended_ast::node& ast)
+		scope_environment resolve(extended_ast::node& ast, scope_environment env)
 		{
-			auto s_env = scope_environment{};
-			ast.resolve(s_env);
+			ast.resolve(std::move(env));
+			return env;
 		}
 
-		std::pair<extended_ast::unique_node, typecheck_environment> typecheck(extended_ast::unique_node extended_ast, typecheck_environment&& tenv) const
+		std::pair<extended_ast::unique_node, type_environment> typecheck(extended_ast::unique_node extended_ast, type_environment tenv) const
 		{
-			auto typecheck_output = std::move(typechecker.typecheck(std::move(extended_ast), std::move(tenv)));
-
-			if (std::holds_alternative<typecheck_error>(typecheck_output))
-				throw std::get<typecheck_error>(typecheck_output);
-			return std::move(std::get<std::pair<extended_ast::unique_node, typecheck_environment>>(typecheck_output));
+			extended_ast->typecheck(tenv);
+			return std::make_pair(std::move(extended_ast), std::move(tenv));
 		}
 
 		core_ast::unique_node lower(extended_ast::unique_node tree) const
@@ -107,7 +102,6 @@ namespace fe
 		parsing_stage parser;
 		lexer_to_parser_stage lex_to_parse_converter;
 		cst_to_ast_stage cst_to_ast_converter;
-		typechecker_stage typechecker;
 		lowering_stage lowerer;
 		interpreting_stage interpreter;
 	};
