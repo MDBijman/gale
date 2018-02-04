@@ -124,8 +124,8 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <None Include="snippets\project\modeling_module.fe" />
-    <None Include="snippets\project\sub_module.fe" />
-    <None Include="snippets\project\test.fe" />
+    <None Include="snippets\tests\name_resolution.fe" />
+    <None Include="snippets\tests\performance_empty.fe" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\fe\data\core_ast.cpp" />
@@ -133,6 +133,7 @@
     <ClCompile Include="src\fe\data\types.cpp" />
     <ClCompile Include="src\fe\data\values.cpp" />
     <ClCompile Include="src\fe\pipeline\resolution_stage.cpp" />
+    <ClCompile Include="src\fe\pipeline\typechecker_stage.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\tools\lr_parser.cpp" />
     <ClCompile Include="src\tools\ll_parser.cpp" />
@@ -142,7 +143,7 @@
     <ClInclude Include="include\fe\data\extended_ast.h" />
     <ClInclude Include="include\fe\data\runtime_environment.h" />
     <ClInclude Include="include\fe\data\scope_environment.h" />
-    <ClInclude Include="include\fe\data\typecheck_environment.h" />
+    <ClInclude Include="include\fe\data\type_environment.h" />
     <ClInclude Include="include\fe\data\types.h" />
     <ClInclude Include="include\fe\data\values.h" />
     <ClInclude Include="include\fe\language_definition.h" />
@@ -163,7 +164,6 @@
     <ClInclude Include="include\fe\pipeline\lowering_stage.h" />
     <ClInclude Include="include\fe\pipeline\parser_stage.h" />
     <ClInclude Include="include\fe\pipeline\pipeline.h" />
-    <ClInclude Include="include\fe\pipeline\typechecker_stage.h" />
     <ClInclude Include="include\tests\fe\destructuring_tests.h" />
     <ClInclude Include="include\tests\fe\typecheck_env_tests.h" />
     <ClInclude Include="include\tests\tests.h" />

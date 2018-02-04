@@ -1,6 +1,6 @@
 #pragma once
 #include "fe/data/runtime_environment.h"
-#include "fe/data/typecheck_environment.h"
+#include "fe/data/type_environment.h"
 #include "fe/modes/project.h"
 #include "fe/data/values.h"
 #include "fe/data/types.h"
@@ -28,12 +28,13 @@ namespace fe
 				return 0;
 			};
 
-			static std::tuple<typecheck_environment, runtime_environment> load()
+			static std::tuple<type_environment, runtime_environment, scope_environment> load()
 			{
-				typecheck_environment std_te{};
-				std_te.name = "std";
-				typecheck_environment te{};
-				te.name = "ui";
+				scope_environment std_se{};
+				scope_environment se{};
+
+				type_environment std_te{};
+				type_environment te{};
 
 				runtime_environment std_re{};
 				std_re.name = "std";
@@ -50,7 +51,10 @@ namespace fe
 						atom_type{"HWindow"}
 					};
 
-					te.set_type("create_window", fe::types::make_unique(create_window_type));
+					se.declare(extended_ast::identifier({ "create_window" }), extended_ast::identifier({ "_function" }));
+					se.define(extended_ast::identifier({ "create_window" }));
+					te.set_type(extended_ast::identifier({ "create_window" }),
+						fe::types::make_unique(create_window_type));
 					re.set_value("create_window", native_function([](unique_value t) -> unique_value {
 						auto name = dynamic_cast<string*>(t.get())->val;
 
@@ -112,10 +116,12 @@ namespace fe
 
 				// Poll
 				{
-					te.set_type("poll", function_type{
+					se.declare(extended_ast::identifier({ "poll" }), extended_ast::identifier({ "_function" }));
+					se.define(extended_ast::identifier({ "poll" }));
+					te.set_type(extended_ast::identifier({ "poll" }), fe::types::unique_type(new function_type{
 						atom_type("HWindow"),
 						unset_type()
-					});
+					}));
 					re.set_value("poll", native_function([](unique_value from) -> unique_value {
 						HWND window = dynamic_cast<custom_value<HWND>*>(from.get())->val;
 						
@@ -130,16 +136,16 @@ namespace fe
 				}
 
 
-
-				std_te.add_module(std::move(te));
+				std_se.add_module("ui", std::move(se));
+				std_te.add_module("ui", std::move(te));
 				std_re.add_module(std::move(re));
-				return { std::move(std_te), std::move(std_re) };
+				return { std_te, std_re, std_se };
 			}
 
 			static native_module* load_as_module()
 			{
-				auto[te, re] = load();
-				return new native_module("std.ui", std::move(re), std::move(te));
+				auto[te, re, se] = load();
+				return new native_module("std.ui", std::move(re), std::move(te), std::move(se));
 			}
 		}
 	}

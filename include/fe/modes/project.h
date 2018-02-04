@@ -99,7 +99,7 @@ namespace fe
 			graph = parse_project(folder, main_file);
 		}
 
-		std::pair<typecheck_environment, runtime_environment> interp()
+		std::tuple<type_environment, runtime_environment, scope_environment> interp()
 		{
 			return graph.root->interp(pl);
 		}
@@ -137,7 +137,7 @@ namespace fe
 
 		module_graph graph;
 		fe::pipeline pl;
-		fe::typecheck_environment base_t_env;
+		fe::type_environment base_t_env;
 		fe::runtime_environment base_r_env;
 	};
 }

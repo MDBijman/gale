@@ -161,7 +161,7 @@ namespace fe
 
 		// Function
 
-		function::function(std::optional<identifier>&& name, std::variant<std::vector<identifier>, identifier>&& parameters, unique_node&& body, types::unique_type t) : name(std::move(name)), parameters(std::move(parameters)), type(std::move(t)), body(std::move(body)) {}
+		function::function(identifier&& name, std::variant<std::vector<identifier>, identifier>&& parameters, unique_node&& body, types::unique_type t) : name(std::move(name)), parameters(std::move(parameters)), type(std::move(t)), body(std::move(body)) {}
 
 		function::function(const function& other) : name(other.name), parameters(other.parameters), body(other.body->copy()), type(other.type->copy()) {}
 		function& function::operator=(const function& other)
@@ -184,7 +184,9 @@ namespace fe
 
 		values::unique_value function::interp(runtime_environment& env)
 		{
-			return values::unique_value(new values::function(unique_node(this->copy())));
+			auto unique = values::unique_value(new values::function(unique_node(this->copy())));
+			env.set_value(this->name.variable_name, values::unique_value(unique->copy()));
+			return values::unique_value(std::move(unique));
 		}
 
 		// Tuple

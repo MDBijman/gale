@@ -5,7 +5,6 @@
 #include <queue>
 #include <stack>
 #include <assert.h>
-
 namespace utils::lr
 {
 	void parser::generate(bnf::non_terminal start_symbol, std::multimap<bnf::non_terminal, std::vector<bnf::symbol>>& r)
@@ -419,3 +418,4 @@ namespace utils::lr
 		}
 	}
 }
+

@@ -120,21 +120,22 @@ namespace fe
 					export_stmt, alt,
 					assignment, alt,
 					while_loop, alt,
-					operation
+					operation, alt,
+					function
 				} })
 
 				.new_rule({ type_definition, { type_keyword, identifier, equals, variable_declaration } })
 				.new_rule({ export_stmt, { export_keyword, identifier, star } })
-				.new_rule({ assignment, { var_keyword, assignable, equals, operation } })
+				.new_rule({ assignment, { var_keyword, assignable, colon, identifier, equals, operation } })
 				.new_rule({ assignable, { identifier, alt, identifier_tuple } })
 				.new_rule({ identifier_tuple, { left_bracket, assignable, comma, assignable, lrb, comma, assignable, rrb, star, right_bracket } })
 				.new_rule({ while_loop, { while_keyword, operation, do_keyword, operation } })
+				.new_rule({ function, { function_keyword, identifier, variable_declaration, right_arrow, type_operation, equals, match } })
 
 				// Expressions/Operations
 				// From least to most precedence
 
-				.new_rule({ operation, { function, alt, match } })
-				.new_rule({ function, { function_keyword, variable_declaration, right_arrow, type_operation, equals, match } })
+				.new_rule({ operation, { match } })
 
 				.new_rule({ match, { equality, match_keyword, left_curly_bracket, match_branch, star, right_curly_bracket, alt, equality } })
 				.new_rule({ match_branch, { vertical_line, operation, right_arrow, operation } })

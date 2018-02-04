@@ -3,7 +3,7 @@
 #include "fe/data/extended_ast.h"
 #include "fe/data/core_ast.h"
 #include "fe/pipeline/error.h"
-#include "fe/data/typecheck_environment.h"
+#include "fe/data/type_environment.h"
 #include "fe/data/runtime_environment.h"
 
 #include <memory>
