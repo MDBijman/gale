@@ -135,6 +135,7 @@
     <ClCompile Include="src\fe\pipeline\resolution_stage.cpp" />
     <ClCompile Include="src\fe\pipeline\typechecker_stage.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\tools\bnf_grammar.cpp" />
     <ClCompile Include="src\tools\lr_parser.cpp" />
     <ClCompile Include="src\tools\ll_parser.cpp" />
   </ItemGroup>

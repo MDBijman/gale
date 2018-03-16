@@ -23,6 +23,7 @@ SCENARIO("the entire language pipeline should be fast enough", "[performance pip
 			{
 				auto time = std::chrono::duration<double, std::milli>(then - now).count();
 				REQUIRE(time < 300);
+				std::cout << time << "\n";
 
 				AND_WHEN("a subsequent empty parse is performed")
 				{
@@ -33,6 +34,7 @@ SCENARIO("the entire language pipeline should be fast enough", "[performance pip
 					THEN("the parse should take less than a tenth of a ms")
 					{
 						time = std::chrono::duration<double, std::milli>(then - now).count();
+						std::cout << time << "\n";
 						REQUIRE(time < 0.1);
 					}
 				}
