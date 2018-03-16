@@ -12,7 +12,7 @@ namespace utils::ll
 		auto root = std::make_unique<bnf::node>(bnf::non_terminal_node(start_symbol));
 		stack.push(root.get());
 
-		auto distance = 0;
+		std::size_t distance = 0;
 		auto it = input.begin();
 		while (!stack.empty())
 		{

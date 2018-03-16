@@ -74,9 +74,9 @@ namespace std
 	{
 		size_t operator()(const utils::lr::item& i) const
 		{
-			return (hash<utils::lr::ruleset::const_pointer>()(i.rule))
-				^ (hash<utils::bnf::terminal>()(i.bullet_offset) << 1)
-				^ (hash<size_t>()(i.lookahead) << 2);
+			return hash<utils::lr::ruleset::const_pointer>()(i.rule)
+				^ (hash<std::size_t>()(i.bullet_offset) << 1)
+				^ (hash<utils::bnf::terminal>()(i.lookahead) << 2);
 		}
 	};
 }
@@ -152,7 +152,7 @@ namespace utils::lr
 
 				// If there are more symbols to parse after the next one
 				bool successive_epsilons = true;
-				for (int j = item.bullet_offset + 1; j < item.rule->second.size() && successive_epsilons; j++)
+				for (std::size_t j = item.bullet_offset + 1; j < item.rule->second.size() && successive_epsilons; j++)
 				{
 					successive_epsilons = false;
 
