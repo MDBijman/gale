@@ -17,7 +17,7 @@ SCENARIO("destructuring of product values", "[language_feature destructuring]")
 			auto code = 
 R"code(
 type Quad = (std.i32 a, std.i32 b, std.i32 c, std.i32 d);
-var (a, b, c, _): Quad = (1, 2, 3, 4);
+var (a, b, c, _) : Quad = Quad (1, 2, 3, 4);
 )code";
 			auto res = p.process(std::move(code), fe::type_environment{}, fe::runtime_environment{}, fe::scope_environment{});
 

@@ -139,8 +139,6 @@ namespace fe::extended_ast
 				{
 					auto& lhs_id = std::get<extended_ast::identifier>(lhs);
 					s_env.declare(lhs_id, extended_ast::identifier({ "_defer" }));
-					this->value->resolve(s_env);
-					s_env.define(lhs_id);
 				}
 				else if (std::holds_alternative<extended_ast::identifier_tuple>(lhs))
 				{
@@ -152,8 +150,26 @@ namespace fe::extended_ast
 					}
 				}
 			};
-
 			resolve(this->lhs);
+
+			this->value->resolve(s_env);
+
+			std::function<void(decltype(this->lhs))> define
+				= [this, &s_env, &define](const std::variant<identifier, identifier_tuple>& lhs)
+			{
+				if (std::holds_alternative<extended_ast::identifier>(lhs))
+				{
+					s_env.define(std::get<extended_ast::identifier>(lhs));
+				}
+				else if (std::holds_alternative<extended_ast::identifier_tuple>(lhs))
+				{
+					auto& lhs_ids = std::get<extended_ast::identifier_tuple>(lhs);
+
+					for (auto& id : lhs_ids.content)
+						define(id);
+				}
+			};
+			define(this->lhs);
 		}
 	}
 

@@ -195,7 +195,7 @@ namespace fe::extended_ast
 				{
 					auto resolved_type =
 						s_env.resolve_type(*dynamic_cast<identifier*>(type_expression_name->type.get()));
-					if (!resolved_type.has_value()) throw resolution_error{ "Paremeter type unknown" };
+					if (!resolved_type.has_value()) throw resolution_error{ "Parameter type unknown" };
 
 					s_env.set_type(atom_dec->name, types::unique_type(resolved_type.value().get().copy()));
 				}
