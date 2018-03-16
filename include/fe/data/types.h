@@ -160,7 +160,7 @@ namespace fe
 		struct product_type : public type, private comparable<product_type, type>, private copyable<product_type, type>
 		{
 			product_type();
-			product_type(std::vector<std::pair<std::string, unique_type>> product);
+			product_type(std::vector<unique_type> product);
 
 			// Move
 			product_type(product_type&& other);
@@ -174,7 +174,7 @@ namespace fe
 			bool operator==(type* other) const override { return comparable::operator==(other); }
 			type* copy() const override { return copyable::copy(*this); }
 
-			std::vector<std::pair<std::string, unique_type>> product;
+			std::vector<unique_type> product;
 		};
 
 		struct function_type : public type, private comparable<function_type, type>, private copyable<function_type, type>

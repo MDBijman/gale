@@ -60,16 +60,19 @@
     <Filter Include="Resource Files\snippets\project">
       <UniqueIdentifier>{da177d42-7c82-4372-9f4a-0ef4b0669307}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Resource Files\snippets\tests">
+      <UniqueIdentifier>{b6678e23-e356-44a0-aa4a-2e46664a4d4f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="snippets\project\sub_module.fe">
-      <Filter>Resource Files\snippets\project</Filter>
-    </None>
-    <None Include="snippets\project\test.fe">
-      <Filter>Resource Files\snippets\project</Filter>
-    </None>
     <None Include="snippets\project\modeling_module.fe">
       <Filter>Resource Files\snippets\project</Filter>
+    </None>
+    <None Include="snippets\tests\name_resolution.fe">
+      <Filter>Resource Files\snippets\tests</Filter>
+    </None>
+    <None Include="snippets\tests\performance_empty.fe">
+      <Filter>Resource Files\snippets\tests</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -94,6 +97,36 @@
     <ClCompile Include="src\tools\lr_parser.cpp">
       <Filter>Source Files\utils\parsing</Filter>
     </ClCompile>
+    <ClCompile Include="src\fe\pipeline\resolution_stage.cpp">
+      <Filter>Source Files\fe\pipeline</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fe\pipeline\typechecker_stage.cpp">
+      <Filter>Source Files\fe\pipeline</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tools\bnf_grammar.cpp">
+      <Filter>Source Files\utils\parsing</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tests\fe\destructuring_tests.cpp">
+      <Filter>Source Files\tests\fe</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tests\fe\name_resolution_tests.cpp">
+      <Filter>Source Files\tests\fe</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tests\tools\grammar_tests.cpp">
+      <Filter>Source Files\tests\tools</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tests\tools\lr_tests.cpp">
+      <Filter>Source Files\tests\tools</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tests\tools\performance_tests.cpp">
+      <Filter>Source Files\tests\tools</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fe\language_definition.cpp">
+      <Filter>Source Files\fe</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tools\reader.cpp">
+      <Filter>Source Files\utils\reading</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\fe\data\core_ast.h">
@@ -103,9 +136,6 @@
       <Filter>Source Files\fe\data</Filter>
     </ClInclude>
     <ClInclude Include="include\fe\data\runtime_environment.h">
-      <Filter>Source Files\fe\data</Filter>
-    </ClInclude>
-    <ClInclude Include="include\fe\data\typecheck_environment.h">
       <Filter>Source Files\fe\data</Filter>
     </ClInclude>
     <ClInclude Include="include\fe\data\types.h">
@@ -147,20 +177,8 @@
     <ClInclude Include="include\fe\pipeline\pipeline.h">
       <Filter>Source Files\fe\pipeline</Filter>
     </ClInclude>
-    <ClInclude Include="include\fe\pipeline\typechecker_stage.h">
-      <Filter>Source Files\fe\pipeline</Filter>
-    </ClInclude>
     <ClInclude Include="include\fe\language_definition.h">
       <Filter>Source Files\fe</Filter>
-    </ClInclude>
-    <ClInclude Include="include\tests\fe\typecheck_env_tests.h">
-      <Filter>Source Files\tests\fe</Filter>
-    </ClInclude>
-    <ClInclude Include="include\tests\tools\grammar_tests.h">
-      <Filter>Source Files\tests\tools</Filter>
-    </ClInclude>
-    <ClInclude Include="include\tests\tools\performance_tests.h">
-      <Filter>Source Files\tests\tools</Filter>
     </ClInclude>
     <ClInclude Include="include\fe\libraries\std\std_ui.h">
       <Filter>Source Files\fe\libraries\std</Filter>
@@ -207,14 +225,11 @@
     <ClInclude Include="include\utils\parsing\lr_parser.h">
       <Filter>Source Files\utils\parsing</Filter>
     </ClInclude>
-    <ClInclude Include="include\tests\tools\lr_tests.h">
-      <Filter>Source Files\tests\tools</Filter>
+    <ClInclude Include="include\fe\data\scope_environment.h">
+      <Filter>Source Files\fe\data</Filter>
     </ClInclude>
-    <ClInclude Include="include\tests\tests.h">
-      <Filter>Source Files\tests</Filter>
-    </ClInclude>
-    <ClInclude Include="include\tests\fe\destructuring_tests.h">
-      <Filter>Source Files\tests\fe</Filter>
+    <ClInclude Include="include\fe\data\type_environment.h">
+      <Filter>Source Files\fe\data</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

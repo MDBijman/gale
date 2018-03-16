@@ -5,19 +5,19 @@
 
 namespace fe
 {
-	class lexing_stage : public language::lexing_stage<utils::lexing::token, utils::lexing::error>
+	class lexing_stage 
 	{
 	public:
 		lexing_stage() : lexer(ruleset())
 		{
 		}
 
-		std::variant<std::vector<utils::lexing::token>, utils::lexing::error> lex(const std::string& in) override
+		std::variant<std::vector<utils::lexing::token>, utils::lexing::error> lex(const std::string& in) const
 		{
 			return lexer.parse(in);
 		}
 
-		utils::lexing::rules ruleset()
+		static utils::lexing::rules ruleset()
 		{
 			utils::lexing::rules lexing_rules;
 

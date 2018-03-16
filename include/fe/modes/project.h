@@ -94,19 +94,19 @@ namespace fe
 	class project
 	{
 	public:
-		project(std::string folder, std::string main_file, fe::pipeline pipeline) : pl(pipeline)
+		project(const std::string folder, const std::string main_file, fe::pipeline pipeline) : pl(std::move(pipeline))
 		{
 			graph = parse_project(folder, main_file);
 		}
 
-		std::pair<typecheck_environment, runtime_environment> interp()
+		std::tuple<type_environment, runtime_environment, scope_environment> interp()
 		{
 			return graph.root->interp(pl);
 		}
 
 
 	private:
-		module_graph parse_project(std::string folder, std::string main) const
+		module_graph parse_project(const std::string folder, const std::string main) 
 		{
 			std::vector<std::string> code_files;
 			for (auto& item : std::experimental::filesystem::recursive_directory_iterator(folder))
@@ -137,7 +137,7 @@ namespace fe
 
 		module_graph graph;
 		fe::pipeline pl;
-		fe::typecheck_environment base_t_env;
+		fe::type_environment base_t_env;
 		fe::runtime_environment base_r_env;
 	};
 }

@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <regex>
 #include <unordered_map>
+#include <assert.h>
 
 namespace utils
 {
@@ -88,7 +89,7 @@ namespace utils
 
 		struct error
 		{
-			error(error_code t, std::string m) : type(t), message(m) {}
+			error(const error_code& t, const std::string& m) : type(t), message(m) {}
 
 			error_code type;
 			std::string message;
@@ -97,13 +98,13 @@ namespace utils
 		class lexer
 		{
 		public:
-			lexer(const rules& rules) : rules(rules) {}
+			explicit lexer(const rules& rules) : rules(rules) {}
 
 			// Takes a string (e.g. file contents) and returns a token vector or an error code
 			std::variant<
 				std::vector<token>,
 				error
-			> parse(const std::string& input_string)
+			> parse(const std::string& input_string) const
 			{
 				std::vector<token> result;
 				lexer_range range{ input_string.begin(), input_string.end() };
@@ -123,16 +124,16 @@ namespace utils
 						}
 
 						character_count++;
-						range.first++;
+						++range.first;
 						if (range.first == range.second) return result;
 					}
 
-					auto range_copy{ range };
-					auto id = rules.match(range);
+					const lexer_range range_copy{ range };
+					const token_id id = rules.match(range);
 
 					if (id == -1)
 					{
-						auto error_message =
+						const auto error_message =
 							std::string("Unrecognized symbol \'")
 							.append(std::string(1, *range.first))
 							.append("\' at line ")
@@ -142,11 +143,13 @@ namespace utils
 						return error{ error_code::UNRECOGNIZED_SYMBOL, error_message };
 					}
 
-					auto token_size = std::distance(range_copy.first, range.first);
+					const auto token_size = std::distance(range_copy.first, range.first);
+					assert(token_size > 0);
 
-					character_count += token_size;
+					// token_size is 64 bits signed but always positive so we can cast to uint32_t
+					character_count += static_cast<uint32_t>(token_size);
 
-					std::string_view tokenized(&*range_copy.first, token_size);
+					const std::string_view tokenized(&*range_copy.first, token_size);
 					result.push_back(token{ id, std::string(tokenized) });
 				}
 

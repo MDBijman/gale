@@ -1,6 +1,6 @@
-#pragma once
 #include "fe/pipeline/parser_stage.h"
 #include "fe/language_definition.h"
+#include "fe/pipeline/pipeline.h"
 #include "utils/parsing/bnf_grammar.h"
 #include "utils/reading/reader.h"
 
@@ -13,23 +13,6 @@ SCENARIO("the entire language pipeline should be fast enough", "[performance pip
 	{
 		fe::pipeline p;
 
-		auto lexing_stage = new fe::lexing_stage{};
-		auto parsing_stage = new fe::parsing_stage{};
-		auto lexer_to_parser_stage = new fe::lexer_to_parser_stage{};
-		auto parser_to_lowerer_stage = new fe::cst_to_ast_stage{};
-		auto typechecker_stage = new fe::typechecker_stage{};
-		auto lowering_stage = new fe::lowering_stage{};
-		auto interpreting_stage = new fe::interpreting_stage{};
-
-		p
-			.lexer(lexing_stage)
-			.lexer_to_parser(lexer_to_parser_stage)
-			.parser(parsing_stage)
-			.cst_to_ast(parser_to_lowerer_stage)
-			.typechecker(typechecker_stage)
-			.lowerer(lowering_stage)
-			.interpreter(interpreting_stage);
-
 		WHEN("the first parse is performed")
 		{
 			auto now = std::chrono::steady_clock::now();
@@ -40,6 +23,7 @@ SCENARIO("the entire language pipeline should be fast enough", "[performance pip
 			{
 				auto time = std::chrono::duration<double, std::milli>(then - now).count();
 				REQUIRE(time < 300);
+				std::cout << time << "\n";
 
 				AND_WHEN("a subsequent empty parse is performed")
 				{
@@ -50,6 +34,7 @@ SCENARIO("the entire language pipeline should be fast enough", "[performance pip
 					THEN("the parse should take less than a tenth of a ms")
 					{
 						time = std::chrono::duration<double, std::milli>(then - now).count();
+						std::cout << time << "\n";
 						REQUIRE(time < 0.1);
 					}
 				}

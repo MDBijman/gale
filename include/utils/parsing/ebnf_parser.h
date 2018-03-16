@@ -293,7 +293,7 @@ namespace utils
 					auto multiplier_offset = std::distance(rhs.begin(), it) + 1;
 					auto multiplied_offset = std::distance(rhs.begin(), it);
 					auto modified_rhs{ rhs };
-					modified_rhs.at(multiplied_offset) = additional_rule.lhs;
+					modified_rhs.at(multiplied_offset) = additional_rule.first;
 					modified_rhs.erase(modified_rhs.begin() + multiplier_offset);
 					rule modified_rule{ lhs, modified_rhs };
 
@@ -353,7 +353,7 @@ namespace utils
 		public:
 			parser() {}
 
-			std::variant<std::unique_ptr<node>, error> parse(non_terminal init, std::vector<bnf::terminal_node> input)
+			std::variant<std::unique_ptr<node>, error> parse(non_terminal init, std::vector<bnf::terminal_node> input) 
 			{
 				try {
 					auto ast_or_error = bnf_parser.parse(init, input);
@@ -388,14 +388,14 @@ namespace utils
 					error_message.append("Item set: ").append(std::to_string(e.item_set)).append("\n");
 					error_message.append("Expected: ").append(e.expected).append("\n");
 
-					if (auto it = nt_child_parents.find(e.rule.lhs); it != nt_child_parents.end())
+					if (auto it = nt_child_parents.find(e.rule.first); it != nt_child_parents.end())
 					{
-						auto rule = std::find_if(rules.begin(), rules.end(), [&](auto& rule) { return rule.lhs == it->first; });
+						auto rule = std::find_if(rules.begin(), rules.end(), [&](auto& rule) { return rule.lhs == it->second.first; });
 						error_message.append("Rule: ").append(std::to_string(rule->lhs));
 					}
 					else
 					{
-						error_message.append("Rule: ").append(std::to_string(e.rule.lhs));
+						error_message.append("Rule: ").append(std::to_string(e.rule.first));
 					}
 
 					return error{ error_code::BNF_ERROR, error_message };
@@ -409,7 +409,7 @@ namespace utils
 				auto bnf_rules = r.to_bnf([&](non_terminal p, child_type type) { return generate_child_non_terminal(p, type); });
 				for (auto& bnf_rule : bnf_rules)
 				{
-					bnf_parser.new_rule({ bnf_rule.lhs, bnf_rule.rhs });
+					bnf_parser.new_rule({ bnf_rule.first, bnf_rule.second });
 				}
 				return *this;
 			}

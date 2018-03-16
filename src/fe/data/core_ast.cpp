@@ -80,10 +80,15 @@ namespace fe
 
 		// Identifier
 
-		identifier::identifier(std::vector<std::string> modules, std::string name, std::vector<int> offsets, types::unique_type t) 
-			: modules(std::move(modules)), variable_name(std::move(name)), offsets(std::move(offsets)), type(std::move(t)) {};
+		identifier::identifier(std::vector<std::string> modules, std::string name, std::vector<int> offsets, 
+			types::unique_type t) : 
+			modules(std::move(modules)), variable_name(std::move(name)), 
+			offsets(std::move(offsets)), type(std::move(t)) {}
 
-		identifier::identifier(const identifier& other) : modules(other.modules), variable_name(other.variable_name), offsets(other.offsets), type(other.type->copy()) {}
+		identifier::identifier(const identifier& other) : 
+			modules(other.modules), variable_name(other.variable_name), 
+			offsets(other.offsets), type(other.type->copy()) {}
+
 		identifier& identifier::operator=(const identifier& other)
 		{
 			this->modules = other.modules;
@@ -92,7 +97,11 @@ namespace fe
 			this->type = types::unique_type(other.type->copy());
 			return *this;
 		}
-		identifier::identifier(identifier&& other) : modules(std::move(other.modules)), variable_name(std::move(other.variable_name)), offsets(std::move(other.offsets)), type(std::move(other.type)) {}
+
+		identifier::identifier(identifier&& other) : 
+			modules(std::move(other.modules)), variable_name(std::move(other.variable_name)), 
+			offsets(std::move(other.offsets)), type(std::move(other.type)) {}
+
 		identifier& identifier::operator=(identifier&& other)
 		{
 			this->modules = std::move(other.modules);
@@ -161,7 +170,7 @@ namespace fe
 
 		// Function
 
-		function::function(std::optional<identifier>&& name, std::variant<std::vector<identifier>, identifier>&& parameters, unique_node&& body, types::unique_type t) : name(std::move(name)), parameters(std::move(parameters)), type(std::move(t)), body(std::move(body)) {}
+		function::function(identifier&& name, std::variant<std::vector<identifier>, identifier>&& parameters, unique_node&& body, types::unique_type t) : name(std::move(name)), parameters(std::move(parameters)), type(std::move(t)), body(std::move(body)) {}
 
 		function::function(const function& other) : name(other.name), parameters(other.parameters), body(other.body->copy()), type(other.type->copy()) {}
 		function& function::operator=(const function& other)
@@ -184,7 +193,9 @@ namespace fe
 
 		values::unique_value function::interp(runtime_environment& env)
 		{
-			return values::unique_value(new values::function(unique_node(this->copy())));
+			auto unique = values::unique_value(new values::function(unique_node(this->copy())));
+			env.set_value(this->name.variable_name, values::unique_value(unique->copy()));
+			return values::unique_value(std::move(unique));
 		}
 
 		// Tuple

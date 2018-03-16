@@ -37,7 +37,7 @@ namespace utils::bnf
 			return *this;
 		}
 
-		std::variant<std::unique_ptr<node>, error> parse(non_terminal init, std::vector<bnf::terminal_node> input)
+		std::variant<std::unique_ptr<node>, error> parse(non_terminal init, std::vector<bnf::terminal_node> input) 
 		{
 			if (table_is_old)
 			{
@@ -50,7 +50,7 @@ namespace utils::bnf
 
 		parser& new_rule(const rule& r)
 		{
-			rules.insert({ r.lhs, r.rhs });
+			rules.insert(r);
 			table_is_old = true;
 			return *this;
 		}
@@ -74,5 +74,8 @@ namespace utils::bnf
 
 		terminal t_generator = 1;
 		non_terminal nt_generator = 1;
+
+		// TODO check if it still breaks when removing this pragma
+#pragma optimize("", off)
 	};
 }
