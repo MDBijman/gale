@@ -88,6 +88,9 @@ namespace utils::lr
 	*/
 	struct item_set
 	{
+	private:
+		std::unordered_set<item> items;
+
 	public:
 		bool operator==(const item_set& other) const
 		{
@@ -108,7 +111,7 @@ namespace utils::lr
 			}
 		}
 
-		using const_iterator = std::unordered_set<item>::const_iterator;
+		using const_iterator = decltype(items)::const_iterator;
 
 		const_iterator begin() const
 		{
@@ -182,8 +185,6 @@ namespace utils::lr
 				}
 			}
 		}
-
-		std::unordered_set<item> items;
 	};
 
 	using state = const item_set*;
@@ -272,6 +273,20 @@ namespace std
 			return (hash<utils::lr::state>()(key.first) << 1) ^ (hash<utils::bnf::symbol>()(key.second));
 		}
 	};
+
+	template<>
+	struct hash<utils::lr::item_set>
+	{
+		size_t operator()(const utils::lr::item_set& i) const
+		{
+			std::size_t h = 0;
+			for (const auto& item : i)
+			{
+				h ^= hash<utils::lr::item>()(item);
+			}
+			return h;
+		}
+	};
 }
 
 namespace utils::lr
@@ -295,27 +310,6 @@ namespace utils::lr
 		bnf::symbol symbol;
 	};
 
-}
-
-namespace std
-{
-	template<>
-	struct hash<utils::lr::item_set>
-	{
-		size_t operator()(const utils::lr::item_set& i) const
-		{
-			std::size_t h = 0;
-			for (const auto& item : i)
-			{
-				h ^= hash<utils::lr::item>()(item);
-			}
-			return h;
-		}
-	};
-}
-
-namespace utils::lr
-{
 	class parser : public utils::parser
 	{
 	public:

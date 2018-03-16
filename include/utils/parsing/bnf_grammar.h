@@ -118,7 +118,9 @@ namespace std
 	{
 		size_t operator()(const utils::bnf::symbol& s) const
 		{
-			return hash<decltype(s.value)>()(s.value);
+			return s.is_terminal() ?
+				s.get_terminal() :
+				~s.get_non_terminal();
 		}
 	};
 

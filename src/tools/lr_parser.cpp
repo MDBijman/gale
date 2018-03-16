@@ -210,13 +210,13 @@ namespace utils::lr
 			// And create a new item set if it doesn't exist yet in this iteration
 			auto it = new_sets.find(sym);
 			if (it == new_sets.end())
-				new_sets.insert({ sym, item_set() });
+				it = new_sets.insert({ sym, item_set() }).first;
 
 			// Create new item with dot shifted right
 			lr::item next_item(item.rule, item.bullet_offset + 1, item.lookahead);
 
 			// Insert new item in the item set
-			new_sets.find(sym)->second.add_item(std::move(next_item), rules, first);
+			it->second.add_item(std::move(next_item), rules, first);
 		}
 		return new_sets;
 	}
