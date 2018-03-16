@@ -1,7 +1,7 @@
 #pragma once
 #include "fe/modes/module.h"
 #include "fe/data/runtime_environment.h"
-#include "fe/data/typecheck_environment.h"
+#include "fe/data/type_environment.h"
 
 namespace fe
 {
@@ -11,20 +11,22 @@ namespace fe
 		{
 			static native_module load()
 			{
+				scope_environment std_se;
+				type_environment std_te;
 				runtime_environment std_re;
 				std_re.name = "std";
-				typecheck_environment std_te;
-				std_te.name = "std";
 
+				scope_environment se;
+				type_environment te;
 				runtime_environment re;
 				re.name = "io";
-				typecheck_environment te;
-				te.name = "io";
 
-				using namespace types;
+				using namespace fe::types;
 				using namespace values;
 				{
-					te.set_type("print", unique_type(new function_type(
+					se.declare(extended_ast::identifier({ "print" }), extended_ast::identifier({ "_function" }));
+					se.define(extended_ast::identifier({ "print" }));
+					te.set_type(extended_ast::identifier({ "print" }), unique_type(new function_type(
 						unique_type(new atom_type("std.str")),
 						unique_type(new unset_type())
 					)));
@@ -36,8 +38,9 @@ namespace fe
 				}
 
 				std_re.add_module(std::move(re));
-				std_te.add_module(std::move(te));
-				return native_module{ "std.io", std_re, std_te };
+				std_te.add_module("io", std::move(te));
+				std_se.add_module("io", std::move(se));
+				return native_module{ "std.io", std_re, std_te, std_se };
 			}
 		}
 	}

@@ -1,7 +1,6 @@
 #pragma once
 #include "fe/language_definition.h"
 #include "fe/libraries/std/std_input.h"
-#include "fe/libraries/std/std_types.h"
 #include "fe/libraries/std/std_ui.h"
 #include "fe/libraries/core/core_operations.h"
 #include "utils/reading/reader.h"
@@ -12,19 +11,21 @@ namespace fe
 	class repl
 	{
 	public:
-		repl(fe::pipeline pipeline) : pipeline(pipeline) {}
+		explicit repl(fe::pipeline pipeline) : pipeline(std::move(pipeline)) {}
 
 		void run()
 		{
 			// Load modules
 			auto runtime_environment = fe::runtime_environment{};
-			auto typecheck_environment = fe::typecheck_environment{};
+			auto type_environment = fe::type_environment{};
+			auto name_environment = fe::scope_environment{};
 
 			// Core (global namespace)
 			{
-				auto core = fe::core::operations::load();
-				runtime_environment.add_module(std::move(std::get<fe::runtime_environment>(core)));
-				typecheck_environment.add_module(std::move(std::get<fe::typecheck_environment>(core)));
+				auto[re, te, se] = fe::core::operations::load();
+				runtime_environment.add_module(std::move(re));
+				type_environment.add_global_module(std::move(te));
+				name_environment.add_global_module(std::move(se));
 			}
 
 			// Std lib
@@ -32,34 +33,38 @@ namespace fe
 				auto std_runtime = fe::runtime_environment{};
 				std_runtime.name = "std";
 
-				auto std_typeset = fe::typecheck_environment{};
-				std_typeset.name = "std";
+				auto std_typeset = fe::type_environment{};
+				auto std_nameset = fe::scope_environment{};
 
 				// IO utilities
 				{
-					auto[te, re] = fe::stdlib::input::load();
-					std_typeset.add_module(std::move(te));
+					auto[te, re, se] = fe::stdlib::input::load();
+					std_nameset.add_module("io", std::move(se));
+					std_typeset.add_module("io", std::move(te));
+					re.name = "io";
 					std_runtime.add_module(std::move(re));
 				}
 
 				// UI utilities
 				{
-					auto[te, re] = fe::stdlib::ui::load();
-					te.name = "ui";
-					std_typeset.add_module(std::move(te));
+					auto[te, re, se] = fe::stdlib::ui::load();
+					std_nameset.add_module("ui", std::move(se));
+					std_typeset.add_module("ui", std::move(te));
 					re.name = "ui";
 					std_runtime.add_module(std::move(re));
 				}
 
 				// Standard types
 				{
-					auto[te, re] = fe::stdlib::ui::load();
-					std_typeset.add_module(std::move(te));
-					std_runtime.add_module(std::move(re));;
+					auto[te, re, se] = fe::stdlib::ui::load();
+					std_nameset.add_global_module(std::move(se));
+					std_typeset.add_global_module(std::move(te));
+					std_runtime.add_module(std::move(re));
 				}
 
-				typecheck_environment.add_module(std::move(std_typeset));
+				type_environment.add_module("std", std::move(std_typeset));
 				runtime_environment.add_module(std::move(std_runtime));
+				name_environment.add_module("std", std::move(std_nameset));
 			}
 
 			while (1) {
@@ -72,7 +77,7 @@ namespace fe
 
 				if (code == "env")
 				{
-					std::cout << typecheck_environment.to_string(true) << std::endl;
+					std::cout << type_environment.to_string(true) << std::endl;
 					std::cout << runtime_environment.to_string(true) << std::endl;
 					continue;
 				}
@@ -97,7 +102,8 @@ namespace fe
 
 				auto lexed = pipeline.lex(std::move(code));
 				auto parsed = pipeline.parse(std::move(lexed));
-				auto typechecked = pipeline.typecheck(std::move(parsed), fe::typecheck_environment(typecheck_environment));
+				auto ne = pipeline.resolve(*parsed, name_environment);
+				auto typechecked = pipeline.typecheck(std::move(parsed), fe::type_environment(type_environment));
 				auto lowered = pipeline.lower(std::move(typechecked.first));
 				auto interped = pipeline.interp(std::move(lowered), fe::runtime_environment(runtime_environment));
 
@@ -105,9 +111,9 @@ namespace fe
 
 				auto te = typechecked.second;
 				auto re = interped.second;
-				re.name = te.name;
-				typecheck_environment.add_module(std::move(te));
+				type_environment.add_global_module(std::move(te));
 				runtime_environment.add_module(std::move(re));
+				name_environment.add_global_module(std::move(ne));
 			}
 		}
 

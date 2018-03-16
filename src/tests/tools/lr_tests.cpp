@@ -1,6 +1,10 @@
-#pragma once
-#include "utils/parsing/lr_parser.h"
 #include <catch2/catch.hpp>
+#include "utils/parsing/lr_parser.h"
+
+void test()
+{
+	REQUIRE(1 == 1);
+}
 
 SCENARIO("an lr parser should generate a correct parse table", "[lr_parser]")
 {
