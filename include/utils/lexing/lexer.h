@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <regex>
 #include <unordered_map>
+#include <assert.h>
 
 namespace utils
 {
@@ -127,8 +128,8 @@ namespace utils
 						if (range.first == range.second) return result;
 					}
 
-					const auto range_copy{ range };
-					const auto id = rules.match(range);
+					const lexer_range range_copy{ range };
+					const token_id id = rules.match(range);
 
 					if (id == -1)
 					{
@@ -143,8 +144,10 @@ namespace utils
 					}
 
 					const auto token_size = std::distance(range_copy.first, range.first);
+					assert(token_size > 0);
 
-					character_count += token_size;
+					// token_size is 64 bits signed but always positive so we can cast to uint32_t
+					character_count += static_cast<uint32_t>(token_size);
 
 					const std::string_view tokenized(&*range_copy.first, token_size);
 					result.push_back(token{ id, std::string(tokenized) });
