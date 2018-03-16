@@ -103,6 +103,9 @@
     <ClCompile Include="src\fe\pipeline\typechecker_stage.cpp">
       <Filter>Source Files\fe\pipeline</Filter>
     </ClCompile>
+    <ClCompile Include="src\tools\bnf_grammar.cpp">
+      <Filter>Source Files\utils\parsing</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\fe\data\core_ast.h">
