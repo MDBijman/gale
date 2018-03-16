@@ -192,9 +192,9 @@ namespace fe::detail
 		/*
 		* Declares the variable with the given name within this scope. The variable will not yet be resolvable.
 		*/
-		void declare_reference(const extended_ast::identifier& id, const extended_ast::identifier& type_name)
+		void declare_reference(extended_ast::identifier id, extended_ast::identifier type_name)
 		{
-			identifiers.insert({ id, { type_name, false } });
+			identifiers.insert({ std::move(id), { std::move(type_name), false } });
 		}
 
 		/*
@@ -208,9 +208,9 @@ namespace fe::detail
 		/*
 		* TODO
 		*/
-		void define_type(const extended_ast::identifier& id, const nested_type& t)
+		void define_type(extended_ast::identifier id, nested_type t)
 		{
-			nested_types.insert({ id, t });
+			nested_types.insert({ std::move(id), std::move(t) });
 		}
 
 		void define_type(const extended_ast::identifier& id, const extended_ast::unique_node& t)
@@ -392,9 +392,9 @@ namespace fe
 			scopes.rbegin()->define_type(id, content);
 		}
 
-		void declare(const extended_ast::identifier& id, const extended_ast::identifier& type_name)
+		void declare(extended_ast::identifier id, extended_ast::identifier type_name)
 		{
-			scopes.rbegin()->declare_reference(id, type_name);
+			scopes.rbegin()->declare_reference(std::move(id), std::move(type_name));
 		}
 
 		void define(const extended_ast::identifier_tuple& id)

@@ -1,4 +1,3 @@
-#pragma once
 #include "utils/parsing/ebnfe_parser.h"
 
 #include <catch2/catch.hpp>

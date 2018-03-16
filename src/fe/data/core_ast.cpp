@@ -80,10 +80,15 @@ namespace fe
 
 		// Identifier
 
-		identifier::identifier(std::vector<std::string> modules, std::string name, std::vector<int> offsets, types::unique_type t) 
-			: modules(std::move(modules)), variable_name(std::move(name)), offsets(std::move(offsets)), type(std::move(t)) {};
+		identifier::identifier(std::vector<std::string> modules, std::string name, std::vector<int> offsets, 
+			types::unique_type t) : 
+			modules(std::move(modules)), variable_name(std::move(name)), 
+			offsets(std::move(offsets)), type(std::move(t)) {}
 
-		identifier::identifier(const identifier& other) : modules(other.modules), variable_name(other.variable_name), offsets(other.offsets), type(other.type->copy()) {}
+		identifier::identifier(const identifier& other) : 
+			modules(other.modules), variable_name(other.variable_name), 
+			offsets(other.offsets), type(other.type->copy()) {}
+
 		identifier& identifier::operator=(const identifier& other)
 		{
 			this->modules = other.modules;
@@ -92,7 +97,11 @@ namespace fe
 			this->type = types::unique_type(other.type->copy());
 			return *this;
 		}
-		identifier::identifier(identifier&& other) : modules(std::move(other.modules)), variable_name(std::move(other.variable_name)), offsets(std::move(other.offsets)), type(std::move(other.type)) {}
+
+		identifier::identifier(identifier&& other) : 
+			modules(std::move(other.modules)), variable_name(std::move(other.variable_name)), 
+			offsets(std::move(other.offsets)), type(std::move(other.type)) {}
+
 		identifier& identifier::operator=(identifier&& other)
 		{
 			this->modules = std::move(other.modules);

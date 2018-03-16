@@ -1,7 +1,9 @@
 #include "fe/pipeline/pipeline.h"
 #include "fe/modes/project.h"
 #include "fe/modes/repl.h"
-#include "tests/tests.h"
+
+#define CATCH_CONFIG_RUNNER
+#include <catch2/catch.hpp>
 
 #include <iostream>
 #include <filesystem>
@@ -31,7 +33,12 @@ int main(int argc, char** argv)
 		}
 		else if (mode == "test")
 		{
-			return tests::run();
+			std::vector<char*> commands;
+			commands.push_back(argv[0]);
+			for (int i = 2; i < argc; i++)
+				commands.push_back(argv[i]);
+
+			return Catch::Session().run(argc - 1, commands.data());
 		}
 		else if (mode == "project")
 		{

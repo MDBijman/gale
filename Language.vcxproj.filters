@@ -106,6 +106,27 @@
     <ClCompile Include="src\tools\bnf_grammar.cpp">
       <Filter>Source Files\utils\parsing</Filter>
     </ClCompile>
+    <ClCompile Include="src\tests\fe\destructuring_tests.cpp">
+      <Filter>Source Files\tests\fe</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tests\fe\name_resolution_tests.cpp">
+      <Filter>Source Files\tests\fe</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tests\tools\grammar_tests.cpp">
+      <Filter>Source Files\tests\tools</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tests\tools\lr_tests.cpp">
+      <Filter>Source Files\tests\tools</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tests\tools\performance_tests.cpp">
+      <Filter>Source Files\tests\tools</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fe\language_definition.cpp">
+      <Filter>Source Files\fe</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tools\reader.cpp">
+      <Filter>Source Files\utils\reading</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\fe\data\core_ast.h">
@@ -159,15 +180,6 @@
     <ClInclude Include="include\fe\language_definition.h">
       <Filter>Source Files\fe</Filter>
     </ClInclude>
-    <ClInclude Include="include\tests\fe\typecheck_env_tests.h">
-      <Filter>Source Files\tests\fe</Filter>
-    </ClInclude>
-    <ClInclude Include="include\tests\tools\grammar_tests.h">
-      <Filter>Source Files\tests\tools</Filter>
-    </ClInclude>
-    <ClInclude Include="include\tests\tools\performance_tests.h">
-      <Filter>Source Files\tests\tools</Filter>
-    </ClInclude>
     <ClInclude Include="include\fe\libraries\std\std_ui.h">
       <Filter>Source Files\fe\libraries\std</Filter>
     </ClInclude>
@@ -212,15 +224,6 @@
     </ClInclude>
     <ClInclude Include="include\utils\parsing\lr_parser.h">
       <Filter>Source Files\utils\parsing</Filter>
-    </ClInclude>
-    <ClInclude Include="include\tests\tools\lr_tests.h">
-      <Filter>Source Files\tests\tools</Filter>
-    </ClInclude>
-    <ClInclude Include="include\tests\tests.h">
-      <Filter>Source Files\tests</Filter>
-    </ClInclude>
-    <ClInclude Include="include\tests\fe\destructuring_tests.h">
-      <Filter>Source Files\tests\fe</Filter>
     </ClInclude>
     <ClInclude Include="include\fe\data\scope_environment.h">
       <Filter>Source Files\fe\data</Filter>

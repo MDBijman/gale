@@ -34,10 +34,9 @@ namespace fe::detail
 		{
 			if (scope_depth > 0)
 			{
-				if (parent.has_value())
-					return parent.value()->typeof(name, scope_depth - 1);
-				else
-					return std::nullopt;
+				return parent.has_value()
+					? parent.value()->typeof(name, scope_depth - 1)
+					: std::nullopt;
 			}
 
 			auto loc = variables.find(name.segments.front());

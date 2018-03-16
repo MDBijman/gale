@@ -157,7 +157,7 @@ namespace fe
 			node(new types::unset_type()),
 			id(*dynamic_cast<identifier*>(children.at(0).get())),
 			params(std::move(children.at(1)))
-		{};
+		{}
 
 		core_ast::node* function_call::lower()
 		{
@@ -308,14 +308,17 @@ namespace fe
 
 		core_ast::node* type_definition::lower()
 		{
-			auto return_statement = core_ast::unique_node(new core_ast::identifier({}, { "_arg0" }, {}, types::make_unique(types::unset_type())));
+			auto return_statement = core_ast::unique_node(new core_ast::identifier({}, { "_arg0" }, {}, 
+				types::make_unique(types::unset_type())));
 			auto parameter_name = core_ast::identifier({}, { "_arg0" }, {}, types::make_unique(types::unset_type()));
 
+			auto new_id = std::unique_ptr<core_ast::identifier>(static_cast<core_ast::identifier*>(this->id.lower()));
+
 			return new core_ast::set(
-				std::move(*dynamic_cast<core_ast::identifier*>(id.lower())),
+				*new_id,
 
 				core_ast::unique_node(new core_ast::function(
-					std::move(*dynamic_cast<core_ast::identifier*>(this->id.lower())),
+					core_ast::identifier(*new_id),
 					parameter_name,
 					std::move(return_statement),
 					types::make_unique(types::function_type(

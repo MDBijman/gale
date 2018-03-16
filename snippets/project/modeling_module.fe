@@ -1,6 +1,9 @@
 module modeling
 import [std]
 
+type Quad = (std.i32 a, std.i32 b, std.i32 c, std.i32 d);
+var (a, b, c, _): Quad = (1, 2, 3, 4);
+
 fn factorial std.i32 x -> std.i32 = x match {
 	| x == 1 -> 1
 	| 1 == 1 -> x * factorial (x - 1)

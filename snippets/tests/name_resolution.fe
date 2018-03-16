@@ -1,9 +1,9 @@
 module name_resolution_tests
-import [std.types]
+import [std]
 
 type Nested = (std.i32 x, std.i32 y);
 type Pair = (std.i32 a, Nested m);
 
-var x: Pair = Pair (1, Nested (3, 4));
+var x : Pair = Pair (1, Nested (3, 4));
 
-var y: std.i32 = x.m.x;
+var (a, b) : Nested = x.m;

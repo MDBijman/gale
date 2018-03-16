@@ -1,5 +1,5 @@
 #pragma once
-#include "fe/pipeline/pipeline.h"
+#include "fe/language_definition.h"
 #include "utils/parsing/ebnfe_parser.h"
 
 #include <memory>
