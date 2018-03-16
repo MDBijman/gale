@@ -64,11 +64,12 @@ namespace utils::bnf
 
 		bool operator==(const symbol& other) const
 		{
-			if (is_terminal() != other.is_terminal()) return false;
-			if (is_terminal())
-				return get_terminal() == other.get_terminal();
-			else
-				return get_non_terminal() == other.get_non_terminal();
+			return value == other.value;
+		}
+
+		bool operator<(const symbol& other) const
+		{
+			return value < other.value;
 		}
 
 		friend std::ostream& operator<< (std::ostream& stream, const symbol& sym)
@@ -106,28 +107,45 @@ namespace utils::bnf
 	};
 
 	using node = std::variant<terminal_node, non_terminal_node>;
+	using rule = std::pair<non_terminal, std::vector<symbol>>;
 
-	struct rule
-	{
-		rule(const non_terminal& lhs, const std::vector<symbol>& rhs) : lhs(lhs), rhs(rhs) {}
-
-		bool operator==(const rule& other) const
-		{
-			return (lhs == other.lhs) && (rhs == other.rhs);
-		}
-
-		non_terminal lhs;
-		std::vector<symbol> rhs;
-	};
+	bool operator==(const rule& r1, const rule& r2);
 }
 
 namespace std
 {
 	template<> struct std::hash<utils::bnf::symbol>
 	{
-		std::size_t operator()(const utils::bnf::symbol& s) const
+		size_t operator()(const utils::bnf::symbol& s) const
 		{
-			return std::hash<decltype(s.value)>()(s.value);
+			return s.is_terminal() ?
+				s.get_terminal() :
+				~s.get_non_terminal();
+		}
+	};
+
+	template<> struct std::hash<std::vector<utils::bnf::symbol>>
+	{
+		size_t operator()(const std::vector<utils::bnf::symbol>& s) const
+		{
+			size_t h = hash<std::size_t>()(s.size());
+
+			if (s.size() > 0)
+				h ^= hash<utils::bnf::symbol>()(s.at(0));
+			if (s.size() > 1)
+				h ^= hash<utils::bnf::symbol>()(s.at(1));
+			if (s.size() > 2)
+				h ^= hash<utils::bnf::symbol>()(s.at(2));
+			return h;
+		}
+	};
+
+	template<> struct std::hash<utils::bnf::rule>
+	{
+		size_t operator()(const utils::bnf::rule& s) const
+		{
+			return hash<utils::bnf::non_terminal>()(s.first)
+				^ (hash<std::vector<utils::bnf::symbol>>()(s.second) << 1);
 		}
 	};
 }

@@ -50,7 +50,7 @@ namespace utils::bnf
 
 		parser& new_rule(const rule& r)
 		{
-			rules.insert({ r.lhs, r.rhs });
+			rules.insert(r);
 			table_is_old = true;
 			return *this;
 		}
