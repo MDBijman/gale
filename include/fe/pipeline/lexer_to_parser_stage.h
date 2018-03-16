@@ -1,9 +1,9 @@
 #pragma once
 #include "utils/lexing/lexer.h"
 #include "utils/parsing/ebnfe_parser.h"
-
-#include "fe/language_definition.h"
+#include "fe/pipeline/error.h"
 #include "fe/pipeline/pipeline.h"
+#include "fe/language_definition.h"
 
 namespace fe
 {

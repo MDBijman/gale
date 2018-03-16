@@ -124,6 +124,7 @@ namespace fe
 
 			// Copy
 			identifier(const identifier& other) : node(other), segments(other.segments), offsets(other.offsets) {}
+			
 			identifier& operator=(const identifier& other)
 			{
 				this->segments = other.segments;
@@ -133,7 +134,9 @@ namespace fe
 			}
 
 			// Move
-			identifier(identifier&& other) noexcept : node(std::move(other)), segments(std::move(other.segments)), offsets(std::move(other.offsets)) {}
+			identifier(identifier&& other) noexcept : node(std::move(other)), segments(std::move(other.segments)), 
+				offsets(std::move(other.offsets)) {}
+
 			identifier& operator=(identifier&& other)
 			{
 				set_type(types::unique_type(other.get_type().copy()));

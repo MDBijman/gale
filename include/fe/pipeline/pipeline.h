@@ -5,8 +5,12 @@
 #include "fe/pipeline/cst_to_ast_stage.h"
 #include "fe/pipeline/lowering_stage.h"
 #include "fe/pipeline/interpreting_stage.h"
+#include "fe/pipeline/error.h"
 #include "fe/data/scope_environment.h"
+#include "fe/data/type_environment.h"
+#include "fe/data/runtime_environment.h"
 #include "utils/parsing/bnf_grammar.h"
+
 #include <memory>
 #include <tuple>
 #include <variant>

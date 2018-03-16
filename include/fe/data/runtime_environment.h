@@ -85,11 +85,15 @@ namespace fe
 
 		void set_value(const std::string& name, values::unique_value value)
 		{
+			if (name == "")
+				std::cout << "!\n";
 			values.insert_or_assign(name, std::move(value));
 		}
 
 		void set_value(const std::string& name, const values::value& value)
 		{
+			if (name == "")
+				std::cout << "!\n";
 			values.insert_or_assign(name, values::unique_value(value.copy()));
 		}
 

@@ -130,9 +130,30 @@ namespace fe::extended_ast
 			this->value->resolve(s_env);
 			s_env.define(lhs_id);
 		}
-		else if (std::holds_alternative<extended_ast::identifier_tuple>(this->lhs))
+		else
 		{
-			throw resolution_error{ "Identifier tuples not supported yet in name resolution" };
+			std::function<void(decltype(this->lhs))> resolve 
+				= [this, &s_env, &resolve](const std::variant<identifier, identifier_tuple>& lhs) 
+			{
+				if (std::holds_alternative<extended_ast::identifier>(lhs))
+				{
+					auto& lhs_id = std::get<extended_ast::identifier>(lhs);
+					s_env.declare(lhs_id, extended_ast::identifier({ "_defer" }));
+					this->value->resolve(s_env);
+					s_env.define(lhs_id);
+				}
+				else if (std::holds_alternative<extended_ast::identifier_tuple>(lhs))
+				{
+					auto& lhs_ids = std::get<extended_ast::identifier_tuple>(lhs);
+
+					for (auto& id : lhs_ids.content)
+					{
+						resolve(id);
+					}
+				}
+			};
+
+			resolve(this->lhs);
 		}
 	}
 

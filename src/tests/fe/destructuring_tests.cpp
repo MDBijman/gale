@@ -1,8 +1,10 @@
-#pragma once
-#include "fe/pipeline/pipeline.h"
-#include "fe/language_definition.h"
-
 #include <catch2/catch.hpp>
+
+#include "fe/pipeline/pipeline.h"
+#include "fe/data/type_environment.h"
+#include "fe/data/scope_environment.h"
+#include "fe/data/runtime_environment.h"
+#include "fe/language_definition.h"
 
 SCENARIO("destructuring of product values", "[language_feature destructuring]")
 {
@@ -14,7 +16,8 @@ SCENARIO("destructuring of product values", "[language_feature destructuring]")
 		{
 			auto code = 
 R"code(
-var (a, b, c, _) = (1, 2, 3, 4);
+type Quad = (std.i32 a, std.i32 b, std.i32 c, std.i32 d);
+var (a, b, c, _): Quad = (1, 2, 3, 4);
 )code";
 			auto res = p.process(std::move(code), fe::type_environment{}, fe::runtime_environment{}, fe::scope_environment{});
 

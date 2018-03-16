@@ -14,7 +14,6 @@ namespace fe::extended_ast
 		this->set_type(new types::atom_type("std.str"));
 	}
 
-#pragma optimize("", off)
 	void identifier::typecheck(type_environment& env)
 	{
 		auto t = env.typeof(*this);
@@ -38,7 +37,6 @@ namespace fe::extended_ast
 		set_type(new_type.copy());
 	}
 
-#pragma optimize("", off)
 	void function_call::typecheck(type_environment& env)
 	{
 		params->typecheck(env);
@@ -218,7 +216,10 @@ namespace fe::extended_ast
 
 	void type_definition::typecheck(type_environment& env)
 	{
+		env.push();
 		types->typecheck(env);
+		env.pop();
+
 		env.define_type(id, types::unique_type(types->get_type().copy()));
 		env.set_type(id, types::unique_type(new types::function_type(
 			types::unique_type(types->get_type().copy()),
@@ -237,30 +238,49 @@ namespace fe::extended_ast
 	{
 		value->typecheck(env);
 
-		std::function<void(std::variant<identifier, identifier_tuple>&, types::type&)> typecheck_tuple = [&](std::variant<identifier, identifier_tuple>& lhs, types::type& type) {
+		auto given_type = env.resolve_type(this->type_name);
+
+		if (!given_type.has_value())
+		{
+			throw typecheck_error{ "Given type cannot be resolved" };
+		}
+		else if (!(given_type.value().get() == &value->get_type()))
+		{
+			throw typecheck_error{ "Given type does not equal value type" };
+		}
+
+		std::function<void(decltype(this->lhs), types::type&)> typecheck 
+			= [this, &env, &typecheck](std::variant<identifier, identifier_tuple>& lhs, types::type& type) 
+		{
 			if (std::holds_alternative<identifier_tuple>(lhs))
 			{
-				auto product_type = dynamic_cast<types::product_type*>(&type);
-				assert(product_type != nullptr);
+				assert(dynamic_cast<types::product_type*>(&type) != nullptr);
+
+				auto product_type = static_cast<types::product_type*>(&type);
 
 				auto& ids = std::get<identifier_tuple>(lhs);
+
 				assert(ids.content.size() > 1);
 				assert(ids.content.size() == product_type->product.size());
 
 				for (auto i = 0; i < ids.content.size(); i++)
 				{
-					typecheck_tuple(ids.content.at(i), *product_type->product.at(i));
+					typecheck(ids.content.at(i), *product_type->product.at(i));
 				}
 			}
 			else if (std::holds_alternative<identifier>(lhs))
 			{
 				auto& id = std::get<identifier>(lhs);
 
-				env.define_type(id, types::unique_type(type.copy()));
+				env.set_type(id, types::unique_type(type.copy()));
 			}
-			else assert(!"Invalid variant contents");
+			else
+			{
+				assert(!"Invalid variant contents");
+			}
 		};
-		typecheck_tuple(this->lhs, value->get_type());
+
+		typecheck(this->lhs, value->get_type());
 
 		set_type(new types::atom_type("void"));
 	}
