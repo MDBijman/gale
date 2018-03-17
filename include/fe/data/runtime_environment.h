@@ -4,6 +4,7 @@
 
 #include <unordered_map>
 #include <regex>
+#include <assert.h>
 #include <string>
 
 namespace fe
@@ -13,7 +14,7 @@ namespace fe
 	public:
 		runtime_environment() {}
 		runtime_environment(std::unordered_map<std::string, values::unique_value> values) : values(std::move(values)) {}
-		runtime_environment(const runtime_environment& other) : name(other.name) 
+		runtime_environment(const runtime_environment& other)
 		{
 			for (decltype(auto) pair : other.values)
 			{
@@ -37,7 +38,6 @@ namespace fe
 			{
 				modules.insert({ pair.first, pair.second });
 			}
-			this->name = other.name;
 			return *this;
 		}
 
@@ -45,37 +45,50 @@ namespace fe
 		{
 			this->values = std::move(other.values);
 			this->modules = std::move(other.modules);
-			this->name = std::move(other.name);
 			return *this;
 		}
 
-		void add_module(runtime_environment&& other)
+		void merge(runtime_environment&& other)
 		{
-			// TODO fix issue of setting the module name after a module (with that name) -> modules are not merged
-			if (other.name.has_value() && other.name.value() != this->name)
-			{
-				auto existing_module_location = modules.find(other.name.value());
+			values.insert(std::make_move_iterator(other.values.begin()), std::make_move_iterator(other.values.end()));
 
-				if (existing_module_location != modules.end())
-					// Merge module with the existing one
-				{
-					other.name = std::optional<std::string>();
-					existing_module_location->second.add_module(std::move(other));
-				}
-				else
-				{
-					modules.insert({ other.name.value(), other });
-				}
+			for (auto&& other_module : other.modules)
+			{
+				this->add_module(other_module.first, std::move(other_module.second));
+			}
+		}
+
+		void add_global_module(runtime_environment&& other)
+		{
+			this->merge(std::move(other));
+		}
+
+		void add_module(std::vector<std::string> name, runtime_environment other)
+		{
+			if (name.size() == 0)
+			{
+				add_global_module(std::move(other));
 			}
 			else
 			{
-				values.insert(std::make_move_iterator(other.values.begin()), std::make_move_iterator(other.values.end()));
-
-				for (auto&& other_modules : other.modules)
+				if (auto loc = modules.find(name[0]); loc != modules.end())
 				{
-					this->add_module(std::move(other_modules.second));
+					loc->second.add_module(std::vector<std::string>(name.begin() + 1, name.end()), std::move(other));
+				}
+				else
+				{
+					runtime_environment new_re;
+
+					new_re.add_module(std::vector<std::string>(name.begin() + 1, name.end()), std::move(other));
+
+					modules.insert({ std::move(name[0]), std::move(new_re) });
 				}
 			}
+		}
+
+		void add_module(std::string name, runtime_environment other)
+		{
+			add_module({ std::move(name) }, std::move(other));
 		}
 
 		runtime_environment get_module(std::string name)
@@ -124,9 +137,7 @@ namespace fe
 				return std::regex_replace(text, std::regex("\\n"), "\n\t");
 			};
 
-			std::string r = name.has_value() ?
-				"runtime_environment: " + name.value() + " (" :
-				"runtime_environment (";
+			std::string r = "runtime_environment (";
 
 			for (auto& pair : values)
 			{
@@ -151,8 +162,6 @@ namespace fe
 			r.append("\n)");
 			return r;
 		}
-
-		std::optional<std::string> name;
 
 	private:
 		std::unordered_map<std::string, values::unique_value> values;

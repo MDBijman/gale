@@ -99,28 +99,33 @@ namespace fe::detail
 				this->nested_types.insert(pair);
 		}
 
-		void merge(const scope& other)
+		void merge(scope other)
 		{
-			for (decltype(auto) id : other.identifiers)
-				this->identifiers.insert(id);
-			for (decltype(auto) pair : other.nested_types)
-				this->nested_types.insert(pair);
+			for (auto&& id : other.identifiers)
+				this->identifiers.insert(std::move(id));
+			for (auto&& pair : other.nested_types)
+				this->nested_types.insert(std::move(pair));
 		}
 
-		void merge(const std::string& name, const scope& other)
+		void merge(std::vector<std::string> name, scope other)
 		{
-			for (decltype(auto) id : other.identifiers)
+			for (auto id : other.identifiers)
 			{
-				auto new_id = id.first;
-				new_id.segments.insert(new_id.segments.begin(), name);
-				this->identifiers.insert({ new_id, id.second });
+				extended_ast::identifier id_copy = id.first;
+				id_copy.segments.insert(id_copy.segments.begin(), name.begin(), name.end());
+				this->identifiers.insert({ std::move(id_copy), std::move(id.second) });
 			}
-			for (decltype(auto) pair : other.nested_types)
+			for (auto pair : other.nested_types)
 			{
-				auto new_id = pair.first;
-				new_id.segments.insert(new_id.segments.begin(), name);
-				this->nested_types.insert({ new_id, pair.second });
+				extended_ast::identifier id_copy = pair.first;
+				id_copy.segments.insert(id_copy.segments.begin(), name.begin(), name.end());
+				this->nested_types.insert({ std::move(id_copy), std::move(pair.second) });
 			}
+		}
+
+		void merge(std::string name, scope other)
+		{
+			this->merge({ std::move(name) }, std::move(other));
 		}
 
 		void set_parent(scope& other)
@@ -136,7 +141,7 @@ namespace fe::detail
 			if (id.segments.size() == 0)
 				return std::nullopt;
 
-			const auto loc = identifiers.find(extended_ast::identifier({ id.segments.at(0) }));
+			const auto loc = identifiers.find(id);
 			if (loc == identifiers.end()) return std::nullopt;
 
 			// The variable has been declared but not defined 
@@ -355,11 +360,11 @@ namespace fe
 			scopes.pop_back();
 		}
 
-		std::optional<std::pair<std::size_t, std::vector<int>>> resolve_reference(const extended_ast::identifier& id) const
+		std::optional<std::pair<std::size_t, std::vector<int>>> resolve_reference(const extended_ast::identifier& name) const
 		{
 			for (auto it = scopes.rbegin(); it != scopes.rend(); ++it)
 			{
-				auto offsets = it->resolve_reference(id);
+				auto offsets = it->resolve_reference(name);
 				if (offsets.has_value())
 				{
 					return std::pair<std::size_t, std::vector<int>>(
@@ -368,16 +373,29 @@ namespace fe
 				}
 			}
 
+			if (auto loc = modules.find(name.segments.front()); loc != modules.end())
+			{
+				auto res = loc->second.resolve_reference(name.without_first_segment());
+				if (res.has_value())
+				{
+					res.value().first += scopes.size() - 1;
+				}
+				return res;
+			}
+
 			return std::nullopt;
 		}
 
-		std::optional<std::size_t> resolve_type(const extended_ast::identifier& id) const
+		std::optional<std::size_t> resolve_type(const extended_ast::identifier& name) const
 		{
 			for (auto it = scopes.rbegin(); it != scopes.rend(); ++it)
 			{
-				auto offsets = it->resolve_type(id);
+				auto offsets = it->resolve_type(name);
 				if (offsets.has_value()) return offsets.value().first;
 			}
+
+			if (auto loc = modules.find(name.segments.front()); loc != modules.end())
+				return loc->second.resolve_type(name.without_first_segment());
 
 			return std::nullopt;
 		}
@@ -408,17 +426,41 @@ namespace fe
 			scopes.rbegin()->define_reference(id);
 		}
 
-		void add_global_module(const scope_environment& mod)
+		void add_global_module(scope_environment mod)
 		{
 			this->scopes.front().merge(mod.scopes.front());
 		}
 
-		void add_module(const std::string& name, const scope_environment& mod)
+		void add_module(std::vector<std::string> name, scope_environment other)
 		{
-			this->scopes.front().merge(name, mod.scopes.front());
+			if (name.size() == 0)
+			{
+				add_global_module(std::move(other));
+			}
+			else
+			{
+				if (auto loc = modules.find(name[0]); loc != modules.end())
+				{
+					loc->second.add_module(std::vector<std::string>(name.begin() + 1, name.end()), std::move(other));
+				}
+				else
+				{
+					scope_environment new_te;
+
+					new_te.add_module(std::vector<std::string>(name.begin() + 1, name.end()), std::move(other));
+
+					modules.insert({ std::move(name[0]), std::move(new_te) });
+				}
+			}
+		}
+
+		void add_module(std::string name, scope_environment other)
+		{
+			add_module({ std::move(name) }, std::move(other));
 		}
 
 	private:
 		std::vector<detail::scope> scopes;
+		std::unordered_map<std::string, scope_environment> modules;
 	};
 }

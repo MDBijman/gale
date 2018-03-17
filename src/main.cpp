@@ -55,7 +55,7 @@ int main(int argc, char** argv)
 				return -1;
 			}
 
-			fe::project proj(argv[2], argv[3], std::move(pipeline));
+			fe::project proj(argv[2], std::vector<std::string>{ argv[3] }, std::move(pipeline));
 			auto[te, re, se] = proj.interp();
 			std::cout << te.to_string() << "\n";
 			std::cout << re.to_string() << std::endl;

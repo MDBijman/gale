@@ -30,16 +30,9 @@ namespace fe
 
 			static std::tuple<type_environment, runtime_environment, scope_environment> load()
 			{
-				scope_environment std_se{};
 				scope_environment se{};
-
-				type_environment std_te{};
 				type_environment te{};
-
-				runtime_environment std_re{};
-				std_re.name = "std";
 				runtime_environment re{};
-				re.name = "ui";
 
 				using namespace fe::types;
 				using namespace fe::values;
@@ -135,17 +128,13 @@ namespace fe
 					}));
 				}
 
-
-				std_se.add_module("ui", std::move(se));
-				std_te.add_module("ui", std::move(te));
-				std_re.add_module(std::move(re));
-				return { std_te, std_re, std_se };
+				return { te, re, se};
 			}
 
 			static native_module* load_as_module()
 			{
 				auto[te, re, se] = load();
-				return new native_module("std.ui", std::move(re), std::move(te), std::move(se));
+				return new native_module(module_name{ "std", "ui" }, std::move(re), std::move(te), std::move(se));
 			}
 		}
 	}
