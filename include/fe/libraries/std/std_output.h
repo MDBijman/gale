@@ -11,15 +11,9 @@ namespace fe
 		{
 			static native_module load()
 			{
-				scope_environment std_se;
-				type_environment std_te;
-				runtime_environment std_re;
-				std_re.name = "std";
-
 				scope_environment se;
 				type_environment te;
 				runtime_environment re;
-				re.name = "io";
 
 				using namespace fe::types;
 				using namespace values;
@@ -37,10 +31,7 @@ namespace fe
 					})));
 				}
 
-				std_re.add_module(std::move(re));
-				std_te.add_module("io", std::move(te));
-				std_se.add_module("io", std::move(se));
-				return native_module{ "std.io", std_re, std_te, std_se };
+				return native_module(module_name{ "std", "io" }, re, te, se);
 			}
 		}
 	}

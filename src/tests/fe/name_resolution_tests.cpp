@@ -26,7 +26,7 @@ var z: std.i32 = x.m.x;
 			auto lexed = p.lex(std::move(code));
 			auto parsed = p.parse(std::move(lexed));
 
-			fe::code_module cm("x", std::move(parsed));
+			fe::code_module cm(fe::module_name{ "x" }, std::move(parsed));
 			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::stdlib::types::load_as_module()));
 			
 			auto[te, re, se] = cm.interp(p);

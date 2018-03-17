@@ -135,7 +135,7 @@ namespace fe
 
 			// Move
 			identifier(identifier&& other) noexcept : node(std::move(other)), segments(std::move(other.segments)), 
-				offsets(std::move(other.offsets)) {}
+				offsets(std::move(other.offsets)), scope_distance(std::move(other.scope_distance)) {}
 
 			identifier& operator=(identifier&& other)
 			{
@@ -168,6 +168,7 @@ namespace fe
 				};
 				new_id.set_type(types::unique_type(this->get_type().copy()));
 				new_id.offsets = offsets;
+				new_id.scope_distance = scope_distance;
 				return new_id;
 			}
 

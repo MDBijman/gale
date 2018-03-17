@@ -9,21 +9,23 @@ namespace fe
 {
 	namespace language_module
 	{
-		std::tuple<type_environment, runtime_environment> load(const pipeline& pipeline)
+		std::tuple<type_environment, runtime_environment, scope_environment> load(pipeline& pipeline)
 		{
 			type_environment te{};
 			runtime_environment re{};
+			scope_environment se{};
 
-			te.add_module(fe::stdlib::types::load());
+			auto[types_te, types_re, types_se] = fe::stdlib::types::load();
+
+			te.add_module("std", std::move(types_te));
+			re.add_module("std", std::move(types_re));
+			se.add_module("std", std::move(types_se));
 
 			auto language_module_contents = utils::files::read_file("./snippets/language_module.fe");
-			auto result_or_error = pipeline.process(std::move(std::get<std::string>(language_module_contents)), std::move(te), std::move(re));
-			std::tie(std::ignore, te, re) = std::get<std::tuple<values::unique_value, type_environment, runtime_environment>>(result_or_error);
+			auto [res, te, re, se] = pipeline.process(std::move(std::get<std::string>(language_module_contents)), 
+				std::move(te), std::move(re), std::move(se));
 
-			te.name = "language";
-			re.name = "language";
-
-			return { te, re };
+			return { te, re, se };
 		}
 	}
 }
