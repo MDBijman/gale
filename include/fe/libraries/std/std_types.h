@@ -22,7 +22,6 @@ namespace fe
 				t.define_type(extended_ast::identifier({ "i32" }), make_unique(atom_type("std.i32")));
 				s.define_type(extended_ast::identifier({ "str" }), nested_type());
 				t.define_type(extended_ast::identifier({ "str" }), make_unique(atom_type("std.str")));
-				r.name = "std";
 
 				using namespace fe::values;
 

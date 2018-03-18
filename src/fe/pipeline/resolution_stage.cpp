@@ -29,7 +29,7 @@ namespace fe::extended_ast
 		}
 		else if (auto access_pattern = s_env.resolve_type(this->id); access_pattern.has_value())
 		{
-			this->id.scope_distance = access_pattern.value();
+			this->id.scope_distance = access_pattern.value().first;
 		}
 		else
 		{
@@ -194,36 +194,42 @@ namespace fe::extended_ast
 	{
 		this->left->resolve(s_env);
 		this->right->resolve(s_env);
+		this->scope_depth = s_env.depth() - 1;
 	}
 
 	void addition::resolve(scope_environment& s_env)
 	{
 		this->left->resolve(s_env);
 		this->right->resolve(s_env);
+		this->scope_depth = s_env.depth() - 1;
 	}
 
 	void subtraction::resolve(scope_environment& s_env)
 	{
 		this->left->resolve(s_env);
 		this->right->resolve(s_env);
+		this->scope_depth = s_env.depth() - 1;
 	}
 
 	void multiplication::resolve(scope_environment& s_env)
 	{
 		this->left->resolve(s_env);
 		this->right->resolve(s_env);
+		this->scope_depth = s_env.depth() - 1;
 	}
 
 	void division::resolve(scope_environment& s_env)
 	{
 		this->left->resolve(s_env);
 		this->right->resolve(s_env);
+		this->scope_depth = s_env.depth() - 1;
 	}
 
 	void array_index::resolve(scope_environment& s_env)
 	{
 		this->array_exp->resolve(s_env);
 		this->index_exp->resolve(s_env);
+		this->scope_depth = s_env.depth() - 1;
 	}
 
 	void while_loop::resolve(scope_environment& s_env)

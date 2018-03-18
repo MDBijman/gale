@@ -25,33 +25,34 @@ namespace fe
 				for (auto& line : lines->children)
 				{
 					if (auto mod_declaration = dynamic_cast<extended_ast::module_declaration*>(line.get()))
-						module_name = mod_declaration->name.to_string();
+						name = std::vector<std::string>{ mod_declaration->name.to_string() };
 
 					if (auto imp_declaration = dynamic_cast<extended_ast::import_declaration*>(line.get()))
 					{
-						for (const auto& module_import : imp_declaration->modules)
+						for (const extended_ast::identifier& module_import : imp_declaration->modules)
 						{
-							imports.push_back(module_import.to_string());
+							imports.push_back(module_import.segments);
 						}
 					}
 				}
 			}
 
-			imports.push_back("core");
+			imports.push_back(module_name{ "core" });
 		}
 
-		code_file(const code_file& other) : root(extended_ast::unique_node(other.root->copy())), module_name(other.module_name), imports(other.imports) {}
+		code_file(const code_file& other) : root(extended_ast::unique_node(other.root->copy())), name(other.name),
+			imports(other.imports) {}
 
 		extended_ast::unique_node root;
-		std::string module_name;
-		std::vector<std::string> imports;
+		module_name name;
+		std::vector<module_name> imports;
 	};
 
 	class module_graph
 	{
 	public:
 		module_graph() {}
-		module_graph(std::vector<code_file> modules, std::string root_module) 
+		module_graph(std::vector<code_file> modules, module_name root_module)
 		{
 			nodes.push_back(std::shared_ptr<native_module>(core::operations::load_as_module()));
 			nodes.push_back(std::shared_ptr<native_module>(stdlib::ui::load_as_module()));
@@ -63,22 +64,25 @@ namespace fe
 
 			for (auto& mod : modules)
 			{
-				auto new_module = std::make_shared<code_module>(code_module(mod.module_name, std::move(mod.root)));
+				auto new_module = std::make_shared<code_module>(code_module(mod.name, std::move(mod.root)));
 
-				if (mod.module_name == root_module)
+				if (mod.name == root_module)
 					root = new_module;
 
 				nodes.push_back(new_module);
 			}
 
-			for (auto i = 0; i < modules.size(); i++) 
+			for (auto i = 0; i < modules.size(); i++)
 			{
 				auto& mod = modules.at(i);
 				auto code_mod = static_cast<code_module*>(nodes.at(i + offset).get());
 
 				for (const auto& import : mod.imports)
 				{
-					auto imported_module = std::find_if(nodes.begin(), nodes.end(), [&](auto& node) { return node->get_name() == import; });
+					auto imported_module = std::find_if(nodes.begin(), nodes.end(), [&](std::shared_ptr<module>& node) { 
+						return node->get_name() == import; 
+					});
+
 					if (imported_module == nodes.end())
 						throw std::runtime_error("Unknown module");
 
@@ -94,9 +98,9 @@ namespace fe
 	class project
 	{
 	public:
-		project(const std::string folder, const std::string main_file, fe::pipeline pipeline) : pl(std::move(pipeline))
+		project(const std::string folder, module_name main_module, fe::pipeline pipeline) : pl(std::move(pipeline))
 		{
-			graph = parse_project(folder, main_file);
+			graph = parse_project(folder, std::move(main_module));
 		}
 
 		std::tuple<type_environment, runtime_environment, scope_environment> interp()
@@ -106,7 +110,7 @@ namespace fe
 
 
 	private:
-		module_graph parse_project(const std::string folder, const std::string main) 
+		module_graph parse_project(std::string folder, module_name main)
 		{
 			std::vector<std::string> code_files;
 			for (auto& item : std::experimental::filesystem::recursive_directory_iterator(folder))
@@ -137,7 +141,5 @@ namespace fe
 
 		module_graph graph;
 		fe::pipeline pl;
-		fe::type_environment base_t_env;
-		fe::runtime_environment base_r_env;
 	};
 }

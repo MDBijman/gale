@@ -127,6 +127,9 @@
     <ClCompile Include="src\tools\reader.cpp">
       <Filter>Source Files\utils\reading</Filter>
     </ClCompile>
+    <ClCompile Include="src\fe\data\scope_environment.cpp">
+      <Filter>Source Files\fe\data</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\fe\data\core_ast.h">

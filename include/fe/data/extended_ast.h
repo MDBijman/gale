@@ -135,7 +135,7 @@ namespace fe
 
 			// Move
 			identifier(identifier&& other) noexcept : node(std::move(other)), segments(std::move(other.segments)), 
-				offsets(std::move(other.offsets)) {}
+				offsets(std::move(other.offsets)), scope_distance(std::move(other.scope_distance)) {}
 
 			identifier& operator=(identifier&& other)
 			{
@@ -168,6 +168,7 @@ namespace fe
 				};
 				new_id.set_type(types::unique_type(this->get_type().copy()));
 				new_id.offsets = offsets;
+				new_id.scope_distance = scope_distance;
 				return new_id;
 			}
 
@@ -857,6 +858,7 @@ namespace fe
 			void resolve(scope_environment& s_env) override;
 
 			unique_node left, right;
+			std::size_t scope_depth;
 		};
 
 		struct addition : public node
@@ -876,6 +878,7 @@ namespace fe
 			void resolve(scope_environment& s_env) override;
 
 			unique_node left, right;
+			std::size_t scope_depth;
 		};
 
 		struct subtraction : public node
@@ -895,6 +898,7 @@ namespace fe
 			void resolve(scope_environment& s_env) override;
 
 			unique_node left, right;
+			std::size_t scope_depth;
 		};
 
 		struct multiplication : public node
@@ -914,6 +918,7 @@ namespace fe
 			void resolve(scope_environment& s_env) override;
 
 			unique_node left, right;
+			std::size_t scope_depth;
 		};
 
 		struct division : public node
@@ -933,6 +938,7 @@ namespace fe
 			void resolve(scope_environment& s_env) override;
 
 			unique_node left, right;
+			std::size_t scope_depth;
 		};
 
 		struct array_index : public node
@@ -952,6 +958,7 @@ namespace fe
 			void resolve(scope_environment& s_env) override;
 
 			unique_node array_exp, index_exp;
+			std::size_t scope_depth;
 		};
 
 		struct while_loop : public node

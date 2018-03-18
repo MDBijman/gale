@@ -99,7 +99,8 @@ namespace fe
 
 		struct identifier : public node
 		{
-			identifier(std::vector<std::string> module_names, std::string variables, std::vector<int> offset, types::unique_type t);
+			identifier(std::vector<std::string> module_names, std::string variables, std::vector<int> offset, 
+				std::size_t depth, types::unique_type t);
 
 			// Copy
 			identifier(const identifier& other);
@@ -122,6 +123,7 @@ namespace fe
 						std::vector<std::string>{modules.begin() + 1, modules.end()},
 						std::string(variable_name),
 						std::vector<int>(offsets),
+						scope_depth,
 						types::unique_type(type->copy())
 					);
 			}
@@ -130,6 +132,7 @@ namespace fe
 			std::string variable_name;
 			std::vector<int> offsets;
 			types::unique_type type;
+			std::size_t scope_depth;
 		};
 
 		struct identifier_tuple
@@ -260,7 +263,7 @@ namespace fe
 
 		struct branch : public node
 		{
-			branch(unique_node test, unique_node true_path, unique_node false_path);
+			branch(std::vector<std::pair<unique_node, unique_node>> paths);
 
 			// Copy
 			branch(const branch& other);
@@ -276,9 +279,7 @@ namespace fe
 			}
 			values::unique_value interp(runtime_environment&) override;
 
-			unique_node test_path;
-			unique_node true_path;
-			unique_node false_path;
+			std::vector<std::pair<unique_node, unique_node>> paths;
 			types::unique_type type;
 		};
 

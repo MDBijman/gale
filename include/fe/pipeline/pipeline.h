@@ -34,7 +34,7 @@ namespace fe
 		{
 			auto lexed = lex(std::move(code));
 			auto parsed = parse(std::move(lexed));
-			auto scope_env = resolve(*parsed, senv);
+			auto scope_env = resolve(*parsed, std::move(senv));
 			auto tchecked = typecheck(std::move(parsed), std::move(tenv));
 			auto lowered = lower(std::move(tchecked.first));
 			auto interped = interp(std::move(lowered), std::move(renv));
@@ -68,13 +68,13 @@ namespace fe
 			return std::move(std::get<extended_ast::unique_node>(cst_to_ast_output));
 		}
 
-		scope_environment resolve(extended_ast::node& ast, scope_environment env)
+		scope_environment resolve(extended_ast::node& ast, scope_environment&& env)
 		{
 			ast.resolve(std::move(env));
 			return env;
 		}
 
-		std::pair<extended_ast::unique_node, type_environment> typecheck(extended_ast::unique_node extended_ast, type_environment tenv) const
+		std::pair<extended_ast::unique_node, type_environment> typecheck(extended_ast::unique_node extended_ast, type_environment&& tenv) const
 		{
 			extended_ast->typecheck(tenv);
 			return std::make_pair(std::move(extended_ast), std::move(tenv));
