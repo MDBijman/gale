@@ -4,63 +4,20 @@
 
 #include <vector>
 #include <unordered_map>
-#include <unordered_set>
-#include <set>
-#include <map>
+#include <variant>
+#include <string>
+#include <optional>
+#include <tuple>
 
 namespace fe
 {
 	struct nested_type
 	{
-		void insert(std::string field, nested_type t)
-		{
-			names.push_back(std::pair<std::string, nested_type>(field, t));
-		}
+		void insert(std::string field, nested_type t);
 
-		void insert(std::string field)
-		{
-			names.push_back(field);
-		}
+		void insert(std::string field);
 
-		std::optional<std::vector<int>> resolve(const extended_ast::identifier& name) const
-		{
-			if (name.segments.size() == 0) return std::nullopt;
-
-			for (auto it = names.begin(); it != names.end(); it++)
-			{
-				auto& elem = *it;
-
-				if (std::holds_alternative<std::string>(elem))
-				{
-					if (name.segments.size() > 1) continue;
-
-					auto field = std::get<std::string>(elem);
-					if (field == name.segments.at(0))
-						return std::vector<int>({ static_cast<int>(std::distance(names.begin(), it)) });
-				}
-				else
-				{
-					auto nested = std::get<std::pair<std::string, nested_type>>(elem);
-					if (nested.first != name.segments.at(0))
-						continue;
-
-					if (name.segments.size() != 1)
-					{
-						auto nested_resolved = nested.second.resolve(name.without_first_segment());
-						if (!nested_resolved.has_value()) return std::nullopt;
-						nested_resolved.value().insert(nested_resolved.value().begin(), 
-							static_cast<int>(std::distance(names.begin(), it)));
-						return nested_resolved.value();
-					}
-					else
-					{
-						return std::vector<int>({ static_cast<int>(std::distance(names.begin(), it)) });
-					}
-				}
-			}
-
-			return std::nullopt;
-		}
+		std::optional<std::vector<int>> resolve(const extended_ast::identifier& name) const;
 
 		std::vector<std::variant<std::string, std::pair<std::string, nested_type>>> names;
 	};
@@ -92,230 +49,55 @@ namespace fe::detail
 	class scope
 	{
 	public:
-		scope() {}
-		scope(const scope& other) : identifiers(other.identifiers), parent(other.parent)
-		{
-			for (decltype(auto) pair : other.nested_types)
-				this->nested_types.insert(pair);
-		}
+		scope();
+		scope(const scope& other);
 
-		void merge(scope other)
-		{
-			for (auto&& id : other.identifiers)
-				this->identifiers.insert(std::move(id));
-			for (auto&& pair : other.nested_types)
-				this->nested_types.insert(std::move(pair));
-		}
+		void merge(scope other);
 
-		void merge(std::vector<std::string> name, scope other)
-		{
-			for (auto id : other.identifiers)
-			{
-				extended_ast::identifier id_copy = id.first;
-				id_copy.segments.insert(id_copy.segments.begin(), name.begin(), name.end());
-				this->identifiers.insert({ std::move(id_copy), std::move(id.second) });
-			}
-			for (auto pair : other.nested_types)
-			{
-				extended_ast::identifier id_copy = pair.first;
-				id_copy.segments.insert(id_copy.segments.begin(), name.begin(), name.end());
-				this->nested_types.insert({ std::move(id_copy), std::move(pair.second) });
-			}
-		}
+		void merge(std::vector<std::string> name, scope other);
 
-		void merge(std::string name, scope other)
-		{
-			this->merge({ std::move(name) }, std::move(other));
-		}
+		void merge(std::string name, scope other);
 
-		void set_parent(scope& other)
-		{
-			this->parent = std::ref(other);
-		}
+		void set_parent(scope* other);
 
 		/*
-		* TODO
+		* Returns the type name of the given reference.
 		*/
-		std::optional<std::vector<int>> resolve_reference(const extended_ast::identifier& id) const
-		{
-			if (id.segments.size() == 0)
-				return std::nullopt;
+		std::optional<std::pair<std::size_t, extended_ast::identifier>> resolve_reference(
+			const extended_ast::identifier& id) const;
 
-			const auto loc = identifiers.find(id);
-			if (loc == identifiers.end()) return std::nullopt;
 
-			// The variable has been declared but not defined 
-			if (loc->second.second == false)
-				throw resolution_error{ "Variable referenced in its own definition" };
-
-			// If nested reference
-			if (id.segments.size() > 1)
-			{
-				auto& type_name = loc->second.first;
-				if (auto type_loc = nested_types.find(type_name); type_loc != nested_types.end())
-				{
-					return type_loc->second.resolve(id.without_first_segment());
-				}
-				else if (parent.has_value())
-				{
-					auto type_contents = parent.value().get().resolve_type(type_name);
-					return type_contents.value().second.resolve(id.without_first_segment());
-				}
-				else
-				{
-					return std::nullopt;
-				}
-			}
-			else
-			{
-				return std::vector<int>{};
-			}
-		}
-
-		std::optional<std::pair<std::size_t, nested_type>> resolve_type(const extended_ast::identifier& id) const
-		{
-			auto type_location = nested_types.find(id);
-			if (type_location == nested_types.end())
-			{
-				if (parent.has_value())
-				{
-					auto parent_resolve = parent.value().get().resolve_type(id);
-
-					if (parent_resolve.has_value())
-						return std::pair<std::size_t, nested_type>(parent_resolve.value().first + 1,
-							parent_resolve.value().second);
-				}
-
-				return std::nullopt;
-			}
-			else
-			{
-				return std::pair<std::size_t, nested_type>(0, type_location->second);
-			}
-		}
+		std::optional<std::pair<std::size_t, nested_type>> resolve_type(const extended_ast::identifier& id) const;
 
 		/*
 		* Declares the variable with the given name within this scope. The variable will not yet be resolvable.
 		*/
-		void declare_reference(extended_ast::identifier id, extended_ast::identifier type_name)
-		{
-			identifiers.insert({ std::move(id), { std::move(type_name), false } });
-		}
+		void declare_reference(std::string id, extended_ast::identifier type_name);
 
 		/*
 		* Defines the given name within this scope. After this, the variable will be resolvable.
 		*/
-		void define_reference(const extended_ast::identifier& id)
-		{
-			identifiers.at(id).second = true;
-		}
+		void define_reference(const std::string& id);
 
 		/*
 		* TODO
 		*/
-		void define_type(extended_ast::identifier id, nested_type t)
-		{
-			nested_types.insert({ std::move(id), std::move(t) });
-		}
-
-		void define_type(const extended_ast::identifier& id, const extended_ast::unique_node& t)
-		{
-			// This function builds a nested_type object from an AST node
-			using field_type = std::variant<nested_type, std::string, std::pair<std::string, nested_type>>;
-			std::function<field_type(extended_ast::node*)> build_fields = [&](extended_ast::node* type) -> field_type
-			{
-				if (auto tuple_declaration = dynamic_cast<extended_ast::tuple_declaration*>(type))
-				{
-					nested_type t;
-					for (auto i = 0; i < tuple_declaration->elements.size(); i++)
-					{
-						decltype(auto) tuple_declaration_element = tuple_declaration->elements.at(i);
-						auto fields = build_fields(tuple_declaration_element.get());
-
-						if (std::holds_alternative<std::string>(fields))
-							t.insert(std::get<std::string>(fields));
-						else if (std::holds_alternative<nested_type>(fields))
-						{
-							auto nested_fields = std::get<nested_type>(fields);
-							for (auto& field : nested_fields.names)
-							{
-								if (std::holds_alternative<std::string>(field))
-								{
-									t.insert(std::get<std::string>(field));
-								}
-								else if (std::holds_alternative<std::pair<std::string, nested_type>>(field))
-								{
-									auto[name, content] = std::get<std::pair<std::string, nested_type>>(field);
-									t.insert(name, content);
-								}
-							}
-						}
-						else if (std::holds_alternative<std::pair<std::string, nested_type>>(fields))
-						{
-							auto nested_fields = std::get<std::pair<std::string, nested_type>>(fields);
-							t.insert(nested_fields.first, nested_fields.second);
-						}
-					}
-					return t;
-				}
-				else if (auto atom_declaration = dynamic_cast<extended_ast::atom_declaration*>(type))
-				{
-					auto scope_depth = build_fields(atom_declaration->type_expression.get());
-
-					return std::pair<std::string, nested_type>(atom_declaration->name.segments.at(0),
-						std::get<nested_type>(scope_depth));
-				}
-				else if (auto atom = dynamic_cast<extended_ast::type_atom*>(type))
-				{
-					auto type_name = dynamic_cast<extended_ast::identifier*>(atom->type.get());
-					auto scope_depth = resolve_type(*type_name);
-					return scope_depth.value().second;
-				}
-				else if (auto ref = dynamic_cast<extended_ast::reference_type*>(type))
-				{
-					return build_fields(ref->child.get());
-				}
-				else if (auto arr = dynamic_cast<extended_ast::array_type*>(type))
-				{
-					return build_fields(arr->child.get());
-				}
-			};
-
-			auto nt = build_fields(t.get());
-			if (std::holds_alternative<std::string>(nt))
-			{
-				nested_type t;
-				t.insert(std::get<std::string>(nt));
-				nested_types.insert({ id, t });
-			}
-			else if (std::holds_alternative<nested_type>(nt))
-			{
-				nested_types.insert({ id, std::get<nested_type>(nt) });
-			}
-			else if (std::holds_alternative<std::pair<std::string, nested_type>>(nt))
-			{
-				auto res = std::get<std::pair<std::string, nested_type>>(nt);
-				nested_type t;
-				t.insert(res.first, res.second);
-				nested_types.insert({ id, std::get<nested_type>(res) });
-			}
-		}
+		void define_type(std::string id, nested_type t);
 
 	private:
 		/*
 		* The parent scope of this scope can be used to lookup if a type name exists that is accessible from within
 		* this scope.
 		*/
-		std::optional<std::reference_wrapper<scope>> parent;
+		std::optional<scope*> parent;
 
 		/*
 		* The identifiers in a scope are all named variables that can be referenced from within that scope.
 		* The name of the type is also stored, for resolving nested field references later.
 		*/
 		std::unordered_map<
-			extended_ast::identifier,
-			std::pair<extended_ast::identifier, bool>,
-			node_hasher<extended_ast::identifier>
+			std::string,
+			std::pair<extended_ast::identifier, bool>
 		> identifiers;
 
 		/*
@@ -333,7 +115,7 @@ namespace fe::detail
 		* encounters the Pair type definition, it adds the nested names a and b to this map. When the variable x is
 		* defined, 'Pair' is found in this map, causing x.a and x.b to be added to the scope.
 		*/
-		std::unordered_map<extended_ast::identifier, nested_type, node_hasher<extended_ast::identifier>> nested_types;
+		std::unordered_map<std::string, nested_type> nested_types;
 	};
 }
 
@@ -342,125 +124,40 @@ namespace fe
 	class scope_environment
 	{
 	public:
-		scope_environment() { push(); }
+		scope_environment();
+		scope_environment(const scope_environment&);
 
-		void push()
-		{
-			scopes.push_back(detail::scope{});
+		void push();
 
-			// There is a parent
-			if (scopes.size() > 1) {
-				auto& parent = scopes.at(scopes.size() - 2);
-				scopes.back().set_parent(parent);
-			}
-		}
+		void pop();
 
-		void pop()
-		{
-			scopes.pop_back();
-		}
+		std::optional<std::pair<std::size_t, std::vector<int>>> resolve_reference(
+			const extended_ast::identifier& name) const;
 
-		std::optional<std::pair<std::size_t, std::vector<int>>> resolve_reference(const extended_ast::identifier& name) const
-		{
-			for (auto it = scopes.rbegin(); it != scopes.rend(); ++it)
-			{
-				auto offsets = it->resolve_reference(name);
-				if (offsets.has_value())
-				{
-					return std::pair<std::size_t, std::vector<int>>(
-						std::distance(scopes.rbegin(), it), offsets.value()
-					);
-				}
-			}
+		std::optional<std::pair<std::size_t, nested_type>> resolve_type(const extended_ast::identifier& name) const;
 
-			if (auto loc = modules.find(name.segments.front()); loc != modules.end())
-			{
-				auto res = loc->second.resolve_reference(name.without_first_segment());
-				if (res.has_value())
-				{
-					res.value().first += scopes.size() - 1;
-				}
-				return res;
-			}
+		std::optional<nested_type> get_type(const extended_ast::identifier& name) const;
 
-			return std::nullopt;
-		}
+		void define_type(const extended_ast::identifier& id, const extended_ast::unique_node& content);
 
-		std::optional<std::size_t> resolve_type(const extended_ast::identifier& name) const
-		{
-			for (auto it = scopes.rbegin(); it != scopes.rend(); ++it)
-			{
-				auto offsets = it->resolve_type(name);
-				if (offsets.has_value()) return offsets.value().first;
-			}
+		void define_type(const extended_ast::identifier& id, const nested_type& content);
 
-			if (auto loc = modules.find(name.segments.front()); loc != modules.end())
-				return loc->second.resolve_type(name.without_first_segment());
+		void declare(extended_ast::identifier id, extended_ast::identifier type_name);
 
-			return std::nullopt;
-		}
+		void define(const extended_ast::identifier_tuple& id);
 
-		void define_type(const extended_ast::identifier& id, const extended_ast::unique_node& content)
-		{
-			scopes.rbegin()->define_type(id, content);
-		}
+		void define(const extended_ast::identifier& id);
 
-		void define_type(const extended_ast::identifier& id, const nested_type& content)
-		{
-			scopes.rbegin()->define_type(id, content);
-		}
+		void add_global_module(scope_environment mod);
 
-		void declare(extended_ast::identifier id, extended_ast::identifier type_name)
-		{
-			scopes.rbegin()->declare_reference(std::move(id), std::move(type_name));
-		}
+		void add_module(std::vector<std::string> name, scope_environment other);
 
-		void define(const extended_ast::identifier_tuple& id)
-		{
-			for (auto& child : id.content)
-				std::visit([this](auto& c) { this->define(c); }, child);
-		}
+		void add_module(std::string name, scope_environment other);
 
-		void define(const extended_ast::identifier& id)
-		{
-			scopes.rbegin()->define_reference(id);
-		}
-
-		void add_global_module(scope_environment mod)
-		{
-			this->scopes.front().merge(mod.scopes.front());
-		}
-
-		void add_module(std::vector<std::string> name, scope_environment other)
-		{
-			if (name.size() == 0)
-			{
-				add_global_module(std::move(other));
-			}
-			else
-			{
-				if (auto loc = modules.find(name[0]); loc != modules.end())
-				{
-					loc->second.add_module(std::vector<std::string>(name.begin() + 1, name.end()), std::move(other));
-				}
-				else
-				{
-					scope_environment new_te;
-
-					new_te.add_module(std::vector<std::string>(name.begin() + 1, name.end()), std::move(other));
-
-					modules.insert({ std::move(name[0]), std::move(new_te) });
-				}
-			}
-		}
-
-		void add_module(std::string name, scope_environment other)
-		{
-			add_module({ std::move(name) }, std::move(other));
-		}
+		std::size_t depth();
 
 	private:
-		std::vector<detail::scope> scopes;
+		std::vector<std::unique_ptr<detail::scope>> scopes;
 		std::unordered_map<std::string, scope_environment> modules;
 	};
 }

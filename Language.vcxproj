@@ -130,6 +130,7 @@
   <ItemGroup>
     <ClCompile Include="src\fe\data\core_ast.cpp" />
     <ClCompile Include="src\fe\data\extended_ast.cpp" />
+    <ClCompile Include="src\fe\data\scope_environment.cpp" />
     <ClCompile Include="src\fe\data\types.cpp" />
     <ClCompile Include="src\fe\data\values.cpp" />
     <ClCompile Include="src\fe\language_definition.cpp" />
