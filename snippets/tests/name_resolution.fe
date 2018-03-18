@@ -9,6 +9,10 @@ fn outside std.i32 a -> std.i32 = {
 	nested a;
 };
 
+fn id std.i32 a -> std.i32 = {
+	a;
+};
+
 fn get_string std.i32 a -> std.str = {
 	"3";
 };

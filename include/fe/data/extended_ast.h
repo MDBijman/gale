@@ -858,6 +858,7 @@ namespace fe
 			void resolve(scope_environment& s_env) override;
 
 			unique_node left, right;
+			std::size_t scope_depth;
 		};
 
 		struct addition : public node
@@ -877,6 +878,7 @@ namespace fe
 			void resolve(scope_environment& s_env) override;
 
 			unique_node left, right;
+			std::size_t scope_depth;
 		};
 
 		struct subtraction : public node
@@ -896,6 +898,7 @@ namespace fe
 			void resolve(scope_environment& s_env) override;
 
 			unique_node left, right;
+			std::size_t scope_depth;
 		};
 
 		struct multiplication : public node
@@ -915,6 +918,7 @@ namespace fe
 			void resolve(scope_environment& s_env) override;
 
 			unique_node left, right;
+			std::size_t scope_depth;
 		};
 
 		struct division : public node
@@ -934,6 +938,7 @@ namespace fe
 			void resolve(scope_environment& s_env) override;
 
 			unique_node left, right;
+			std::size_t scope_depth;
 		};
 
 		struct array_index : public node
@@ -953,6 +958,7 @@ namespace fe
 			void resolve(scope_environment& s_env) override;
 
 			unique_node array_exp, index_exp;
+			std::size_t scope_depth;
 		};
 
 		struct while_loop : public node

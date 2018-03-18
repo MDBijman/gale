@@ -33,9 +33,9 @@ var z: std.i32 = x.m.x;
 
 			THEN("the variable types should be correct")
 			{
-				auto valueof_z = re.valueof(fe::core_ast::identifier({}, "z", {}, nullptr));
-				REQUIRE(dynamic_cast<fe::values::integer*>(valueof_z.get()));
-				REQUIRE(dynamic_cast<fe::values::integer*>(valueof_z.get())->val == 3);
+				auto valueof_z = re.valueof(fe::core_ast::identifier({}, "z", {}, 0, nullptr));
+				REQUIRE(dynamic_cast<fe::values::integer*>(valueof_z.value()));
+				REQUIRE(dynamic_cast<fe::values::integer*>(valueof_z.value())->val == 3);
 			}
 		}
 	}

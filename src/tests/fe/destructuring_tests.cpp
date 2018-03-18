@@ -30,9 +30,9 @@ var (a, b, c, _) : Quad = Quad (1, 2, 3, 4);
 
 			THEN("the variable values should be correct")
 			{
-				auto valueof_a = re.valueof(fe::core_ast::identifier({}, "a", {}, nullptr));
-				REQUIRE(dynamic_cast<fe::values::integer*>(valueof_a.get()));
-				REQUIRE(dynamic_cast<fe::values::integer*>(valueof_a.get())->val == 1);
+				auto valueof_a = re.valueof(fe::core_ast::identifier({}, "a", {}, 0, nullptr));
+				REQUIRE(dynamic_cast<fe::values::integer*>(valueof_a.value()));
+				REQUIRE(dynamic_cast<fe::values::integer*>(valueof_a.value())->val == 1);
 			}
 		}
 	}

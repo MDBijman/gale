@@ -101,7 +101,8 @@ namespace fe
 			scopes.push_back(std::make_shared<detail::type_scope>());
 
 			// There is a parent
-			if (scopes.size() > 1) {
+			if (scopes.size() > 1)
+			{
 				auto& parent = scopes.at(scopes.size() - 2);
 				scopes.back()->set_parent(parent);
 			}

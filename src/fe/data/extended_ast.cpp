@@ -32,6 +32,7 @@ namespace fe
 				std::move(modules),
 				std::move(segments.at(modules.size())),
 				std::move(offsets),
+				this->scope_distance.has_value() ? this->scope_distance.value() : 0,
 				types::unique_type(get_type().copy())
 			};
 		}
@@ -279,23 +280,17 @@ namespace fe
 	
 		core_ast::node* match::lower()
 		{
-			const auto child_branch = new core_ast::branch(nullptr, nullptr, nullptr);
-			auto current_child = child_branch;
+			std::vector<std::pair<core_ast::unique_node, core_ast::unique_node>> new_branches;
 
 			for (auto it = branches.begin(); it != branches.end(); ++it)
 			{
-				if (it != branches.begin())
-				{
-					current_child->false_path = core_ast::unique_node(new core_ast::branch(nullptr, nullptr, nullptr));
-					current_child = static_cast<core_ast::branch*>(current_child->false_path.get());
-				}
-
-				current_child->test_path = core_ast::unique_node(it->test_path->lower());
-				current_child->true_path = core_ast::unique_node(it->code_path->lower());
-				current_child->false_path = core_ast::unique_node(new core_ast::no_op());
+				new_branches.emplace_back(
+					core_ast::unique_node(it->test_path->lower()),
+					core_ast::unique_node(it->code_path->lower())
+				);
 			}
 
-			return child_branch;
+			return new core_ast::branch(std::move(new_branches));
 		}
 
 		// Type Definition
@@ -308,9 +303,9 @@ namespace fe
 
 		core_ast::node* type_definition::lower()
 		{
-			auto return_statement = core_ast::unique_node(new core_ast::identifier({}, { "_arg0" }, {}, 
+			auto return_statement = core_ast::unique_node(new core_ast::identifier({}, { "_arg0" }, {}, 0,
 				types::make_unique(types::unset_type())));
-			auto parameter_name = core_ast::identifier({}, { "_arg0" }, {}, types::make_unique(types::unset_type()));
+			auto parameter_name = core_ast::identifier({}, { "_arg0" }, {}, 0, types::make_unique(types::unset_type()));
 
 			auto new_id = std::unique_ptr<core_ast::identifier>(static_cast<core_ast::identifier*>(this->id.lower()));
 
@@ -434,23 +429,30 @@ namespace fe
 		equality::equality(std::vector<unique_node>&& children) :
 			node(new types::unset_type()),
 			left(std::move(children.at(0))),
-			right(std::move(children.at(1))) {}
+			right(std::move(children.at(1))),
+			scope_depth(0)
+		{}
 
 		equality::equality(const equality& other) :
 			node(other),
 			left(other.left->copy()),
-			right(other.right->copy()) {}
+			right(other.right->copy()),
+			scope_depth(other.scope_depth)
+		{}
 
 		equality::equality(equality&& other) :
 			node(std::move(other)),
 			left(std::move(other.left)),
-			right(std::move(other.right)) {}
+			right(std::move(other.right)),
+			scope_depth(other.scope_depth)
+		{}
 
 		equality& equality::operator=(equality&& other)
 		{
 			set_type(types::unique_type(other.get_type().copy()));
 			this->left = std::move(other.left);
 			this->right = std::move(other.right);
+			this->scope_depth = other.scope_depth;
 			return *this;
 		}
 
@@ -470,7 +472,7 @@ namespace fe
 			p.product.push_back(types::make_unique(types::atom_type{ "std.i32" }));
 
 			return new core_ast::function_call{
-				core_ast::identifier{{}, "eq", {}, types::make_unique(types::unset_type())},
+				core_ast::identifier{{}, "eq", {}, scope_depth, types::make_unique(types::unset_type())},
 				std::make_unique<core_ast::tuple>(core_ast::tuple{
 					std::move(lowered_children),
 					types::make_unique(std::move(p))
@@ -484,23 +486,30 @@ namespace fe
 		addition::addition(std::vector<unique_node>&& children) :
 			node(new types::unset_type()),
 			left(std::move(children.at(0))),
-			right(std::move(children.at(1))) {}
+			right(std::move(children.at(1))),
+			scope_depth(0)
+		{}
 
 		addition::addition(const addition& other) :
 			node(other),
 			left(other.left->copy()),
-			right(other.right->copy()) {}
+			right(other.right->copy()),
+			scope_depth(other.scope_depth)
+		{}
 
 		addition::addition(addition&& other) :
 			node(std::move(other)),
 			left(std::move(other.left)),
-			right(std::move(other.right)) {}
+			right(std::move(other.right)),
+			scope_depth(other.scope_depth)
+		{}
 
 		addition& addition::operator=(addition&& other)
 		{
 			set_type(types::unique_type(other.get_type().copy()));
 			this->left = std::move(other.left);
 			this->right = std::move(other.right);
+			this->scope_depth = other.scope_depth;
 			return *this;
 		}
 
@@ -520,7 +529,7 @@ namespace fe
 			p.product.push_back(types::make_unique(types::atom_type{ "std.i32" }));
 
 			return new core_ast::function_call{
-				core_ast::identifier{{}, "add", {}, types::make_unique(types::unset_type())},
+				core_ast::identifier{{}, "add", {}, scope_depth, types::make_unique(types::unset_type())},
 				std::make_unique<core_ast::tuple>(core_ast::tuple{
 					std::move(lowered_children),
 					types::make_unique(std::move(p))
@@ -534,23 +543,30 @@ namespace fe
 		subtraction::subtraction(std::vector<unique_node>&& children) :
 			node(new types::unset_type()),
 			left(std::move(children.at(0))),
-			right(std::move(children.at(1))) {}
+			right(std::move(children.at(1))),
+			scope_depth(0)
+		{}
 
 		subtraction::subtraction(const subtraction& other) :
 			node(other),
 			left(other.left->copy()),
-			right(other.right->copy()) {}
+			right(other.right->copy()),
+			scope_depth(other.scope_depth)
+		{}
 
 		subtraction::subtraction(subtraction&& other) :
 			node(std::move(other)),
 			left(std::move(other.left)),
-			right(std::move(other.right)) {}
+			right(std::move(other.right)),
+			scope_depth(other.scope_depth)
+		{}
 
 		subtraction& subtraction::operator=(subtraction&& other)
 		{
 			set_type(types::unique_type(other.get_type().copy()));
 			this->left = std::move(other.left);
 			this->right = std::move(other.right);
+			this->scope_depth = other.scope_depth;
 			return *this;
 		}
 
@@ -570,7 +586,7 @@ namespace fe
 			p.product.push_back(types::make_unique(types::atom_type{ "std.i32" }));
 
 			return new core_ast::function_call{
-				core_ast::identifier{{}, "sub", {}, types::make_unique(types::unset_type())},
+				core_ast::identifier{{}, "sub", {}, scope_depth, types::make_unique(types::unset_type())},
 				std::make_unique<core_ast::tuple>(core_ast::tuple{
 					std::move(lowered_children),
 					types::make_unique(std::move(p))
@@ -584,23 +600,30 @@ namespace fe
 		multiplication::multiplication(std::vector<unique_node>&& children) :
 			node(new types::unset_type()),
 			left(std::move(children.at(0))),
-			right(std::move(children.at(1))) {}
+			right(std::move(children.at(1))),
+			scope_depth(0)
+		{}
 
 		multiplication::multiplication(const multiplication& other) :
 			node(other),
 			left(other.left->copy()),
-			right(other.right->copy()) {}
+			right(other.right->copy()),
+			scope_depth(other.scope_depth)
+		{}
 
 		multiplication::multiplication(multiplication&& other) :
 			node(std::move(other)),
 			left(std::move(other.left)),
-			right(std::move(other.right)) {}
+			right(std::move(other.right)),
+			scope_depth(other.scope_depth)
+		{}
 
 		multiplication& multiplication::operator=(multiplication&& other)
 		{
 			set_type(types::unique_type(other.get_type().copy()));
 			this->left = std::move(other.left);
 			this->right = std::move(other.right);
+			this->scope_depth = other.scope_depth;
 			return *this;
 		}
 
@@ -620,7 +643,7 @@ namespace fe
 			p.product.push_back(types::make_unique(types::atom_type{ "std.i32" }));
 
 			return new core_ast::function_call{
-				core_ast::identifier{{}, "mul", {}, types::make_unique(types::unset_type())},
+				core_ast::identifier{{}, "mul", {}, scope_depth, types::make_unique(types::unset_type())},
 				std::make_unique<core_ast::tuple>(core_ast::tuple{
 					std::move(lowered_children),
 					types::make_unique(std::move(p))
@@ -634,23 +657,30 @@ namespace fe
 		division::division(std::vector<unique_node>&& children) :
 			node(new types::unset_type()),
 			left(std::move(children.at(0))),
-			right(std::move(children.at(1))) {}
+			right(std::move(children.at(1))),
+			scope_depth(0)
+		{}
 
 		division::division(const division& other) :
 			node(other),
 			left(other.left->copy()),
-			right(other.right->copy()) {}
+			right(other.right->copy()),
+			scope_depth(other.scope_depth)
+		{}
 
 		division::division(division&& other) :
 			node(std::move(other)),
 			left(std::move(other.left)),
-			right(std::move(other.right)) {}
+			right(std::move(other.right)),
+			scope_depth(other.scope_depth)
+		{}
 
 		division& division::operator=(division&& other)
 		{
 			set_type(types::unique_type(other.get_type().copy()));
 			this->left = std::move(other.left);
 			this->right = std::move(other.right);
+			this->scope_depth = other.scope_depth;
 			return *this;
 		}
 
@@ -670,7 +700,7 @@ namespace fe
 			p.product.push_back(types::make_unique(types::atom_type{ "std.i32" }));
 
 			return new core_ast::function_call{
-				core_ast::identifier{{}, "div", {}, types::make_unique(types::unset_type())},
+				core_ast::identifier{{}, "div", {}, scope_depth, types::make_unique(types::unset_type())},
 				std::make_unique<core_ast::tuple>(core_ast::tuple{
 					std::move(lowered_children),
 					types::make_unique(std::move(p))
@@ -684,23 +714,30 @@ namespace fe
 		array_index::array_index(std::vector<unique_node>&& children) :
 			node(new types::unset_type()),
 			array_exp(std::move(children.at(0))),
-			index_exp(std::move(children.at(1))) {}
+			index_exp(std::move(children.at(1))),
+			scope_depth(0)
+		{}
 
 		array_index::array_index(const array_index& other) :
 			node(other),
 			array_exp(other.array_exp->copy()),
-			index_exp(other.index_exp->copy()) {}
+			index_exp(other.index_exp->copy()),
+			scope_depth(other.scope_depth)
+		{}
 
 		array_index::array_index(array_index&& other) :
 			node(std::move(other)),
 			array_exp(std::move(other.array_exp)),
-			index_exp(std::move(other.index_exp)) {}
+			index_exp(std::move(other.index_exp)),
+			scope_depth(other.scope_depth)
+		{}
 
 		array_index& array_index::operator=(array_index&& other)
 		{
 			set_type(types::unique_type(other.get_type().copy()));
 			this->array_exp = std::move(other.array_exp);
 			this->index_exp = std::move(other.index_exp);
+			this->scope_depth = other.scope_depth;
 			return *this;
 		}
 
@@ -722,7 +759,7 @@ namespace fe
 			const auto type = dynamic_cast<types::array_type*>(&array_exp->get_type());
 
 			return new core_ast::function_call{
-				core_ast::identifier{{}, "get", {}, types::make_unique(types::unset_type())},
+				core_ast::identifier{{}, "get", {}, scope_depth, types::make_unique(types::unset_type())},
 				std::make_unique<core_ast::tuple>(core_ast::tuple{
 					std::move(lowered_children),
 					types::make_unique(std::move(p))
