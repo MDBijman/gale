@@ -10,43 +10,48 @@
 
 namespace fe
 {
+	using module_name = std::vector<std::string>;
+
 	class module
 	{
 	public:
 		virtual ~module() = 0 {};
 
-		virtual const std::string& get_name() = 0;
+		virtual const module_name& get_name() = 0;
 		virtual std::tuple<type_environment, runtime_environment, scope_environment> interp(pipeline& p) = 0;
 	};
 
 	class code_module : public module
 	{
 	public:
-		code_module(std::string module_name, extended_ast::unique_node&& root) : name(module_name), root(std::move(root)) {}
+		code_module(module_name name, extended_ast::unique_node&& root) : name(name), root(std::move(root)) {}
 	
-		const std::string& get_name() override { return name; }
+		const module_name& get_name() override 
+		{ 
+			return name; 
+		}
+
 		std::tuple<type_environment, runtime_environment, scope_environment> interp(pipeline& p)
 		{
 			type_environment te;
 			runtime_environment re;
 			scope_environment se;
-			re.name = name;
 
 			for (auto& import : imports)
 			{
 				auto[sub_te, sub_re, sub_se] = import->interp(p);
-				if (import->get_name() == "core")
+				if (import->get_name().size() == 1 && import->get_name()[0] == "core")
 				{
 					te.add_global_module(std::move(sub_te));
 					se.add_global_module(std::move(sub_se));
+					re.add_global_module(std::move(sub_re));
 				}
 				else
 				{
 					te.add_module(import->get_name(), std::move(sub_te));
 					se.add_module(import->get_name(), std::move(sub_se));
+					re.add_module(import->get_name(), std::move(sub_re));
 				}
-
-				re.add_module(std::move(sub_re));
 			}
 
 			auto new_se = p.resolve(*root, std::move(se));
@@ -59,26 +64,33 @@ namespace fe
 
 		extended_ast::unique_node root;
 
-		std::string name;
+		module_name name;
 		std::vector<std::shared_ptr<module>> imports;
 	};
 
 	class native_module : public module
 	{
 	public:
-		native_module(std::string module_name, runtime_environment re, type_environment te, scope_environment se)
-			: name(module_name), native_runtime_environment(std::move(re)), native_type_environment(std::move(te)),
-			native_scope_environment(std::move(se)) {}
+		native_module(module_name name, runtime_environment re, type_environment te, scope_environment se)
+			: name(name), runtime_environment(std::move(re)), type_environment(std::move(te)),
+			scope_environment(std::move(se)) {}
 
-		const std::string& get_name() override { return name; }
-		std::tuple<type_environment, runtime_environment, scope_environment> interp(pipeline& p)
+		native_module(std::string name, runtime_environment re, type_environment te, scope_environment se)
+			: native_module(std::vector<std::string>{name}, std::move(re),std::move(te), std::move(se)) {}
+
+		const module_name& get_name() override
 		{
-			return { native_type_environment, native_runtime_environment, native_scope_environment };
+			return name;
 		}
 
-		std::string name;
-		scope_environment native_scope_environment;
-		runtime_environment native_runtime_environment;
-		type_environment native_type_environment;
+		std::tuple<type_environment, runtime_environment, scope_environment> interp(pipeline& p)
+		{
+			return { type_environment, runtime_environment, scope_environment };
+		}
+
+		module_name name;
+		scope_environment scope_environment;
+		runtime_environment runtime_environment;
+		type_environment type_environment;
 	};
 }

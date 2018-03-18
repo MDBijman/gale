@@ -101,7 +101,8 @@ namespace fe
 			scopes.push_back(std::make_shared<detail::type_scope>());
 
 			// There is a parent
-			if (scopes.size() > 1) {
+			if (scopes.size() > 1)
+			{
 				auto& parent = scopes.at(scopes.size() - 2);
 				scopes.back()->set_parent(parent);
 			}
@@ -115,7 +116,6 @@ namespace fe
 		std::optional<std::reference_wrapper<types::type>> typeof(const extended_ast::identifier& name)
 		{
 			if (!name.scope_distance.has_value()) return std::nullopt;
-			
 
 			auto res = scopes.back()->typeof(name, name.scope_distance.value());
 			if (res.has_value()) return res.value();
@@ -152,9 +152,32 @@ namespace fe
 			scopes.front()->merge(*other.scopes.front());
 		}
 
-		void add_module(const std::string& name, const type_environment& other)
+		void add_module(std::vector<std::string> name, type_environment other)
 		{
-			modules.insert({ name, other });
+			if (name.size() == 0)
+			{
+				add_global_module(std::move(other));
+			}
+			else 
+			{
+				if (auto loc = modules.find(name[0]); loc != modules.end())
+				{
+					loc->second.add_module(std::vector<std::string>(name.begin() + 1, name.end()), std::move(other));
+				}
+				else
+				{
+					type_environment new_te;
+
+					new_te.add_module(std::vector<std::string>(name.begin() + 1, name.end()), std::move(other));
+
+					modules.insert({ std::move(name[0]), std::move(new_te) });
+				}
+			}
+		}
+
+		void add_module(std::string name, type_environment other)
+		{
+			add_module({ std::move(name) }, std::move(other));
 		}
 
 		std::string to_string(bool include_modules = false)

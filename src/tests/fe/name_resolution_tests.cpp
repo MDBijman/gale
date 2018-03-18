@@ -26,16 +26,16 @@ var z: std.i32 = x.m.x;
 			auto lexed = p.lex(std::move(code));
 			auto parsed = p.parse(std::move(lexed));
 
-			fe::code_module cm("x", std::move(parsed));
+			fe::code_module cm(fe::module_name{ "x" }, std::move(parsed));
 			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::stdlib::types::load_as_module()));
 			
 			auto[te, re, se] = cm.interp(p);
 
 			THEN("the variable types should be correct")
 			{
-				auto valueof_z = re.valueof(fe::core_ast::identifier({}, "z", {}, nullptr));
-				REQUIRE(dynamic_cast<fe::values::integer*>(valueof_z.get()));
-				REQUIRE(dynamic_cast<fe::values::integer*>(valueof_z.get())->val == 3);
+				auto valueof_z = re.valueof(fe::core_ast::identifier({}, "z", {}, 0, nullptr));
+				REQUIRE(dynamic_cast<fe::values::integer*>(valueof_z.value()));
+				REQUIRE(dynamic_cast<fe::values::integer*>(valueof_z.value())->val == 3);
 			}
 		}
 	}

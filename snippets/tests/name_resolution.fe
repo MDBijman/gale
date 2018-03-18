@@ -1,12 +1,20 @@
 module name_resolution_tests
-import [std]
+import [std std.io]
 
-type Nested = (std.i32 x, std.i32 y);
-type Pair = (std.i32 a, Nested m);
+var test : std.i32 = 3;
+fn nested std.i32 a -> std.i32 = test;
 
-var x : Pair = Pair (1, Nested (3, 4));
+fn outside std.i32 a -> std.i32 = {
+	var test : std.i32 = 6;
+	nested a;
+};
 
-var (a, b) : Nested = x.m;
+fn id std.i32 a -> std.i32 = {
+	a;
+};
 
-type Quad = (std.i32 a, std.i32 b, std.i32 c, std.i32 d);
-var (a, b, c, _) : Quad = Quad (1, 2, 3, 4);
+fn get_string std.i32 a -> std.str = {
+	"3";
+};
+
+std.io.print std.to_string outside 3;

@@ -23,7 +23,7 @@ namespace fe
 			// Core (global namespace)
 			{
 				auto[re, te, se] = fe::core::operations::load();
-				runtime_environment.add_module(std::move(re));
+				runtime_environment.add_global_module(std::move(re));
 				type_environment.add_global_module(std::move(te));
 				name_environment.add_global_module(std::move(se));
 			}
@@ -31,8 +31,6 @@ namespace fe
 			// Std lib
 			{
 				auto std_runtime = fe::runtime_environment{};
-				std_runtime.name = "std";
-
 				auto std_typeset = fe::type_environment{};
 				auto std_nameset = fe::scope_environment{};
 
@@ -41,8 +39,7 @@ namespace fe
 					auto[te, re, se] = fe::stdlib::input::load();
 					std_nameset.add_module("io", std::move(se));
 					std_typeset.add_module("io", std::move(te));
-					re.name = "io";
-					std_runtime.add_module(std::move(re));
+					std_runtime.add_module("io", std::move(re));
 				}
 
 				// UI utilities
@@ -50,8 +47,7 @@ namespace fe
 					auto[te, re, se] = fe::stdlib::ui::load();
 					std_nameset.add_module("ui", std::move(se));
 					std_typeset.add_module("ui", std::move(te));
-					re.name = "ui";
-					std_runtime.add_module(std::move(re));
+					std_runtime.add_module("ui", std::move(re));
 				}
 
 				// Standard types
@@ -59,11 +55,11 @@ namespace fe
 					auto[te, re, se] = fe::stdlib::ui::load();
 					std_nameset.add_global_module(std::move(se));
 					std_typeset.add_global_module(std::move(te));
-					std_runtime.add_module(std::move(re));
+					std_runtime.add_global_module(std::move(re));
 				}
 
 				type_environment.add_module("std", std::move(std_typeset));
-				runtime_environment.add_module(std::move(std_runtime));
+				runtime_environment.add_module("std", std::move(std_runtime));
 				name_environment.add_module("std", std::move(std_nameset));
 			}
 
@@ -102,7 +98,7 @@ namespace fe
 
 				auto lexed = pipeline.lex(std::move(code));
 				auto parsed = pipeline.parse(std::move(lexed));
-				auto ne = pipeline.resolve(*parsed, name_environment);
+				auto ne = pipeline.resolve(*parsed, fe::scope_environment(name_environment));
 				auto typechecked = pipeline.typecheck(std::move(parsed), fe::type_environment(type_environment));
 				auto lowered = pipeline.lower(std::move(typechecked.first));
 				auto interped = pipeline.interp(std::move(lowered), fe::runtime_environment(runtime_environment));
@@ -112,7 +108,7 @@ namespace fe
 				auto te = typechecked.second;
 				auto re = interped.second;
 				type_environment.add_global_module(std::move(te));
-				runtime_environment.add_module(std::move(re));
+				runtime_environment.add_global_module(std::move(re));
 				name_environment.add_global_module(std::move(ne));
 			}
 		}
