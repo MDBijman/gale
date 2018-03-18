@@ -18,7 +18,7 @@ namespace fe
 				file = parser.new_non_terminal();
 				statement = parser.new_non_terminal();
 				export_stmt = parser.new_non_terminal();
-				assignment = parser.new_non_terminal();
+				declaration = parser.new_non_terminal();
 				expression = parser.new_non_terminal();
 				value_tuple = parser.new_non_terminal();
 				tuple_element = parser.new_non_terminal();
@@ -58,6 +58,7 @@ namespace fe
 				type_modifiers = parser.new_non_terminal();
 				assignable = parser.new_non_terminal();
 				identifier_tuple = parser.new_non_terminal();
+				assignment = parser.new_non_terminal();
 			}
 
 			{
@@ -118,6 +119,7 @@ namespace fe
 				.new_rule({ statement, {
 					type_definition, alt,
 					export_stmt, alt,
+					declaration, alt,
 					assignment, alt,
 					while_loop, alt,
 					operation, alt,
@@ -126,10 +128,11 @@ namespace fe
 
 				.new_rule({ type_definition, { type_keyword, identifier, equals, variable_declaration } })
 				.new_rule({ export_stmt, { export_keyword, identifier, star } })
-				.new_rule({ assignment, { var_keyword, assignable, colon, identifier, equals, operation } })
+				.new_rule({ declaration, { var_keyword, assignable, colon, identifier, equals, operation } })
+				.new_rule({ assignment, { identifier, equals, operation } })
 				.new_rule({ assignable, { identifier, alt, identifier_tuple } })
 				.new_rule({ identifier_tuple, { left_bracket, assignable, comma, assignable, lrb, comma, assignable, rrb, star, right_bracket } })
-				.new_rule({ while_loop, { while_keyword, operation, do_keyword, operation } })
+				.new_rule({ while_loop, { while_keyword, left_bracket, operation, right_bracket, operation } })
 				.new_rule({ function, { function_keyword, identifier, variable_declaration, right_arrow, type_operation, equals, match } })
 
 				// Expressions/Operations

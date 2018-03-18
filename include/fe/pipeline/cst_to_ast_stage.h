@@ -49,6 +49,9 @@ namespace fe
 				else if (node_type == non_terminals::module_declaration)
 					return std::make_unique<module_declaration>(std::move(children));
 
+				else if (node_type == non_terminals::declaration)
+					return std::make_unique<declaration>(std::move(children));
+
 				else if (node_type == non_terminals::assignment)
 					return std::make_unique<assignment>(std::move(children));
 
