@@ -15,14 +15,15 @@ namespace fe
 	namespace non_terminals
 	{
 		utils::ebnfe::non_terminal
-			file, statement, export_stmt, assignment, expression, value_tuple,
+			file, statement, export_stmt, declaration, expression, value_tuple,
 			tuple_element, function, match, operation, term, factor, addition, subtraction,
 			multiplication, division, brackets, array_index, index, module_imports,
 			match_branch, variable_declaration, type_expression, type_tuple,
 			type_tuple_elements, function_type, type_definition, module_declaration,
 			block, function_call, atom_variable_declaration, tuple_variable_declaration,
 			type_atom, reference_type, array_type, reference, array_value, while_loop,
-			arithmetic, equality, type_operation, type_modifiers, assignable, identifier_tuple
+			arithmetic, equality, type_operation, type_modifiers, assignable, identifier_tuple,
+			assignment
 			;
 	}
 

@@ -142,7 +142,7 @@ namespace fe
 
 		struct set : public node
 		{
-			set(identifier id, unique_node value, types::unique_type t);
+			set(identifier id, bool is_dec, unique_node value, types::unique_type t);
 			set(identifier_tuple lhs, unique_node value, types::unique_type t);
 
 			// Copy
@@ -160,6 +160,7 @@ namespace fe
 			values::unique_value interp(runtime_environment&) override;
 
 			std::variant<identifier, identifier_tuple> lhs;
+			bool is_declaration;
 			unique_node value;
 			types::unique_type type;
 		};

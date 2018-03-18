@@ -54,6 +54,18 @@ namespace fe::detail
 			this->variables.insert({ name, std::move(value) });
 		}
 
+		void set_value(const std::string& name, values::unique_value value, std::size_t depth)
+		{
+			if (depth > 0)
+			{
+				parent.value()->set_value(name, std::move(value), depth - 1);
+			}
+			else
+			{
+				this->variables.insert_or_assign(name, std::move(value));
+			}
+		}
+
 		void set_parent(std::shared_ptr<value_scope> parent)
 		{
 			this->parent = parent;
@@ -158,16 +170,19 @@ namespace fe
 			this->scopes.back()->set_value(name, values::unique_value(value.copy()));
 		}
 
-		detail::value_scope& get_env_at(std::size_t depth)
+		void set_value(const std::string& name, const values::value& value, std::size_t scope_depth)
 		{
-
+			assert(name.size() >= 1);
+			this->scopes.back()->set_value(name, values::unique_value(value.copy()), scope_depth);
 		}
 
 		std::optional<values::value*> valueof(const core_ast::identifier& identifier) const
 		{
 			if (identifier.modules.size() > 0)
 			{
-				return modules.find(identifier.modules.at(0))->second.valueof(identifier.without_first_module());
+				auto new_id = identifier.without_first_module();
+				new_id.scope_depth = 0;
+				return modules.find(identifier.modules.at(0))->second.valueof(std::move(new_id));
 			}
 			else
 			{

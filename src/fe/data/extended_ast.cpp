@@ -172,11 +172,11 @@ namespace fe
 			);
 		}
 
-		// Assignment
+		// Declaration
 
-		assignment::assignment(const assignment& other) : node(other), lhs(other.lhs), type_name(other.type_name), value(other.value->copy()) {}
+		declaration::declaration(const declaration& other) : node(other), lhs(other.lhs), type_name(other.type_name), value(other.value->copy()) {}
 
-		core_ast::node* assignment::lower()
+		core_ast::node* declaration::lower()
 		{
 			const auto value = this->value->lower();
 
@@ -205,13 +205,12 @@ namespace fe
 			if (std::holds_alternative<core_ast::identifier>(res))
 			{
 				return new core_ast::set(
-					std::move(std::get<core_ast::identifier>(res)),
+					std::move(std::get<core_ast::identifier>(res)), true,
 					core_ast::unique_node(value),
 					types::unique_type(this->value->get_type().copy())
 				);
 			}
-
-			if (std::holds_alternative<core_ast::identifier_tuple>(res))
+			else if (std::holds_alternative<core_ast::identifier_tuple>(res))
 			{
 				return new core_ast::set(
 					std::move(std::get<core_ast::identifier_tuple>(res)),
@@ -220,12 +219,26 @@ namespace fe
 				);
 			}
 
-			throw std::runtime_error("The lhs of an assignment must become either an identifier or an identifier tuple");
+			assert(!"The lhs of an assignment must become either an identifier or an identifier tuple");
 		}
+
+		// Assignment
+
+		core_ast::node* assignment::lower()
+		{
+			return new core_ast::set(
+				*dynamic_cast<core_ast::identifier*>(this->lhs.lower()), false,
+				core_ast::unique_node(this->value->lower()),
+				types::unique_type(this->value->get_type().copy())
+			);
+		}
+
+		assignment::assignment(const assignment& other) : node(other), lhs(other.lhs), value(other.value->copy()) {}
 
 		// Function
 
-		function::function(const function& other) : node(other), name(other.name), from(other.from->copy()), to(other.to->copy()), body(other.body->copy()) {}
+		function::function(const function& other) : node(other), name(other.name), from(other.from->copy()), 
+			to(other.to->copy()), body(other.body->copy()) {}
 		function::function(std::vector<unique_node>&& children) :
 			node(new types::unset_type()),
 			name(std::move(*dynamic_cast<identifier*>(children.at(0).get()))),
@@ -277,7 +290,7 @@ namespace fe
 		}
 
 		// Condition Branch
-	
+
 		core_ast::node* match::lower()
 		{
 			std::vector<std::pair<core_ast::unique_node, core_ast::unique_node>> new_branches;
@@ -310,8 +323,7 @@ namespace fe
 			auto new_id = std::unique_ptr<core_ast::identifier>(static_cast<core_ast::identifier*>(this->id.lower()));
 
 			return new core_ast::set(
-				*new_id,
-
+				*new_id, true,
 				core_ast::unique_node(new core_ast::function(
 					core_ast::identifier(*new_id),
 					parameter_name,

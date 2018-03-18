@@ -121,7 +121,7 @@ namespace fe::extended_ast
 
 	void identifier_tuple::resolve(scope_environment& s_env) {}
 
-	void assignment::resolve(scope_environment& s_env)
+	void declaration::resolve(scope_environment& s_env)
 	{
 		if (std::holds_alternative<extended_ast::identifier>(this->lhs))
 		{
@@ -171,6 +171,12 @@ namespace fe::extended_ast
 			};
 			define(this->lhs);
 		}
+	}
+
+	void assignment::resolve(scope_environment& s_env)
+	{
+		this->lhs.resolve(s_env);
+		this->value->resolve(s_env);
 	}
 
 	void type_tuple::resolve(scope_environment& s_env) {}

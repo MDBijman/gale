@@ -121,7 +121,11 @@ namespace fe
 			if (res.has_value()) return res.value();
 
 			if (auto loc = modules.find(name.segments.front()); loc != modules.end())
-				return loc->second.typeof(name.without_first_segment());
+			{
+				auto new_id = name.without_first_segment();
+				new_id.scope_distance = 0;
+				return loc->second.typeof(std::move(new_id));
+			}
 
 			return std::nullopt;
 		}
