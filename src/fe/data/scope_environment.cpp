@@ -349,6 +349,8 @@ namespace fe
 			{
 				return build_fields(arr->child.get());
 			}
+
+			assert(!"Invalid node inside type declaration");
 		};
 
 		auto nt = build_fields(content.get());
