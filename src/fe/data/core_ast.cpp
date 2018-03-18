@@ -124,31 +124,33 @@ namespace fe
 
 		// Set
 
-		set::set(identifier id, unique_node value, types::unique_type t) : lhs(std::move(id)), value(std::move(value)),
-			type(std::move(t)) {}
+		set::set(identifier id, bool is_dec, unique_node value, types::unique_type t) : lhs(std::move(id)), 
+			is_declaration(is_dec), value(std::move(value)), type(std::move(t)) {}
 
 		set::set(identifier_tuple lhs, unique_node value, types::unique_type t) : lhs(lhs), value(std::move(value)), 
-			type(std::move(t)) {}
+			type(std::move(t)), is_declaration(true) {}
 		
 		set::set(const set& other) : lhs(other.lhs), value(unique_node(other.value->copy())), 
-			type(other.type->copy()) {}
+			type(other.type->copy()), is_declaration(other.is_declaration) {}
 
 		set& set::operator=(const set& other)
 		{
 			this->lhs = other.lhs;
 			this->type = types::unique_type(other.type->copy());
 			this->value = unique_node(other.value->copy());
+			this->is_declaration = other.is_declaration;
 			return *this;
 		}
 
 		set::set(set&& other) : lhs(std::move(other.lhs)), value(std::move(other.value)), 
-			type(std::move(other.type)) {}
+			type(std::move(other.type)), is_declaration(other.is_declaration) {}
 
 		set& set::operator=(set&& other)
 		{
 			this->lhs = std::move(other.lhs);
 			this->type = std::move(other.type);
 			this->value = std::move(other.value);
+			this->is_declaration = other.is_declaration;
 			return *this;
 		}
 
@@ -158,7 +160,7 @@ namespace fe
 
 			// Assign value to lhs, which is slightly complex when the lhs is a destructuring
 			std::function<void(std::variant<identifier, identifier_tuple>&, values::value&)> interp
-				= [&env, &interp](std::variant<identifier, identifier_tuple>& ids, values::value& value) 
+				= [&env, &interp, this](std::variant<identifier, identifier_tuple>& ids, values::value& value) 
 			{
 				if(std::holds_alternative<identifier_tuple>(ids))
 				{
@@ -178,7 +180,14 @@ namespace fe
 				else if(std::holds_alternative<identifier>(ids))
 				{
 					auto& id = std::get<identifier>(ids);
-					env.set_value(id.variable_name, values::unique_value(value.copy()));
+					if (is_declaration)
+					{
+						env.set_value(id.variable_name, values::unique_value(value.copy()));
+					}
+					else
+					{
+						env.set_value(id.variable_name, value, id.scope_depth);
+					}
 				}
 			};
 			interp(this->lhs, *val);
@@ -490,6 +499,8 @@ namespace fe
 			while (running)
 			{
 				body->interp(env);
+
+				test_res = test->interp(env);
 				running = dynamic_cast<values::boolean*>(test_res.get())->val;
 			}
 

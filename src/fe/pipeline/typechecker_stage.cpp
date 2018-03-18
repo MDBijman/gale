@@ -44,8 +44,9 @@ namespace fe::extended_ast
 		auto& argument_type = params->get_type();
 
 		auto type = env.typeof(this->id);
+
 		if (!type.has_value())
-			throw typecheck_error{ "Function name cannot be resolved" };
+			throw typecheck_error{ "Function name: " + this->id.to_string() + " cannot be resolved" };
 
 		auto& function_or_type = type.value().get();
 		if (auto function_type = dynamic_cast<types::function_type*>(&function_or_type))
@@ -234,7 +235,7 @@ namespace fe::extended_ast
 		set_type(new types::atom_type("void"));
 	}
 
-	void assignment::typecheck(type_environment& env)
+	void declaration::typecheck(type_environment& env)
 	{
 		value->typecheck(env);
 
@@ -281,6 +282,20 @@ namespace fe::extended_ast
 		};
 
 		typecheck(this->lhs, value->get_type());
+
+		set_type(new types::atom_type("void"));
+	}
+
+	void assignment::typecheck(type_environment& env)
+	{
+		this->value->typecheck(env);
+		auto type = env.typeof(this->lhs);
+
+		if (!type.has_value())
+			throw typecheck_error{ "Cannot assign to undeclared variable" };
+
+		if (!(type.value().get() == &this->value->get_type()))
+			throw typecheck_error{ "Type of assignment value is different from declared variable type" };
 
 		set_type(new types::atom_type("void"));
 	}

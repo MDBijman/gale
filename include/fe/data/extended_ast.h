@@ -605,9 +605,9 @@ namespace fe
 			std::vector<std::variant<identifier, identifier_tuple>> content;
 		};
 
-		struct assignment : public node
+		struct declaration : public node
 		{
-			assignment(std::vector<unique_node>&& children) :
+			declaration(std::vector<unique_node>&& children) :
 				node(new types::unset_type()),
 				value(std::move(children.at(2))),
 				type_name(std::move(*dynamic_cast<identifier*>(children.at(1).get()))),
@@ -624,6 +624,43 @@ namespace fe
 
 			node* copy() override
 			{
+				return new declaration(*this);
+			}
+
+			void typecheck(type_environment& env) override;
+			core_ast::node* lower() override;
+			void resolve(scope_environment& s_env) override;
+
+			// Copy
+			declaration(const declaration& other);
+
+			// Move
+			declaration(declaration&& other) : node(std::move(other)), type_name(std::move(other.type_name)), lhs(std::move(other.lhs)), value(std::move(other.value)) {}
+			declaration& operator=(declaration&& other)
+			{
+				set_type(types::unique_type(other.get_type().copy()));
+				type_name = std::move(other.type_name);
+				lhs = std::move(other.lhs);
+				value = std::move(other.value);
+				return *this;
+			}
+
+			std::variant<identifier, identifier_tuple> lhs;
+			identifier type_name;
+			unique_node value;
+		};
+
+		struct assignment : public node
+		{
+			assignment(std::vector<unique_node>&& children) :
+				node(new types::unset_type()),
+				lhs(*dynamic_cast<identifier*>(children.at(0).get())),
+				value(std::move(children.at(1)))
+			{
+			}
+
+			node* copy() override
+			{
 				return new assignment(*this);
 			}
 
@@ -635,18 +672,19 @@ namespace fe
 			assignment(const assignment& other);
 
 			// Move
-			assignment(assignment&& other) : node(std::move(other)), type_name(std::move(other.type_name)), lhs(std::move(other.lhs)), value(std::move(other.value)) {}
+			assignment(assignment&& other) : node(std::move(other)), lhs(std::move(other.lhs)), 
+				value(std::move(other.value)) 
+			{}
+
 			assignment& operator=(assignment&& other)
 			{
 				set_type(types::unique_type(other.get_type().copy()));
-				type_name = std::move(other.type_name);
 				lhs = std::move(other.lhs);
 				value = std::move(other.value);
 				return *this;
 			}
 
-			std::variant<identifier, identifier_tuple> lhs;
-			identifier type_name;
+			identifier lhs;
 			unique_node value;
 		};
 
