@@ -63,6 +63,9 @@
     <Filter Include="Resource Files\snippets\tests">
       <UniqueIdentifier>{b6678e23-e356-44a0-aa4a-2e46664a4d4f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Resource Files\snippets\euler">
+      <UniqueIdentifier>{699e989c-a665-428a-8642-f3f52811a282}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="snippets\project\modeling_module.fe">
@@ -73,6 +76,9 @@
     </None>
     <None Include="snippets\tests\performance_empty.fe">
       <Filter>Resource Files\snippets\tests</Filter>
+    </None>
+    <None Include="snippets\euler\euler1.fe">
+      <Filter>Resource Files\snippets\euler</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -129,6 +135,9 @@
     </ClCompile>
     <ClCompile Include="src\fe\data\scope_environment.cpp">
       <Filter>Source Files\fe\data</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tests\fe\while_tests.cpp">
+      <Filter>Source Files\tests\fe</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

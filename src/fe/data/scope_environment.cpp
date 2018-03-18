@@ -257,7 +257,9 @@ namespace fe
 
 		if (auto loc = modules.find(name.segments.front()); loc != modules.end())
 		{
-			resolved = loc->second.resolve_type(name.without_first_segment());
+			auto new_id = name.without_first_segment();
+			new_id.scope_distance = 0;
+			resolved = loc->second.resolve_type(std::move(new_id));
 
 			if (!resolved.has_value())
 				return std::nullopt;
