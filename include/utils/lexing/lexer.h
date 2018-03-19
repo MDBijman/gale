@@ -17,13 +17,13 @@ namespace utils
 		/*
 		* \brief
 		*	Represents a token. Negative values are reserved for special meanings.
-		*	0 indicates an epsilon token. -1 indicates an end of input token. -2 a new line.
+		*	-1 indicates an epsilon token. -2 indicates an end of input token. -3 a new line.
 		*/
 		using token_id = int32_t;
 		using lexer_position = std::string::const_iterator;
 		using lexer_range = std::pair<lexer_position, lexer_position>;
 
-		constexpr token_id epsilon = 1;
+		constexpr token_id epsilon = -1;
 		constexpr token_id end_of_input = -2;
 		constexpr token_id new_line = -3;
 

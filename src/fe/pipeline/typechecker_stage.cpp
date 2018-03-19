@@ -14,6 +14,11 @@ namespace fe::extended_ast
 		this->set_type(new types::atom_type("std.str"));
 	}
 
+	void boolean::typecheck(type_environment& t_env)
+	{
+		this->set_type(new types::atom_type("std.bool"));
+	}
+
 	void identifier::typecheck(type_environment& env)
 	{
 		auto t = env.typeof(*this);
