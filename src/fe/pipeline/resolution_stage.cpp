@@ -10,9 +10,13 @@ namespace fe::extended_ast
 
 	void identifier::resolve(scope_environment& s_env)
 	{
-		auto access_pattern = s_env.resolve_reference(*this).value();
-		this->scope_distance = access_pattern.first;
-		this->offsets = access_pattern.second;
+		auto access_pattern = s_env.resolve_reference(*this);
+
+		if(!access_pattern.has_value())
+			throw resolution_error{ std::string("Cannot resolve reference: ").append(this->to_string()) };
+
+		this->scope_distance = access_pattern.value().first;
+		this->offsets = access_pattern.value().second;
 	}
 
 	void tuple::resolve(scope_environment& s_env)
@@ -194,41 +198,6 @@ namespace fe::extended_ast
 	{
 		for (auto& child : this->children)
 			child->resolve(s_env);
-	}
-
-	void equality::resolve(scope_environment& s_env)
-	{
-		this->left->resolve(s_env);
-		this->right->resolve(s_env);
-		this->scope_depth = s_env.depth() - 1;
-	}
-
-	void addition::resolve(scope_environment& s_env)
-	{
-		this->left->resolve(s_env);
-		this->right->resolve(s_env);
-		this->scope_depth = s_env.depth() - 1;
-	}
-
-	void subtraction::resolve(scope_environment& s_env)
-	{
-		this->left->resolve(s_env);
-		this->right->resolve(s_env);
-		this->scope_depth = s_env.depth() - 1;
-	}
-
-	void multiplication::resolve(scope_environment& s_env)
-	{
-		this->left->resolve(s_env);
-		this->right->resolve(s_env);
-		this->scope_depth = s_env.depth() - 1;
-	}
-
-	void division::resolve(scope_environment& s_env)
-	{
-		this->left->resolve(s_env);
-		this->right->resolve(s_env);
-		this->scope_depth = s_env.depth() - 1;
 	}
 
 	void array_index::resolve(scope_environment& s_env)

@@ -37,6 +37,8 @@ namespace fe
 			add_mapping(colon_token, colon);
 			add_mapping(dot_token, dot);
 			add_mapping(equality_token, two_equals);
+			add_mapping(percentage_token, percentage);
+			add_mapping(lteq_token, lteq);
 			add_mapping(keyword_token, [&](utils::lexing::token token) {
 				if (token.text == "export")
 					return export_keyword;

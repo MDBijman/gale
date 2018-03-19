@@ -427,9 +427,10 @@ namespace fe
 			for (auto& path : paths)
 			{
 				env.push();
-				auto test_res = dynamic_cast<values::boolean*>(path.first->interp(env).get());
+				auto test_res = path.first->interp(env);
+				auto res_bool = dynamic_cast<values::boolean*>(test_res.get());
 
-				if (test_res->val)
+				if (res_bool->val)
 				{
 					auto res = path.second->interp(env);
 					env.pop();

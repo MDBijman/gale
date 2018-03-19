@@ -153,7 +153,8 @@ namespace utils::lr
 				else
 				{
 					auto offset = std::distance(input.begin(), it);
-					throw std::runtime_error(std::string("Syntax error at ").append(std::to_string(offset)));
+					throw std::runtime_error(std::string("Syntax error at ").append(std::to_string(offset))
+						.append(it->token));
 				}
 			})();
 
