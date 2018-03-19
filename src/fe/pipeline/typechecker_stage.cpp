@@ -93,7 +93,7 @@ namespace fe::extended_ast
 
 		// Check the validity of the type of the test path
 		auto& test_type = test_path->get_type();
-		if (!(types::atom_type("boolean") == &test_type))
+		if (!(types::atom_type("std.bool") == &test_type))
 			throw typecheck_error{ std::string("Branch number does not have a boolean test") };
 
 		set_type(types::unique_type(code_path->get_type().copy()));
@@ -136,7 +136,7 @@ namespace fe::extended_ast
 		if (final_type != nullptr)
 			set_type(final_type->copy());
 		else
-			set_type(new types::unset_type());
+			set_type(new types::atom_type("void"));
 		env.pop();
 	}
 
@@ -371,96 +371,6 @@ namespace fe::extended_ast
 			set_type(types::make_unique(types::array_type(types::atom_type{ "void" })));
 	}
 
-	void equality::typecheck(type_environment& env)
-	{
-		left->typecheck(env);
-		right->typecheck(env);
-
-		if (!(types::atom_type{ "std.i32" } == &left->get_type()))
-		{
-			throw typecheck_error{ "Left side of equality must be a number" };
-		}
-
-		if (!(types::atom_type{ "std.i32" } == &right->get_type()))
-		{
-			throw typecheck_error{ "Right side of equality must be a number" };
-		}
-
-		set_type(types::make_unique(types::atom_type{ "boolean" }));
-	}
-
-	void addition::typecheck(type_environment& env)
-	{
-		left->typecheck(env);
-		right->typecheck(env);
-
-		if (!(types::atom_type{ "std.i32" } == &left->get_type()))
-		{
-			throw typecheck_error{ "Left side of addition must be a number" };
-		}
-
-		if (!(types::atom_type{ "std.i32" } == &right->get_type()))
-		{
-			throw typecheck_error{ "Right side of addition must be a number" };
-		}
-
-		set_type(types::make_unique(types::atom_type{ "std.i32" }));
-	}
-
-	void subtraction::typecheck(type_environment& env)
-	{
-		left->typecheck(env);
-		right->typecheck(env);
-
-		if (!(left->get_type() == &types::atom_type{ "std.i32" }))
-		{
-			throw typecheck_error{ "Left side of subtraction must be a number" };
-		}
-
-		if (!(right->get_type() == &types::atom_type{ "std.i32" }))
-		{
-			throw typecheck_error{ "Right side of subtraction must be a number" };
-		}
-
-		set_type(types::make_unique(types::atom_type{ "std.i32" }));
-	}
-
-	void multiplication::typecheck(type_environment& env)
-	{
-		left->typecheck(env);
-		right->typecheck(env);
-
-		if (!(left->get_type() == &types::atom_type{ "std.i32" }))
-		{
-			throw typecheck_error{ "Left side of multiplication must be a number" };
-		}
-
-		if (!(right->get_type() == &types::atom_type{ "std.i32" }))
-		{
-			throw typecheck_error{ "Right side of multiplication must be a number" };
-		}
-
-		set_type(types::make_unique(types::atom_type{ "std.i32" }));
-	}
-
-	void division::typecheck(type_environment& env)
-	{
-		left->typecheck(env);
-		right->typecheck(env);
-
-		if (!(left->get_type() == &types::atom_type{ "std.i32" }))
-		{
-			throw typecheck_error{ "Left side of division must be a number" };
-		}
-
-		if (!(right->get_type() == &types::atom_type{ "std.i32" }))
-		{
-			throw typecheck_error{ "Right side of division must be a number" };
-		}
-
-		set_type(types::make_unique(types::atom_type{ "std.i32" }));
-	}
-
 	void array_index::typecheck(type_environment& env)
 	{
 		array_exp->typecheck(env);
@@ -487,7 +397,7 @@ namespace fe::extended_ast
 		body->typecheck(env);
 		set_type(new types::unset_type());
 
-		if (!(types::atom_type("boolean") == &test->get_type()))
+		if (!(types::atom_type("std.bool") == &test->get_type()))
 		{
 			throw typecheck_error{ "Test branch of while loop must have boolean type" };
 		}

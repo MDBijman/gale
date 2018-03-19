@@ -59,6 +59,9 @@ namespace fe
 				assignable = parser.new_non_terminal();
 				identifier_tuple = parser.new_non_terminal();
 				assignment = parser.new_non_terminal();
+				greater_than = parser.new_non_terminal();
+				modulo = parser.new_non_terminal();
+				less_or_equal = parser.new_non_terminal();
 			}
 
 			{
@@ -102,6 +105,8 @@ namespace fe
 				on_keyword = parser.new_terminal();
 				true_keyword = parser.new_terminal();
 				false_keyword = parser.new_terminal();
+				percentage = parser.new_terminal();
+				lteq = parser.new_terminal();
 			}
 
 
@@ -143,15 +148,20 @@ namespace fe
 				.new_rule({ match, { equality, match_keyword, left_curly_bracket, match_branch, star, right_curly_bracket, alt, equality } })
 				.new_rule({ match_branch, { vertical_line, operation, right_arrow, operation } })
 
-				.new_rule({ equality, { arithmetic, two_equals, equality, alt, arithmetic } })
+				.new_rule({ equality, { less_or_equal, two_equals, equality, alt, less_or_equal } })
+
+				.new_rule({ less_or_equal, { greater_than, lteq, less_or_equal, alt, greater_than } })
+
+				.new_rule({ greater_than, { arithmetic, right_angle_bracket, greater_than, alt, arithmetic } })
 
 				.new_rule({ arithmetic, { addition, alt, subtraction, alt, term } })
 				.new_rule({ addition, { term, plus, arithmetic } })
 				.new_rule({ subtraction, { term, minus, arithmetic } })
 
-				.new_rule({ term, { multiplication, alt, division, alt, array_index } })
+				.new_rule({ term, { multiplication, alt, division, alt, modulo, alt, array_index } })
 				.new_rule({ multiplication, { array_index, mul, term } })
 				.new_rule({ division, { array_index, div, term } })
+				.new_rule({ modulo, { array_index, percentage, term } })
 
 				.new_rule({ array_index, { index, alt, reference } })
 				.new_rule({ index, { reference, colon, array_index } })
@@ -220,6 +230,8 @@ namespace fe
 				.new_transformation(type_operation, transformation_type::REPLACE_WITH_CHILDREN)
 				.new_transformation(type_modifiers, transformation_type::REPLACE_WITH_CHILDREN)
 				.new_transformation(function_type, transformation_type::REPLACE_IF_ONE_CHILD)
+				.new_transformation(greater_than, transformation_type::REPLACE_IF_ONE_CHILD)
+				.new_transformation(less_or_equal, transformation_type::REPLACE_IF_ONE_CHILD)
 				.new_transformation(assignable, transformation_type::REPLACE_WITH_CHILDREN)
 				.new_transformation(type_expression, transformation_type::REPLACE_WITH_CHILDREN)
 				.new_transformation(match, transformation_type::REPLACE_IF_ONE_CHILD)
@@ -235,6 +247,8 @@ namespace fe
 				.new_transformation(operation, transformation_type::REPLACE_WITH_CHILDREN)
 				.new_transformation(brackets, transformation_type::REPLACE_WITH_CHILDREN)
 				.new_transformation(while_keyword, transformation_type::REMOVE)
+				.new_transformation(percentage, transformation_type::REMOVE)
+				.new_transformation(lteq, transformation_type::REMOVE)
 				.new_transformation(do_keyword, transformation_type::REMOVE)
 				.new_transformation(import_keyword, transformation_type::REMOVE)
 				.new_transformation(as_keyword, transformation_type::REMOVE)
@@ -269,6 +283,7 @@ namespace fe
 				.new_transformation(right_arrow, transformation_type::REMOVE)
 				.new_transformation(comma, transformation_type::REMOVE)
 				.new_transformation(vertical_line, transformation_type::REMOVE)
+				.new_transformation(right_angle_bracket, transformation_type::REMOVE)
 				;
 		}
 

@@ -136,6 +136,15 @@ namespace fe
 				else if (node_type == non_terminals::identifier_tuple)
 					return std::make_unique<identifier_tuple>(std::move(children));
 
+				else if (node_type == non_terminals::greater_than)
+					return std::make_unique<greater_than>(std::move(children));
+
+				else if (node_type == non_terminals::less_or_equal)
+					return std::make_unique<less_than_or_equal>(std::move(children));
+
+				else if (node_type == non_terminals::modulo)
+					return std::make_unique<modulo>(std::move(children));
+
 				else
 					throw cst_to_ast_error{
 						std::string("Unknown CST non terminal node: ")

@@ -31,6 +31,7 @@ namespace fe
 			lcb_token = lexing_rules.create_token("\\{");
 			lsb_token = lexing_rules.create_token("\\[");
 			rsb_token = lexing_rules.create_token("\\]");
+			lteq_token = lexing_rules.create_token("<=");
 			lab_token = lexing_rules.create_token("<");
 			rab_token = lexing_rules.create_token(">");
 			pipe_token = lexing_rules.create_token("\\|");
@@ -45,6 +46,7 @@ namespace fe
 			div_token = lexing_rules.create_token("/");
 			colon_token = lexing_rules.create_token(":");
 			dot_token = lexing_rules.create_token("\\.");
+			percentage_token = lexing_rules.create_token("%");
 			lexing_rules.compile();
 			return lexing_rules;
 		}
