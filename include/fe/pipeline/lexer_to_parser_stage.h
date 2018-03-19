@@ -5,6 +5,9 @@
 #include "fe/pipeline/pipeline.h"
 #include "fe/language_definition.h"
 
+#include "utils/lexing/lexer.h"
+#include "utils/parsing/bnf_grammar.h"
+
 namespace fe
 {
 	class lexer_to_parser_stage 
@@ -14,6 +17,10 @@ namespace fe
 		{
 			using namespace terminals;
 			using namespace tokens;
+
+			add_mapping(utils::lexing::end_of_input, utils::bnf::end_of_input);
+			add_mapping(utils::lexing::epsilon, utils::bnf::epsilon);
+			add_mapping(utils::lexing::new_line, utils::bnf::new_line);
 
 			add_mapping(string_token, word);
 			add_mapping(number_token, number);
@@ -39,6 +46,8 @@ namespace fe
 			add_mapping(equality_token, two_equals);
 			add_mapping(percentage_token, percentage);
 			add_mapping(lteq_token, lteq);
+			add_mapping(gteq_token, gteq);
+
 			add_mapping(keyword_token, [&](utils::lexing::token token) {
 				if (token.text == "export")
 					return export_keyword;
@@ -74,6 +83,8 @@ namespace fe
 					return true_keyword;
 				if (token.text == "false")
 					return false_keyword;
+				if (token.text == "if")
+					return if_keyword;
 				return identifier;
 			});
 		}

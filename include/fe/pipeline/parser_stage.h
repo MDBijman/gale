@@ -48,8 +48,6 @@ namespace fe
 				division = parser.new_non_terminal();
 				multiplication = parser.new_non_terminal();
 				brackets = parser.new_non_terminal();
-				array_index = parser.new_non_terminal();
-				index = parser.new_non_terminal();
 				module_imports = parser.new_non_terminal();
 				while_loop = parser.new_non_terminal();
 				arithmetic = parser.new_non_terminal();
@@ -62,6 +60,10 @@ namespace fe
 				greater_than = parser.new_non_terminal();
 				modulo = parser.new_non_terminal();
 				less_or_equal = parser.new_non_terminal();
+				comparison = parser.new_non_terminal();
+				greater_or_equal = parser.new_non_terminal();
+				less_than = parser.new_non_terminal();
+				if_statement = parser.new_non_terminal();
 			}
 
 			{
@@ -107,6 +109,8 @@ namespace fe
 				false_keyword = parser.new_terminal();
 				percentage = parser.new_terminal();
 				lteq = parser.new_terminal();
+				gteq = parser.new_terminal();
+				if_keyword = parser.new_terminal();
 			}
 
 
@@ -137,7 +141,7 @@ namespace fe
 				.new_rule({ assignment, { identifier, equals, operation } })
 				.new_rule({ assignable, { identifier, alt, identifier_tuple } })
 				.new_rule({ identifier_tuple, { left_bracket, assignable, comma, assignable, lrb, comma, assignable, rrb, star, right_bracket } })
-				.new_rule({ while_loop, { while_keyword, left_bracket, operation, right_bracket, operation } })
+				.new_rule({ while_loop, { while_keyword, left_bracket, operation, right_bracket, statement } })
 				.new_rule({ function, { function_keyword, identifier, variable_declaration, right_arrow, type_operation, equals, match } })
 
 				// Expressions/Operations
@@ -145,26 +149,25 @@ namespace fe
 
 				.new_rule({ operation, { match } })
 
-				.new_rule({ match, { equality, match_keyword, left_curly_bracket, match_branch, star, right_curly_bracket, alt, equality } })
+				.new_rule({ match, { comparison, match_keyword, left_curly_bracket, match_branch, star, right_curly_bracket, alt, comparison} })
 				.new_rule({ match_branch, { vertical_line, operation, right_arrow, operation } })
 
-				.new_rule({ equality, { less_or_equal, two_equals, equality, alt, less_or_equal } })
-
-				.new_rule({ less_or_equal, { greater_than, lteq, less_or_equal, alt, greater_than } })
-
-				.new_rule({ greater_than, { arithmetic, right_angle_bracket, greater_than, alt, arithmetic } })
+				.new_rule({ comparison, { equality, alt, less_or_equal, alt, less_than, alt, 
+					greater_or_equal, alt, greater_than, alt,  arithmetic } })
+				.new_rule({ equality, { arithmetic, two_equals, comparison, } })
+				.new_rule({ less_or_equal, { arithmetic, lteq, comparison } })
+				.new_rule({ less_than, { arithmetic, left_angle_bracket, comparison } })
+				.new_rule({ greater_or_equal, { arithmetic, gteq, comparison } })
+				.new_rule({ greater_than, { arithmetic, right_angle_bracket, comparison } })
 
 				.new_rule({ arithmetic, { addition, alt, subtraction, alt, term } })
 				.new_rule({ addition, { term, plus, arithmetic } })
 				.new_rule({ subtraction, { term, minus, arithmetic } })
 
-				.new_rule({ term, { multiplication, alt, division, alt, modulo, alt, array_index } })
-				.new_rule({ multiplication, { array_index, mul, term } })
-				.new_rule({ division, { array_index, div, term } })
-				.new_rule({ modulo, { array_index, percentage, term } })
-
-				.new_rule({ array_index, { index, alt, reference } })
-				.new_rule({ index, { reference, colon, array_index } })
+				.new_rule({ term, { multiplication, alt, division, alt, modulo, alt, reference } })
+				.new_rule({ multiplication, { reference, mul, term } })
+				.new_rule({ division, { reference, div, term } })
+				.new_rule({ modulo, { reference, percentage, term } })
 
 				.new_rule({ reference, { ref_keyword, function_call, alt, function_call } })
 
@@ -179,7 +182,8 @@ namespace fe
 					identifier, alt,
 					brackets, alt,
 					true_keyword, alt,
-					false_keyword
+					false_keyword, alt,
+					if_statement
 				} })
 
 				.new_rule({ brackets, { left_bracket, operation, right_bracket } })
@@ -192,6 +196,7 @@ namespace fe
 				} })
 				.new_rule({ block, { left_curly_bracket, lrb, statement, semicolon, rrb, star, right_curly_bracket } })
 				.new_rule({ array_value, { left_square_bracket, operation, lrb, comma, operation, rrb, star, right_square_bracket } })
+				.new_rule({ if_statement, { if_keyword, left_bracket, operation, right_bracket, expression } })
 
 				// Declarations
 
@@ -239,9 +244,9 @@ namespace fe
 				.new_transformation(on_keyword, transformation_type::REMOVE)
 				.new_transformation(equality, transformation_type::REPLACE_IF_ONE_CHILD)
 				.new_transformation(arithmetic, transformation_type::REPLACE_WITH_CHILDREN)
+				.new_transformation(comparison, transformation_type::REPLACE_WITH_CHILDREN)
 				.new_transformation(reference, transformation_type::REPLACE_IF_ONE_CHILD)
 				.new_transformation(function_call, transformation_type::REPLACE_IF_ONE_CHILD)
-				.new_transformation(array_index, transformation_type::REPLACE_WITH_CHILDREN)
 				.new_transformation(term, transformation_type::REPLACE_WITH_CHILDREN)
 				.new_transformation(factor, transformation_type::REPLACE_WITH_CHILDREN)
 				.new_transformation(operation, transformation_type::REPLACE_WITH_CHILDREN)
@@ -249,6 +254,7 @@ namespace fe
 				.new_transformation(while_keyword, transformation_type::REMOVE)
 				.new_transformation(percentage, transformation_type::REMOVE)
 				.new_transformation(lteq, transformation_type::REMOVE)
+				.new_transformation(gteq, transformation_type::REMOVE)
 				.new_transformation(do_keyword, transformation_type::REMOVE)
 				.new_transformation(import_keyword, transformation_type::REMOVE)
 				.new_transformation(as_keyword, transformation_type::REMOVE)
@@ -284,6 +290,8 @@ namespace fe
 				.new_transformation(comma, transformation_type::REMOVE)
 				.new_transformation(vertical_line, transformation_type::REMOVE)
 				.new_transformation(right_angle_bracket, transformation_type::REMOVE)
+				.new_transformation(left_angle_bracket, transformation_type::REMOVE)
+				.new_transformation(if_keyword, transformation_type::REMOVE)
 				;
 		}
 

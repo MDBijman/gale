@@ -136,6 +136,9 @@ namespace utils::lr
 		input.push_back(bnf::terminal_node(-2, ""));
 		auto it = input.begin();
 
+		std::size_t line = 1;
+		std::size_t line_offset = 0;
+
 		std::stack<state> history;
 		history.push(first_item_set);
 
@@ -143,6 +146,11 @@ namespace utils::lr
 
 		while (history.size() > 0)
 		{
+			while (it->value == bnf::new_line) 
+			{ 
+				line++; it++; line_offset = 0; 
+			}
+
 			auto current_state = history.top();
 
 			auto action = ([&]() {
@@ -152,8 +160,11 @@ namespace utils::lr
 				}
 				else
 				{
-					auto offset = std::distance(input.begin(), it);
-					throw std::runtime_error(std::string("Syntax error at ").append(std::to_string(offset))
+					throw std::runtime_error(std::string("Syntax error at line: ")
+						.append(std::to_string(line))
+						.append(" offset: ")
+						.append(std::to_string(line_offset))
+						.append(" token: ")
 						.append(it->token));
 				}
 			})();
@@ -163,6 +174,7 @@ namespace utils::lr
 				history.push(std::get<shift_action>(action).new_state);
 				result.push(std::make_unique<bnf::node>(bnf::terminal_node(it->value, it->token)));
 				it++;
+				line_offset++;
 			}
 			else if (std::holds_alternative<reduce_action>(action))
 			{

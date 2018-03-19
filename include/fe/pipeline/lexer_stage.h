@@ -32,6 +32,7 @@ namespace fe
 			lsb_token = lexing_rules.create_token("\\[");
 			rsb_token = lexing_rules.create_token("\\]");
 			lteq_token = lexing_rules.create_token("<=");
+			gteq_token = lexing_rules.create_token(">=");
 			lab_token = lexing_rules.create_token("<");
 			rab_token = lexing_rules.create_token(">");
 			pipe_token = lexing_rules.create_token("\\|");

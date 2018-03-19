@@ -883,7 +883,7 @@ namespace fe
 			SUB, ADD, MUL, DIV, MOD
 		};
 
-		inline std::string op_func(bin_op_type op)
+		inline constexpr const char* op_func(bin_op_type op)
 		{
 			switch (op) {
 			case bin_op_type::EQ:
@@ -919,7 +919,7 @@ namespace fe
 			};
 		}
 
-		inline std::string op_result_type(bin_op_type op)
+		inline constexpr const char* op_result_type(bin_op_type op)
 		{
 			switch (op) {
 			case bin_op_type::EQ:
@@ -955,7 +955,7 @@ namespace fe
 			};
 		}
 
-		inline std::string op_lhs_type(bin_op_type op)
+		inline constexpr const char* op_lhs_type(bin_op_type op)
 		{
 			switch (op) {
 			case bin_op_type::EQ:
@@ -991,7 +991,7 @@ namespace fe
 			};
 		}
 
-		inline std::string op_rhs_type(bin_op_type op)
+		inline constexpr const char* op_rhs_type(bin_op_type op)
 		{
 			switch (op) {
 			case bin_op_type::EQ:
@@ -1134,36 +1134,18 @@ namespace fe
 		using division = bin_op<bin_op_type::DIV>;
 		using modulo = bin_op<bin_op_type::MOD>;
 
-		struct array_index : public node
-		{
-			array_index(std::vector<unique_node>&& children);
-
-			// Copy
-			array_index(const array_index&);
-
-			// Move
-			array_index(array_index&&);
-			array_index& operator=(array_index&&);
-
-			node* copy() override;
-			void typecheck(type_environment& env) override;
-			core_ast::node* lower() override;
-			void resolve(scope_environment& s_env) override;
-
-			unique_node array_exp, index_exp;
-			std::size_t scope_depth;
-		};
-
 		struct while_loop : public node
 		{
 			while_loop(std::vector<unique_node>&& children)
 				: node(new types::unset_type()), body(std::move(children.at(1))), test(std::move(children.at(0))) {}
 
 			// Copy
-			while_loop(const while_loop& other) : node(other), body(unique_node(other.body->copy())), test(unique_node(other.test->copy())) {}
+			while_loop(const while_loop& other) : node(other), body(unique_node(other.body->copy())), 
+				test(unique_node(other.test->copy())) {}
 
 			// Move
-			while_loop(while_loop&& other) : node(std::move(other)), body(std::move(other.body)), test(std::move(other.test)) {}
+			while_loop(while_loop&& other) : node(std::move(other)), body(std::move(other.body)), 
+				test(std::move(other.test)) {}
 			while_loop& operator=(while_loop&& other)
 			{
 				set_type(other.get_type().copy());
@@ -1176,7 +1158,47 @@ namespace fe
 			void typecheck(type_environment& env) override;
 			core_ast::node* lower() override
 			{
-				return new core_ast::while_loop(core_ast::unique_node(test->lower()), core_ast::unique_node(body->lower()));
+				return new core_ast::while_loop(core_ast::unique_node(test->lower()), 
+					core_ast::unique_node(body->lower()));
+			}
+			void resolve(scope_environment& s_env) override;
+
+			unique_node test;
+			unique_node body;
+		};
+
+		struct if_statement : public node
+		{
+			if_statement(std::vector<unique_node>&& children)
+				: node(new types::unset_type()), body(std::move(children.at(1))), test(std::move(children.at(0))) {}
+
+			// Copy
+			if_statement(const if_statement& other) : node(other), body(unique_node(other.body->copy())), 
+				test(unique_node(other.test->copy())) {}
+
+			// Move
+			if_statement(if_statement&& other) : node(std::move(other)), body(std::move(other.body)), 
+				test(std::move(other.test)) {}
+			if_statement& operator=(if_statement&& other)
+			{
+				set_type(other.get_type().copy());
+				this->body = std::move(other.body);
+				this->test = std::move(other.test);
+				return *this;
+			}
+
+			node* copy() override { return new if_statement(*this); }
+			void typecheck(type_environment& env) override;
+			core_ast::node* lower() override
+			{
+				std::vector<std::pair<core_ast::unique_node, core_ast::unique_node>> new_branches;
+
+				new_branches.emplace_back(
+					core_ast::unique_node(test->lower()),
+					core_ast::unique_node(body->lower())
+				);
+
+				return new core_ast::branch(std::move(new_branches));
 			}
 			void resolve(scope_environment& s_env) override;
 

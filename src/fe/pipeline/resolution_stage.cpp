@@ -200,17 +200,18 @@ namespace fe::extended_ast
 			child->resolve(s_env);
 	}
 
-	void array_index::resolve(scope_environment& s_env)
-	{
-		this->array_exp->resolve(s_env);
-		this->index_exp->resolve(s_env);
-		this->scope_depth = s_env.depth() - 1;
-	}
-
 	void while_loop::resolve(scope_environment& s_env)
 	{
 		this->test->resolve(s_env);
 		this->body->resolve(s_env);
+	}
+
+	void if_statement::resolve(scope_environment& s_env)
+	{
+		s_env.push();
+		this->test->resolve(s_env);
+		this->body->resolve(s_env);
+		s_env.pop();
 	}
 
 	void import_declaration::resolve(scope_environment& s_env) {}
