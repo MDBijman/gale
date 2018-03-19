@@ -80,6 +80,12 @@
     <None Include="snippets\euler\euler1.fe">
       <Filter>Resource Files\snippets\euler</Filter>
     </None>
+    <None Include="snippets\euler\euler2.fe">
+      <Filter>Resource Files\snippets\euler</Filter>
+    </None>
+    <None Include="snippets\euler\euler3.fe">
+      <Filter>Resource Files\snippets\euler</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
@@ -137,6 +143,9 @@
       <Filter>Source Files\fe\data</Filter>
     </ClCompile>
     <ClCompile Include="src\tests\fe\while_tests.cpp">
+      <Filter>Source Files\tests\fe</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tests\fe\comparison_tests.cpp">
       <Filter>Source Files\tests\fe</Filter>
     </ClCompile>
   </ItemGroup>

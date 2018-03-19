@@ -118,9 +118,6 @@ namespace fe
 				else if (node_type == non_terminals::division)
 					return std::make_unique<division>(std::move(children));
 
-				else if (node_type == non_terminals::index)
-					return std::make_unique<array_index>(std::move(children));
-
 				else if (node_type == non_terminals::module_declaration)
 					return std::make_unique<module_declaration>(std::move(children));
 
@@ -142,8 +139,17 @@ namespace fe
 				else if (node_type == non_terminals::less_or_equal)
 					return std::make_unique<less_than_or_equal>(std::move(children));
 
+				else if (node_type == non_terminals::greater_or_equal)
+					return std::make_unique<greater_than_or_equal>(std::move(children));
+
+				else if (node_type == non_terminals::less_than)
+					return std::make_unique<less_than>(std::move(children));
+
 				else if (node_type == non_terminals::modulo)
 					return std::make_unique<modulo>(std::move(children));
+
+				else if (node_type == non_terminals::if_statement)
+					return std::make_unique<if_statement>(std::move(children));
 
 				else
 					throw cst_to_ast_error{

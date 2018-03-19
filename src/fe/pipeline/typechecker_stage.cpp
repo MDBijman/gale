@@ -18,7 +18,7 @@ namespace fe::extended_ast
 	{
 		auto t = env.typeof(*this);
 		if(!t.has_value())
-			throw typecheck_error{ "Type environment error" };
+			throw typecheck_error{ std::string("Unkown identifier: ").append(this->to_string()) };
 
 		set_type(t.value().get().copy());
 	}
@@ -55,7 +55,7 @@ namespace fe::extended_ast
 			if (!(argument_type == function_type->from.get()))
 			{
 				throw typecheck_error{
-					"Function call from signature does not match function signature:\n"
+					"Function call from signature does not match function signature of " + this->id.to_string() + ":\n"
 					+ argument_type.to_string() + "\n"
 					+ function_type->from->to_string()
 				};
@@ -371,26 +371,6 @@ namespace fe::extended_ast
 			set_type(types::make_unique(types::array_type(types::atom_type{ "void" })));
 	}
 
-	void array_index::typecheck(type_environment& env)
-	{
-		array_exp->typecheck(env);
-		index_exp->typecheck(env);
-
-		if (const auto type = dynamic_cast<types::array_type*>(&array_exp->get_type()))
-		{
-			set_type(type->element_type->copy());
-		}
-		else
-		{
-			throw typecheck_error{ "Array expression must be of type array" };
-		}
-
-		if (!(index_exp->get_type() == &types::atom_type{ "std.i32" }))
-		{
-			throw typecheck_error{ "Array index must be an integer" };
-		}
-	}
-
 	void while_loop::typecheck(type_environment& env)
 	{
 		test->typecheck(env);
@@ -400,6 +380,20 @@ namespace fe::extended_ast
 		if (!(types::atom_type("std.bool") == &test->get_type()))
 		{
 			throw typecheck_error{ "Test branch of while loop must have boolean type" };
+		}
+	}
+
+	void if_statement::typecheck(type_environment& env)
+	{
+		env.push();
+		test->typecheck(env);
+		body->typecheck(env);
+		env.pop();
+		set_type(new types::unset_type());
+
+		if (!(types::atom_type("std.bool") == &test->get_type()))
+		{
+			throw typecheck_error{ "Test branch of if must have boolean type" };
 		}
 	}
 

@@ -440,7 +440,7 @@ namespace fe
 				env.pop();
 			}
 
-			throw interp_error{"No branch matched"};
+			return values::unique_value(new values::void_value());
 		}
 
 		reference::reference(unique_node exp) : exp(std::move(exp)) {}
