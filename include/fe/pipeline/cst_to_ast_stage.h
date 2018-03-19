@@ -161,7 +161,6 @@ namespace fe
 			{
 				auto n = std::move(std::get<utils::ebnfe::terminal_node>(*node));
 				auto node_type = n.value;
-				// Do false and true
 				if (node_type == terminals::number)
 				{
 					return std::make_unique<integer>(atoi(n.token.c_str()));
@@ -169,6 +168,14 @@ namespace fe
 				else if (node_type == terminals::word)
 				{
 					return std::make_unique<string>(n.token.substr(1, n.token.size() - 2));
+				}
+				else if (node_type == terminals::true_keyword)
+				{
+					return std::make_unique<boolean>(values::boolean(true));
+				}
+				else if (node_type == terminals::false_keyword)
+				{
+					return std::make_unique<boolean>(values::boolean(false));
 				}
 				else if (node_type == terminals::identifier)
 				{

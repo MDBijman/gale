@@ -21,8 +21,22 @@ namespace fe
 		{
 			explicit node(types::unique_type t) : type(std::move(t)) {}
 			explicit node(types::type* t) : type(t) {}
+
 			node(const node& other) : type(other.type->copy()) {}
+
+			node& operator=(const node& o)
+			{
+				this->type = types::unique_type(o.type->copy());
+				return *this;
+			}
+ 
 			node(node&& other) noexcept : type(std::move(other.type)) {}
+
+			node& operator=(node&& o)
+			{
+				this->type = std::move(o.type);
+				return *this;
+			}
 
 			virtual ~node() {};
 			virtual node* copy() = 0;
@@ -53,7 +67,23 @@ namespace fe
 
 		struct integer : public node
 		{
-			explicit integer(const values::integer val) : node(new types::unset_type()), value(val) {}
+			explicit integer(const values::integer val) : node(new types::atom_type("std.i32")), value(val) {}
+
+			integer(const integer& other) : node(other), value(other.value) {}
+			integer& operator=(const integer& o)
+			{
+				node::operator=(o);
+				this->value = o.value;
+				return *this;
+			}
+
+			integer(integer&& other) noexcept : node(std::move(other)), value(std::move(other.value)) {}
+			integer& operator=(integer&& other)
+			{
+				node::operator=(std::move(other));
+				value = std::move(other.value);
+				return *this;
+			}
 
 			node* copy() override
 			{
@@ -64,24 +94,28 @@ namespace fe
 			core_ast::node* lower() override;
 			void resolve(scope_environment& s_env) override;
 
-			// Copy
-			integer(const integer& other) : node(other), value(other.value) {}
-
-			// Move
-			integer(integer&& other) noexcept : node(std::move(other)), value(std::move(other.value)) {}
-			integer& operator=(integer&& other)
-			{
-				set_type(types::unique_type(other.get_type().copy()));
-				value = std::move(other.value);
-				return *this;
-			}
-
 			values::integer value;
 		};
 
 		struct string : public node
 		{
 			explicit string(values::string val);
+
+			string(const string& other) : node(other), value(other.value) {}
+			string& operator=(const string& o)
+			{
+				node::operator=(o);
+				value = o.value;
+				return *this;
+			}
+
+			string(string&& other) noexcept : node(std::move(other)), value(std::move(other.value)) {}
+			string& operator=(string&& other)
+			{
+				node::operator=(std::move(other));
+				value = std::move(other.value);
+				return *this;
+			}
 
 			node* copy() override
 			{
@@ -92,25 +126,63 @@ namespace fe
 			core_ast::node* lower() override;
 			void resolve(scope_environment& s_env) override;
 
-			// Copy
-			string(const string& other) : node(other), value(other.value) {}
+			values::string value;
+		};
 
-			// Move
-			string(string&& other) noexcept : node(std::move(other)), value(std::move(other.value)) {}
-			string& operator=(string&& other)
+		struct boolean : public node
+		{
+			explicit boolean(const values::boolean val) : node(new types::unset_type()), value(val) {}
+
+			boolean(const boolean& other) : node(other), value(other.value) {}
+			boolean& operator=(const boolean& o)
 			{
-				set_type(types::unique_type(other.get_type().copy()));
+				node::operator=(o);
+				this->value = o.value;
+				return *this;
+			}
+
+			boolean(boolean&& other) noexcept : node(std::move(other)), value(std::move(other.value)) {}
+			boolean& operator=(boolean&& other)
+			{
+				node::operator=(other);
 				value = std::move(other.value);
 				return *this;
 			}
 
-			values::string value;
+			node* copy() override
+			{
+				return new boolean(*this);
+			}
+
+			void typecheck(type_environment&) override;
+			core_ast::node* lower() override;
+			void resolve(scope_environment& s_env) override;
+
+			values::boolean value;
 		};
 
 		struct identifier : public node
 		{
 			explicit identifier(std::vector<std::string>&& segments) : node(new types::unset_type()), segments(std::move(segments)) {}
 
+			identifier(const identifier& other) : node(other), segments(other.segments), offsets(other.offsets) {}
+			identifier& operator=(const identifier& other)
+			{
+				this->segments = other.segments;
+				this->offsets = other.offsets;
+				set_type(other.get_type().copy());
+				return *this;
+			}
+
+			identifier(identifier&& other) noexcept : node(std::move(other)), segments(std::move(other.segments)), 
+				offsets(std::move(other.offsets)), scope_distance(std::move(other.scope_distance)) {}
+			identifier& operator=(identifier&& other)
+			{
+				set_type(types::unique_type(other.get_type().copy()));
+				segments = std::move(other.segments);
+				offsets = std::move(other.offsets);
+				return *this;
+			}
 			node* copy() override
 			{
 				return new identifier(*this);
@@ -120,28 +192,7 @@ namespace fe
 			core_ast::node* lower() override;
 			void resolve(scope_environment& s_env) override;
 
-			// Copy
-			identifier(const identifier& other) : node(other), segments(other.segments), offsets(other.offsets) {}
-			
-			identifier& operator=(const identifier& other)
-			{
-				this->segments = other.segments;
-				this->offsets = other.offsets;
-				set_type(other.get_type().copy());
-				return *this;
-			}
-
-			// Move
-			identifier(identifier&& other) noexcept : node(std::move(other)), segments(std::move(other.segments)), 
-				offsets(std::move(other.offsets)), scope_distance(std::move(other.scope_distance)) {}
-
-			identifier& operator=(identifier&& other)
-			{
-				set_type(types::unique_type(other.get_type().copy()));
-				segments = std::move(other.segments);
-				offsets = std::move(other.offsets);
-				return *this;
-			}
+	
 
 			bool identifier::operator==(const identifier& other) const
 			{
@@ -1159,7 +1210,7 @@ namespace fe
 			core_ast::node* lower() override
 			{
 				return new core_ast::while_loop(core_ast::unique_node(test->lower()), 
-					core_ast::unique_node(body->lower()));
+					core_ast::unique_node(body->lower()), this->get_type());
 			}
 			void resolve(scope_environment& s_env) override;
 

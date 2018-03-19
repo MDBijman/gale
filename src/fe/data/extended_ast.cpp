@@ -15,11 +15,18 @@ namespace fe
 
 		// String
 
-		string::string(const values::string val) : node(new types::unset_type()), value(val) {}
+		string::string(const values::string val) : node(new types::atom_type("std.str")), value(val) {}
 
 		core_ast::node* string::lower()
 		{
 			return new core_ast::string(this->value);
+		}
+
+		// Boolean
+
+		core_ast::node* boolean::lower()
+		{
+			return new core_ast::boolean(this->value);
 		}
 
 		// Identifier
@@ -45,7 +52,6 @@ namespace fe
 		}
 
 		// Module Declaration
-
 
 		core_ast::node* module_declaration::lower()
 		{
@@ -237,7 +243,7 @@ namespace fe
 
 		// Function
 
-		function::function(const function& other) : node(other), name(other.name), from(other.from->copy()), 
+		function::function(const function& other) : node(other), name(other.name), from(other.from->copy()),
 			to(other.to->copy()), body(other.body->copy()) {}
 		function::function(std::vector<unique_node>&& children) :
 			node(new types::unset_type()),

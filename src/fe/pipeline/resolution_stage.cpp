@@ -19,6 +19,8 @@ namespace fe::extended_ast
 		this->offsets = access_pattern.value().second;
 	}
 
+	void boolean::resolve(scope_environment& s_env) {}
+
 	void tuple::resolve(scope_environment& s_env)
 	{
 		for (decltype(auto) elem : this->children) elem->resolve(s_env);
