@@ -37,6 +37,13 @@ namespace utils
 				rrb,
 				star
 			};
+
+			static const char* meta_char_as_string[] = { 
+				"|",
+				"[", "]",
+				"(", ")",
+				"*"
+			};
 		}
 
 		using namespace meta;
@@ -374,29 +381,99 @@ namespace utils
 				}
 				catch (lr::conflict e) {
 					std::string error_message;
-
-					switch (e.type)
+					
 					{
-					case utils::lr::conflict::type::SHIFT_SHIFT:
-						error_message.append("Shift/Shift conflict\n");
-						break;
-					case utils::lr::conflict::type::SHIFT_REDUCE:
-						error_message.append("Shift/Reduce conflict\n");
-						break;
+						auto& lhs = e.rule.first;
+						auto& rhs = e.rule.second;
+
+						switch (e.type)
+						{
+						case utils::lr::conflict::type::REDUCE_REDUCE:
+							error_message.append("Reduce/Reduce conflict\n");
+							break;
+						case utils::lr::conflict::type::SHIFT_REDUCE:
+							error_message.append("Shift/Reduce conflict\n");
+							break;
+						}
+
+						error_message.append("Expected: ").append(e.expected).append("\n");
+
+						if (auto it = nt_child_parents.find(lhs); it != nt_child_parents.end())
+						{
+							auto original_rule = std::find_if(rules.begin(), rules.end(), [&](auto& rule) {
+								return rule.lhs == it->second.first;
+							});
+							error_message.append("Rule: ").append(std::to_string(original_rule->lhs)).append(" -> ");
+
+							std::size_t i = 0;
+							for (auto& elem : original_rule->rhs)
+							{
+								if (i == e.offset)
+									error_message.append(" . ");
+								i++;
+								if (std::holds_alternative<meta::meta_char>(elem))
+								{
+									error_message.append(meta::meta_char_as_string[std::get<meta::meta_char>(elem)])
+										.append(" ");
+								}
+								else
+								{
+									error_message.append(std::get<symbol>(elem)).append(" ");
+								}
+							}
+						}
+						else
+						{
+							error_message.append("Rule: ").append(std::to_string(lhs)).append(" -> ");
+							for (auto& e : rhs)
+								error_message.append(e).append(" ");
+						}
+						error_message.append("\n");
 					}
 
-					error_message.append("Item set: ").append(std::to_string(e.item_set)).append("\n");
-					error_message.append("Expected: ").append(e.expected).append("\n");
+					{
+						auto& lhs = e.other.first;
+						auto& rhs = e.other.second;
 
-					if (auto it = nt_child_parents.find(e.rule.first); it != nt_child_parents.end())
-					{
-						auto rule = std::find_if(rules.begin(), rules.end(), [&](auto& rule) { return rule.lhs == it->second.first; });
-						error_message.append("Rule: ").append(std::to_string(rule->lhs));
+						if (auto it = nt_child_parents.find(lhs); it != nt_child_parents.end())
+						{
+							auto original_rule = std::find_if(rules.begin(), rules.end(), [&](auto& rule) {
+								return rule.lhs == it->second.first;
+							});
+							error_message.append("Rule: ").append(std::to_string(original_rule->lhs)).append(" -> ");
+
+							std::size_t i = 0;
+							for (auto& elem : original_rule->rhs)
+							{
+								if (i == e.other_offset)
+									error_message.append(" . ");
+								i++;
+								if (std::holds_alternative<meta::meta_char>(elem))
+								{
+									error_message.append(meta::meta_char_as_string[std::get<meta::meta_char>(elem)])
+										.append(" ");
+								}
+								else
+								{
+									error_message.append(std::get<symbol>(elem)).append(" ");
+								}
+							}
+						}
+						else
+						{
+							error_message.append("Rule: ").append(std::to_string(lhs)).append(" -> ");
+							std::size_t i = 0;
+							for (auto& elem : rhs)
+							{
+								if (i == e.other_offset)
+									error_message.append(" . ");
+								i++;
+								error_message.append(elem).append(" ");
+							}
+						}
 					}
-					else
-					{
-						error_message.append("Rule: ").append(std::to_string(e.rule.first));
-					}
+
+
 
 					return error{ error_code::BNF_ERROR, error_message };
 				}
