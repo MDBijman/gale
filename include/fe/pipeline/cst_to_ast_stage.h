@@ -148,7 +148,7 @@ namespace fe
 				else if (node_type == non_terminals::modulo)
 					return std::make_unique<modulo>(std::move(children));
 
-				else if (node_type == non_terminals::if_statement)
+				else if (node_type == non_terminals::if_expr)
 					return std::make_unique<if_statement>(std::move(children));
 
 				else
