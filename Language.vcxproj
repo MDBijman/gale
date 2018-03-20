@@ -124,7 +124,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <None Include="snippets\euler\euler1.fe" />
+    <None Include="snippets\euler\euler2.fe" />
+    <None Include="snippets\euler\euler3.fe" />
     <None Include="snippets\project\modeling_module.fe" />
+    <None Include="snippets\syntax\statements.fe" />
     <None Include="snippets\tests\name_resolution.fe" />
     <None Include="snippets\tests\performance_empty.fe" />
   </ItemGroup>
@@ -135,9 +138,11 @@
     <ClCompile Include="src\fe\data\types.cpp" />
     <ClCompile Include="src\fe\data\values.cpp" />
     <ClCompile Include="src\fe\language_definition.cpp" />
+    <ClCompile Include="src\fe\pipeline\parser_stage.cpp" />
     <ClCompile Include="src\fe\pipeline\resolution_stage.cpp" />
     <ClCompile Include="src\fe\pipeline\typechecker_stage.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\tests\fe\comparison_tests.cpp" />
     <ClCompile Include="src\tests\fe\destructuring_tests.cpp" />
     <ClCompile Include="src\tests\fe\name_resolution_tests.cpp" />
     <ClCompile Include="src\tests\fe\while_tests.cpp" />

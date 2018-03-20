@@ -17,11 +17,15 @@ namespace utils
 		/*
 		* \brief
 		*	Represents a token. Negative values are reserved for special meanings.
-		*	0 indicates an epsilon token. -1 indicates an end of input token.
+		*	-1 indicates an epsilon token. -2 indicates an end of input token. -3 a new line.
 		*/
 		using token_id = int32_t;
 		using lexer_position = std::string::const_iterator;
 		using lexer_range = std::pair<lexer_position, lexer_position>;
+
+		constexpr token_id epsilon = -1;
+		constexpr token_id end_of_input = -2;
+		constexpr token_id new_line = -3;
 
 		struct token
 		{
@@ -120,6 +124,7 @@ namespace utils
 						if (*range.first == '\n')
 						{
 							line_count++;
+							result.push_back(token{ new_line, "" });
 							character_count = 0;
 						}
 
@@ -152,6 +157,8 @@ namespace utils
 					const std::string_view tokenized(&*range_copy.first, token_size);
 					result.push_back(token{ id, std::string(tokenized) });
 				}
+
+				result.push_back(token{ end_of_input, "" });
 
 				return result;
 			}

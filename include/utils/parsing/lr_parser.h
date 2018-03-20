@@ -247,12 +247,16 @@ namespace utils::lr
 	*/
 	struct conflict
 	{
-		int item_set;
 		bnf::symbol expected;
+
 		bnf::rule rule;
+		std::size_t offset;
+
+		bnf::rule other;
+		std::size_t other_offset;
 
 		enum class type {
-			SHIFT_SHIFT, SHIFT_REDUCE
+			REDUCE_REDUCE, SHIFT_REDUCE
 		} type;
 	};
 
@@ -325,6 +329,7 @@ namespace utils::lr
 
 		const item_set* first_item_set;
 		parse_table table;
+		std::unordered_map<const parse_table::key_type*, item_set::const_iterator> conflict_helper;
 
 	private:
 		std::unordered_map<bnf::symbol, item_set> create_item_sets(const item_set& i);
@@ -333,3 +338,13 @@ namespace utils::lr
 		void generate_follow_sets();
 	};
 }
+//
+//namespace std
+//{
+//	template<> struct hash<utils::lr::parse_table::const_iterator>
+//	{
+//		std::size_t operator()(const utils::lr::parse_table::const_iterator& it) const
+//		{
+//		}
+//	};
+//}

@@ -17,11 +17,13 @@ namespace fe
 				scope_environment s{};
 
 				using namespace fe::types;
-				// TODO fix typenames in namespaces
+
 				s.define_type(extended_ast::identifier({ "i32" }), nested_type());
 				t.define_type(extended_ast::identifier({ "i32" }), make_unique(atom_type("std.i32")));
 				s.define_type(extended_ast::identifier({ "str" }), nested_type());
 				t.define_type(extended_ast::identifier({ "str" }), make_unique(atom_type("std.str")));
+				s.define_type(extended_ast::identifier({ "bool" }), nested_type());
+				t.define_type(extended_ast::identifier({ "bool" }), make_unique(atom_type("std.bool")));
 
 				using namespace fe::values;
 
@@ -37,6 +39,10 @@ namespace fe
 					else if (auto str = dynamic_cast<string*>(val.get()))
 					{
 						return unique_value(new string(str->val));
+					}
+					else if (auto b = dynamic_cast<boolean*>(val.get()))
+					{
+						return unique_value(new string(b->to_string()));
 					}
 				}));
 
