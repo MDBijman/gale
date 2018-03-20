@@ -10,6 +10,7 @@ namespace utils::bnf
 	using terminal = lexing::token_id;
 	constexpr terminal epsilon = -1;
 	constexpr terminal end_of_input = -2;
+	constexpr terminal new_line = -3;
 
 	using non_terminal = uint64_t;
 

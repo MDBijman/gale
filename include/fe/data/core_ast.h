@@ -97,6 +97,25 @@ namespace fe
 			types::unique_type type;
 		};
 
+		struct boolean : public node
+		{
+			boolean(values::boolean val);
+
+			// Copy
+			boolean(const boolean& other);
+			boolean& operator=(const boolean& other);
+
+			// Move
+			boolean(boolean&& other);
+			boolean& operator=(boolean&& other);
+
+			node* copy();
+			values::unique_value interp(runtime_environment&) override;
+
+			values::boolean value;
+			types::unique_type type;
+		};
+
 		struct identifier : public node
 		{
 			identifier(std::vector<std::string> module_names, std::string variables, std::vector<int> offset, 
@@ -306,7 +325,7 @@ namespace fe
 
 		struct while_loop : public node
 		{
-			while_loop(unique_node test_code, unique_node body);
+			while_loop(unique_node test_code, unique_node body, const types::type& t);
 
 			// Copy
 			while_loop(const while_loop& other);

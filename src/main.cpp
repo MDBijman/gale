@@ -104,6 +104,10 @@ int main(int argc, char** argv)
 	{
 		std::cout << "Interp error:\n" << e.message;
 	}
+	catch (const fe::resolution_error& e)
+	{
+		std::cout << "Resolution error:\n" << e.message;
+	}
 	catch (const fe::type_env_error& e)
 	{
 		std::cout << e.message << std::endl;

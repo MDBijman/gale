@@ -14,11 +14,16 @@ namespace fe::extended_ast
 		this->set_type(new types::atom_type("std.str"));
 	}
 
+	void boolean::typecheck(type_environment& t_env)
+	{
+		this->set_type(new types::atom_type("std.bool"));
+	}
+
 	void identifier::typecheck(type_environment& env)
 	{
 		auto t = env.typeof(*this);
 		if(!t.has_value())
-			throw typecheck_error{ "Type environment error" };
+			throw typecheck_error{ std::string("Unkown identifier: ").append(this->to_string()) };
 
 		set_type(t.value().get().copy());
 	}
@@ -55,7 +60,7 @@ namespace fe::extended_ast
 			if (!(argument_type == function_type->from.get()))
 			{
 				throw typecheck_error{
-					"Function call from signature does not match function signature:\n"
+					"Function call from signature does not match function signature of " + this->id.to_string() + ":\n"
 					+ argument_type.to_string() + "\n"
 					+ function_type->from->to_string()
 				};
@@ -93,7 +98,7 @@ namespace fe::extended_ast
 
 		// Check the validity of the type of the test path
 		auto& test_type = test_path->get_type();
-		if (!(types::atom_type("boolean") == &test_type))
+		if (!(types::atom_type("std.bool") == &test_type))
 			throw typecheck_error{ std::string("Branch number does not have a boolean test") };
 
 		set_type(types::unique_type(code_path->get_type().copy()));
@@ -136,7 +141,7 @@ namespace fe::extended_ast
 		if (final_type != nullptr)
 			set_type(final_type->copy());
 		else
-			set_type(new types::unset_type());
+			set_type(new types::atom_type("void"));
 		env.pop();
 	}
 
@@ -371,125 +376,29 @@ namespace fe::extended_ast
 			set_type(types::make_unique(types::array_type(types::atom_type{ "void" })));
 	}
 
-	void equality::typecheck(type_environment& env)
-	{
-		left->typecheck(env);
-		right->typecheck(env);
-
-		if (!(types::atom_type{ "std.i32" } == &left->get_type()))
-		{
-			throw typecheck_error{ "Left side of equality must be a number" };
-		}
-
-		if (!(types::atom_type{ "std.i32" } == &right->get_type()))
-		{
-			throw typecheck_error{ "Right side of equality must be a number" };
-		}
-
-		set_type(types::make_unique(types::atom_type{ "boolean" }));
-	}
-
-	void addition::typecheck(type_environment& env)
-	{
-		left->typecheck(env);
-		right->typecheck(env);
-
-		if (!(types::atom_type{ "std.i32" } == &left->get_type()))
-		{
-			throw typecheck_error{ "Left side of addition must be a number" };
-		}
-
-		if (!(types::atom_type{ "std.i32" } == &right->get_type()))
-		{
-			throw typecheck_error{ "Right side of addition must be a number" };
-		}
-
-		set_type(types::make_unique(types::atom_type{ "std.i32" }));
-	}
-
-	void subtraction::typecheck(type_environment& env)
-	{
-		left->typecheck(env);
-		right->typecheck(env);
-
-		if (!(left->get_type() == &types::atom_type{ "std.i32" }))
-		{
-			throw typecheck_error{ "Left side of subtraction must be a number" };
-		}
-
-		if (!(right->get_type() == &types::atom_type{ "std.i32" }))
-		{
-			throw typecheck_error{ "Right side of subtraction must be a number" };
-		}
-
-		set_type(types::make_unique(types::atom_type{ "std.i32" }));
-	}
-
-	void multiplication::typecheck(type_environment& env)
-	{
-		left->typecheck(env);
-		right->typecheck(env);
-
-		if (!(left->get_type() == &types::atom_type{ "std.i32" }))
-		{
-			throw typecheck_error{ "Left side of multiplication must be a number" };
-		}
-
-		if (!(right->get_type() == &types::atom_type{ "std.i32" }))
-		{
-			throw typecheck_error{ "Right side of multiplication must be a number" };
-		}
-
-		set_type(types::make_unique(types::atom_type{ "std.i32" }));
-	}
-
-	void division::typecheck(type_environment& env)
-	{
-		left->typecheck(env);
-		right->typecheck(env);
-
-		if (!(left->get_type() == &types::atom_type{ "std.i32" }))
-		{
-			throw typecheck_error{ "Left side of division must be a number" };
-		}
-
-		if (!(right->get_type() == &types::atom_type{ "std.i32" }))
-		{
-			throw typecheck_error{ "Right side of division must be a number" };
-		}
-
-		set_type(types::make_unique(types::atom_type{ "std.i32" }));
-	}
-
-	void array_index::typecheck(type_environment& env)
-	{
-		array_exp->typecheck(env);
-		index_exp->typecheck(env);
-
-		if (const auto type = dynamic_cast<types::array_type*>(&array_exp->get_type()))
-		{
-			set_type(type->element_type->copy());
-		}
-		else
-		{
-			throw typecheck_error{ "Array expression must be of type array" };
-		}
-
-		if (!(index_exp->get_type() == &types::atom_type{ "std.i32" }))
-		{
-			throw typecheck_error{ "Array index must be an integer" };
-		}
-	}
-
 	void while_loop::typecheck(type_environment& env)
 	{
 		test->typecheck(env);
 		body->typecheck(env);
 		set_type(new types::unset_type());
 
-		if (!(types::atom_type("boolean") == &test->get_type()))
+		if (!(types::atom_type("std.bool") == &test->get_type()))
 		{
 			throw typecheck_error{ "Test branch of while loop must have boolean type" };
+		}
+	}
+
+	void if_statement::typecheck(type_environment& env)
+	{
+		env.push();
+		test->typecheck(env);
+		body->typecheck(env);
+		env.pop();
+		set_type(new types::unset_type());
+
+		if (!(types::atom_type("std.bool") == &test->get_type()))
+		{
+			throw typecheck_error{ "Test branch of if must have boolean type" };
 		}
 	}
 

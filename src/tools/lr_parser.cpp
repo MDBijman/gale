@@ -70,36 +70,48 @@ namespace utils::lr
 
 		for (auto& item_set : item_sets)
 		{
-			for (const auto& item : item_set)
+			for (auto set_it = item_set.begin(); set_it != item_set.end(); set_it++)
 			{
+				const auto& item = *set_it;
+
 				// Reduce or Accept
 				if (item.bullet_offset == item.rule->second.size())
 				{
 					auto follower = item.lookahead;
 
-					if ((item.rule->second.size() == 1) && (item.rule->first == 0))
-					{
-						if (table.find({ state(&item_set), follower }) != table.end())
-						{
-							auto other = table.at({ state(&item_set), follower });
-							if (std::holds_alternative<shift_action>(other))
-								throw conflict{ 0, follower, { item.rule->first, item.rule->second}, 
-									conflict::type::SHIFT_SHIFT };
-							else
-								throw conflict{ 0, follower, { item.rule->first, item.rule->second},
-									conflict::type::SHIFT_REDUCE };
-						}
-						table.insert({ { state(&item_set), follower }, accept_action{} });
-					}
-					else
-					{
-						if (auto it = table.find({ state(&item_set), follower }); it != table.end())
-						{
-							throw conflict{ 0, follower, { item.rule->first, item.rule->second}, 
-								conflict::type::SHIFT_REDUCE };
-						}
+					action value = (item.rule->second.size() == 1 && item.rule->first == 0)
+						? action(accept_action())
+						: action(reduce_action{ item.rule });
 
-						table.insert({ { state(&item_set), follower }, reduce_action{ item.rule } });
+					auto key = std::make_pair(state(&item_set), follower);
+
+					auto res = table.insert({ key, value });
+
+					if (res.second)
+					{
+						conflict_helper.insert({ &(res.first->first), set_it });
+					}
+					else if (!(res.first->second == value)) // Conflict
+					{
+						// Build error with information about conflicting rules
+						const bnf::rule& new_rule = *item.rule;
+						std::size_t new_offset = item.bullet_offset;
+
+						auto old_it = conflict_helper.at(&(table.find(key)->first));
+						const bnf::rule& old_rule = *old_it->rule;
+						std::size_t old_offset = old_it->bullet_offset;
+
+						auto other = table.at({ state(&item_set), follower });
+						auto conflict_type = std::holds_alternative<shift_action>(other)
+							? conflict::type::SHIFT_REDUCE
+							: conflict::type::REDUCE_REDUCE;
+
+						throw conflict{
+							follower,
+							new_rule, new_offset,
+							old_rule, old_offset,
+							conflict_type
+						};
 					}
 				}
 				// Shift or Goto
@@ -109,20 +121,34 @@ namespace utils::lr
 					{
 						if (&transition.from == &item_set)
 						{
-							action new_action = transition.symbol.is_terminal() ?
-								action(shift_action{ &transition.to }) : action(goto_action{ &transition.to });
-
 							auto key = std::pair<state, bnf::symbol>(state(&item_set), transition.symbol);
 
-							action value = transition.symbol.is_terminal() ?
-								action(shift_action{ &transition.to }) : action(goto_action{ &transition.to });
+							action value = transition.symbol.is_terminal() 
+								? action(shift_action{ &transition.to }) 
+								: action(goto_action{ &transition.to });
 
 							auto res = table.insert({ key, value });
-							if (!res.second)
+
+							if (res.second)
 							{
-								if(!(res.first->second == value))
-									throw conflict{ 0, transition.symbol, { item.rule->first, item.rule->second },
-										conflict::type::SHIFT_SHIFT };
+								conflict_helper.insert({ &(res.first->first), set_it });
+							}
+							else if (!(res.first->second == value)) // Conflict
+							{
+								// Build error with information about conflicting rules
+								const bnf::rule& new_rule = *item.rule;
+								std::size_t new_offset = item.bullet_offset;
+
+								auto old_it = conflict_helper.at(&(table.find(key)->first));
+								const bnf::rule& old_rule = *old_it->rule;
+								std::size_t old_offset = old_it->bullet_offset;
+
+								throw conflict{
+									transition.symbol,
+									new_rule, new_offset,
+									old_rule, old_offset,
+									conflict::type::SHIFT_REDUCE
+								};
 							}
 						}
 					}
@@ -136,6 +162,9 @@ namespace utils::lr
 		input.push_back(bnf::terminal_node(-2, ""));
 		auto it = input.begin();
 
+		std::size_t line = 1;
+		std::size_t line_offset = 0;
+
 		std::stack<state> history;
 		history.push(first_item_set);
 
@@ -143,6 +172,11 @@ namespace utils::lr
 
 		while (history.size() > 0)
 		{
+			while (it->value == bnf::new_line)
+			{
+				line++; it++; line_offset = 0;
+			}
+
 			auto current_state = history.top();
 
 			auto action = ([&]() {
@@ -152,8 +186,12 @@ namespace utils::lr
 				}
 				else
 				{
-					auto offset = std::distance(input.begin(), it);
-					throw std::runtime_error(std::string("Syntax error at ").append(std::to_string(offset)));
+					throw std::runtime_error(std::string("Syntax error at line: ")
+						.append(std::to_string(line))
+						.append(" offset: ")
+						.append(std::to_string(line_offset))
+						.append(" token: ")
+						.append(it->token));
 				}
 			})();
 
@@ -162,6 +200,7 @@ namespace utils::lr
 				history.push(std::get<shift_action>(action).new_state);
 				result.push(std::make_unique<bnf::node>(bnf::terminal_node(it->value, it->token)));
 				it++;
+				line_offset++;
 			}
 			else if (std::holds_alternative<reduce_action>(action))
 			{

@@ -15,11 +15,18 @@ namespace fe
 
 		// String
 
-		string::string(const values::string val) : node(new types::unset_type()), value(val) {}
+		string::string(const values::string val) : node(new types::atom_type("std.str")), value(val) {}
 
 		core_ast::node* string::lower()
 		{
 			return new core_ast::string(this->value);
+		}
+
+		// Boolean
+
+		core_ast::node* boolean::lower()
+		{
+			return new core_ast::boolean(this->value);
 		}
 
 		// Identifier
@@ -45,7 +52,6 @@ namespace fe
 		}
 
 		// Module Declaration
-
 
 		core_ast::node* module_declaration::lower()
 		{
@@ -237,7 +243,7 @@ namespace fe
 
 		// Function
 
-		function::function(const function& other) : node(other), name(other.name), from(other.from->copy()), 
+		function::function(const function& other) : node(other), name(other.name), from(other.from->copy()),
 			to(other.to->copy()), body(other.body->copy()) {}
 		function::function(std::vector<unique_node>&& children) :
 			node(new types::unset_type()),
@@ -434,350 +440,6 @@ namespace fe
 				lowered_children.push_back(core_ast::unique_node(child->lower()));
 
 			return new core_ast::tuple(std::move(lowered_children), get_type());
-		}
-
-		// Equality
-
-		equality::equality(std::vector<unique_node>&& children) :
-			node(new types::unset_type()),
-			left(std::move(children.at(0))),
-			right(std::move(children.at(1))),
-			scope_depth(0)
-		{}
-
-		equality::equality(const equality& other) :
-			node(other),
-			left(other.left->copy()),
-			right(other.right->copy()),
-			scope_depth(other.scope_depth)
-		{}
-
-		equality::equality(equality&& other) :
-			node(std::move(other)),
-			left(std::move(other.left)),
-			right(std::move(other.right)),
-			scope_depth(other.scope_depth)
-		{}
-
-		equality& equality::operator=(equality&& other)
-		{
-			set_type(types::unique_type(other.get_type().copy()));
-			this->left = std::move(other.left);
-			this->right = std::move(other.right);
-			this->scope_depth = other.scope_depth;
-			return *this;
-		}
-
-		node* equality::copy()
-		{
-			return new equality(*this);
-		}
-
-		core_ast::node* equality::lower()
-		{
-			std::vector<core_ast::unique_node> lowered_children;
-			lowered_children.push_back(core_ast::unique_node(left->lower()));
-			lowered_children.push_back(core_ast::unique_node(right->lower()));
-
-			types::product_type p;
-			p.product.push_back(types::make_unique(types::atom_type{ "std.i32" }));
-			p.product.push_back(types::make_unique(types::atom_type{ "std.i32" }));
-
-			return new core_ast::function_call{
-				core_ast::identifier{{}, "eq", {}, scope_depth, types::make_unique(types::unset_type())},
-				std::make_unique<core_ast::tuple>(core_ast::tuple{
-					std::move(lowered_children),
-					types::make_unique(std::move(p))
-				}),
-				types::make_unique(types::atom_type{"boolean"})
-			};
-		}
-
-		// Addition
-
-		addition::addition(std::vector<unique_node>&& children) :
-			node(new types::unset_type()),
-			left(std::move(children.at(0))),
-			right(std::move(children.at(1))),
-			scope_depth(0)
-		{}
-
-		addition::addition(const addition& other) :
-			node(other),
-			left(other.left->copy()),
-			right(other.right->copy()),
-			scope_depth(other.scope_depth)
-		{}
-
-		addition::addition(addition&& other) :
-			node(std::move(other)),
-			left(std::move(other.left)),
-			right(std::move(other.right)),
-			scope_depth(other.scope_depth)
-		{}
-
-		addition& addition::operator=(addition&& other)
-		{
-			set_type(types::unique_type(other.get_type().copy()));
-			this->left = std::move(other.left);
-			this->right = std::move(other.right);
-			this->scope_depth = other.scope_depth;
-			return *this;
-		}
-
-		node* addition::copy()
-		{
-			return new addition(*this);
-		}
-
-		core_ast::node* addition::lower()
-		{
-			std::vector<core_ast::unique_node> lowered_children;
-			lowered_children.push_back(core_ast::unique_node(left->lower()));
-			lowered_children.push_back(core_ast::unique_node(right->lower()));
-
-			types::product_type p;
-			p.product.push_back(types::make_unique(types::atom_type{ "std.i32" }));
-			p.product.push_back(types::make_unique(types::atom_type{ "std.i32" }));
-
-			return new core_ast::function_call{
-				core_ast::identifier{{}, "add", {}, scope_depth, types::make_unique(types::unset_type())},
-				std::make_unique<core_ast::tuple>(core_ast::tuple{
-					std::move(lowered_children),
-					types::make_unique(std::move(p))
-				}),
-				types::make_unique(types::atom_type{"std.i32"})
-			};
-		}
-
-		// Subtraction
-
-		subtraction::subtraction(std::vector<unique_node>&& children) :
-			node(new types::unset_type()),
-			left(std::move(children.at(0))),
-			right(std::move(children.at(1))),
-			scope_depth(0)
-		{}
-
-		subtraction::subtraction(const subtraction& other) :
-			node(other),
-			left(other.left->copy()),
-			right(other.right->copy()),
-			scope_depth(other.scope_depth)
-		{}
-
-		subtraction::subtraction(subtraction&& other) :
-			node(std::move(other)),
-			left(std::move(other.left)),
-			right(std::move(other.right)),
-			scope_depth(other.scope_depth)
-		{}
-
-		subtraction& subtraction::operator=(subtraction&& other)
-		{
-			set_type(types::unique_type(other.get_type().copy()));
-			this->left = std::move(other.left);
-			this->right = std::move(other.right);
-			this->scope_depth = other.scope_depth;
-			return *this;
-		}
-
-		node* subtraction::copy()
-		{
-			return new subtraction(*this);
-		}
-
-		core_ast::node* subtraction::lower()
-		{
-			std::vector<core_ast::unique_node> lowered_children;
-			lowered_children.push_back(core_ast::unique_node(left->lower()));
-			lowered_children.push_back(core_ast::unique_node(right->lower()));
-
-			types::product_type p;
-			p.product.push_back(types::make_unique(types::atom_type{ "std.i32" }));
-			p.product.push_back(types::make_unique(types::atom_type{ "std.i32" }));
-
-			return new core_ast::function_call{
-				core_ast::identifier{{}, "sub", {}, scope_depth, types::make_unique(types::unset_type())},
-				std::make_unique<core_ast::tuple>(core_ast::tuple{
-					std::move(lowered_children),
-					types::make_unique(std::move(p))
-				}),
-				types::make_unique(types::atom_type{"std.i32"})
-			};
-		}
-
-		// Multiplication
-
-		multiplication::multiplication(std::vector<unique_node>&& children) :
-			node(new types::unset_type()),
-			left(std::move(children.at(0))),
-			right(std::move(children.at(1))),
-			scope_depth(0)
-		{}
-
-		multiplication::multiplication(const multiplication& other) :
-			node(other),
-			left(other.left->copy()),
-			right(other.right->copy()),
-			scope_depth(other.scope_depth)
-		{}
-
-		multiplication::multiplication(multiplication&& other) :
-			node(std::move(other)),
-			left(std::move(other.left)),
-			right(std::move(other.right)),
-			scope_depth(other.scope_depth)
-		{}
-
-		multiplication& multiplication::operator=(multiplication&& other)
-		{
-			set_type(types::unique_type(other.get_type().copy()));
-			this->left = std::move(other.left);
-			this->right = std::move(other.right);
-			this->scope_depth = other.scope_depth;
-			return *this;
-		}
-
-		node* multiplication::copy()
-		{
-			return new multiplication(*this);
-		}
-
-		core_ast::node* multiplication::lower()
-		{
-			std::vector<core_ast::unique_node> lowered_children;
-			lowered_children.push_back(core_ast::unique_node(left->lower()));
-			lowered_children.push_back(core_ast::unique_node(right->lower()));
-
-			types::product_type p;
-			p.product.push_back(types::make_unique(types::atom_type{ "std.i32" }));
-			p.product.push_back(types::make_unique(types::atom_type{ "std.i32" }));
-
-			return new core_ast::function_call{
-				core_ast::identifier{{}, "mul", {}, scope_depth, types::make_unique(types::unset_type())},
-				std::make_unique<core_ast::tuple>(core_ast::tuple{
-					std::move(lowered_children),
-					types::make_unique(std::move(p))
-				}),
-				types::make_unique(types::atom_type{"std.i32"})
-			};
-		}
-
-		// Division
-
-		division::division(std::vector<unique_node>&& children) :
-			node(new types::unset_type()),
-			left(std::move(children.at(0))),
-			right(std::move(children.at(1))),
-			scope_depth(0)
-		{}
-
-		division::division(const division& other) :
-			node(other),
-			left(other.left->copy()),
-			right(other.right->copy()),
-			scope_depth(other.scope_depth)
-		{}
-
-		division::division(division&& other) :
-			node(std::move(other)),
-			left(std::move(other.left)),
-			right(std::move(other.right)),
-			scope_depth(other.scope_depth)
-		{}
-
-		division& division::operator=(division&& other)
-		{
-			set_type(types::unique_type(other.get_type().copy()));
-			this->left = std::move(other.left);
-			this->right = std::move(other.right);
-			this->scope_depth = other.scope_depth;
-			return *this;
-		}
-
-		node* division::copy()
-		{
-			return new division(*this);
-		}
-
-		core_ast::node* division::lower()
-		{
-			std::vector<core_ast::unique_node> lowered_children;
-			lowered_children.push_back(core_ast::unique_node(left->lower()));
-			lowered_children.push_back(core_ast::unique_node(right->lower()));
-
-			types::product_type p;
-			p.product.push_back(types::make_unique(types::atom_type{ "std.i32" }));
-			p.product.push_back(types::make_unique(types::atom_type{ "std.i32" }));
-
-			return new core_ast::function_call{
-				core_ast::identifier{{}, "div", {}, scope_depth, types::make_unique(types::unset_type())},
-				std::make_unique<core_ast::tuple>(core_ast::tuple{
-					std::move(lowered_children),
-					types::make_unique(std::move(p))
-				}),
-				types::make_unique(types::atom_type{"std.i32"})
-			};
-		}
-
-		// Array Index
-
-		array_index::array_index(std::vector<unique_node>&& children) :
-			node(new types::unset_type()),
-			array_exp(std::move(children.at(0))),
-			index_exp(std::move(children.at(1))),
-			scope_depth(0)
-		{}
-
-		array_index::array_index(const array_index& other) :
-			node(other),
-			array_exp(other.array_exp->copy()),
-			index_exp(other.index_exp->copy()),
-			scope_depth(other.scope_depth)
-		{}
-
-		array_index::array_index(array_index&& other) :
-			node(std::move(other)),
-			array_exp(std::move(other.array_exp)),
-			index_exp(std::move(other.index_exp)),
-			scope_depth(other.scope_depth)
-		{}
-
-		array_index& array_index::operator=(array_index&& other)
-		{
-			set_type(types::unique_type(other.get_type().copy()));
-			this->array_exp = std::move(other.array_exp);
-			this->index_exp = std::move(other.index_exp);
-			this->scope_depth = other.scope_depth;
-			return *this;
-		}
-
-		node* array_index::copy()
-		{
-			return new array_index(*this);
-		}
-
-		core_ast::node* array_index::lower()
-		{
-			std::vector<core_ast::unique_node> lowered_children;
-			lowered_children.push_back(core_ast::unique_node(array_exp->lower()));
-			lowered_children.push_back(core_ast::unique_node(index_exp->lower()));
-
-			types::product_type p;
-			p.product.push_back(types::make_unique(types::atom_type{ "std.i32" }));
-			p.product.push_back(types::make_unique(types::atom_type{ "std.i32" }));
-
-			const auto type = dynamic_cast<types::array_type*>(&array_exp->get_type());
-
-			return new core_ast::function_call{
-				core_ast::identifier{{}, "get", {}, scope_depth, types::make_unique(types::unset_type())},
-				std::make_unique<core_ast::tuple>(core_ast::tuple{
-					std::move(lowered_children),
-					types::make_unique(std::move(p))
-				}),
-				types::unique_type(type->element_type->copy())
-			};
 		}
 	}
 }

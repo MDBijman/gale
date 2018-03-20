@@ -118,9 +118,6 @@ namespace fe
 				else if (node_type == non_terminals::division)
 					return std::make_unique<division>(std::move(children));
 
-				else if (node_type == non_terminals::index)
-					return std::make_unique<array_index>(std::move(children));
-
 				else if (node_type == non_terminals::module_declaration)
 					return std::make_unique<module_declaration>(std::move(children));
 
@@ -136,6 +133,24 @@ namespace fe
 				else if (node_type == non_terminals::identifier_tuple)
 					return std::make_unique<identifier_tuple>(std::move(children));
 
+				else if (node_type == non_terminals::greater_than)
+					return std::make_unique<greater_than>(std::move(children));
+
+				else if (node_type == non_terminals::less_or_equal)
+					return std::make_unique<less_than_or_equal>(std::move(children));
+
+				else if (node_type == non_terminals::greater_or_equal)
+					return std::make_unique<greater_than_or_equal>(std::move(children));
+
+				else if (node_type == non_terminals::less_than)
+					return std::make_unique<less_than>(std::move(children));
+
+				else if (node_type == non_terminals::modulo)
+					return std::make_unique<modulo>(std::move(children));
+
+				else if (node_type == non_terminals::if_expr)
+					return std::make_unique<if_statement>(std::move(children));
+
 				else
 					throw cst_to_ast_error{
 						std::string("Unknown CST non terminal node: ")
@@ -146,7 +161,6 @@ namespace fe
 			{
 				auto n = std::move(std::get<utils::ebnfe::terminal_node>(*node));
 				auto node_type = n.value;
-				// Do false and true
 				if (node_type == terminals::number)
 				{
 					return std::make_unique<integer>(atoi(n.token.c_str()));
@@ -154,6 +168,14 @@ namespace fe
 				else if (node_type == terminals::word)
 				{
 					return std::make_unique<string>(n.token.substr(1, n.token.size() - 2));
+				}
+				else if (node_type == terminals::true_keyword)
+				{
+					return std::make_unique<boolean>(values::boolean(true));
+				}
+				else if (node_type == terminals::false_keyword)
+				{
+					return std::make_unique<boolean>(values::boolean(false));
 				}
 				else if (node_type == terminals::identifier)
 				{
