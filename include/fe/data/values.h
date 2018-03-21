@@ -15,7 +15,6 @@ namespace fe
 	}
 }
 
-// Also defined in values.cpp
 namespace fe
 {
 	namespace values
@@ -26,6 +25,7 @@ namespace fe
 			virtual std::string to_string() const = 0;
 			virtual value* copy() const = 0;
 			virtual bool operator==(value* other) const = 0;
+			virtual types::unique_type get_type() const = 0;
 		};
 
 		const auto make_shared = [](auto val) {
@@ -39,138 +39,112 @@ namespace fe
 		using unique_value = std::unique_ptr<value>;
 		using shared_value = std::shared_ptr<value>;
 
-		template<class Derived, class Base>
-		struct comparable
+
+		namespace detail
 		{
-		public:
-			bool operator==(Base* o) const
+			template<class Derived, class Base>
+			struct comparable
 			{
-				if (typeid(Derived) != typeid(*o))
-					return false;
+			public:
+				bool operator==(Base* o) const
+				{
+					if (typeid(Derived) != typeid(*o))
+						return false;
 
-				const Derived & a = static_cast<const Derived&>(*this);
-				const Derived & b = static_cast<const Derived&>(*o);
+					const Derived & a = static_cast<const Derived&>(*this);
+					const Derived & b = static_cast<const Derived&>(*o);
 
-				return a == b;
-			}
-		};
+					return a == b;
+				}
+			};
 
-		template<class Derived, class Base>
-		struct copyable
-		{
-		public:
-			Base* copy(const Derived& o) const
+			template<class Derived, class Base>
+			struct copyable
 			{
-				return new Derived(o);
-			}
-		};
+			public:
+				Base * copy(const Derived& o) const
+				{
+					return new Derived(o);
+				}
+			};
 
-		struct string : public value, private comparable<string, value>, private copyable<string, value>
-		{
-			string(std::string s) : val(s) {}
+			template<types::atom_type Type> struct literal_value;
+			template<> struct literal_value<types::atom_type::I32> { using value_type = int32_t; };
+			template<> struct literal_value<types::atom_type::I64> { using value_type = int64_t; };
+			template<> struct literal_value<types::atom_type::UI32> { using value_type = uint32_t; };
+			template<> struct literal_value<types::atom_type::UI64> { using value_type = uint64_t; };
+			template<> struct literal_value<types::atom_type::F32> { using value_type = float; };
+			template<> struct literal_value<types::atom_type::F64> { using value_type = double; };
+			template<> struct literal_value<types::atom_type::STRING> { using value_type = std::string; };
+			template<> struct literal_value<types::atom_type::BOOL> { using value_type = bool; };
 
-			// Copy
-			string(const string& other) : val(other.val) {}
-			string& operator=(const string& other)
+			template<types::atom_type Type>
+			struct literal : public value, private comparable<literal<Type>, value>, private copyable<literal<Type>, value>
 			{
-				this->val = other.val;
-				return *this;
-			}
+				using value_type = typename literal_value<Type>::value_type;
 
-			// Move
-			string(string&& other) : val(std::move(other.val)) {}
-			string& operator=(string&& other)
-			{
-				this->val = std::move(other.val);
-				return *this;
-			}
+				literal(value_type s) : val(s) {}
 
-			std::string to_string() const override
-			{
-				return "\"" + val + "\"";
-			}
-			bool operator==(value* other) const override { return comparable::operator==(other); }
-			value* copy() const override { return copyable::copy(*this); }
+				// Copy
+				literal(const literal& other) : val(other.val) {}
+				literal& operator=(const literal& other)
+				{
+					this->val = other.val;
+					return *this;
+				}
 
-			bool operator==(const string& other) const
-			{
-				return val == other.val;
-			}
+				// Move
+				literal(literal&& other) : val(std::move(other.val)) {}
+				literal& operator=(literal&& other)
+				{
+					this->val = std::move(other.val);
+					return *this;
+				}
 
-			std::string val;
-		};
+				bool operator==(value* other) const override { return comparable::operator==(other); }
 
-		struct integer : public value, private comparable<integer, value>, private copyable<integer, value>
-		{
-			integer(int n) : val(n) {}
+				value_type operator*(const literal& other) const { return val * other.val; }
+				value_type operator/(const literal& other) const { return val / other.val; }
+				value_type operator%(const literal& other) const { return val % other.val; }
+				value_type operator+(const literal& other) const { return val + other.val; }
+				value_type operator-(const literal& other) const { return val - other.val; }
+				bool operator==(const literal& other) const { return val == other.val; }
+				bool operator!=(const literal& other) const { return val != other.val; }
+				bool operator> (const literal& other) const { return val >  other.val; }
+				bool operator>=(const literal& other) const { return val >= other.val; }
+				bool operator< (const literal& other) const { return val <  other.val; }
+				bool operator<=(const literal& other) const { return val <= other.val; }
 
-			// Copy
-			integer(const integer& other) = default;
-			integer& operator=(const integer& other)
-			{
-				this->val = other.val;
-				return *this;
-			}
+				std::string to_string() const override
+				{
+					if constexpr (Type != types::atom_type::STRING)
+					{
+						return "\"" + std::to_string(val) + "\"";
+					}
+					else
+					{
+						return "\"" + val + "\"";
+					}
+				}
 
-			// Move
-			integer(integer&& other) : val(other.val) {}
-			integer& operator=(integer&& other)
-			{
-				this->val = std::move(other.val);
-				return *this;
-			}
+				value* copy() const override { return copyable::copy(*this); }
+				types::unique_type get_type() const override { return types::unique_type(new types::atom<Type>()); }
 
-			std::string to_string() const override
-			{
-				return std::to_string(val);
-			}
-			bool operator==(value* other) const override { return comparable::operator==(other); }
-			value* copy() const override { return copyable::copy(*this); }
+				value_type val;
+			};
+		}
 
-			bool operator==(const integer& other) const
-			{
-				return val == other.val;
-			}
+		using i32     = detail::literal<types::atom_type::I32>;
+		using i64     = detail::literal<types::atom_type::I64>;
+		using ui32    = detail::literal<types::atom_type::UI32>;
+		using ui64    = detail::literal<types::atom_type::UI64>;
+		using f32     = detail::literal<types::atom_type::F32>;
+		using f64     = detail::literal<types::atom_type::F64>;
+		using boolean = detail::literal<types::atom_type::BOOL>;
+		using str     = detail::literal<types::atom_type::STRING>;
 
-			int val;
-		};
-
-		struct boolean : public value, private comparable<boolean, value>, private copyable<boolean, value>
-		{
-			boolean(bool b) : val(b) {}
-
-			// Copy
-			boolean(const boolean& other) = default;
-			boolean& operator=(const boolean& other)
-			{
-				this->val = other.val;
-				return *this;
-			}
-
-			// Move
-			boolean(boolean&& other) : val(other.val) {}
-			boolean& operator=(boolean&& other)
-			{
-				this->val = std::move(other.val);
-				return *this;
-			}
-
-			std::string to_string() const override
-			{
-				return val ? "true" : "false";
-			}
-			bool operator==(value* other) const override { return comparable::operator==(other); }
-			value* copy() const override { return copyable::copy(*this); }
-
-			bool operator==(const boolean& other) const
-			{
-				return val == other.val;
-			}
-
-			bool val;
-		};
-
-		struct void_value : public value, private comparable<void_value, value>, private copyable<void_value, value>
+		struct void_value : public value, private detail::comparable<void_value, value>, 
+			private detail::copyable<void_value, value>
 		{
 			std::string to_string() const override
 			{
@@ -183,9 +157,12 @@ namespace fe
 			{
 				return true;
 			}
+
+			types::unique_type get_type() const override { return types::make_unique(types::atom<types::atom_type::VOID>()); }
 		};
 
-		struct function : public value, private comparable<function, value>, private copyable<function, value>
+		struct function : public value, private detail::comparable<function, value>, 
+			private detail::copyable<function, value>
 		{
 			function(core_ast::unique_node func);
 
@@ -206,43 +183,14 @@ namespace fe
 				return func.get() == other.func.get();
 			}
 
+			// #todo use typechecking result of func
+			types::unique_type get_type() const override { return types::make_unique(types::atom<types::atom_type::ANY>()); }
+
 			core_ast::unique_node func;
 		};
 
-		struct module : public value, private comparable<module, value>, private copyable<module, value>
-		{
-			// Copy
-			module(const module& other) {}
-			module& operator=(const module& other)
-			{
-				this->exports = other.exports;
-				return *this;
-			}
-
-			// Move
-			module(module&& other) {}
-			module& operator=(module&& other)
-			{
-				this->exports = std::move(other.exports);
-				return *this;
-			}
-
-			std::string to_string() const override
-			{
-				return "module";
-			}
-			bool operator==(value* other) const override { return comparable::operator==(other); }
-			value* copy() const override { return copyable::copy(*this); }
-
-			bool operator==(const module& other) const
-			{
-				return exports == other.exports;
-			}
-
-			std::unordered_map<std::string, shared_value> exports;
-		};
-
-		struct tuple : public value, private comparable<tuple, value>, private copyable<tuple, value>
+		struct tuple : public value, private detail::comparable<tuple, value>, 
+			private detail::copyable<tuple, value>
 		{
 			tuple();
 			tuple(std::vector<unique_value> values);
@@ -261,20 +209,31 @@ namespace fe
 
 			bool operator==(const tuple& other) const
 			{
-				if (content.size() != other.content.size()) return false;
+				if (val.size() != other.val.size()) return false;
 
-				for(int i = 0; i < other.content.size(); i++)
+				for (int i = 0; i < other.val.size(); i++)
 				{
-					if (!(*content.at(i) == other.content.at(i).get()))
+					if (!(*val.at(i) == other.val.at(i).get()))
 						return false;
 				}
 				return true;
 			}
 
-			std::vector<unique_value> content;
+			types::unique_type get_type() const override
+			{
+				types::sum_type st;
+				for (auto& val : val)
+				{
+					st.sum.push_back(val->get_type());
+				}
+				return types::make_unique(st);
+			}
+
+			std::vector<unique_value> val;
 		};
 
-		struct native_function : public value, private comparable<native_function, value>, private copyable<native_function, value>
+		struct native_function : public value, private detail::comparable<native_function, value>, 
+			private detail::copyable<native_function, value>
 		{
 			native_function(std::function<unique_value(unique_value)> f) : function(f) {}
 
@@ -295,11 +254,17 @@ namespace fe
 				return function.target<unique_value(unique_value)>() == other.function.target<unique_value(unique_value)>();
 			}
 
+			types::unique_type get_type() const override
+			{
+				return types::make_unique(types::voidt());
+			}
+
 			std::function<unique_value(unique_value)> function;
 		};
 
 		template<class T>
-		struct custom_value : public value, private comparable<custom_value<T>, value>, private copyable<custom_value<T>, value>
+		struct custom_value : public value, private detail::comparable<custom_value<T>, value>, 
+			private detail::copyable<custom_value<T>, value>
 		{
 			custom_value(T t) : val(std::move(t)) {}
 
@@ -329,6 +294,11 @@ namespace fe
 			bool operator==(const custom_value& other) const
 			{
 				return val == other.val;
+			}
+
+			types::unique_type get_type() const override
+			{
+				return types::make_unique(types::voidt());
 			}
 
 			T val;

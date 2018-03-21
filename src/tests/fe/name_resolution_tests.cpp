@@ -27,15 +27,15 @@ var z: std.i32 = x.m.x;
 			auto parsed = p.parse(std::move(lexed));
 
 			fe::code_module cm(fe::module_name{ "x" }, std::move(parsed));
-			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::stdlib::types::load_as_module()));
+			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::stdlib::typedefs::load_as_module()));
 			
 			auto[te, re, se] = cm.interp(p);
 
 			THEN("the variable types should be correct")
 			{
 				auto valueof_z = re.valueof(fe::core_ast::identifier({}, "z", {}, 0, nullptr));
-				REQUIRE(dynamic_cast<fe::values::integer*>(valueof_z.value()));
-				REQUIRE(dynamic_cast<fe::values::integer*>(valueof_z.value())->val == 3);
+				REQUIRE(dynamic_cast<fe::values::i32*>(valueof_z.value()));
+				REQUIRE(dynamic_cast<fe::values::i32*>(valueof_z.value())->val == 3);
 			}
 		}
 	}

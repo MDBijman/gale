@@ -8,7 +8,7 @@ namespace fe
 {
 	namespace stdlib
 	{
-		namespace types
+		namespace typedefs
 		{
 			static std::tuple<type_environment, runtime_environment, scope_environment> load()
 			{
@@ -16,33 +16,29 @@ namespace fe
 				runtime_environment r{};
 				scope_environment s{};
 
-				using namespace fe::types;
+				s.define_type(extended_ast::identifier("i32"), nested_type());
+				t.define_type(extended_ast::identifier("i32"), types::make_unique(types::i32()));
+				s.define_type(extended_ast::identifier("str"), nested_type());
+				t.define_type(extended_ast::identifier("str"), types::make_unique(types::str()));
+				s.define_type(extended_ast::identifier("bool"), nested_type());
+				t.define_type(extended_ast::identifier("bool"), types::make_unique(types::boolean()));
 
-				s.define_type(extended_ast::identifier({ "i32" }), nested_type());
-				t.define_type(extended_ast::identifier({ "i32" }), make_unique(atom_type("std.i32")));
-				s.define_type(extended_ast::identifier({ "str" }), nested_type());
-				t.define_type(extended_ast::identifier({ "str" }), make_unique(atom_type("std.str")));
-				s.define_type(extended_ast::identifier({ "bool" }), nested_type());
-				t.define_type(extended_ast::identifier({ "bool" }), make_unique(atom_type("std.bool")));
-
-				using namespace fe::values;
-
-				s.declare(extended_ast::identifier({ "to_string" }), extended_ast::identifier({ "_function" }));
-				s.define(extended_ast::identifier({ "to_string" }));
-				t.set_type(extended_ast::identifier({ "to_string" }),
-					unique_type(new function_type(unique_type(new any_type()), unique_type(new atom_type("std.str")))));
-				r.set_value("to_string", native_function([](unique_value val) -> unique_value {
-					if (auto num = dynamic_cast<integer*>(val.get()))
+				s.declare(extended_ast::identifier("to_string"), extended_ast::identifier("_function"));
+				s.define(extended_ast::identifier("to_string"));
+				t.set_type(extended_ast::identifier("to_string"),
+					types::unique_type(new types::function_type(types::unique_type(new types::any()), types::unique_type(new types::str()))));
+				r.set_value("to_string", values::native_function([](values::unique_value val) -> values::unique_value {
+					if (auto num = dynamic_cast<values::i32*>(val.get()))
 					{
-						return unique_value(new string(std::to_string(num->val)));
+						return values::unique_value(new values::str(std::to_string(num->val)));
 					}
-					else if (auto str = dynamic_cast<string*>(val.get()))
+					else if (auto str = dynamic_cast<values::str*>(val.get()))
 					{
-						return unique_value(new string(str->val));
+						return values::unique_value(new values::str(str->val));
 					}
-					else if (auto b = dynamic_cast<boolean*>(val.get()))
+					else if (auto b = dynamic_cast<values::boolean*>(val.get()))
 					{
-						return unique_value(new string(b->to_string()));
+						return values::unique_value(new values::str(b->to_string()));
 					}
 				}));
 

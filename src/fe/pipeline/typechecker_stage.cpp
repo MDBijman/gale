@@ -4,21 +4,6 @@
 
 namespace fe::extended_ast
 {
-	void integer::typecheck(type_environment& t_env)
-	{
-		this->set_type(new types::atom_type("std.i32"));
-	}
-
-	void string::typecheck(type_environment& t_env)
-	{
-		this->set_type(new types::atom_type("std.str"));
-	}
-
-	void boolean::typecheck(type_environment& t_env)
-	{
-		this->set_type(new types::atom_type("std.bool"));
-	}
-
 	void identifier::typecheck(type_environment& env)
 	{
 		auto t = env.typeof(*this);
@@ -98,7 +83,7 @@ namespace fe::extended_ast
 
 		// Check the validity of the type of the test path
 		auto& test_type = test_path->get_type();
-		if (!(types::atom_type("std.bool") == &test_type))
+		if (!(types::boolean() == &test_type))
 			throw typecheck_error{ std::string("Branch number does not have a boolean test") };
 
 		set_type(types::unique_type(code_path->get_type().copy()));
@@ -107,14 +92,14 @@ namespace fe::extended_ast
 
 	void match::typecheck(type_environment& env)
 	{
-		types::type* common_type = new types::unset_type();
+		types::type* common_type = new types::unset();
 
 		for (uint32_t branch_count = 0; branch_count < branches.size(); branch_count++)
 		{
 			branches.at(branch_count).typecheck(env);
 
 			// In first iteration
-			if (types::unset_type() == common_type)
+			if (types::unset() == common_type)
 			{
 				common_type = branches.at(branch_count).get_type().copy();
 				continue;
@@ -141,7 +126,7 @@ namespace fe::extended_ast
 		if (final_type != nullptr)
 			set_type(final_type->copy());
 		else
-			set_type(new types::atom_type("void"));
+			set_type(new types::voidt());
 		env.pop();
 	}
 
@@ -237,7 +222,7 @@ namespace fe::extended_ast
 
 	void export_stmt::typecheck(type_environment& env)
 	{
-		set_type(new types::atom_type("void"));
+		set_type(new types::voidt());
 	}
 
 	void declaration::typecheck(type_environment& env)
@@ -288,7 +273,7 @@ namespace fe::extended_ast
 
 		typecheck(this->lhs, value->get_type());
 
-		set_type(new types::atom_type("void"));
+		set_type(new types::voidt());
 	}
 
 	void assignment::typecheck(type_environment& env)
@@ -302,7 +287,7 @@ namespace fe::extended_ast
 		if (!(type.value().get() == &this->value->get_type()))
 			throw typecheck_error{ "Type of assignment value is different from declared variable type" };
 
-		set_type(new types::atom_type("void"));
+		set_type(new types::voidt());
 	}
 
 	void type_tuple::typecheck(type_environment& env)
@@ -373,16 +358,16 @@ namespace fe::extended_ast
 			set_type(types::make_unique(types::array_type(types::unique_type(element_type))));
 		}
 		else
-			set_type(types::make_unique(types::array_type(types::atom_type{ "void" })));
+			set_type(types::make_unique(types::array_type(types::voidt())));
 	}
 
 	void while_loop::typecheck(type_environment& env)
 	{
 		test->typecheck(env);
 		body->typecheck(env);
-		set_type(new types::unset_type());
+		set_type(new types::unset());
 
-		if (!(types::atom_type("std.bool") == &test->get_type()))
+		if (!(types::boolean() == &test->get_type()))
 		{
 			throw typecheck_error{ "Test branch of while loop must have boolean type" };
 		}
@@ -394,9 +379,9 @@ namespace fe::extended_ast
 		test->typecheck(env);
 		body->typecheck(env);
 		env.pop();
-		set_type(new types::unset_type());
+		set_type(new types::unset());
 
-		if (!(types::atom_type("std.bool") == &test->get_type()))
+		if (!(types::boolean() == &test->get_type()))
 		{
 			throw typecheck_error{ "Test branch of if must have boolean type" };
 		}

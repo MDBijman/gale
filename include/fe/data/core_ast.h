@@ -6,8 +6,6 @@
 #include <optional>
 #include <variant>
 
-// Also defined in values.h
-
 namespace fe
 {
 	class runtime_environment;
@@ -22,14 +20,6 @@ namespace fe
 		};
 
 		using unique_node = std::unique_ptr<node>;
-
-
-		struct assignment;
-		struct function_call;
-		struct match;
-		struct atom_variable;
-		struct composite_variable;
-		struct function_variable;
 
 		// Value nodes
 		struct no_op : public node
@@ -53,72 +43,41 @@ namespace fe
 			types::unique_type type;
 		};
 
-		struct integer : public node
+		struct literal : public node
 		{
-			integer(values::integer val);
+			literal(values::unique_value val) : val(std::move(val)) {}
 
-			// Copy
-			integer(const integer& other);
-			integer& operator=(const integer& other);
-
-			// Move
-			integer(integer&& other);
-			integer& operator=(integer&& other);
-
-			node* copy()
+			literal(const literal& other) : val(other.val->copy()) {}
+			literal& operator=(const literal& o)
 			{
-				return new integer(*this);
+				this->val = values::unique_value(o.val->copy());
+				return *this;
 			}
-			values::unique_value interp(runtime_environment&) override;
 
-			values::integer value;
-			types::unique_type type;
-		};
-
-		struct string : public node
-		{
-			string(values::string val);
-
-			// Copy
-			string(const string& other);
-			string& operator=(const string& other);
-
-			// Move
-			string(string&& other);
-			string& operator=(string&& other);
-
-			node* copy()
+			literal(literal&& other) noexcept : val(std::move(other.val)) {}
+			literal& operator=(literal&& other)
 			{
-				return new string(*this);
+				val = std::move(other.val);
+				return *this;
 			}
-			values::unique_value interp(runtime_environment&) override;
 
-			values::string value;
-			types::unique_type type;
-		};
+			node* copy() override
+			{
+				return new literal(*this);
+			}
 
-		struct boolean : public node
-		{
-			boolean(values::boolean val);
+			values::unique_value interp(runtime_environment&) override
+			{
+				return values::unique_value(val->copy());
+			}
 
-			// Copy
-			boolean(const boolean& other);
-			boolean& operator=(const boolean& other);
-
-			// Move
-			boolean(boolean&& other);
-			boolean& operator=(boolean&& other);
-
-			node* copy();
-			values::unique_value interp(runtime_environment&) override;
-
-			values::boolean value;
+			values::unique_value val;
 			types::unique_type type;
 		};
 
 		struct identifier : public node
 		{
-			identifier(std::vector<std::string> module_names, std::string variables, std::vector<int> offset, 
+			identifier(std::vector<std::string> module_names, std::string variables, std::vector<int> offset,
 				std::size_t depth, types::unique_type t);
 
 			// Copy

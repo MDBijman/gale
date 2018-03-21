@@ -11,7 +11,7 @@ namespace fe
 	{
 		// No op
 
-		no_op::no_op() : type(new types::unset_type()) {}
+		no_op::no_op() : type(new types::unset()) {}
 
 		no_op::no_op(const no_op& other) : type(other.type->copy()) {}
 		no_op& no_op::operator=(const no_op& other)
@@ -29,83 +29,6 @@ namespace fe
 		values::unique_value no_op::interp(runtime_environment &)
 		{
 			return values::make_unique(values::void_value());
-		}
-
-		// Integer
-
-		integer::integer(values::integer val) : type(new types::atom_type("std.i32")), value(val) {}
-		
-		integer::integer(const integer& other) : value(other.value), type(other.type->copy()) {}
-		integer& integer::operator=(const integer& other)
-		{
-			this->value = other.value;
-			this->type = types::unique_type(other.type->copy());
-			return *this;
-		}
-		integer::integer(integer&& other) : value(std::move(other.value)), type(std::move(other.type)) {}
-		integer& integer::operator=(integer&& other)
-		{
-			this->value = std::move(other.value);
-			this->type = std::move(other.type);
-			return *this;
-		}
-
-		values::unique_value integer::interp(runtime_environment &)
-		{
-			return values::unique_value(this->value.copy());
-		}
-
-		// String
-
-		string::string(values::string val) : type(new types::atom_type("std.str")), value(val) {}
-		
-		string::string(const string& other) : value(other.value), type(other.type->copy()) {}
-		string& string::operator=(const string& other)
-		{
-			this->value = other.value;
-			this->type = types::unique_type(other.type->copy());
-			return *this;
-		}
-		string::string(string&& other) : value(std::move(other.value)), type(std::move(other.type)) {}
-		string& string::operator=(string&& other)
-		{
-			this->value = std::move(other.value);
-			this->type = std::move(other.type);
-			return *this;
-		}
-
-		values::unique_value string::interp(runtime_environment &)
-		{
-			return values::unique_value(this->value.copy());
-		}
-
-		// Boolean
-
-		boolean::boolean(values::boolean val) : type(new types::atom_type("std.bool")), value(val) {}
-		
-		boolean::boolean(const boolean& other) : value(other.value), type(other.type->copy()) {}
-		boolean& boolean::operator=(const boolean& other)
-		{
-			this->value = other.value;
-			this->type = types::unique_type(other.type->copy());
-			return *this;
-		}
-		boolean::boolean(boolean&& other) : value(std::move(other.value)), type(std::move(other.type)) {}
-		boolean& boolean::operator=(boolean&& other)
-		{
-			this->value = std::move(other.value);
-			this->type = std::move(other.type);
-			return *this;
-		}
-
-		node* boolean::copy()
-		{
-			return new boolean(*this);
-		}
-
-		values::unique_value boolean::interp(runtime_environment &)
-		{
-			return values::unique_value(this->value.copy());
 		}
 
 		// Identifier
@@ -199,11 +122,11 @@ namespace fe
 
 					auto tuple = static_cast<values::tuple*>(&value);
 
-					assert(id_tuple.ids.size() == tuple->content.size());
+					assert(id_tuple.ids.size() == tuple->val.size());
 
 					for (int i = 0; i < id_tuple.ids.size(); i++)
 					{
-						interp(id_tuple.ids.at(i), *tuple->content.at(i));
+						interp(id_tuple.ids.at(i), *tuple->val.at(i));
 					}
 				}
 				else if (std::holds_alternative<identifier>(ids))
@@ -404,7 +327,7 @@ namespace fe
 					for (auto i = 0; i < parameters.size(); i++)
 					{
 						auto& id = parameters.at(i);
-						function_env.set_value(id.variable_name, std::move(param_tuple->content.at(i)));
+						function_env.set_value(id.variable_name, std::move(param_tuple->val.at(i)));
 					}
 				}
 				else

@@ -163,19 +163,21 @@ namespace fe
 				auto node_type = n.value;
 				if (node_type == terminals::number)
 				{
-					return std::make_unique<integer>(atoi(n.token.c_str()));
+					return std::make_unique<literal>(values::unique_value(
+						new values::i32(atoi(n.token.c_str()))));
 				}
 				else if (node_type == terminals::word)
 				{
-					return std::make_unique<string>(n.token.substr(1, n.token.size() - 2));
+					return std::make_unique<literal>(values::unique_value(
+						new values::str(n.token.substr(1, n.token.size() - 2))));
 				}
 				else if (node_type == terminals::true_keyword)
 				{
-					return std::make_unique<boolean>(values::boolean(true));
+					return std::make_unique<literal>(values::unique_value(new values::boolean(true)));
 				}
 				else if (node_type == terminals::false_keyword)
 				{
-					return std::make_unique<boolean>(values::boolean(false));
+					return std::make_unique<literal>(values::unique_value(new values::boolean(false)));
 				}
 				else if (node_type == terminals::identifier)
 				{

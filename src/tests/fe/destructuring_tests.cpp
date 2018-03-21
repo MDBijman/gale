@@ -24,15 +24,15 @@ var (a, b, c, _) : Quad = Quad (1, 2, 3, 4);
 			auto parsed = p.parse(std::move(lexed));
 
 			fe::code_module cm(fe::module_name{ "" }, std::move(parsed));
-			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::stdlib::types::load_as_module()));
+			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::stdlib::typedefs::load_as_module()));
 			
 			auto[te, re, se] = cm.interp(p);
 
 			THEN("the variable values should be correct")
 			{
 				auto valueof_a = re.valueof(fe::core_ast::identifier({}, "a", {}, 0, nullptr));
-				REQUIRE(dynamic_cast<fe::values::integer*>(valueof_a.value()));
-				REQUIRE(dynamic_cast<fe::values::integer*>(valueof_a.value())->val == 1);
+				REQUIRE(dynamic_cast<fe::values::i32*>(valueof_a.value()));
+				REQUIRE(dynamic_cast<fe::values::i32*>(valueof_a.value())->val == 1);
 			}
 		}
 	}
