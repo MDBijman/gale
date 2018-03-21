@@ -23,7 +23,6 @@ namespace fe
 			explicit node(types::type* t) : type(t) {}
 
 			node(const node& other) : type(other.type->copy()) {}
-
 			node& operator=(const node& o)
 			{
 				this->type = types::unique_type(o.type->copy());
@@ -31,7 +30,6 @@ namespace fe
 			}
  
 			node(node&& other) noexcept : type(std::move(other.type)) {}
-
 			node& operator=(node&& o)
 			{
 				this->type = std::move(o.type);
@@ -39,10 +37,10 @@ namespace fe
 			}
 
 			virtual ~node() {};
-			virtual node* copy() = 0;
 			virtual void typecheck(type_environment&) = 0;
-			virtual core_ast::node* lower() = 0;
 			virtual void resolve(scope_environment& s_env) = 0;
+			virtual core_ast::node* lower() = 0;
+			virtual node* copy() = 0;
 
 			types::type& get_type() const
 			{
@@ -65,134 +63,66 @@ namespace fe
 
 		using unique_node = std::unique_ptr<node>;
 
-		struct integer : public node
+		struct literal : public node
 		{
-			explicit integer(const values::integer val) : node(new types::atom_type("std.i32")), value(val) {}
+			literal(values::unique_value val) : node(new types::unset()), val(std::move(val)) {}
 
-			integer(const integer& other) : node(other), value(other.value) {}
-			integer& operator=(const integer& o)
+			literal(const literal& other) : node(other), val(other.val->copy()) {}
+			literal& operator=(const literal& o)
 			{
 				node::operator=(o);
-				this->value = o.value;
+				this->val = values::unique_value(o.val->copy());
 				return *this;
 			}
 
-			integer(integer&& other) noexcept : node(std::move(other)), value(std::move(other.value)) {}
-			integer& operator=(integer&& other)
+			literal(literal&& other) noexcept : node(std::move(other)), val(std::move(other.val)) {}
+			literal& operator=(literal&& other)
 			{
 				node::operator=(std::move(other));
-				value = std::move(other.value);
+				val = std::move(other.val);
 				return *this;
 			}
 
-			node* copy() override
-			{
-				return new integer(*this);
-			}
+			void typecheck(type_environment&) override { this->set_type(val->get_type()); }
+			void resolve(scope_environment& s_env) override {}
+			core_ast::node* lower() override { return new core_ast::literal(values::unique_value(val->copy())); }
+			node* copy() override { return new literal(*this); }
 
-			void typecheck(type_environment&) override;
-			core_ast::node* lower() override;
-			void resolve(scope_environment& s_env) override;
-
-			values::integer value;
-		};
-
-		struct string : public node
-		{
-			explicit string(values::string val);
-
-			string(const string& other) : node(other), value(other.value) {}
-			string& operator=(const string& o)
-			{
-				node::operator=(o);
-				value = o.value;
-				return *this;
-			}
-
-			string(string&& other) noexcept : node(std::move(other)), value(std::move(other.value)) {}
-			string& operator=(string&& other)
-			{
-				node::operator=(std::move(other));
-				value = std::move(other.value);
-				return *this;
-			}
-
-			node* copy() override
-			{
-				return new string(*this);
-			}
-
-			void typecheck(type_environment& t_env) override;
-			core_ast::node* lower() override;
-			void resolve(scope_environment& s_env) override;
-
-			values::string value;
-		};
-
-		struct boolean : public node
-		{
-			explicit boolean(const values::boolean val) : node(new types::unset_type()), value(val) {}
-
-			boolean(const boolean& other) : node(other), value(other.value) {}
-			boolean& operator=(const boolean& o)
-			{
-				node::operator=(o);
-				this->value = o.value;
-				return *this;
-			}
-
-			boolean(boolean&& other) noexcept : node(std::move(other)), value(std::move(other.value)) {}
-			boolean& operator=(boolean&& other)
-			{
-				node::operator=(other);
-				value = std::move(other.value);
-				return *this;
-			}
-
-			node* copy() override
-			{
-				return new boolean(*this);
-			}
-
-			void typecheck(type_environment&) override;
-			core_ast::node* lower() override;
-			void resolve(scope_environment& s_env) override;
-
-			values::boolean value;
+			values::unique_value val;
 		};
 
 		struct identifier : public node
 		{
-			explicit identifier(std::vector<std::string>&& segments) : node(new types::unset_type()), segments(std::move(segments)) {}
+			explicit identifier(std::string segment) : node(new types::unset()), segments({ segment }) {}
+			explicit identifier(std::vector<std::string>&& segments) : node(new types::unset()),
+				segments(std::move(segments)) {}
 
 			identifier(const identifier& other) : node(other), segments(other.segments), offsets(other.offsets) {}
 			identifier& operator=(const identifier& other)
 			{
+				node::operator=(other);
 				this->segments = other.segments;
 				this->offsets = other.offsets;
-				set_type(other.get_type().copy());
 				return *this;
 			}
 
-			identifier(identifier&& other) noexcept : node(std::move(other)), segments(std::move(other.segments)), 
+			identifier(identifier&& other) noexcept : node(std::move(other)), segments(std::move(other.segments)),
 				offsets(std::move(other.offsets)), scope_distance(std::move(other.scope_distance)) {}
 			identifier& operator=(identifier&& other)
 			{
-				set_type(types::unique_type(other.get_type().copy()));
+				node::operator=(std::move(other));
 				segments = std::move(other.segments);
 				offsets = std::move(other.offsets);
 				return *this;
 			}
+
+			void typecheck(type_environment& env) override;
+			void resolve(scope_environment& s_env) override;
+			core_ast::node* lower() override;
 			node* copy() override
 			{
 				return new identifier(*this);
 			}
-
-			void typecheck(type_environment& env) override;
-			core_ast::node* lower() override;
-			void resolve(scope_environment& s_env) override;
-
-	
 
 			bool identifier::operator==(const identifier& other) const
 			{
@@ -212,12 +142,8 @@ namespace fe
 
 			identifier without_first_segment() const
 			{
-				auto new_id = identifier{
-					std::vector<std::string>{ segments.begin() + 1, segments.end() }
-				};
-				new_id.set_type(types::unique_type(this->get_type().copy()));
-				new_id.offsets = offsets;
-				new_id.scope_distance = scope_distance;
+				identifier new_id(*this);
+				new_id.segments.erase(new_id.segments.begin());
 				return new_id;
 			}
 
@@ -237,16 +163,8 @@ namespace fe
 
 		struct tuple : public node
 		{
-			explicit tuple(std::vector<unique_node>&& children) : node(new types::unset_type()), children(std::move(children)) {}
-
-			node* copy() override
-			{
-				return new tuple(*this);
-			}
-
-			void typecheck(type_environment& env) override;
-			core_ast::node* lower() override;
-			void resolve(scope_environment& s_env) override;
+			explicit tuple(std::vector<unique_node>&& children) : node(new types::unset()),
+				children(std::move(children)) {}
 
 			// Copy
 			tuple(const tuple& other) : node(other)
@@ -261,9 +179,17 @@ namespace fe
 			tuple(tuple&& other) noexcept : node(std::move(other)), children(std::move(other.children)) {}
 			tuple& operator=(tuple&& other)
 			{
-				set_type(types::unique_type(other.get_type().copy()));
+				node::operator=(std::move(other));
 				children = std::move(other.children);
 				return *this;
+			}
+
+			void typecheck(type_environment& env) override;
+			void resolve(scope_environment& s_env) override;
+			core_ast::node* lower() override;
+			node* copy() override
+			{
+				return new tuple(*this);
 			}
 
 			std::vector<unique_node> children;
@@ -271,30 +197,30 @@ namespace fe
 
 		struct function_call : public node
 		{
-			function_call(identifier&& id, unique_node params) : node(new types::unset_type()), id(std::move(id)), params(std::move(params)) {}
-
+			function_call(identifier&& id, unique_node params) : node(new types::unset()), id(std::move(id)),
+				params(std::move(params)) {}
 			function_call(std::vector<unique_node>&& children);
-
-			node* copy() override
-			{
-				return new function_call(*this);
-			}
-
-			void typecheck(type_environment& env) override;
-			core_ast::node* lower() override;
-			void resolve(scope_environment& s_env) override;
 
 			// Copy
 			function_call(const function_call& other);
 
 			// Move
-			function_call(function_call&& other) : node(std::move(other)), id(std::move(other.id)), params(std::move(other.params)) { }
+			function_call(function_call&& other) : node(std::move(other)), id(std::move(other.id)),
+				params(std::move(other.params)) { }
 			function_call& operator=(function_call&& other)
 			{
-				set_type(types::unique_type(other.get_type().copy()));
+				node::operator=(std::move(other));
 				id = std::move(other.id);
 				params = std::move(other.params);
 				return *this;
+			}
+
+			void typecheck(type_environment& env) override;
+			void resolve(scope_environment& s_env) override;
+			core_ast::node* lower() override;
+			node* copy() override
+			{
+				return new function_call(*this);
 			}
 
 			identifier id;
@@ -303,32 +229,31 @@ namespace fe
 
 		struct match_branch : public node
 		{
-			match_branch(unique_node test, unique_node code) : node(new types::unset_type()), test_path(std::move(test)), code_path(std::move(code)) {}
+			match_branch(unique_node test, unique_node code) : node(new types::unset()), test_path(std::move(test)),
+				code_path(std::move(code)) {}
 
-			match_branch(std::vector<unique_node>&& children) :
-				node(new types::unset_type()),
-				test_path(std::move(children.at(0))),
-				code_path(std::move(children.at(1))) {}
-
-			node* copy() override
-			{
-				return new match_branch(*this);
-			}
-
-			void typecheck(type_environment& env) override;
-			core_ast::node* lower() override;
-			void resolve(scope_environment& s_env) override;
+			match_branch(std::vector<unique_node>&& children) : node(new types::unset()),
+				test_path(std::move(children.at(0))), code_path(std::move(children.at(1))) {}
 
 			// Copy
 			match_branch(const match_branch& other);
 
 			// Move
-			match_branch(match_branch&& other) : node(std::move(other)), code_path(std::move(other.code_path)), test_path(std::move(other.test_path)) {}
+			match_branch(match_branch&& other) : node(std::move(other)), code_path(std::move(other.code_path)),
+				test_path(std::move(other.test_path)) {}
 			match_branch& operator=(match_branch&& other) {
-				set_type(types::unique_type(other.get_type().copy()));
+				node::operator=(std::move(other));
 				this->code_path = std::move(other.code_path);
 				this->test_path = std::move(other.test_path);
 				return *this;
+			}
+
+			void typecheck(type_environment& env) override;
+			void resolve(scope_environment& s_env) override;
+			core_ast::node* lower() override;
+			node* copy() override
+			{
+				return new match_branch(*this);
 			}
 
 			unique_node test_path;
@@ -337,38 +262,36 @@ namespace fe
 
 		struct match : public node
 		{
-			match(std::vector<match_branch>&& branches) : node(new types::unset_type()), branches(std::move(branches)) {}
+			match(std::vector<match_branch>&& branches) : node(new types::unset()), branches(std::move(branches)) {}
 
-			match(std::vector<unique_node>&& children) :
-				node(new types::unset_type()), expression(std::move(children.at(0)))
+			match(std::vector<unique_node>&& children) : node(new types::unset()),
+				expression(std::move(children.at(0)))
 			{
-				// Match has children [ expression, match_branch* ]
-
 				for (auto it = children.begin() + 1; it != children.end(); it++)
 				{
 					branches.push_back(std::move(*dynamic_cast<match_branch*>(it->get())));
 				}
 			}
 
-			node* copy() override
-			{
-				return new match(*this);
-			}
-
-			void typecheck(type_environment& env) override;
-			core_ast::node* lower() override;
-			void resolve(scope_environment& s_env) override;
-
 			// Copy
 			match(const match& other) : node(other), expression(other.expression->copy()), branches(other.branches) {}
 
 			// Move
-			match(match&& other) : node(std::move(other)), expression(std::move(other.expression)), branches(std::move(other.branches)) {}
+			match(match&& other) : node(std::move(other)), expression(std::move(other.expression)),
+				branches(std::move(other.branches)) {}
 			match& operator=(match&& other) {
-				set_type(types::unique_type(other.get_type().copy()));
+				node::operator=(std::move(other));
 				this->expression = std::move(other.expression);
 				this->branches = std::move(other.branches);
 				return *this;
+			}
+
+			void typecheck(type_environment& env) override;
+			void resolve(scope_environment& s_env) override;
+			core_ast::node* lower() override;
+			node* copy() override
+			{
+				return new match(*this);
 			}
 
 			unique_node expression;
@@ -377,16 +300,7 @@ namespace fe
 
 		struct block : public node
 		{
-			block(std::vector<unique_node>&& children) : node(new types::unset_type()), children(std::move(children)) {}
-
-			node* copy() override
-			{
-				return new block(*this);
-			}
-
-			void typecheck(type_environment& env) override;
-			core_ast::node* lower() override;
-			void resolve(scope_environment& s_env) override;
+			block(std::vector<unique_node>&& children) : node(new types::unset()), children(std::move(children)) {}
 
 			// Copy
 			block(const block& other) : node(other)
@@ -401,9 +315,17 @@ namespace fe
 			block(block&& other) : node(std::move(other)), children(std::move(other.children)) {}
 			block& operator=(block&& other)
 			{
-				set_type(types::unique_type(other.get_type().copy()));
+				node::operator=(std::move(other));
 				children = std::move(other.children);
 				return *this;
+			}
+
+			void typecheck(type_environment& env) override;
+			void resolve(scope_environment& s_env) override;
+			core_ast::node* lower() override;
+			node* copy() override
+			{
+				return new block(*this);
 			}
 
 			std::vector<unique_node> children;
@@ -411,10 +333,9 @@ namespace fe
 
 		struct module_declaration : public node
 		{
-			module_declaration(identifier&& name) : node(new types::unset_type()), name(std::move(name)) {}
+			module_declaration(identifier&& name) : node(new types::unset()), name(std::move(name)) {}
 			module_declaration(std::vector<unique_node>&& children) :
-				node(new types::unset_type()),
-				name(std::move(*dynamic_cast<identifier*>(children.at(0).get()))) {}
+				node(new types::unset()), name(std::move(*dynamic_cast<identifier*>(children.at(0).get()))) {}
 
 			// Copy
 			module_declaration(const module_declaration& other) : node(other), name(other.name) {}
@@ -423,50 +344,49 @@ namespace fe
 			module_declaration(module_declaration&& other) : node(std::move(other)), name(std::move(other.name)) {}
 			module_declaration& operator=(module_declaration&& other)
 			{
-				set_type(types::unique_type(other.get_type().copy()));
+				node::operator=(std::move(other));
 				this->name = std::move(other.name);
 				return *this;
 			}
 
+			void typecheck(type_environment& env) override;
+			void resolve(scope_environment& s_env) override;
+			core_ast::node* lower() override;
 			node* copy() override
 			{
 				return new module_declaration(*this);
 			}
-			void typecheck(type_environment& env) override;
-			core_ast::node* lower() override;
-			void resolve(scope_environment& s_env) override;
 
 			identifier name;
 		};
 
 		struct atom_declaration : public node
 		{
-			atom_declaration(unique_node type_name, identifier&& name) : node(new types::unset_type()), type_expression(std::move(type_name)), name(std::move(name))
-			{}
+			atom_declaration(unique_node type_name, identifier&& name) : node(new types::unset()),
+				type_expression(std::move(type_name)), name(std::move(name)) {}
 			atom_declaration(std::vector<unique_node>&& children);
 
-			node* copy() override
-			{
-				return new atom_declaration(*this);
-			}
-
-			void typecheck(type_environment& env) override;
-			core_ast::node* lower() override;
-			void resolve(scope_environment& s_env) override;
-
 			// Copy
-			atom_declaration(const atom_declaration& other) : node(other), type_expression(other.type_expression->copy()), name(other.name)
-			{}
+			atom_declaration(const atom_declaration& other) : node(other),
+				type_expression(other.type_expression->copy()), name(other.name) {}
 
 			// Move
-			atom_declaration(atom_declaration&& other) : type_expression(std::move(other.type_expression)), name(std::move(other.name)), node(std::move(other))
-			{}
+			atom_declaration(atom_declaration&& other) : type_expression(std::move(other.type_expression)),
+				name(std::move(other.name)), node(std::move(other)) {}
 			atom_declaration& operator=(atom_declaration&& other)
 			{
-				set_type(types::unique_type(other.get_type().copy()));
+				node::operator=(std::move(other));
 				this->type_expression = std::move(other.type_expression);
 				this->name = std::move(other.name);
 				return *this;
+			}
+
+			void typecheck(type_environment& env) override;
+			void resolve(scope_environment& s_env) override;
+			core_ast::node* lower() override;
+			node* copy() override
+			{
+				return new atom_declaration(*this);
 			}
 
 			unique_node type_expression;
@@ -476,15 +396,6 @@ namespace fe
 		struct tuple_declaration : public node
 		{
 			tuple_declaration(std::vector<unique_node>&& children);
-
-			node* copy() override
-			{
-				return new tuple_declaration(*this);
-			}
-
-			void typecheck(type_environment& env) override;
-			core_ast::node* lower() override;
-			void resolve(scope_environment& s_env) override;
 
 			// Copy
 			tuple_declaration(const tuple_declaration& other) : node(other)
@@ -496,7 +407,8 @@ namespace fe
 			}
 
 			// Move
-			tuple_declaration(tuple_declaration&& other) : elements(std::move(other.elements)), node(std::move(other)) {}
+			tuple_declaration(tuple_declaration&& other) : elements(std::move(other.elements)),
+				node(std::move(other)) {}
 			tuple_declaration& operator=(tuple_declaration&& other)
 			{
 				set_type(types::unique_type(other.get_type().copy()));
@@ -504,36 +416,45 @@ namespace fe
 				return *this;
 			}
 
+			void typecheck(type_environment& env) override;
+			void resolve(scope_environment& s_env) override;
+			core_ast::node* lower() override;
+			node* copy() override
+			{
+				return new tuple_declaration(*this);
+			}
+
 			std::vector<unique_node> elements;
 		};
 
 		struct function : public node
 		{
-			function(identifier name, unique_node from, unique_node to, unique_node body) : node(new types::unset_type()), name(std::move(name)), from(std::move(from)), to(std::move(to)), body(std::move(body)) {}
+			function(identifier name, unique_node from, unique_node to, unique_node body) : node(new types::unset()),
+				name(std::move(name)), from(std::move(from)), to(std::move(to)), body(std::move(body)) {}
 			function(std::vector<unique_node>&& children);
-
-			node* copy() override
-			{
-				return new function(*this);
-			}
-
-			void typecheck(type_environment& env) override;
-			core_ast::node* lower() override;
-			void resolve(scope_environment& s_env) override;
 
 			// Copy
 			function(const function& other);
 
 			// Move
-			function(function&& other) : node(std::move(other)), name(std::move(other.name)), from(std::move(other.from)), to(std::move(other.to)), body(std::move(other.body)) {}
+			function(function&& other) : node(std::move(other)), name(std::move(other.name)),
+				from(std::move(other.from)), to(std::move(other.to)), body(std::move(other.body)) {}
 			function& operator=(function&& other)
 			{
-				set_type(types::unique_type(other.get_type().copy()));
+				node::operator=(std::move(other));
 				name = std::move(other.name);
 				from = std::move(other.from);
 				to = std::move(other.to);
 				body = std::move(other.body);
 				return *this;
+			}
+
+			void typecheck(type_environment& env) override;
+			void resolve(scope_environment& s_env) override;
+			core_ast::node* lower() override;
+			node* copy() override
+			{
+				return new function(*this);
 			}
 
 			identifier name;
@@ -546,15 +467,6 @@ namespace fe
 		{
 			type_definition(std::vector<unique_node>&& children);
 
-			node* copy() override
-			{
-				return new type_definition(*this);
-			}
-
-			void typecheck(type_environment& env) override;
-			core_ast::node* lower() override;
-			void resolve(scope_environment& s_env) override;
-
 			// Copy
 			type_definition(const type_definition& other) : node(other), id(other.id), types(other.types->copy()) {}
 
@@ -562,10 +474,18 @@ namespace fe
 			type_definition(type_definition&& other) : node(std::move(other)), id(std::move(other.id)), types(std::move(other.types)) {}
 			type_definition& operator=(type_definition&& other)
 			{
-				set_type(types::unique_type(other.get_type().copy()));
+				node::operator=(std::move(other));
 				id = std::move(other.id);
 				types = std::move(other.types);
 				return *this;
+			}
+
+			void typecheck(type_environment& env) override;
+			void resolve(scope_environment& s_env) override;
+			core_ast::node* lower() override;
+			node* copy() override
+			{
+				return new type_definition(*this);
 			}
 
 			identifier id;
@@ -574,22 +494,12 @@ namespace fe
 
 		struct export_stmt : public node
 		{
-			export_stmt(std::vector<identifier> name) : node(new types::unset_type()), names(std::move(names)) {}
-			export_stmt(std::vector<unique_node>&& children) :
-				node(new types::unset_type())
+			export_stmt(std::vector<identifier> name) : node(new types::unset()), names(std::move(names)) {}
+			export_stmt(std::vector<unique_node>&& children) : node(new types::unset())
 			{
 				for (decltype(auto) child : children)
 					names.push_back(std::move(*dynamic_cast<identifier*>(child.get())));
 			}
-
-			node* copy() override
-			{
-				return new export_stmt(*this);
-			}
-
-			void typecheck(type_environment& env) override;
-			core_ast::node* lower() override;
-			void resolve(scope_environment& s_env) override;
 
 			// Copy
 			export_stmt(const export_stmt& other) : node(other), names(other.names) {}
@@ -598,9 +508,17 @@ namespace fe
 			export_stmt(export_stmt&& other) : node(std::move(other)), names(std::move(other.names)) {}
 			export_stmt& operator=(export_stmt&& other)
 			{
-				set_type(types::unique_type(other.get_type().copy()));
+				node::operator=(std::move(other));
 				this->names = std::move(other.names);
 				return *this;
+			}
+
+			void typecheck(type_environment& env) override;
+			void resolve(scope_environment& s_env) override;
+			core_ast::node* lower() override;
+			node* copy() override
+			{
+				return new export_stmt(*this);
 			}
 
 			std::vector<identifier> names;
@@ -608,7 +526,7 @@ namespace fe
 
 		struct identifier_tuple : public node
 		{
-			identifier_tuple(std::vector<unique_node>&& children) : node(new types::unset_type())
+			identifier_tuple(std::vector<unique_node>&& children) : node(new types::unset())
 			{
 				for (auto&& child : children)
 				{
@@ -641,15 +559,15 @@ namespace fe
 				return *this;
 			}
 
-			node* copy() override { return new identifier_tuple(*this); }
 			void typecheck(type_environment& env) override {}
+			void resolve(scope_environment& s_env) override;
 			core_ast::node* lower() override
 			{
 				throw typecheck_error{
 					"Cannot lower an identifier tuple"
 				};
 			}
-			void resolve(scope_environment& s_env) override;
+			node* copy() override { return new identifier_tuple(*this); }
 
 			std::vector<std::variant<identifier, identifier_tuple>> content;
 		};
@@ -657,7 +575,7 @@ namespace fe
 		struct declaration : public node
 		{
 			declaration(std::vector<unique_node>&& children) :
-				node(new types::unset_type()),
+				node(new types::unset()),
 				value(std::move(children.at(2))),
 				type_name(std::move(*dynamic_cast<identifier*>(children.at(1).get()))),
 				lhs(dynamic_cast<identifier*>(children.at(0).get()) != nullptr
@@ -671,15 +589,6 @@ namespace fe
 				}
 			}
 
-			node* copy() override
-			{
-				return new declaration(*this);
-			}
-
-			void typecheck(type_environment& env) override;
-			core_ast::node* lower() override;
-			void resolve(scope_environment& s_env) override;
-
 			// Copy
 			declaration(const declaration& other);
 
@@ -687,11 +596,19 @@ namespace fe
 			declaration(declaration&& other) : node(std::move(other)), type_name(std::move(other.type_name)), lhs(std::move(other.lhs)), value(std::move(other.value)) {}
 			declaration& operator=(declaration&& other)
 			{
-				set_type(types::unique_type(other.get_type().copy()));
+				node::operator=(std::move(other));
 				type_name = std::move(other.type_name);
 				lhs = std::move(other.lhs);
 				value = std::move(other.value);
 				return *this;
+			}
+
+			void typecheck(type_environment& env) override;
+			void resolve(scope_environment& s_env) override;
+			core_ast::node* lower() override;
+			node* copy() override
+			{
+				return new declaration(*this);
 			}
 
 			std::variant<identifier, identifier_tuple> lhs;
@@ -702,35 +619,29 @@ namespace fe
 		struct assignment : public node
 		{
 			assignment(std::vector<unique_node>&& children) :
-				node(new types::unset_type()),
-				lhs(*dynamic_cast<identifier*>(children.at(0).get())),
-				value(std::move(children.at(1)))
-			{
-			}
-
-			node* copy() override
-			{
-				return new assignment(*this);
-			}
-
-			void typecheck(type_environment& env) override;
-			core_ast::node* lower() override;
-			void resolve(scope_environment& s_env) override;
+				node(new types::unset()), lhs(*dynamic_cast<identifier*>(children.at(0).get())),
+				value(std::move(children.at(1))) {}
 
 			// Copy
 			assignment(const assignment& other);
 
 			// Move
-			assignment(assignment&& other) : node(std::move(other)), lhs(std::move(other.lhs)), 
-				value(std::move(other.value)) 
-			{}
-
+			assignment(assignment&& other) : node(std::move(other)), lhs(std::move(other.lhs)),
+				value(std::move(other.value)) {}
 			assignment& operator=(assignment&& other)
 			{
-				set_type(types::unique_type(other.get_type().copy()));
+				node::operator=(std::move(other));
 				lhs = std::move(other.lhs);
 				value = std::move(other.value);
 				return *this;
+			}
+
+			void typecheck(type_environment& env) override;
+			void resolve(scope_environment& s_env) override;
+			core_ast::node* lower() override;
+			node* copy() override
+			{
+				return new assignment(*this);
 			}
 
 			identifier lhs;
@@ -740,15 +651,6 @@ namespace fe
 		struct type_tuple : public node
 		{
 			type_tuple(std::vector<unique_node>&& children);
-
-			node* copy() override
-			{
-				return new type_tuple(*this);
-			}
-
-			void typecheck(type_environment& env) override;
-			core_ast::node* lower() override;
-			void resolve(scope_environment& s_env) override;
 
 			// Copy
 			type_tuple(const type_tuple& other) : node(other)
@@ -763,9 +665,17 @@ namespace fe
 			type_tuple(type_tuple&& other) : node(std::move(other)), elements(std::move(other.elements)) {}
 			type_tuple& operator=(type_tuple&& other)
 			{
-				set_type(types::unique_type(other.get_type().copy()));
+				node::operator=(std::move(other));
 				this->elements = std::move(other.elements);
 				return *this;
+			}
+
+			void typecheck(type_environment& env) override;
+			void resolve(scope_environment& s_env) override;
+			core_ast::node* lower() override;
+			node* copy() override
+			{
+				return new type_tuple(*this);
 			}
 
 			std::vector<unique_node> elements;
@@ -773,18 +683,8 @@ namespace fe
 
 		struct type_atom : public node
 		{
-			type_atom(std::vector<unique_node>&& children) :
-				node(new types::unset_type()),
+			type_atom(std::vector<unique_node>&& children) : node(new types::unset()),
 				type(std::move(children.at(0))) {}
-
-			node* copy() override
-			{
-				return new type_atom(*this);
-			}
-
-			void typecheck(type_environment& env) override;
-			core_ast::node* lower() override;
-			void resolve(scope_environment& s_env) override;
 
 			// Copy
 			type_atom(const type_atom& other) : node(other), type(other.type->copy()) {}
@@ -793,9 +693,17 @@ namespace fe
 			type_atom(type_atom&& other) : type(std::move(other.type)), node(std::move(other)) {}
 			type_atom& operator=(type_atom&& other)
 			{
-				set_type(types::unique_type(other.get_type().copy()));
+				node::operator=(std::move(other));
 				this->type = std::move(other.type);
 				return *this;
+			}
+
+			void typecheck(type_environment& env) override;
+			void resolve(scope_environment& s_env) override;
+			core_ast::node* lower() override;
+			node* copy() override
+			{
+				return new type_atom(*this);
 			}
 
 			// TODO turn into identifier since thats the only thing a type atom can contain
@@ -804,22 +712,8 @@ namespace fe
 
 		struct function_type : public node
 		{
-			function_type(std::vector<unique_node>&& children) :
-				node(new types::unset_type()),
-				from(std::move(children.at(0))),
-				to(std::move(children.at(1)))
-			{
-
-			}
-
-			node* copy() override
-			{
-				return new function_type(*this);
-			}
-
-			void typecheck(type_environment& env) override;
-			core_ast::node* lower() override;
-			void resolve(scope_environment& s_env) override;
+			function_type(std::vector<unique_node>&& children) : node(new types::unset()),
+				from(std::move(children.at(0))), to(std::move(children.at(1))) {}
 
 			// Copy
 			function_type(const function_type& other) : node(other), from(other.from->copy()), to(other.to->copy()) {}
@@ -828,10 +722,18 @@ namespace fe
 			function_type(function_type&& other) : node(std::move(other)), from(std::move(other.from)), to(std::move(other.to)) {}
 			function_type& operator=(function_type&& other)
 			{
-				set_type(types::unique_type(other.get_type().copy()));
+				node::operator=(std::move(other));
 				this->from = std::move(other.from);
 				this->to = std::move(other.to);
 				return *this;
+			}
+
+			void typecheck(type_environment& env) override;
+			void resolve(scope_environment& s_env) override;
+			core_ast::node* lower() override;
+			node* copy() override
+			{
+				return new function_type(*this);
 			}
 
 			unique_node from;
@@ -841,28 +743,26 @@ namespace fe
 		struct reference_type : public node
 		{
 			reference_type(std::vector<unique_node>&& children) :
-				node(new types::unset_type()),
+				node(new types::unset()),
 				child(std::move(children.at(0))) {}
 
-			node* copy() override
-			{
-				return new reference_type(*this);
-			}
-
-			void typecheck(type_environment& env) override;
-			core_ast::node* lower() override;
-			void resolve(scope_environment& s_env) override;
-
-			// Copy
 			reference_type(const reference_type& other) : node(other), child(other.child->copy()) {}
+			reference_type& operator=(const reference_type& other);
 
-			// Move
 			reference_type(reference_type&& other) : node(std::move(other)), child(std::move(other.child)) {}
 			reference_type& operator=(reference_type&& other)
 			{
 				set_type(types::unique_type(other.get_type().copy()));
 				this->child = std::move(other.child);
 				return *this;
+			}
+
+			void typecheck(type_environment& env) override;
+			core_ast::node* lower() override;
+			void resolve(scope_environment& s_env) override;
+			node* copy() override
+			{
+				return new reference_type(*this);
 			}
 
 			unique_node child;
@@ -872,18 +772,16 @@ namespace fe
 		{
 			array_type(std::vector<unique_node>&& children);
 
-			// Copy
 			array_type(const array_type&);
+			array_type& operator=(const array_type&);
 
-			// Move
 			array_type(array_type&&);
 			array_type& operator=(array_type&&);
 
-			node* copy() override;
-
 			void typecheck(type_environment& env) override;
-			core_ast::node* lower() override;
 			void resolve(scope_environment& s_env) override;
+			core_ast::node* lower() override;
+			node* copy() override;
 
 			unique_node child;
 		};
@@ -892,18 +790,16 @@ namespace fe
 		{
 			reference(std::vector<unique_node>&& children);
 
-			// Copy
 			reference(const reference&);
+			reference& operator=(const reference&);
 
-			// Move
 			reference(reference&&);
 			reference& operator=(reference&&);
 
-			node* copy() override;
-
 			void typecheck(type_environment& env) override;
-			core_ast::node* lower() override;
 			void resolve(scope_environment& s_env) override;
+			core_ast::node* lower() override;
+			node* copy() override;
 
 			unique_node child;
 		};
@@ -919,11 +815,10 @@ namespace fe
 			array_value(array_value&&);
 			array_value& operator=(array_value&&);
 
-			node* copy() override;
-
 			void typecheck(type_environment& env) override;
-			core_ast::node* lower() override;
 			void resolve(scope_environment& s_env) override;
+			core_ast::node* lower() override;
+			node* copy() override;
 
 			std::vector<unique_node> children;
 		};
@@ -937,152 +832,74 @@ namespace fe
 		inline constexpr const char* op_func(bin_op_type op)
 		{
 			switch (op) {
-			case bin_op_type::EQ:
-				return "eq";
-				break;
-			case bin_op_type::LT:
-				return "lt";
-				break;
-			case bin_op_type::LTE:
-				return "lte";
-				break;
-			case bin_op_type::GT:
-				return "gt";
-				break;
-			case bin_op_type::GTE:
-				return "gte";
-				break;
-			case bin_op_type::SUB:
-				return "sub";
-				break;
-			case bin_op_type::ADD:
-				return "add";
-				break;
-			case bin_op_type::MUL:
-				return "mul";
-				break;
-			case bin_op_type::DIV:
-				return "div";
-				break;
-			case bin_op_type::MOD:
-				return "mod";
-				break;
-			};
-		}
+			case bin_op_type::EQ:  return "eq";  break;
+			case bin_op_type::LT:  return "lt";  break;
+			case bin_op_type::LTE: return "lte"; break;
+			case bin_op_type::GT:  return "gt";  break;
+			case bin_op_type::GTE: return "gte"; break;
+			case bin_op_type::SUB: return "sub"; break;
+			case bin_op_type::ADD: return "add"; break;
+			case bin_op_type::MUL: return "mul"; break;
+			case bin_op_type::DIV: return "div"; break;
+			case bin_op_type::MOD: return "mod"; break;
+			}
+		};
 
-		inline constexpr const char* op_result_type(bin_op_type op)
+		static constexpr types::atom_type op_res_type(bin_op_type op)
 		{
 			switch (op) {
-			case bin_op_type::EQ:
-				return "std.bool";
-				break;
-			case bin_op_type::LT:
-				return "std.bool";
-				break;
-			case bin_op_type::LTE:
-				return "std.bool";
-				break;
-			case bin_op_type::GT:
-				return "std.bool";
-				break;
-			case bin_op_type::GTE:
-				return "std.bool";
-				break;
-			case bin_op_type::SUB:
-				return "std.i32";
-				break;
-			case bin_op_type::ADD:
-				return "std.i32";
-				break;
-			case bin_op_type::MUL:
-				return "std.i32";
-				break;
-			case bin_op_type::DIV:
-				return "std.i32";
-				break;
-			case bin_op_type::MOD:
-				return "std.i32";
-				break;
-			};
-		}
+			case bin_op_type::EQ:  return types::atom_type::BOOL; break;
+			case bin_op_type::LT:  return types::atom_type::BOOL; break;
+			case bin_op_type::LTE: return types::atom_type::BOOL; break;
+			case bin_op_type::GT:  return types::atom_type::BOOL; break;
+			case bin_op_type::GTE: return types::atom_type::BOOL; break;
+			case bin_op_type::SUB: return types::atom_type::I32;  break;
+			case bin_op_type::ADD: return types::atom_type::I32;  break;
+			case bin_op_type::MUL: return types::atom_type::I32;  break;
+			case bin_op_type::DIV: return types::atom_type::I32;  break;
+			case bin_op_type::MOD: return types::atom_type::I32;  break;
+			}
+		};
 
-		inline constexpr const char* op_lhs_type(bin_op_type op)
+		static constexpr types::atom_type op_lhs_type(bin_op_type op)
 		{
 			switch (op) {
-			case bin_op_type::EQ:
-				return "std.i32";
-				break;
-			case bin_op_type::LT:
-				return "std.i32";
-				break;
-			case bin_op_type::LTE:
-				return "std.i32";
-				break;
-			case bin_op_type::GT:
-				return "std.i32";
-				break;
-			case bin_op_type::GTE:
-				return "std.i32";
-				break;
-			case bin_op_type::SUB:
-				return "std.i32";
-				break;
-			case bin_op_type::ADD:
-				return "std.i32";
-				break;
-			case bin_op_type::MUL:
-				return "std.i32";
-				break;
-			case bin_op_type::DIV:
-				return "std.i32";
-				break;
-			case bin_op_type::MOD:
-				return "std.i32";
-				break;
-			};
-		}
+			case bin_op_type::EQ:  return types::atom_type::I32; break;
+			case bin_op_type::LT:  return types::atom_type::I32; break;
+			case bin_op_type::LTE: return types::atom_type::I32; break;
+			case bin_op_type::GT:  return types::atom_type::I32; break;
+			case bin_op_type::GTE: return types::atom_type::I32; break;
+			case bin_op_type::SUB: return types::atom_type::I32; break;
+			case bin_op_type::ADD: return types::atom_type::I32; break;
+			case bin_op_type::MUL: return types::atom_type::I32; break;
+			case bin_op_type::DIV: return types::atom_type::I32; break;
+			case bin_op_type::MOD: return types::atom_type::I32; break;
+			}
+		};
 
-		inline constexpr const char* op_rhs_type(bin_op_type op)
+		static constexpr types::atom_type op_rhs_type(bin_op_type op)
 		{
 			switch (op) {
-			case bin_op_type::EQ:
-				return "std.i32";
-				break;
-			case bin_op_type::LT:
-				return "std.i32";
-				break;
-			case bin_op_type::LTE:
-				return "std.i32";
-				break;
-			case bin_op_type::GT:
-				return "std.i32";
-				break;
-			case bin_op_type::GTE:
-				return "std.i32";
-				break;
-			case bin_op_type::SUB:
-				return "std.i32";
-				break;
-			case bin_op_type::ADD:
-				return "std.i32";
-				break;
-			case bin_op_type::MUL:
-				return "std.i32";
-				break;
-			case bin_op_type::DIV:
-				return "std.i32";
-				break;
-			case bin_op_type::MOD:
-				return "std.i32";
-				break;
-			};
-		}
+			case bin_op_type::EQ:  return types::atom_type::I32; break;
+			case bin_op_type::LT:  return types::atom_type::I32; break;
+			case bin_op_type::LTE: return types::atom_type::I32; break;
+			case bin_op_type::GT:  return types::atom_type::I32; break;
+			case bin_op_type::GTE: return types::atom_type::I32; break;
+			case bin_op_type::SUB: return types::atom_type::I32; break;
+			case bin_op_type::ADD: return types::atom_type::I32; break;
+			case bin_op_type::MUL: return types::atom_type::I32; break;
+			case bin_op_type::DIV: return types::atom_type::I32; break;
+			case bin_op_type::MOD: return types::atom_type::I32; break;
+			}
+		};
 
 		template<bin_op_type Op>
 		struct bin_op : public node
 		{
+			static constexpr types::atom_type lhs_t = op_lhs_type(Op), rhs_t = op_rhs_type(Op), res_t = op_res_type(Op);
+
 			bin_op(std::vector<unique_node>&& children) :
-				node(new types::unset_type()),
+				node(new types::unset()),
 				lhs(std::move(children.at(0))),
 				rhs(std::move(children.at(1))),
 				scope_depth(0)
@@ -1118,49 +935,24 @@ namespace fe
 				return *this;
 			}
 
-			node* copy() override
-			{
-				return new bin_op<Op>(*this);
-			}
-
-			core_ast::node* lower() override
-			{
-				std::vector<core_ast::unique_node> lowered_children;
-				lowered_children.push_back(core_ast::unique_node(lhs->lower()));
-				lowered_children.push_back(core_ast::unique_node(rhs->lower()));
-
-				types::product_type p;
-				p.product.push_back(types::make_unique(types::atom_type{ op_lhs_type(Op) }));
-				p.product.push_back(types::make_unique(types::atom_type{ op_rhs_type(Op) }));
-
-				return new core_ast::function_call{
-					core_ast::identifier{{}, op_func(Op), {}, scope_depth, types::make_unique(types::unset_type())},
-					std::make_unique<core_ast::tuple>(core_ast::tuple{
-						std::move(lowered_children),
-						types::make_unique(std::move(p))
-					}),
-					types::make_unique(types::atom_type{ op_result_type(Op) })
-				};
-			}
-
 			void typecheck(type_environment& env) override
 			{
 				lhs->typecheck(env);
 				rhs->typecheck(env);
 
-				if (!(lhs->get_type() == &types::atom_type{ op_lhs_type(Op) }))
+				if (!(lhs->get_type() == &types::atom<lhs_t>()))
 				{
 					throw typecheck_error{ std::string("Lhs of ").append(op_func(Op))
-						.append(" operator must be of type ").append(op_lhs_type(Op)) };
+						.append(" operator must be of type ").append(types::atom_type_str(lhs_t)) };
 				}
 
-				if (!(rhs->get_type() == &types::atom_type{ op_rhs_type(Op) }))
+				if (!(rhs->get_type() == &types::atom<rhs_t>()))
 				{
 					throw typecheck_error{ std::string("Rhs of ").append(op_func(Op))
-						.append(" operator must be of type ").append(op_rhs_type(Op)) };
+						.append(" operator must be of type ").append(types::atom_type_str(rhs_t)) };
 				}
 
-				set_type(types::make_unique(types::atom_type{ op_result_type(Op) }));
+				set_type(types::make_unique(types::atom<res_t>()));
 			}
 
 			void resolve(scope_environment& s_env) override
@@ -1168,6 +960,32 @@ namespace fe
 				this->lhs->resolve(s_env);
 				this->rhs->resolve(s_env);
 				this->scope_depth = s_env.depth() - 1;
+			}
+
+			core_ast::node* lower() override
+			{
+				std::vector<core_ast::unique_node> lowered_children;
+				lowered_children.push_back(core_ast::unique_node(lhs->lower()));
+				lowered_children.push_back(core_ast::unique_node(rhs->lower()));
+				types::product_type p;
+				p.product.push_back(types::make_unique(types::atom<lhs_t>()));
+				p.product.push_back(types::make_unique(types::atom<rhs_t>()));
+
+				std::string name = std::string(op_func(Op));
+
+				auto id = core_ast::identifier{ {}, name, {}, scope_depth, types::make_unique(types::unset()) };
+				auto tuple = core_ast::unique_node(new core_ast::tuple(
+					std::move(lowered_children),
+					types::make_unique(std::move(p))
+				));
+				auto type = types::unique_type(new types::atom<res_t>());
+
+				return new core_ast::function_call(std::move(id), std::move(tuple), std::move(type));
+			}
+
+			node* copy() override
+			{
+				return new bin_op<Op>(*this);
 			}
 
 			unique_node lhs, rhs;
@@ -1188,14 +1006,11 @@ namespace fe
 		struct while_loop : public node
 		{
 			while_loop(std::vector<unique_node>&& children)
-				: node(new types::unset_type()), body(std::move(children.at(1))), test(std::move(children.at(0))) {}
+				: node(new types::unset()), body(std::move(children.at(1))), test(std::move(children.at(0))) {}
 
-			// Copy
-			while_loop(const while_loop& other) : node(other), body(unique_node(other.body->copy())), 
-				test(unique_node(other.test->copy())) {}
+			while_loop(const while_loop& other) : node(other), body(other.body->copy()), test(other.test->copy()) {}
 
-			// Move
-			while_loop(while_loop&& other) : node(std::move(other)), body(std::move(other.body)), 
+			while_loop(while_loop&& other) : node(std::move(other)), body(std::move(other.body)),
 				test(std::move(other.test)) {}
 			while_loop& operator=(while_loop&& other)
 			{
@@ -1205,14 +1020,16 @@ namespace fe
 				return *this;
 			}
 
-			node* copy() override { return new while_loop(*this); }
 			void typecheck(type_environment& env) override;
+			void resolve(scope_environment& s_env) override;
 			core_ast::node* lower() override
 			{
-				return new core_ast::while_loop(core_ast::unique_node(test->lower()), 
-					core_ast::unique_node(body->lower()), this->get_type());
+				return new core_ast::while_loop(
+					core_ast::unique_node(test->lower()),
+					core_ast::unique_node(body->lower()),
+					this->get_type());
 			}
-			void resolve(scope_environment& s_env) override;
+			node* copy() override { return new while_loop(*this); }
 
 			unique_node test;
 			unique_node body;
@@ -1221,14 +1038,15 @@ namespace fe
 		struct if_statement : public node
 		{
 			if_statement(std::vector<unique_node>&& children)
-				: node(new types::unset_type()), body(std::move(children.at(1))), test(std::move(children.at(0))) {}
+				: node(new types::unset()), body(std::move(children.at(1))), test(std::move(children.at(0)))
+			{}
 
 			// Copy
-			if_statement(const if_statement& other) : node(other), body(unique_node(other.body->copy())), 
-				test(unique_node(other.test->copy())) {}
+			if_statement(const if_statement& other) : node(other), body(other.body->copy()),
+				test(other.test->copy()) {}
 
 			// Move
-			if_statement(if_statement&& other) : node(std::move(other)), body(std::move(other.body)), 
+			if_statement(if_statement&& other) : node(std::move(other)), body(std::move(other.body)),
 				test(std::move(other.test)) {}
 			if_statement& operator=(if_statement&& other)
 			{
@@ -1238,8 +1056,8 @@ namespace fe
 				return *this;
 			}
 
-			node* copy() override { return new if_statement(*this); }
 			void typecheck(type_environment& env) override;
+			void resolve(scope_environment& s_env) override;
 			core_ast::node* lower() override
 			{
 				std::vector<std::pair<core_ast::unique_node, core_ast::unique_node>> new_branches;
@@ -1251,7 +1069,7 @@ namespace fe
 
 				return new core_ast::branch(std::move(new_branches));
 			}
-			void resolve(scope_environment& s_env) override;
+			node* copy() override { return new if_statement(*this); }
 
 			unique_node test;
 			unique_node body;
@@ -1259,7 +1077,7 @@ namespace fe
 
 		struct import_declaration : public node
 		{
-			import_declaration(std::vector<unique_node>&& children) : node(new types::unset_type())
+			import_declaration(std::vector<unique_node>&& children) : node(new types::unset())
 			{
 				for (auto&& child : children) modules.push_back(std::move(*dynamic_cast<identifier*>(child.get())));
 			}
@@ -1268,7 +1086,7 @@ namespace fe
 			import_declaration(const import_declaration& other) : node(other), modules(other.modules) {}
 			import_declaration& operator=(const import_declaration& other)
 			{
-				set_type(other.get_type().copy());
+				node::operator=(other);
 				this->modules = other.modules;
 				return *this;
 			}
@@ -1277,18 +1095,15 @@ namespace fe
 			import_declaration(import_declaration&& other) : node(std::move(other)), modules(std::move(other.modules)) {}
 			import_declaration& operator=(import_declaration&& other)
 			{
-				set_type(other.get_type().copy());
+				node::operator=(std::move(other));
 				this->modules = std::move(other.modules);
 				return *this;
 			}
 
-			node* copy() override { return new import_declaration(*this); }
 			void typecheck(type_environment& env) override;
-			core_ast::node* lower() override
-			{
-				return new core_ast::no_op();
-			}
 			void resolve(scope_environment& s_env) override;
+			core_ast::node* lower() override { return new core_ast::no_op(); }
+			node* copy() override { return new import_declaration(*this); }
 
 			std::vector<identifier> modules;
 		};

@@ -8,6 +8,38 @@ namespace fe
 {
 	namespace types
 	{
+		namespace detail
+		{
+			template<class Derived, class Base>
+			struct comparable
+			{
+			public:
+				bool operator==(Base* o) const
+				{
+					if (typeid(*o) == typeid(types::any))
+						return true;
+
+					if (typeid(Derived) != typeid(*o))
+						return false;
+
+					const Derived & a = static_cast<const Derived&>(*this);
+					const Derived & b = static_cast<const Derived&>(*o);
+
+					return a == b;
+				}
+			};
+
+			template<class Derived, class Base>
+			struct copyable
+			{
+			public:
+				Base * copy(const Derived& o) const
+				{
+					return new Derived(o);
+				}
+			};
+		}
+
 		struct type
 		{
 			virtual ~type() = 0 {};
@@ -18,84 +50,77 @@ namespace fe
 
 		using unique_type = std::unique_ptr<type>;
 
-		template<class Derived, class Base>
-		struct comparable 
+		// Atom types
+
+		enum class atom_type
 		{
-		public:
-			bool operator==(Base* o) const
+			I32, 
+			I64,
+			UI32, 
+			UI64,
+			F32, 
+			F64, 
+			BOOL, 
+			STRING,
+			UNSET, 
+			ANY, 
+			VOID
+		};
+
+		constexpr const char* atom_type_str(atom_type lit)
+		{
+			switch (lit)
 			{
-				if (typeid(*o) == typeid(any_type))
-					return true;
-
-				if (typeid(Derived) != typeid(*o))
-					return false;
-
-				const Derived & a = static_cast<const Derived&>(*this);
-				const Derived & b = static_cast<const Derived&>(*o);
-
-				return a == b;
+			case atom_type::I32:    return "std.i32";  break;
+			case atom_type::I64:    return "std.i64";  break;
+			case atom_type::UI32:   return "std.ui32"; break;
+			case atom_type::UI64:   return "std.ui64"; break;
+			case atom_type::F32:    return "std.f32";  break;
+			case atom_type::F64:    return "std.f64";  break;
+			case atom_type::STRING: return "std.str";  break;
+			case atom_type::BOOL:   return "std.bool"; break;
+			case atom_type::UNSET:  return "unset";    break;
+			case atom_type::ANY:    return "any";      break;
+			case atom_type::VOID:   return "void";     break;
 			}
 		};
 
-		template<class Derived, class Base>
-		struct copyable 
+		template<atom_type Type>
+		struct atom : public type, private detail::comparable<atom<Type>, type>, private detail::copyable<atom<Type>, type>
 		{
-		public:
-			Base* copy(const Derived& o) const
+			atom() {}
+
+			// Move
+			atom(atom&& other) {}
+			atom& operator=(atom&& other) {}
+
+			// Copy
+			atom(const atom& other) {}
+			atom& operator=(const atom& other) {}
+
+			std::string to_string() const override
 			{
-				return new Derived(o);
+				return atom_type_str(Type);
 			}
-		};
-
-		// Atomic types
-		struct atom_type : public type, private comparable<atom_type, type>, private copyable<atom_type, type>
-		{
-			atom_type(std::string name);
-
-			// Move
-			atom_type(atom_type&& other);
-			atom_type& operator=(atom_type&& other);
-
-			// Copy
-			atom_type(const atom_type& other);
-			atom_type& operator=(const atom_type& other);
-
-			std::string to_string() const override;
-			bool operator==(type* other) const override { return comparable::operator==(other); }
-			type* copy() const override { return copyable::copy(*this); }
-
-			std::string name;
-		};
-
-		struct any_type : public type, private comparable<any_type, type>, private copyable<any_type, type>
-		{
-			any_type();
-
-			// Move
-			any_type(any_type&& other);
-			any_type& operator=(any_type&& other);
-
-			// Copy
-			any_type(const any_type& other);
-			any_type& operator=(const any_type& other);
-
-			std::string to_string() const override;
-			bool operator==(type* other) const override { return true; }
-			type* copy() const override { return copyable::copy(*this); }
-
-			std::string name;
-		};
-
-		struct unset_type : public type, private comparable<unset_type, type>, private copyable<unset_type, type>
-		{
-			std::string to_string() const override;
 			bool operator==(type* other) const override { return comparable::operator==(other); }
 			type* copy() const override { return copyable::copy(*this); }
 		};
+
+		using i32     = atom<atom_type::I32>;
+		using i64     = atom<atom_type::I64>;
+		using ui32    = atom<atom_type::UI32>;
+		using ui64    = atom<atom_type::UI64>;
+		using f32     = atom<atom_type::F32>;
+		using f64     = atom<atom_type::F64>;
+		using boolean = atom<atom_type::BOOL>;
+		using str     = atom<atom_type::STRING>;
+		using any     = atom<atom_type::ANY>;
+		using unset   = atom<atom_type::UNSET>;
+		using voidt   = atom<atom_type::VOID>;
 
 		// Composition types
 
-		struct sum_type : public type, private comparable<sum_type, type>, private copyable<sum_type, type>
+		struct sum_type : public type, private detail::comparable<sum_type, type>, private detail::copyable<sum_type, type>
 		{
 			sum_type();
 			sum_type(std::vector<unique_type> sum);
@@ -115,7 +140,7 @@ namespace fe
 			std::vector<unique_type> sum;
 		};
 
-		struct array_type : public type, private comparable<array_type, type>, private copyable<array_type, type>
+		struct array_type : public type, private detail::comparable<array_type, type>, private detail::copyable<array_type, type>
 		{
 			array_type();
 			array_type(unique_type t);
@@ -136,7 +161,7 @@ namespace fe
 			unique_type element_type;
 		};
 
-		struct reference_type : public type, private comparable<reference_type, type>, private copyable<reference_type, type>
+		struct reference_type : public type, private detail::comparable<reference_type, type>, private detail::copyable<reference_type, type>
 		{
 			reference_type();
 			reference_type(unique_type t);
@@ -157,7 +182,7 @@ namespace fe
 			unique_type referred_type;
 		};
 
-		struct product_type : public type, private comparable<product_type, type>, private copyable<product_type, type>
+		struct product_type : public type, private detail::comparable<product_type, type>, private detail::copyable<product_type, type>
 		{
 			product_type();
 			product_type(std::vector<unique_type> product);
@@ -177,7 +202,7 @@ namespace fe
 			std::vector<unique_type> product;
 		};
 
-		struct function_type : public type, private comparable<function_type, type>, private copyable<function_type, type>
+		struct function_type : public type, private detail::comparable<function_type, type>, private detail::copyable<function_type, type>
 		{
 			function_type(unique_type f, unique_type t);
 			function_type(const type& f, const type& t);
@@ -206,9 +231,11 @@ namespace fe
 
 		// Operators
 
-		bool operator==(const atom_type& one, const atom_type& two);
-
-		bool operator==(const unset_type& one, const unset_type& two);
+		template<atom_type T>
+		bool operator==(const atom<T>& one, const atom<T>& two)
+		{
+			return true;
+		}
 
 		bool operator==(const sum_type& one, const sum_type& two);
 
@@ -219,9 +246,5 @@ namespace fe
 		bool operator==(const array_type& one, const array_type& two);
 
 		bool operator==(const reference_type& one, const reference_type& two);
-
-		bool operator==(const any_type& one, const any_type& two);
-
-		bool operator==(const atom_type& one, const atom_type& two);
 	}
 }

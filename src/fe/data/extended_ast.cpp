@@ -6,29 +6,6 @@ namespace fe
 {
 	namespace extended_ast
 	{
-		// Integer
-
-		core_ast::node* integer::lower()
-		{
-			return new core_ast::integer(this->value);
-		}
-
-		// String
-
-		string::string(const values::string val) : node(new types::atom_type("std.str")), value(val) {}
-
-		core_ast::node* string::lower()
-		{
-			return new core_ast::string(this->value);
-		}
-
-		// Boolean
-
-		core_ast::node* boolean::lower()
-		{
-			return new core_ast::boolean(this->value);
-		}
-
 		// Identifier
 
 		core_ast::node* identifier::lower()
@@ -75,7 +52,7 @@ namespace fe
 		// Tuple Type
 
 		type_tuple::type_tuple(std::vector<unique_node>&& children) :
-			node(new types::unset_type())
+			node(new types::unset())
 		{
 			for (decltype(auto) child : children)
 			{
@@ -103,7 +80,7 @@ namespace fe
 		// Atom Declaration
 
 		atom_declaration::atom_declaration(std::vector<unique_node>&& children) :
-			node(new types::unset_type()),
+			node(new types::unset()),
 			type_expression(std::move(children.at(0))),
 			name(*dynamic_cast<identifier*>(children.at(1).get())) {}
 
@@ -114,7 +91,7 @@ namespace fe
 
 		// Tuple Declaration
 
-		tuple_declaration::tuple_declaration(std::vector<unique_node>&& children) : node(new types::unset_type())
+		tuple_declaration::tuple_declaration(std::vector<unique_node>&& children) : node(new types::unset())
 		{
 			// Children can be reference, atom_type, or function_declaration
 
@@ -161,7 +138,7 @@ namespace fe
 		function_call::function_call(const function_call& other) : node(other), id(other.id), params(other.params->copy()) {}
 
 		function_call::function_call(std::vector<unique_node>&& children) :
-			node(new types::unset_type()),
+			node(new types::unset()),
 			id(*dynamic_cast<identifier*>(children.at(0).get())),
 			params(std::move(children.at(1)))
 		{}
@@ -246,7 +223,7 @@ namespace fe
 		function::function(const function& other) : node(other), name(other.name), from(other.from->copy()),
 			to(other.to->copy()), body(other.body->copy()) {}
 		function::function(std::vector<unique_node>&& children) :
-			node(new types::unset_type()),
+			node(new types::unset()),
 			name(std::move(*dynamic_cast<identifier*>(children.at(0).get()))),
 			from(std::move(children.at(1))),
 			to(std::move(children.at(2))),
@@ -315,7 +292,7 @@ namespace fe
 		// Type Definition
 
 		type_definition::type_definition(std::vector<unique_node>&& children) :
-			node(new types::atom_type{ "void" }),
+			node(new types::voidt()),
 			id(std::move(*dynamic_cast<identifier*>(children.at(0).get()))),
 			types(std::move(children.at(1))) {}
 
@@ -323,8 +300,8 @@ namespace fe
 		core_ast::node* type_definition::lower()
 		{
 			auto return_statement = core_ast::unique_node(new core_ast::identifier({}, { "_arg0" }, {}, 0,
-				types::make_unique(types::unset_type())));
-			auto parameter_name = core_ast::identifier({}, { "_arg0" }, {}, 0, types::make_unique(types::unset_type()));
+				types::make_unique(types::unset())));
+			auto parameter_name = core_ast::identifier({}, { "_arg0" }, {}, 0, types::make_unique(types::unset()));
 
 			auto new_id = std::unique_ptr<core_ast::identifier>(static_cast<core_ast::identifier*>(this->id.lower()));
 
@@ -350,16 +327,21 @@ namespace fe
 		// Array Type
 
 		array_type::array_type(std::vector<unique_node>&& children) :
-			node(new types::unset_type()),
+			node(new types::unset()),
 			child(std::move(children.at(0))) {}
 
 		array_type::array_type(const array_type& other) : node(other), child(other.child->copy()) {}
+		array_type& array_type::operator=(const array_type& other)
+		{
+			node::operator=(other);
+			this->child = unique_node(other.child->copy());
+			return *this;
+		}
 
 		array_type::array_type(array_type&& other) : node(std::move(other)), child(std::move(other.child)) {}
-
 		array_type& array_type::operator=(array_type&& other)
 		{
-			set_type(types::unique_type(other.get_type().copy()));
+			node::operator=(std::move(other));
 			this->child = std::move(other.child);
 			return *this;
 		}
@@ -377,20 +359,21 @@ namespace fe
 		// Reference
 
 		reference::reference(std::vector<unique_node>&& children) :
-			node(new types::unset_type()),
+			node(new types::unset()),
 			child(std::move(children.at(0))) {}
 
-		reference::reference(const reference& other) :
-			node(other),
-			child(other.child->copy()) {}
+		reference::reference(const reference& other) : node(other), child(other.child->copy()) {}
+		reference& reference::operator=(const reference& other)
+		{
+			node::operator=(other);
+			this->child = unique_node(other.child->copy());
+			return *this;
+		}
 
-		reference::reference(reference && other) :
-			node(std::move(other)),
-			child(std::move(other.child)) {}
-
+		reference::reference(reference && other) : node(std::move(other)), child(std::move(other.child)) {}
 		reference& reference::operator=(reference && other)
 		{
-			set_type(types::unique_type(other.get_type().copy()));
+			node::operator=(std::move(other));
 			this->child = std::move(other.child);
 			return *this;
 		}
@@ -408,11 +391,10 @@ namespace fe
 		// Array Value
 
 		array_value::array_value(std::vector<unique_node>&& children) :
-			node(new types::unset_type()),
+			node(new types::unset()),
 			children(std::move(children)) {}
 
-		array_value::array_value(const array_value& other) :
-			node(other)
+		array_value::array_value(const array_value& other) : node(other)
 		{
 			for (decltype(auto) child : other.children)
 			{
@@ -420,10 +402,7 @@ namespace fe
 			}
 		}
 
-		array_value::array_value(array_value&& other) :
-			node(std::move(other)),
-			children(std::move(other.children)) {}
-
+		array_value::array_value(array_value&& other) : node(std::move(other)), children(std::move(other.children)) {}
 		array_value& array_value::operator=(array_value&& other)
 		{
 			set_type(types::unique_type(other.get_type().copy()));

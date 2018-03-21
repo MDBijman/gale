@@ -34,22 +34,18 @@ namespace fe
 				type_environment te{};
 				runtime_environment re{};
 
-				using namespace fe::types;
 				using namespace fe::values;
 
 				// Create Window
 				{
-					function_type create_window_type{
-						atom_type{"std.str"},
-						atom_type{"HWindow"}
-					};
+					types::function_type create_window_type{ types::str(), types::any() };
 
-					se.declare(extended_ast::identifier({ "create_window" }), extended_ast::identifier({ "_function" }));
-					se.define(extended_ast::identifier({ "create_window" }));
-					te.set_type(extended_ast::identifier({ "create_window" }),
-						fe::types::make_unique(create_window_type));
+					se.declare(extended_ast::identifier("create_window"), extended_ast::identifier("_function"));
+					se.define(extended_ast::identifier("create_window"));
+					te.set_type(extended_ast::identifier("create_window"),
+						types::unique_type(create_window_type.copy()));
 					re.set_value("create_window", native_function([](unique_value t) -> unique_value {
-						auto name = dynamic_cast<string*>(t.get())->val;
+						auto name = dynamic_cast<values::str*>(t.get())->val;
 
 						WNDCLASSEX wc;
 						HINSTANCE hInstance = (HINSTANCE)GetModuleHandle(NULL);
@@ -100,7 +96,7 @@ namespace fe
 
 						ShowWindow(hwndMain, SW_SHOWDEFAULT);
 						UpdateWindow(hwndMain);
-					
+
 						return unique_value(new custom_value<HWND>(hwndMain));
 					}));
 				}
@@ -109,17 +105,17 @@ namespace fe
 
 				// Poll
 				{
-					se.declare(extended_ast::identifier({ "poll" }), extended_ast::identifier({ "_function" }));
-					se.define(extended_ast::identifier({ "poll" }));
-					te.set_type(extended_ast::identifier({ "poll" }), fe::types::unique_type(new function_type{
-						atom_type("HWindow"),
-						unset_type()
-					}));
+					se.declare(extended_ast::identifier("poll"), extended_ast::identifier("_function"));
+					se.define(extended_ast::identifier("poll"));
+					te.set_type(extended_ast::identifier("poll"), fe::types::unique_type(new types::function_type(
+						types::any(),
+						types::voidt()
+						)));
 					re.set_value("poll", native_function([](unique_value from) -> unique_value {
 						HWND window = dynamic_cast<custom_value<HWND>*>(from.get())->val;
-						
+
 						MSG Msg;
-						if(PeekMessage(&Msg, window, 0, 0, 1))
+						if (PeekMessage(&Msg, window, 0, 0, 1))
 						{
 							TranslateMessage(&Msg);
 							DispatchMessage(&Msg);
@@ -128,7 +124,7 @@ namespace fe
 					}));
 				}
 
-				return { te, re, se};
+				return { te, re, se };
 			}
 
 			static native_module* load_as_module()

@@ -4,10 +4,6 @@
 
 namespace fe::extended_ast
 {
-	void integer::resolve(scope_environment& s_env) {}
-
-	void string::resolve(scope_environment& s_env) {}
-
 	void identifier::resolve(scope_environment& s_env)
 	{
 		auto access_pattern = s_env.resolve_reference(*this);
@@ -18,8 +14,6 @@ namespace fe::extended_ast
 		this->scope_distance = access_pattern.value().first;
 		this->offsets = access_pattern.value().second;
 	}
-
-	void boolean::resolve(scope_environment& s_env) {}
 
 	void tuple::resolve(scope_environment& s_env)
 	{
@@ -77,7 +71,7 @@ namespace fe::extended_ast
 
 	void function::resolve(scope_environment& s_env)
 	{
-		s_env.declare(this->name, extended_ast::identifier({ "_function" }));
+		s_env.declare(this->name, extended_ast::identifier("_function"));
 		s_env.define(this->name);
 
 		s_env.push();
@@ -144,7 +138,7 @@ namespace fe::extended_ast
 				if (std::holds_alternative<extended_ast::identifier>(lhs))
 				{
 					auto& lhs_id = std::get<extended_ast::identifier>(lhs);
-					s_env.declare(lhs_id, extended_ast::identifier({ "_defer" }));
+					s_env.declare(lhs_id, extended_ast::identifier("_defer"));
 				}
 				else if (std::holds_alternative<extended_ast::identifier_tuple>(lhs))
 				{

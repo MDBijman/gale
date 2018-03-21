@@ -18,16 +18,14 @@ namespace fe
 				scope_environment se{};
 
 				{
-					using namespace fe::types;
-					using namespace fe::values;
-					se.declare(extended_ast::identifier({ "get" }), extended_ast::identifier({ "_function" }));
-					se.define(extended_ast::identifier({ "get" }));
-					te.set_type(extended_ast::identifier({ "get" }), unique_type(new function_type(
-						unique_type(new product_type()), unique_type(new atom_type("std.i32"))
+					se.declare(extended_ast::identifier("get"), extended_ast::identifier("_function"));
+					se.define(extended_ast::identifier("get"));
+					te.set_type(extended_ast::identifier("get"), types::unique_type(new types::function_type(
+						types::unique_type(new types::product_type()), types::unique_type(new types::i32())
 					)));
-					re.set_value("get", unique_value(new native_function(
-						[](unique_value t) -> unique_value {
-							return unique_value(new integer(std::cin.get()));
+					re.set_value("get", values::unique_value(new values::native_function(
+						[](values::unique_value t) -> values::unique_value {
+							return values::unique_value(new values::i32(std::cin.get()));
 						}
 					)));
 				}

@@ -43,7 +43,7 @@ namespace fe::detail
 
 			for (auto offset : name.offsets)
 			{
-				value = dynamic_cast<values::tuple*>(value)->content.at(offset).get();
+				value = dynamic_cast<values::tuple*>(value)->val.at(offset).get();
 			}
 
 			return value;

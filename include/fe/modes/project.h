@@ -56,7 +56,7 @@ namespace fe
 		{
 			nodes.push_back(std::shared_ptr<native_module>(core::operations::load_as_module()));
 			nodes.push_back(std::shared_ptr<native_module>(stdlib::ui::load_as_module()));
-			nodes.push_back(std::shared_ptr<native_module>(stdlib::types::load_as_module()));
+			nodes.push_back(std::shared_ptr<native_module>(stdlib::typedefs::load_as_module()));
 			nodes.push_back(std::make_shared<native_module>(stdlib::output::load()));
 
 			// At offset, only code modules are in the nodes vector, before that are all the native modules

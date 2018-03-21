@@ -31,7 +31,7 @@ if (x == 3) {
 			auto parsed = p.parse(std::move(lexed));
 
 			fe::code_module cm(fe::module_name{ "" }, std::move(parsed));
-			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::stdlib::types::load_as_module()));
+			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::stdlib::typedefs::load_as_module()));
 			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::core::operations::load_as_module()));
 
 			auto[te, re, se] = cm.interp(p);
@@ -39,8 +39,8 @@ if (x == 3) {
 			THEN("the body should be executed")
 			{
 				auto res = re.valueof(fe::core_ast::identifier({}, "y", {}, 0, nullptr));
-				REQUIRE(dynamic_cast<fe::values::integer*>(res.value()));
-				REQUIRE(dynamic_cast<fe::values::integer*>(res.value())->val == 1);
+				REQUIRE(dynamic_cast<fe::values::i32*>(res.value()));
+				REQUIRE(dynamic_cast<fe::values::i32*>(res.value())->val == 1);
 			}
 		}
 
@@ -61,7 +61,7 @@ if (x == 4) {
 			auto parsed = p.parse(std::move(lexed));
 
 			fe::code_module cm(fe::module_name{ "" }, std::move(parsed));
-			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::stdlib::types::load_as_module()));
+			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::stdlib::typedefs::load_as_module()));
 			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::core::operations::load_as_module()));
 
 			auto[te, re, se] = cm.interp(p);
@@ -69,8 +69,8 @@ if (x == 4) {
 			THEN("the body should not be executed")
 			{
 				auto res = re.valueof(fe::core_ast::identifier({}, "y", {}, 0, nullptr));
-				REQUIRE(dynamic_cast<fe::values::integer*>(res.value()));
-				REQUIRE(dynamic_cast<fe::values::integer*>(res.value())->val == 0);
+				REQUIRE(dynamic_cast<fe::values::i32*>(res.value()));
+				REQUIRE(dynamic_cast<fe::values::i32*>(res.value())->val == 0);
 			}
 		}
 
@@ -91,7 +91,7 @@ if (x > 4) {
 			auto parsed = p.parse(std::move(lexed));
 
 			fe::code_module cm(fe::module_name{ "" }, std::move(parsed));
-			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::stdlib::types::load_as_module()));
+			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::stdlib::typedefs::load_as_module()));
 			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::core::operations::load_as_module()));
 
 			auto[te, re, se] = cm.interp(p);
@@ -99,8 +99,8 @@ if (x > 4) {
 			THEN("the body should be executed")
 			{
 				auto res = re.valueof(fe::core_ast::identifier({}, "y", {}, 0, nullptr));
-				REQUIRE(dynamic_cast<fe::values::integer*>(res.value()));
-				REQUIRE(dynamic_cast<fe::values::integer*>(res.value())->val == 1);
+				REQUIRE(dynamic_cast<fe::values::i32*>(res.value()));
+				REQUIRE(dynamic_cast<fe::values::i32*>(res.value())->val == 1);
 			}
 		}
 
@@ -121,7 +121,7 @@ if (x > 6) {
 			auto parsed = p.parse(std::move(lexed));
 
 			fe::code_module cm(fe::module_name{ "" }, std::move(parsed));
-			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::stdlib::types::load_as_module()));
+			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::stdlib::typedefs::load_as_module()));
 			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::core::operations::load_as_module()));
 
 			auto[te, re, se] = cm.interp(p);
@@ -129,8 +129,8 @@ if (x > 6) {
 			THEN("the body should not be executed")
 			{
 				auto res = re.valueof(fe::core_ast::identifier({}, "y", {}, 0, nullptr));
-				REQUIRE(dynamic_cast<fe::values::integer*>(res.value()));
-				REQUIRE(dynamic_cast<fe::values::integer*>(res.value())->val == 0);
+				REQUIRE(dynamic_cast<fe::values::i32*>(res.value()));
+				REQUIRE(dynamic_cast<fe::values::i32*>(res.value())->val == 0);
 			}
 		}
 
@@ -151,7 +151,7 @@ if (x >= 4) {
 			auto parsed = p.parse(std::move(lexed));
 
 			fe::code_module cm(fe::module_name{ "" }, std::move(parsed));
-			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::stdlib::types::load_as_module()));
+			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::stdlib::typedefs::load_as_module()));
 			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::core::operations::load_as_module()));
 
 			auto[te, re, se] = cm.interp(p);
@@ -159,8 +159,8 @@ if (x >= 4) {
 			THEN("the body should be executed")
 			{
 				auto res = re.valueof(fe::core_ast::identifier({}, "y", {}, 0, nullptr));
-				REQUIRE(dynamic_cast<fe::values::integer*>(res.value()));
-				REQUIRE(dynamic_cast<fe::values::integer*>(res.value())->val == 1);
+				REQUIRE(dynamic_cast<fe::values::i32*>(res.value()));
+				REQUIRE(dynamic_cast<fe::values::i32*>(res.value())->val == 1);
 			}
 		}
 
@@ -181,7 +181,7 @@ if (x >= 6) {
 			auto parsed = p.parse(std::move(lexed));
 
 			fe::code_module cm(fe::module_name{ "" }, std::move(parsed));
-			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::stdlib::types::load_as_module()));
+			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::stdlib::typedefs::load_as_module()));
 			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::core::operations::load_as_module()));
 
 			auto[te, re, se] = cm.interp(p);
@@ -189,8 +189,8 @@ if (x >= 6) {
 			THEN("the body should not be executed")
 			{
 				auto res = re.valueof(fe::core_ast::identifier({}, "y", {}, 0, nullptr));
-				REQUIRE(dynamic_cast<fe::values::integer*>(res.value()));
-				REQUIRE(dynamic_cast<fe::values::integer*>(res.value())->val == 0);
+				REQUIRE(dynamic_cast<fe::values::i32*>(res.value()));
+				REQUIRE(dynamic_cast<fe::values::i32*>(res.value())->val == 0);
 			}
 		}
 
@@ -211,7 +211,7 @@ if (x < 6) {
 			auto parsed = p.parse(std::move(lexed));
 
 			fe::code_module cm(fe::module_name{ "" }, std::move(parsed));
-			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::stdlib::types::load_as_module()));
+			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::stdlib::typedefs::load_as_module()));
 			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::core::operations::load_as_module()));
 
 			auto[te, re, se] = cm.interp(p);
@@ -219,8 +219,8 @@ if (x < 6) {
 			THEN("the body should be executed")
 			{
 				auto res = re.valueof(fe::core_ast::identifier({}, "y", {}, 0, nullptr));
-				REQUIRE(dynamic_cast<fe::values::integer*>(res.value()));
-				REQUIRE(dynamic_cast<fe::values::integer*>(res.value())->val == 1);
+				REQUIRE(dynamic_cast<fe::values::i32*>(res.value()));
+				REQUIRE(dynamic_cast<fe::values::i32*>(res.value())->val == 1);
 			}
 		}
 
@@ -241,7 +241,7 @@ if (x < 4) {
 			auto parsed = p.parse(std::move(lexed));
 
 			fe::code_module cm(fe::module_name{ "" }, std::move(parsed));
-			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::stdlib::types::load_as_module()));
+			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::stdlib::typedefs::load_as_module()));
 			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::core::operations::load_as_module()));
 
 			auto[te, re, se] = cm.interp(p);
@@ -249,8 +249,8 @@ if (x < 4) {
 			THEN("the body should not be executed")
 			{
 				auto res = re.valueof(fe::core_ast::identifier({}, "y", {}, 0, nullptr));
-				REQUIRE(dynamic_cast<fe::values::integer*>(res.value()));
-				REQUIRE(dynamic_cast<fe::values::integer*>(res.value())->val == 0);
+				REQUIRE(dynamic_cast<fe::values::i32*>(res.value()));
+				REQUIRE(dynamic_cast<fe::values::i32*>(res.value())->val == 0);
 			}
 		}
 
@@ -271,7 +271,7 @@ if (x <= 6) {
 			auto parsed = p.parse(std::move(lexed));
 
 			fe::code_module cm(fe::module_name{ "" }, std::move(parsed));
-			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::stdlib::types::load_as_module()));
+			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::stdlib::typedefs::load_as_module()));
 			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::core::operations::load_as_module()));
 
 			auto[te, re, se] = cm.interp(p);
@@ -279,8 +279,8 @@ if (x <= 6) {
 			THEN("the body should be executed")
 			{
 				auto res = re.valueof(fe::core_ast::identifier({}, "y", {}, 0, nullptr));
-				REQUIRE(dynamic_cast<fe::values::integer*>(res.value()));
-				REQUIRE(dynamic_cast<fe::values::integer*>(res.value())->val == 1);
+				REQUIRE(dynamic_cast<fe::values::i32*>(res.value()));
+				REQUIRE(dynamic_cast<fe::values::i32*>(res.value())->val == 1);
 			}
 		}
 
@@ -301,7 +301,7 @@ if (x <= 4) {
 			auto parsed = p.parse(std::move(lexed));
 
 			fe::code_module cm(fe::module_name{ "" }, std::move(parsed));
-			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::stdlib::types::load_as_module()));
+			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::stdlib::typedefs::load_as_module()));
 			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::core::operations::load_as_module()));
 
 			auto[te, re, se] = cm.interp(p);
@@ -309,8 +309,8 @@ if (x <= 4) {
 			THEN("the body should not be executed")
 			{
 				auto res = re.valueof(fe::core_ast::identifier({}, "y", {}, 0, nullptr));
-				REQUIRE(dynamic_cast<fe::values::integer*>(res.value()));
-				REQUIRE(dynamic_cast<fe::values::integer*>(res.value())->val == 0);
+				REQUIRE(dynamic_cast<fe::values::i32*>(res.value()));
+				REQUIRE(dynamic_cast<fe::values::i32*>(res.value())->val == 0);
 			}
 		}
 	}

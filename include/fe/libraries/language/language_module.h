@@ -15,7 +15,7 @@ namespace fe
 			runtime_environment re{};
 			scope_environment se{};
 
-			auto[types_te, types_re, types_se] = fe::stdlib::types::load();
+			auto[types_te, types_re, types_se] = fe::stdlib::typedefs::load();
 
 			te.add_module("std", std::move(types_te));
 			re.add_module("std", std::move(types_re));
