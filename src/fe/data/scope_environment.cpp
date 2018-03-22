@@ -98,8 +98,7 @@ namespace fe::detail
 	/*
 	* Returns the type name of the given reference.
 	*/
-	std::optional<std::pair<std::size_t, extended_ast::identifier>> scope::resolve_reference(
-		const extended_ast::identifier& id) const
+	std::optional<var_lookup_res> scope::resolve_var_id(const extended_ast::identifier& id) const
 	{
 		if (id.segments.size() == 0) return std::nullopt;
 
@@ -109,12 +108,12 @@ namespace fe::detail
 			if (!parent.has_value())
 				return std::nullopt;
 
-			auto res = parent.value()->resolve_reference(id);
+			auto res = parent.value()->resolve_var_id(id);
 
 			if (!res.has_value())
 				return std::nullopt;
 
-			res.value().first++;
+			res.value().scope_distance++;
 
 			return res;
 		}
@@ -123,15 +122,15 @@ namespace fe::detail
 		if (loc->second.second == false)
 			throw resolution_error{ "Variable referenced in its own definition" };
 
-		return std::make_pair(std::size_t(0), loc->second.first);
+		return var_lookup_res{ 0, loc->second.first };
 	}
 
-	std::optional<std::pair<std::size_t, nested_type>> scope::resolve_type(const extended_ast::identifier& id) const
+	std::optional<type_lookup_res> scope::resolve_type(const extended_ast::identifier& id) const
 	{
 		auto type_location = nested_types.find(id.segments[0]);
 
 		if (type_location != nested_types.end())
-			return std::make_pair(0, type_location->second);
+			return type_lookup_res{ 0, type_location->second };
 
 		if (!parent.has_value())
 			return std::nullopt;
@@ -141,7 +140,7 @@ namespace fe::detail
 		if (!parent_resolve.has_value())
 			return std::nullopt;
 
-		parent_resolve.value().first++;
+		parent_resolve.value().scope_distance++;
 
 		return parent_resolve;
 	}
@@ -149,7 +148,7 @@ namespace fe::detail
 	/*
 	* Declares the variable with the given name within this scope. The variable will not yet be resolvable.
 	*/
-	void scope::declare_reference(std::string id, extended_ast::identifier type_name)
+	void scope::declare_var_id(std::string id, extended_ast::identifier type_name)
 	{
 		if (identifiers.find(id) != identifiers.end())
 			throw resolution_error{ "Cannot shadow variable in same scope" };
@@ -160,7 +159,7 @@ namespace fe::detail
 	/*
 	* Defines the given name within this scope. After this, the variable will be resolvable.
 	*/
-	void scope::define_reference(const std::string& id)
+	void scope::define_var_id(const std::string& id)
 	{
 		identifiers.at(id).second = true;
 	}
@@ -208,26 +207,26 @@ namespace fe
 		scopes.pop_back();
 	}
 
-	std::optional<std::pair<std::size_t, std::vector<int>>> scope_environment::resolve_reference(
-		const extended_ast::identifier& name) const
+	std::optional<var_resolve_res> scope_environment::resolve_reference(const extended_ast::identifier& name) const
 	{
 		// Check scopes
-		std::optional<std::pair<std::size_t, extended_ast::identifier>> resolved = scopes.back()->resolve_reference(name);
+		std::optional<detail::var_lookup_res> resolved = scopes.back()->resolve_var_id(name);
 		if (resolved.has_value())
 		{
 			// Atom type
 			if (name.segments.size() == 1)
-				return std::make_pair(resolved.value().first, std::vector<int>{});
+				return var_resolve_res{ resolved.value().scope_distance, std::vector<int>{} };
 
 			// Nested type
-			std::optional<std::pair<std::size_t, nested_type>> resolved_type = resolve_type(resolved.value().second);
+			std::optional<type_resolve_res> resolved_type = resolve_type(resolved.value().type_name);
 			if (!resolved_type.has_value())
 				return std::nullopt;
 
-			std::optional<std::vector<int>> offsets = resolved_type.value().second.resolve(name.without_first_segment());
+			std::optional<std::vector<int>> offsets = resolved_type.value().type_structure
+				.resolve(name.without_first_segment());
 			assert(offsets.has_value());
 
-			return std::make_pair(resolved.value().first, offsets.value());
+			return var_resolve_res{ resolved.value().scope_distance, offsets.value() };
 		}
 
 		// Check modules
@@ -238,7 +237,7 @@ namespace fe
 			if (!res.has_value())
 				return std::nullopt;
 
-			res.value().first = scopes.size() - 1;
+			res.value().scope_distance = scopes.size() - 1;
 
 			return res;
 		}
@@ -246,14 +245,11 @@ namespace fe
 		return std::nullopt;
 	}
 
-	std::optional<std::pair<std::size_t, nested_type>> scope_environment::resolve_type(
-		const extended_ast::identifier& name) const
+	std::optional<type_resolve_res> scope_environment::resolve_type(const extended_ast::identifier& name) const
 	{
 		auto& resolved = scopes.back()->resolve_type(name);
 		if (resolved.has_value())
-		{
 			return resolved.value();
-		}
 
 		if (auto loc = modules.find(name.segments.front()); loc != modules.end())
 		{
@@ -264,7 +260,7 @@ namespace fe
 			if (!resolved.has_value())
 				return std::nullopt;
 
-			resolved.value().first = scopes.size() - 1;
+			resolved.value().scope_distance = scopes.size() - 1;
 
 			return resolved.value();
 		}
@@ -274,11 +270,10 @@ namespace fe
 
 	std::optional<nested_type> scope_environment::get_type(const extended_ast::identifier& name) const
 	{
-
 		for (auto it = scopes.rbegin(); it != scopes.rend(); ++it)
 		{
-			auto offsets = (*it)->resolve_type(name);
-			if (offsets.has_value()) return offsets.value().second;
+			auto resolve_res = (*it)->resolve_type(name);
+			if (resolve_res.has_value()) return resolve_res.value().type_structure;
 		}
 
 		if (auto loc = modules.find(name.segments.front()); loc != modules.end())
@@ -380,7 +375,7 @@ namespace fe
 
 	void scope_environment::declare(extended_ast::identifier id, extended_ast::identifier type_name)
 	{
-		scopes.back()->declare_reference(std::move(id.segments[0]), std::move(type_name));
+		scopes.back()->declare_var_id(std::move(id.segments[0]), std::move(type_name));
 	}
 
 	void scope_environment::define(const extended_ast::identifier_tuple& id)
@@ -391,7 +386,7 @@ namespace fe
 
 	void scope_environment::define(const extended_ast::identifier& id)
 	{
-		scopes.back()->define_reference(id.segments[0]);
+		scopes.back()->define_var_id(id.segments[0]);
 	}
 
 	void scope_environment::add_global_module(scope_environment mod)

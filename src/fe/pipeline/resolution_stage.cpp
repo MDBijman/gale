@@ -11,8 +11,8 @@ namespace fe::extended_ast
 		if(!access_pattern.has_value())
 			throw resolution_error{ std::string("Cannot resolve reference: ").append(this->to_string()) };
 
-		this->scope_distance = access_pattern.value().first;
-		this->offsets = access_pattern.value().second;
+		this->scope_distance = access_pattern.value().scope_distance;
+		this->offsets = access_pattern.value().offsets;
 	}
 
 	void tuple::resolve(scope_environment& s_env)
@@ -24,12 +24,12 @@ namespace fe::extended_ast
 	{
 		if(auto access_pattern = s_env.resolve_reference(this->id); access_pattern.has_value())
 		{
-			this->id.scope_distance = access_pattern.value().first;
-			this->id.offsets = access_pattern.value().second;
+			this->id.scope_distance = access_pattern.value().scope_distance;
+			this->id.offsets = access_pattern.value().offsets;
 		}
 		else if (auto access_pattern = s_env.resolve_type(this->id); access_pattern.has_value())
 		{
-			this->id.scope_distance = access_pattern.value().first;
+			this->id.scope_distance = access_pattern.value().scope_distance;
 		}
 		else
 		{
