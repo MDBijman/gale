@@ -25,6 +25,18 @@ namespace fe
 
 namespace fe::detail
 {
+	struct type_lookup_res
+	{
+		std::size_t scope_distance;
+		nested_type type_structure;
+	};
+
+	struct var_lookup_res
+	{
+		std::size_t scope_distance;
+		extended_ast::identifier type_name;
+	};
+
 	/*
 	* A scope contains all variables that have been declared within it, and if a variable has been defined.
 	* Declaration happens when a name appears on the lhs of an assignment, or within a parameter list.
@@ -61,28 +73,27 @@ namespace fe::detail
 		void set_parent(scope* other);
 
 		/*
-		* Returns the type name of the given reference.
-		*/
-		std::optional<std::pair<std::size_t, extended_ast::identifier>> resolve_reference(
-			const extended_ast::identifier& id) const;
-
-
-		std::optional<std::pair<std::size_t, nested_type>> resolve_type(const extended_ast::identifier& id) const;
-
-		/*
 		* Declares the variable with the given name within this scope. The variable will not yet be resolvable.
 		*/
-		void declare_reference(std::string id, extended_ast::identifier type_name);
+		void declare_var_id(std::string id, extended_ast::identifier type_name);
 
 		/*
 		* Defines the given name within this scope. After this, the variable will be resolvable.
 		*/
-		void define_reference(const std::string& id);
+		void define_var_id(const std::string& id);
 
 		/*
-		* TODO
+		* Returns the type name of the given reference.
+		*/
+		std::optional<var_lookup_res> resolve_var_id(const extended_ast::identifier& id) const;
+
+		/*
+		* Defines the given name within this scope as a type. After this, type references with the name
+		* will be resolvable.
 		*/
 		void define_type(std::string id, nested_type t);
+
+		std::optional<type_lookup_res> resolve_type(const extended_ast::identifier& id) const;
 
 	private:
 		/*
@@ -121,6 +132,14 @@ namespace fe::detail
 
 namespace fe
 {
+	struct var_resolve_res
+	{
+		std::size_t scope_distance;
+		std::vector<int> offsets;
+	};
+
+	using type_resolve_res = detail::type_lookup_res;
+
 	class scope_environment
 	{
 	public:
@@ -131,10 +150,9 @@ namespace fe
 
 		void pop();
 
-		std::optional<std::pair<std::size_t, std::vector<int>>> resolve_reference(
-			const extended_ast::identifier& name) const;
+		std::optional<var_resolve_res> resolve_reference(const extended_ast::identifier& name) const;
 
-		std::optional<std::pair<std::size_t, nested_type>> resolve_type(const extended_ast::identifier& name) const;
+		std::optional<type_resolve_res> resolve_type(const extended_ast::identifier& name) const;
 
 		std::optional<nested_type> get_type(const extended_ast::identifier& name) const;
 
