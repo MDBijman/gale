@@ -18,7 +18,7 @@ namespace fe
 		virtual ~module() = 0 {};
 
 		virtual const module_name& get_name() = 0;
-		virtual std::tuple<type_environment, runtime_environment, scope_environment> interp(pipeline& p) = 0;
+		virtual std::tuple<type_environment, runtime_environment, resolution::scope_environment> interp(pipeline& p) = 0;
 	};
 
 	class code_module : public module
@@ -31,11 +31,11 @@ namespace fe
 			return name; 
 		}
 
-		std::tuple<type_environment, runtime_environment, scope_environment> interp(pipeline& p)
+		std::tuple<type_environment, runtime_environment, resolution::scope_environment> interp(pipeline& p)
 		{
 			type_environment te;
 			runtime_environment re;
-			scope_environment se;
+			resolution::root_node se;
 
 			for (auto& import : imports)
 			{
@@ -54,7 +54,11 @@ namespace fe
 				}
 			}
 
-			auto new_se = p.resolve(*root, std::move(se));
+			resolution::scope_environment s_env;
+
+			se.add_child(new resolution::scoped_node(p.build_scopes(*root)));
+			s_env.set_root(std::make_unique<resolution::scope_tree_node>(se));
+			auto new_se = p.resolve(*root, std::move(s_env));
 			auto[new_root, new_te] = p.typecheck(std::move(root), std::move(te));
 			auto core_root = p.lower(std::move(new_root));
 			auto[new_core_root, new_re] = p.interp(std::move(core_root), std::move(re));
@@ -71,11 +75,11 @@ namespace fe
 	class native_module : public module
 	{
 	public:
-		native_module(module_name name, runtime_environment re, type_environment te, scope_environment se)
+		native_module(module_name name, runtime_environment re, type_environment te, resolution::scope_environment se)
 			: name(name), runtime_environment(std::move(re)), type_environment(std::move(te)),
 			scope_environment(std::move(se)) {}
 
-		native_module(std::string name, runtime_environment re, type_environment te, scope_environment se)
+		native_module(std::string name, runtime_environment re, type_environment te, resolution::scope_environment se)
 			: native_module(std::vector<std::string>{name}, std::move(re),std::move(te), std::move(se)) {}
 
 		const module_name& get_name() override
@@ -83,13 +87,13 @@ namespace fe
 			return name;
 		}
 
-		std::tuple<type_environment, runtime_environment, scope_environment> interp(pipeline& p)
+		std::tuple<type_environment, runtime_environment, resolution::scope_environment> interp(pipeline& p)
 		{
 			return { type_environment, runtime_environment, scope_environment };
 		}
 
 		module_name name;
-		scope_environment scope_environment;
+		resolution::scope_environment scope_environment;
 		runtime_environment runtime_environment;
 		type_environment type_environment;
 	};

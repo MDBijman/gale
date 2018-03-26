@@ -251,7 +251,8 @@ namespace fe
 
 			bool operator==(const native_function& other) const
 			{
-				return function.target<unique_value(unique_value)>() == other.function.target<unique_value(unique_value)>();
+				auto target = function.target<unique_value(unique_value)>();
+				return target == other.function.target<unique_value(unique_value)>();
 			}
 
 			types::unique_type get_type() const override

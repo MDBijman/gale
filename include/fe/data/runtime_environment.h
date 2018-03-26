@@ -26,7 +26,7 @@ namespace fe::detail
 		}
 
 		std::optional<values::value*> valueof(const core_ast::identifier& name,
-			int scope_depth)
+			size_t scope_depth)
 		{
 			if (scope_depth > 0)
 			{

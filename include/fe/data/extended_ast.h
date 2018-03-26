@@ -3,6 +3,7 @@
 #include "fe/data/types.h"
 #include "fe/data/core_ast.h"
 #include "fe/pipeline/error.h"
+#include "fe/data/scope_environment.h"
 
 #include <vector>
 #include <string>
@@ -13,7 +14,6 @@
 namespace fe
 {
 	class type_environment;
-	class scope_environment;
 
 	namespace extended_ast
 	{
@@ -28,7 +28,7 @@ namespace fe
 				this->type = types::unique_type(o.type->copy());
 				return *this;
 			}
- 
+
 			node(node&& other) noexcept : type(std::move(other.type)) {}
 			node& operator=(node&& o)
 			{
@@ -38,7 +38,8 @@ namespace fe
 
 			virtual ~node() {};
 			virtual void typecheck(type_environment&) = 0;
-			virtual void resolve(scope_environment& s_env) = 0;
+			virtual void resolve(resolution::scope_tree_node& s_env) = 0;
+			virtual resolution::scope_tree_node* build_scope_tree() = 0;
 			virtual core_ast::node* lower() = 0;
 			virtual node* copy() = 0;
 
@@ -84,7 +85,8 @@ namespace fe
 			}
 
 			void typecheck(type_environment&) override { this->set_type(val->get_type()); }
-			void resolve(scope_environment& s_env) override {}
+			void resolve(resolution::scope_tree_node& it) override;
+			resolution::scope_tree_node* build_scope_tree() override;
 			core_ast::node* lower() override { return new core_ast::literal(values::unique_value(val->copy())); }
 			node* copy() override { return new literal(*this); }
 
@@ -117,7 +119,8 @@ namespace fe
 			}
 
 			void typecheck(type_environment& env) override;
-			void resolve(scope_environment& s_env) override;
+			void resolve(resolution::scope_tree_node& s_env) override;
+			resolution::scope_tree_node* build_scope_tree() override;
 			core_ast::node* lower() override;
 			node* copy() override
 			{
@@ -185,7 +188,8 @@ namespace fe
 			}
 
 			void typecheck(type_environment& env) override;
-			void resolve(scope_environment& s_env) override;
+			void resolve(resolution::scope_tree_node& s_env) override;
+			resolution::scope_tree_node* build_scope_tree() override;
 			core_ast::node* lower() override;
 			node* copy() override
 			{
@@ -216,7 +220,8 @@ namespace fe
 			}
 
 			void typecheck(type_environment& env) override;
-			void resolve(scope_environment& s_env) override;
+			void resolve(resolution::scope_tree_node& s_env) override;
+			resolution::scope_tree_node* build_scope_tree() override;
 			core_ast::node* lower() override;
 			node* copy() override
 			{
@@ -249,7 +254,8 @@ namespace fe
 			}
 
 			void typecheck(type_environment& env) override;
-			void resolve(scope_environment& s_env) override;
+			void resolve(resolution::scope_tree_node& s_env) override;
+			resolution::scope_tree_node* build_scope_tree() override;
 			core_ast::node* lower() override;
 			node* copy() override
 			{
@@ -287,7 +293,8 @@ namespace fe
 			}
 
 			void typecheck(type_environment& env) override;
-			void resolve(scope_environment& s_env) override;
+			void resolve(resolution::scope_tree_node& s_env) override;
+			resolution::scope_tree_node* build_scope_tree() override;
 			core_ast::node* lower() override;
 			node* copy() override
 			{
@@ -321,7 +328,8 @@ namespace fe
 			}
 
 			void typecheck(type_environment& env) override;
-			void resolve(scope_environment& s_env) override;
+			void resolve(resolution::scope_tree_node& s_env) override;
+			resolution::scope_tree_node* build_scope_tree() override;
 			core_ast::node* lower() override;
 			node* copy() override
 			{
@@ -350,7 +358,8 @@ namespace fe
 			}
 
 			void typecheck(type_environment& env) override;
-			void resolve(scope_environment& s_env) override;
+			void resolve(resolution::scope_tree_node& s_env) override;
+			resolution::scope_tree_node* build_scope_tree() override;
 			core_ast::node* lower() override;
 			node* copy() override
 			{
@@ -382,7 +391,8 @@ namespace fe
 			}
 
 			void typecheck(type_environment& env) override;
-			void resolve(scope_environment& s_env) override;
+			void resolve(resolution::scope_tree_node& s_env) override;
+			resolution::scope_tree_node* build_scope_tree() override;
 			core_ast::node* lower() override;
 			node* copy() override
 			{
@@ -417,7 +427,8 @@ namespace fe
 			}
 
 			void typecheck(type_environment& env) override;
-			void resolve(scope_environment& s_env) override;
+			void resolve(resolution::scope_tree_node& s_env) override;
+			resolution::scope_tree_node* build_scope_tree() override;
 			core_ast::node* lower() override;
 			node* copy() override
 			{
@@ -450,7 +461,8 @@ namespace fe
 			}
 
 			void typecheck(type_environment& env) override;
-			void resolve(scope_environment& s_env) override;
+			void resolve(resolution::scope_tree_node& s_env) override;
+			resolution::scope_tree_node* build_scope_tree() override;
 			core_ast::node* lower() override;
 			node* copy() override
 			{
@@ -481,7 +493,8 @@ namespace fe
 			}
 
 			void typecheck(type_environment& env) override;
-			void resolve(scope_environment& s_env) override;
+			void resolve(resolution::scope_tree_node& s_env) override;
+			resolution::scope_tree_node* build_scope_tree() override;
 			core_ast::node* lower() override;
 			node* copy() override
 			{
@@ -514,7 +527,8 @@ namespace fe
 			}
 
 			void typecheck(type_environment& env) override;
-			void resolve(scope_environment& s_env) override;
+			void resolve(resolution::scope_tree_node& s_env) override;
+			resolution::scope_tree_node* build_scope_tree() override;
 			core_ast::node* lower() override;
 			node* copy() override
 			{
@@ -560,7 +574,8 @@ namespace fe
 			}
 
 			void typecheck(type_environment& env) override {}
-			void resolve(scope_environment& s_env) override;
+			void resolve(resolution::scope_tree_node& s_env) override;
+			resolution::scope_tree_node* build_scope_tree() override;
 			core_ast::node* lower() override
 			{
 				throw typecheck_error{
@@ -604,7 +619,8 @@ namespace fe
 			}
 
 			void typecheck(type_environment& env) override;
-			void resolve(scope_environment& s_env) override;
+			void resolve(resolution::scope_tree_node& s_env) override;
+			resolution::scope_tree_node* build_scope_tree() override;
 			core_ast::node* lower() override;
 			node* copy() override
 			{
@@ -637,7 +653,8 @@ namespace fe
 			}
 
 			void typecheck(type_environment& env) override;
-			void resolve(scope_environment& s_env) override;
+			void resolve(resolution::scope_tree_node& s_env) override;
+			resolution::scope_tree_node* build_scope_tree() override;
 			core_ast::node* lower() override;
 			node* copy() override
 			{
@@ -671,7 +688,8 @@ namespace fe
 			}
 
 			void typecheck(type_environment& env) override;
-			void resolve(scope_environment& s_env) override;
+			void resolve(resolution::scope_tree_node& s_env) override;
+			resolution::scope_tree_node* build_scope_tree() override;
 			core_ast::node* lower() override;
 			node* copy() override
 			{
@@ -699,7 +717,8 @@ namespace fe
 			}
 
 			void typecheck(type_environment& env) override;
-			void resolve(scope_environment& s_env) override;
+			void resolve(resolution::scope_tree_node& s_env) override;
+			resolution::scope_tree_node* build_scope_tree() override;
 			core_ast::node* lower() override;
 			node* copy() override
 			{
@@ -729,7 +748,8 @@ namespace fe
 			}
 
 			void typecheck(type_environment& env) override;
-			void resolve(scope_environment& s_env) override;
+			void resolve(resolution::scope_tree_node& s_env) override;
+			resolution::scope_tree_node* build_scope_tree() override;
 			core_ast::node* lower() override;
 			node* copy() override
 			{
@@ -759,7 +779,8 @@ namespace fe
 
 			void typecheck(type_environment& env) override;
 			core_ast::node* lower() override;
-			void resolve(scope_environment& s_env) override;
+			void resolve(resolution::scope_tree_node& s_env) override;
+			resolution::scope_tree_node* build_scope_tree() override;
 			node* copy() override
 			{
 				return new reference_type(*this);
@@ -779,7 +800,8 @@ namespace fe
 			array_type& operator=(array_type&&);
 
 			void typecheck(type_environment& env) override;
-			void resolve(scope_environment& s_env) override;
+			void resolve(resolution::scope_tree_node& s_env) override;
+			resolution::scope_tree_node* build_scope_tree() override;
 			core_ast::node* lower() override;
 			node* copy() override;
 
@@ -797,7 +819,8 @@ namespace fe
 			reference& operator=(reference&&);
 
 			void typecheck(type_environment& env) override;
-			void resolve(scope_environment& s_env) override;
+			void resolve(resolution::scope_tree_node& s_env) override;
+			resolution::scope_tree_node* build_scope_tree() override;
 			core_ast::node* lower() override;
 			node* copy() override;
 
@@ -816,192 +839,210 @@ namespace fe
 			array_value& operator=(array_value&&);
 
 			void typecheck(type_environment& env) override;
-			void resolve(scope_environment& s_env) override;
+			void resolve(resolution::scope_tree_node& s_env) override;
+			resolution::scope_tree_node* build_scope_tree() override;
 			core_ast::node* lower() override;
 			node* copy() override;
 
 			std::vector<unique_node> children;
 		};
 
-		enum class bin_op_type
+		namespace detail
 		{
-			EQ, LT, LTE, GT, GTE,
-			SUB, ADD, MUL, DIV, MOD
-		};
-
-		inline constexpr const char* op_func(bin_op_type op)
-		{
-			switch (op) {
-			case bin_op_type::EQ:  return "eq";  break;
-			case bin_op_type::LT:  return "lt";  break;
-			case bin_op_type::LTE: return "lte"; break;
-			case bin_op_type::GT:  return "gt";  break;
-			case bin_op_type::GTE: return "gte"; break;
-			case bin_op_type::SUB: return "sub"; break;
-			case bin_op_type::ADD: return "add"; break;
-			case bin_op_type::MUL: return "mul"; break;
-			case bin_op_type::DIV: return "div"; break;
-			case bin_op_type::MOD: return "mod"; break;
-			}
-		};
-
-		static constexpr types::atom_type op_res_type(bin_op_type op)
-		{
-			switch (op) {
-			case bin_op_type::EQ:  return types::atom_type::BOOL; break;
-			case bin_op_type::LT:  return types::atom_type::BOOL; break;
-			case bin_op_type::LTE: return types::atom_type::BOOL; break;
-			case bin_op_type::GT:  return types::atom_type::BOOL; break;
-			case bin_op_type::GTE: return types::atom_type::BOOL; break;
-			case bin_op_type::SUB: return types::atom_type::I32;  break;
-			case bin_op_type::ADD: return types::atom_type::I32;  break;
-			case bin_op_type::MUL: return types::atom_type::I32;  break;
-			case bin_op_type::DIV: return types::atom_type::I32;  break;
-			case bin_op_type::MOD: return types::atom_type::I32;  break;
-			}
-		};
-
-		static constexpr types::atom_type op_lhs_type(bin_op_type op)
-		{
-			switch (op) {
-			case bin_op_type::EQ:  return types::atom_type::I32; break;
-			case bin_op_type::LT:  return types::atom_type::I32; break;
-			case bin_op_type::LTE: return types::atom_type::I32; break;
-			case bin_op_type::GT:  return types::atom_type::I32; break;
-			case bin_op_type::GTE: return types::atom_type::I32; break;
-			case bin_op_type::SUB: return types::atom_type::I32; break;
-			case bin_op_type::ADD: return types::atom_type::I32; break;
-			case bin_op_type::MUL: return types::atom_type::I32; break;
-			case bin_op_type::DIV: return types::atom_type::I32; break;
-			case bin_op_type::MOD: return types::atom_type::I32; break;
-			}
-		};
-
-		static constexpr types::atom_type op_rhs_type(bin_op_type op)
-		{
-			switch (op) {
-			case bin_op_type::EQ:  return types::atom_type::I32; break;
-			case bin_op_type::LT:  return types::atom_type::I32; break;
-			case bin_op_type::LTE: return types::atom_type::I32; break;
-			case bin_op_type::GT:  return types::atom_type::I32; break;
-			case bin_op_type::GTE: return types::atom_type::I32; break;
-			case bin_op_type::SUB: return types::atom_type::I32; break;
-			case bin_op_type::ADD: return types::atom_type::I32; break;
-			case bin_op_type::MUL: return types::atom_type::I32; break;
-			case bin_op_type::DIV: return types::atom_type::I32; break;
-			case bin_op_type::MOD: return types::atom_type::I32; break;
-			}
-		};
-
-		template<bin_op_type Op>
-		struct bin_op : public node
-		{
-			static constexpr types::atom_type lhs_t = op_lhs_type(Op), rhs_t = op_rhs_type(Op), res_t = op_res_type(Op);
-
-			bin_op(std::vector<unique_node>&& children) :
-				node(new types::unset()),
-				lhs(std::move(children.at(0))),
-				rhs(std::move(children.at(1))),
-				scope_depth(0)
-			{}
-
-			bin_op(const bin_op& other) :
-				node(other),
-				lhs(other.lhs->copy()),
-				rhs(other.rhs->copy()),
-				scope_depth(other.scope_depth)
-			{}
-			bin_op& operator=(const bin_op& other)
+			enum class bin_op_type
 			{
-				set_type(types::unique_type(other.get_type().copy()));
-				this->lhs = unique_node(other.lhs->copy());
-				this->rhs = unique_node(other.rhs->copy());
-				this->scope_depth = other.scope_depth;
-				return *this;
-			}
+				EQ, LT, LTE, GT, GTE,
+				SUB, ADD, MUL, DIV, MOD
+			};
 
-			bin_op(bin_op&& other) :
-				node(std::move(other)),
-				lhs(std::move(other.lhs)),
-				rhs(std::move(other.rhs)),
-				scope_depth(other.scope_depth)
-			{}
-			bin_op& operator=(bin_op&& other)
+			inline constexpr const char* op_func(bin_op_type op)
 			{
-				set_type(std::move(other.type));
-				this->lhs = std::move(other.lhs);
-				this->rhs = std::move(other.rhs);
-				this->scope_depth = other.scope_depth;
-				return *this;
-			}
+				switch (op) {
+				case bin_op_type::EQ:  return "eq";  break;
+				case bin_op_type::LT:  return "lt";  break;
+				case bin_op_type::LTE: return "lte"; break;
+				case bin_op_type::GT:  return "gt";  break;
+				case bin_op_type::GTE: return "gte"; break;
+				case bin_op_type::SUB: return "sub"; break;
+				case bin_op_type::ADD: return "add"; break;
+				case bin_op_type::MUL: return "mul"; break;
+				case bin_op_type::DIV: return "div"; break;
+				case bin_op_type::MOD: return "mod"; break;
+				}
+			};
 
-			void typecheck(type_environment& env) override
+			static constexpr types::atom_type op_res_type(bin_op_type op)
 			{
-				lhs->typecheck(env);
-				rhs->typecheck(env);
+				switch (op) {
+				case bin_op_type::EQ:  return types::atom_type::BOOL; break;
+				case bin_op_type::LT:  return types::atom_type::BOOL; break;
+				case bin_op_type::LTE: return types::atom_type::BOOL; break;
+				case bin_op_type::GT:  return types::atom_type::BOOL; break;
+				case bin_op_type::GTE: return types::atom_type::BOOL; break;
+				case bin_op_type::SUB: return types::atom_type::I32;  break;
+				case bin_op_type::ADD: return types::atom_type::I32;  break;
+				case bin_op_type::MUL: return types::atom_type::I32;  break;
+				case bin_op_type::DIV: return types::atom_type::I32;  break;
+				case bin_op_type::MOD: return types::atom_type::I32;  break;
+				}
+			};
 
-				if (!(lhs->get_type() == &types::atom<lhs_t>()))
+			static constexpr types::atom_type op_lhs_type(bin_op_type op)
+			{
+				switch (op) {
+				case bin_op_type::EQ:  return types::atom_type::I32; break;
+				case bin_op_type::LT:  return types::atom_type::I32; break;
+				case bin_op_type::LTE: return types::atom_type::I32; break;
+				case bin_op_type::GT:  return types::atom_type::I32; break;
+				case bin_op_type::GTE: return types::atom_type::I32; break;
+				case bin_op_type::SUB: return types::atom_type::I32; break;
+				case bin_op_type::ADD: return types::atom_type::I32; break;
+				case bin_op_type::MUL: return types::atom_type::I32; break;
+				case bin_op_type::DIV: return types::atom_type::I32; break;
+				case bin_op_type::MOD: return types::atom_type::I32; break;
+				}
+			};
+
+			static constexpr types::atom_type op_rhs_type(bin_op_type op)
+			{
+				switch (op) {
+				case bin_op_type::EQ:  return types::atom_type::I32; break;
+				case bin_op_type::LT:  return types::atom_type::I32; break;
+				case bin_op_type::LTE: return types::atom_type::I32; break;
+				case bin_op_type::GT:  return types::atom_type::I32; break;
+				case bin_op_type::GTE: return types::atom_type::I32; break;
+				case bin_op_type::SUB: return types::atom_type::I32; break;
+				case bin_op_type::ADD: return types::atom_type::I32; break;
+				case bin_op_type::MUL: return types::atom_type::I32; break;
+				case bin_op_type::DIV: return types::atom_type::I32; break;
+				case bin_op_type::MOD: return types::atom_type::I32; break;
+				}
+			};
+
+			template<bin_op_type Op>
+			struct bin_op : public node
+			{
+				static constexpr types::atom_type lhs_t = op_lhs_type(Op), rhs_t = op_rhs_type(Op), res_t = op_res_type(Op);
+
+				bin_op(std::vector<unique_node>&& children) :
+					node(new types::unset()),
+					lhs(std::move(children.at(0))),
+					rhs(std::move(children.at(1))),
+					scope_depth(0)
+				{}
+
+				bin_op(const bin_op& other) :
+					node(other),
+					lhs(other.lhs->copy()),
+					rhs(other.rhs->copy()),
+					scope_depth(other.scope_depth)
+				{}
+				bin_op& operator=(const bin_op& other)
 				{
-					throw typecheck_error{ std::string("Lhs of ").append(op_func(Op))
-						.append(" operator must be of type ").append(types::atom_type_str(lhs_t)) };
+					set_type(types::unique_type(other.get_type().copy()));
+					this->lhs = unique_node(other.lhs->copy());
+					this->rhs = unique_node(other.rhs->copy());
+					this->scope_depth = other.scope_depth;
+					return *this;
 				}
 
-				if (!(rhs->get_type() == &types::atom<rhs_t>()))
+				bin_op(bin_op&& other) :
+					node(std::move(other)),
+					lhs(std::move(other.lhs)),
+					rhs(std::move(other.rhs)),
+					scope_depth(other.scope_depth)
+				{}
+				bin_op& operator=(bin_op&& other)
 				{
-					throw typecheck_error{ std::string("Rhs of ").append(op_func(Op))
-						.append(" operator must be of type ").append(types::atom_type_str(rhs_t)) };
+					set_type(std::move(other.type));
+					this->lhs = std::move(other.lhs);
+					this->rhs = std::move(other.rhs);
+					this->scope_depth = other.scope_depth;
+					return *this;
 				}
 
-				set_type(types::make_unique(types::atom<res_t>()));
-			}
+				void typecheck(type_environment& env) override
+				{
+					lhs->typecheck(env);
+					rhs->typecheck(env);
 
-			void resolve(scope_environment& s_env) override
-			{
-				this->lhs->resolve(s_env);
-				this->rhs->resolve(s_env);
-				this->scope_depth = s_env.depth() - 1;
-			}
+					if (!(lhs->get_type() == &types::atom<lhs_t>()))
+					{
+						throw typecheck_error{ std::string("Lhs of ").append(op_func(Op))
+							.append(" operator must be of type ").append(types::atom_type_str(lhs_t)) };
+					}
 
-			core_ast::node* lower() override
-			{
-				std::vector<core_ast::unique_node> lowered_children;
-				lowered_children.push_back(core_ast::unique_node(lhs->lower()));
-				lowered_children.push_back(core_ast::unique_node(rhs->lower()));
-				types::product_type p;
-				p.product.push_back(types::make_unique(types::atom<lhs_t>()));
-				p.product.push_back(types::make_unique(types::atom<rhs_t>()));
+					if (!(rhs->get_type() == &types::atom<rhs_t>()))
+					{
+						throw typecheck_error{ std::string("Rhs of ").append(op_func(Op))
+							.append(" operator must be of type ").append(types::atom_type_str(rhs_t)) };
+					}
 
-				std::string name = std::string(op_func(Op));
+					set_type(types::make_unique(types::atom<res_t>()));
+				}
 
-				auto id = core_ast::identifier{ {}, name, {}, scope_depth, types::make_unique(types::unset()) };
-				auto tuple = core_ast::unique_node(new core_ast::tuple(
-					std::move(lowered_children),
-					types::make_unique(std::move(p))
-				));
-				auto type = types::unique_type(new types::atom<res_t>());
+				void resolve(resolution::scope_tree_node& s_env) override
+				{
+					lhs->resolve(s_env[0]);
+					rhs->resolve(s_env[1]);
+				}
 
-				return new core_ast::function_call(std::move(id), std::move(tuple), std::move(type));
-			}
+				resolution::scope_tree_node* build_scope_tree() override
+				{
+					auto n = new resolution::unscoped_node();
 
-			node* copy() override
-			{
-				return new bin_op<Op>(*this);
-			}
+					auto lhs_tree = lhs->build_scope_tree();
+					lhs_tree->set_parent(n);
+					n->add_child(lhs_tree);
 
-			unique_node lhs, rhs;
-			std::size_t scope_depth;
-		};
+					auto rhs_tree = rhs->build_scope_tree();
+					rhs_tree->set_parent(n);
+					n->add_child(rhs_tree);
 
-		using equality = bin_op<bin_op_type::EQ>;
-		using less_than = bin_op<bin_op_type::LT>;
-		using less_than_or_equal = bin_op<bin_op_type::LTE>;
-		using greater_than = bin_op<bin_op_type::GT>;
-		using greater_than_or_equal = bin_op<bin_op_type::GTE>;
-		using subtraction = bin_op<bin_op_type::SUB>;
-		using addition = bin_op<bin_op_type::ADD>;
-		using multiplication = bin_op<bin_op_type::MUL>;
-		using division = bin_op<bin_op_type::DIV>;
-		using modulo = bin_op<bin_op_type::MOD>;
+					return n;
+				}
+
+				core_ast::node* lower() override
+				{
+					std::vector<core_ast::unique_node> lowered_children;
+					lowered_children.push_back(core_ast::unique_node(lhs->lower()));
+					lowered_children.push_back(core_ast::unique_node(rhs->lower()));
+					types::product_type p;
+					p.product.push_back(types::make_unique(types::atom<lhs_t>()));
+					p.product.push_back(types::make_unique(types::atom<rhs_t>()));
+
+					std::string name = std::string(op_func(Op));
+
+					auto id = core_ast::identifier{ {}, name, {}, scope_depth, types::make_unique(types::unset()) };
+					auto tuple = core_ast::unique_node(new core_ast::tuple(
+						std::move(lowered_children),
+						types::make_unique(std::move(p))
+					));
+					auto type = types::unique_type(new types::atom<res_t>());
+
+					return new core_ast::function_call(std::move(id), std::move(tuple), std::move(type));
+				}
+
+				node* copy() override
+				{
+					return new bin_op<Op>(*this);
+				}
+
+				unique_node lhs, rhs;
+				std::size_t scope_depth;
+			};
+		}
+
+		using equality = detail::bin_op<detail::bin_op_type::EQ>;
+		using less_than = detail::bin_op<detail::bin_op_type::LT>;
+		using less_than_or_equal = detail::bin_op<detail::bin_op_type::LTE>;
+		using greater_than = detail::bin_op<detail::bin_op_type::GT>;
+		using greater_than_or_equal = detail::bin_op<detail::bin_op_type::GTE>;
+		using subtraction = detail::bin_op<detail::bin_op_type::SUB>;
+		using addition = detail::bin_op<detail::bin_op_type::ADD>;
+		using multiplication = detail::bin_op<detail::bin_op_type::MUL>;
+		using division = detail::bin_op<detail::bin_op_type::DIV>;
+		using modulo = detail::bin_op<detail::bin_op_type::MOD>;
 
 		struct while_loop : public node
 		{
@@ -1021,7 +1062,8 @@ namespace fe
 			}
 
 			void typecheck(type_environment& env) override;
-			void resolve(scope_environment& s_env) override;
+			void resolve(resolution::scope_tree_node& s_env) override;
+			resolution::scope_tree_node* build_scope_tree() override;
 			core_ast::node* lower() override
 			{
 				return new core_ast::while_loop(
@@ -1057,7 +1099,8 @@ namespace fe
 			}
 
 			void typecheck(type_environment& env) override;
-			void resolve(scope_environment& s_env) override;
+			void resolve(resolution::scope_tree_node& s_env) override;
+			resolution::scope_tree_node* build_scope_tree() override;
 			core_ast::node* lower() override
 			{
 				std::vector<std::pair<core_ast::unique_node, core_ast::unique_node>> new_branches;
@@ -1101,12 +1144,16 @@ namespace fe
 			}
 
 			void typecheck(type_environment& env) override;
-			void resolve(scope_environment& s_env) override;
+			void resolve(resolution::scope_tree_node& s_env) override;
+			resolution::scope_tree_node* build_scope_tree() override;
 			core_ast::node* lower() override { return new core_ast::no_op(); }
 			node* copy() override { return new import_declaration(*this); }
 
 			std::vector<identifier> modules;
 		};
+
+		// These nodes introduce a new scope when resolving, typechecking, or interpreting
+		using scoped_nodes = std::tuple<function, block, if_statement, match_branch>;
 	}
 
 	namespace detail
