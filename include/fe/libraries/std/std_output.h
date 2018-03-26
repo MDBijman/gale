@@ -11,14 +11,14 @@ namespace fe
 		{
 			static native_module load()
 			{
-				scope_environment se;
+				resolution::scoped_node se;
 				type_environment te;
 				runtime_environment re;
 
 				using namespace values;
 				{
-					se.declare(extended_ast::identifier("print" ), extended_ast::identifier("_function" ));
-					se.define(extended_ast::identifier("print" ));
+					se.declare_var_id("print", extended_ast::identifier("_function" ));
+					se.define_var_id("print");
 					te.set_type(extended_ast::identifier("print" ), types::unique_type(new types::function_type(
 						types::unique_type(new types::str()),
 						types::unique_type(new types::unset())

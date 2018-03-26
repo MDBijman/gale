@@ -11,15 +11,15 @@ namespace fe
 	{
 		namespace input
 		{
-			static std::tuple<type_environment, runtime_environment, scope_environment> load()
+			static std::tuple<type_environment, runtime_environment, resolution::scope_environment> load()
 			{
 				type_environment te{};
 				runtime_environment re{};
-				scope_environment se{};
+				resolution::scoped_node se{};
 
 				{
-					se.declare(extended_ast::identifier("get"), extended_ast::identifier("_function"));
-					se.define(extended_ast::identifier("get"));
+					se.declare_var_id("get", extended_ast::identifier("_function"));
+					se.define_var_id("get");
 					te.set_type(extended_ast::identifier("get"), types::unique_type(new types::function_type(
 						types::unique_type(new types::product_type()), types::unique_type(new types::i32())
 					)));
@@ -30,7 +30,7 @@ namespace fe
 					)));
 				}
 
-				return { te, re, se };
+				return { te, re, resolution::scope_environment(se) };
 			}
 		}
 	}

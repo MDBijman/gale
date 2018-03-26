@@ -103,7 +103,7 @@ namespace fe
 			graph = parse_project(folder, std::move(main_module));
 		}
 
-		std::tuple<type_environment, runtime_environment, scope_environment> interp()
+		std::tuple<type_environment, runtime_environment, resolution::scope_environment> interp()
 		{
 			return graph.root->interp(pl);
 		}

@@ -30,10 +30,13 @@ namespace fe
 			interpreter(interpreting_stage{})
 		{}
 
-		std::tuple<values::unique_value, type_environment, runtime_environment, scope_environment> process(std::string&& code, type_environment tenv, runtime_environment renv, scope_environment senv) 
+		std::tuple<values::unique_value, type_environment, runtime_environment, resolution::scope_environment> 
+			process(std::string&& code, type_environment tenv, runtime_environment renv, resolution::scope_environment senv) 
 		{
 			auto lexed = lex(std::move(code));
 			auto parsed = parse(std::move(lexed));
+			auto scope_tree = build_scopes(*parsed);
+			senv.set_root(scope_tree);
 			auto scope_env = resolve(*parsed, std::move(senv));
 			auto tchecked = typecheck(std::move(parsed), std::move(tenv));
 			auto lowered = lower(std::move(tchecked.first));
@@ -68,10 +71,18 @@ namespace fe
 			return std::move(std::get<extended_ast::unique_node>(cst_to_ast_output));
 		}
 
-		scope_environment resolve(extended_ast::node& ast, scope_environment&& env)
+		resolution::scoped_node build_scopes(extended_ast::node& ast)
 		{
-			ast.resolve(std::move(env));
-			return env;
+			auto node = ast.build_scope_tree();
+			auto root = resolution::scoped_node();
+			root.add_child(node);
+			return root;
+		}
+
+		resolution::scope_environment resolve(extended_ast::node& ast, resolution::scope_environment&& env)
+		{
+			ast.resolve(env.get_root()[0]);
+			return std::move(env);
 		}
 
 		std::pair<extended_ast::unique_node, type_environment> typecheck(extended_ast::unique_node extended_ast, type_environment&& tenv) const

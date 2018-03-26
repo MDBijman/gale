@@ -1,20 +1,8 @@
 module name_resolution_tests
 import [std std.io]
 
-var test : std.i32 = 3;
-fn nested std.i32 a -> std.i32 = test;
+fn foo std.i32 a -> std.i32 = a;
+fn foo std.i64 a -> std.i64 = a;
 
-fn outside std.i32 a -> std.i32 = {
-	var test : std.i32 = 6;
-	nested a;
-};
-
-fn id std.i32 a -> std.i32 = {
-	a;
-};
-
-fn get_string std.i32 a -> std.str = {
-	"3";
-};
-
-std.io.print std.to_string outside 3;
+var x : std.i64 = 4;
+foo x;

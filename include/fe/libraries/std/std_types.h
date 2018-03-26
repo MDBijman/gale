@@ -10,21 +10,21 @@ namespace fe
 	{
 		namespace typedefs
 		{
-			static std::tuple<type_environment, runtime_environment, scope_environment> load()
+			static std::tuple<type_environment, runtime_environment, resolution::scope_environment> load()
 			{
 				type_environment t{};
 				runtime_environment r{};
-				scope_environment s{};
+				resolution::scoped_node s{};
 
-				s.define_type(extended_ast::identifier("i32"), nested_type());
+				s.define_type("i32", resolution::nested_type());
 				t.define_type(extended_ast::identifier("i32"), types::make_unique(types::i32()));
-				s.define_type(extended_ast::identifier("str"), nested_type());
+				s.define_type("str", resolution::nested_type());
 				t.define_type(extended_ast::identifier("str"), types::make_unique(types::str()));
-				s.define_type(extended_ast::identifier("bool"), nested_type());
+				s.define_type("bool", resolution::nested_type());
 				t.define_type(extended_ast::identifier("bool"), types::make_unique(types::boolean()));
 
-				s.declare(extended_ast::identifier("to_string"), extended_ast::identifier("_function"));
-				s.define(extended_ast::identifier("to_string"));
+				s.declare_var_id("to_string", extended_ast::identifier("_function"));
+				s.define_var_id("to_string");
 				t.set_type(extended_ast::identifier("to_string"),
 					types::unique_type(new types::function_type(types::unique_type(new types::any()), types::unique_type(new types::str()))));
 				r.set_value("to_string", values::native_function([](values::unique_value val) -> values::unique_value {

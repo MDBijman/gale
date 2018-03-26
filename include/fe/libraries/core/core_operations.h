@@ -21,17 +21,17 @@ namespace fe
 			}
 
 			template<class LhsData, class RhsData, class Op, class ResData>
-			static void add_bin_op(runtime_environment& re, type_environment& te, scope_environment& se, 
+			static void add_bin_op(runtime_environment& re, type_environment& te, resolution::scope_environment& se, 
 				std::string name, types::type& from, types::type& to)
 			{
-				se.declare(extended_ast::identifier(name), extended_ast::identifier("_function"));
-				se.define(extended_ast::identifier(name));
+				se.get_root().declare_var_id(name, extended_ast::identifier("_function"));
+				se.get_root().define_var_id(name);
 				te.set_type(extended_ast::identifier(name), types::make_unique(types::function_type(from, to)));
 				re.set_value(name, values::make_unique(values::native_function(bin_op<LhsData, RhsData, Op, ResData>)));
 			}
 
 			template<class InData, class Op, class ResData>
-			static void add_bin_op(runtime_environment& re, type_environment& te, scope_environment& se, 
+			static void add_bin_op(runtime_environment& re, type_environment& te, resolution::scope_environment& se, 
 				std::string name, types::type& from, types::type& to)
 			{
 				add_bin_op<InData, InData, Op, ResData>(re, te, se, name, from, to);
@@ -46,11 +46,11 @@ namespace fe
 				}
 			};
 
-			static std::tuple<runtime_environment, type_environment, scope_environment> load()
+			static std::tuple<runtime_environment, type_environment, resolution::scope_environment> load()
 			{
 				runtime_environment re;
 				type_environment te;
-				scope_environment se;
+				resolution::scope_environment se;
 
 				{
 					auto from = types::product_type();
@@ -75,7 +75,7 @@ namespace fe
 					from.product.emplace_back(types::make_unique(types::i64()));
 					from.product.emplace_back(types::make_unique(types::i64()));
 
-					add_bin_op<values::i64, std::equal_to<values::i64>, values::boolean>(re, te, se, "eq", from, types::boolean());
+					//add_bin_op<values::i64, std::equal_to<values::i64>, values::boolean>(re, te, se, "eq", from, types::boolean());
 				}
 
 

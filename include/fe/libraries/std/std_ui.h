@@ -28,9 +28,9 @@ namespace fe
 				return 0;
 			};
 
-			static std::tuple<type_environment, runtime_environment, scope_environment> load()
+			static std::tuple<type_environment, runtime_environment, resolution::scoped_node> load()
 			{
-				scope_environment se{};
+				resolution::scoped_node se;
 				type_environment te{};
 				runtime_environment re{};
 
@@ -40,8 +40,8 @@ namespace fe
 				{
 					types::function_type create_window_type{ types::str(), types::any() };
 
-					se.declare(extended_ast::identifier("create_window"), extended_ast::identifier("_function"));
-					se.define(extended_ast::identifier("create_window"));
+					se.declare_var_id("create_window", extended_ast::identifier("_function"));
+					se.define_var_id("create_window");
 					te.set_type(extended_ast::identifier("create_window"),
 						types::unique_type(create_window_type.copy()));
 					re.set_value("create_window", native_function([](unique_value t) -> unique_value {
@@ -105,8 +105,8 @@ namespace fe
 
 				// Poll
 				{
-					se.declare(extended_ast::identifier("poll"), extended_ast::identifier("_function"));
-					se.define(extended_ast::identifier("poll"));
+					se.declare_var_id("poll", extended_ast::identifier("_function"));
+					se.define_var_id("poll");
 					te.set_type(extended_ast::identifier("poll"), fe::types::unique_type(new types::function_type(
 						types::any(),
 						types::voidt()
@@ -130,7 +130,9 @@ namespace fe
 			static native_module* load_as_module()
 			{
 				auto[te, re, se] = load();
-				return new native_module(module_name{ "std", "ui" }, std::move(re), std::move(te), std::move(se));
+				auto scope_env = resolution::scope_environment(std::make_unique<resolution::scope_tree_node>(std::move(se)));
+
+				return new native_module(module_name{ "std", "ui" }, std::move(re), std::move(te), std::move(scope_env));
 			}
 		}
 	}

@@ -18,7 +18,7 @@ namespace fe
 			// Load modules
 			auto runtime_environment = fe::runtime_environment{};
 			auto type_environment = fe::type_environment{};
-			auto name_environment = fe::scope_environment{};
+			auto name_environment = resolution::scope_environment{};
 
 			// Core (global namespace)
 			{
@@ -32,7 +32,7 @@ namespace fe
 			{
 				auto std_runtime = fe::runtime_environment{};
 				auto std_typeset = fe::type_environment{};
-				auto std_nameset = fe::scope_environment{};
+				auto std_nameset = resolution::scope_environment{};
 
 				// IO utilities
 				{
@@ -98,7 +98,7 @@ namespace fe
 
 				auto lexed = pipeline.lex(std::move(code));
 				auto parsed = pipeline.parse(std::move(lexed));
-				auto ne = pipeline.resolve(*parsed, fe::scope_environment(name_environment));
+				auto ne = pipeline.resolve(*parsed, resolution::scope_environment(name_environment));
 				auto typechecked = pipeline.typecheck(std::move(parsed), fe::type_environment(type_environment));
 				auto lowered = pipeline.lower(std::move(typechecked.first));
 				auto interped = pipeline.interp(std::move(lowered), fe::runtime_environment(runtime_environment));
