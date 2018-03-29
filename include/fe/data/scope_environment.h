@@ -48,82 +48,6 @@ namespace fe::resolution::detail
 		const extended_ast::identifier& type_name;
 	};
 
-	struct node
-	{
-		node();
-		node(const node&);
-		node(node&&);
-		node& operator=(const node&);
-		node& operator=(node&&);
-
-		/*
-		* Sets the parent node to the given node.
-		*/
-		void set_parent(node* other);
-
-		/*
-		* Returns the parent of this node. Contains no value if this node has no parent.
-		*/
-		std::optional<node*> get_parent();
-
-		/*
-		* Adds the given node to this node's children, taking ownership.
-		*/
-		void add_child(node* n);
-
-		/*
-		* Returns this scopes child at the given index.
-		*/
-		node& operator[](std::size_t i);
-
-		/*
-		* Virtual methods
-		*/
-
-		/*
-		* Returns a copy of this node.
-		*/
-		virtual node* copy() = 0;
-
-		/*
-		* Declares the variable with the given name within this scope. The variable will not yet be resolvable.
-		*/
-		virtual void declare_var_id(std::string id, const extended_ast::identifier& type_name) = 0;
-
-		/*
-		* Defines the given name within this scope. After this, the variable will be resolvable.
-		*/
-		virtual void define_var_id(const std::string& id) = 0;
-
-		/*
-		* Returns the type name of the given reference.
-		*/
-		virtual std::optional<var_lookup_res> resolve_var_id(const extended_ast::identifier& id) const = 0;
-
-		/*
-		* Defines the given name within this scope as a type. After this, type references with the name
-		* will be resolvable.
-		*/
-		virtual void define_type(std::string id, const extended_ast::unique_node& t) = 0;
-
-		/*
-		* Returns the type data of the type with the given name if it exists.
-		*/
-		virtual std::optional<type_lookup_res> resolve_type(const extended_ast::identifier& id) const = 0;
-
-	protected:
-		/*
-		* The parent scope of this scope can be used to lookup if a type name exists that is accessible from within
-		* this scope.
-		*/
-		std::optional<node*> parent;
-
-		/*
-		* The children of a scope mirror the structure in which the actual ast introduces scopes
-		*/
-		std::vector<std::unique_ptr<node>> children;
-	};
-
 	/*
 	* A scope contains all variables that have been declared within it, and if a variable has been defined.
 	* Declaration happens when a name appears on the lhs of an assignment, or within a parameter list.
@@ -145,7 +69,7 @@ namespace fe::resolution::detail
 	*		| 1 == 1 -> a * fact (a - 1)
 	*	};
 	*/
-	class scoped_node : public node
+	class scoped_node 
 	{
 	public:
 		scoped_node() = default;
@@ -168,33 +92,28 @@ namespace fe::resolution::detail
 		void merge(std::string name, scoped_node& other);
 
 		/*
-		* Returns a copy of this node.
-		*/
-		node* copy() override;
-
-		/*
 		* Declares the variable with the given name within this scope. The variable will not yet be resolvable.
 		*/
-		void declare_var_id(std::string id, const extended_ast::identifier& type_name) override;
+		void declare_var_id(std::string id, const extended_ast::identifier& type_name);
 
 		/*
 		* Defines the given name within this scope. After this, the variable will be resolvable.
 		*/
-		void define_var_id(const std::string& id) override;
+		void define_var_id(const std::string& id);
 
 		/*
 		* Returns the type name of the given reference.
 		*/
-		std::optional<var_lookup_res> resolve_var_id(const extended_ast::identifier& id) const override;
+		std::optional<var_lookup_res> resolve_var_id(const extended_ast::identifier& id) const;
 
 		/*
-		* Defines the given name within this scope as the type defined in the node, 
+		* Defines the given name within this scope as the type defined in the node,
 		* type references with the name will be resolvable.
 		*/
-		void define_type(std::string id, const extended_ast::unique_node& t) override;
+		void define_type(std::string id, const extended_ast::unique_node& t);
 
 		/*
-		* Defines the given name within this scope as the type given. 
+		* Defines the given name within this scope as the type given.
 		* After this, type references with the name will be resolvable.
 		*/
 		void define_type(std::string id, const nested_type& t);
@@ -202,7 +121,7 @@ namespace fe::resolution::detail
 		/*
 		* Returns the type data of the type with the given name if it exists.
 		*/
-		std::optional<type_lookup_res> resolve_type(const extended_ast::identifier& id) const override;
+		std::optional<type_lookup_res> resolve_type(const extended_ast::identifier& id) const;
 
 	private:
 		/*
@@ -230,42 +149,6 @@ namespace fe::resolution::detail
 		* defined, 'Pair' is found in this map, causing x.a and x.b to be added to the scope.
 		*/
 		std::unordered_map<std::string, nested_type> nested_types;
-
-		std::unordered_map<std::string, scoped_node> modules;
-	};
-
-	struct unscoped_node : public node
-	{
-		/*
-		* Returns a copy of this node.
-		*/
-		node* copy() override;
-
-		/*
-		* Declares the variable with the given name within this scope. The variable will not yet be resolvable.
-		*/
-		void declare_var_id(std::string id, const extended_ast::identifier& type_name) override;
-
-		/*
-		* Defines the given name within this scope. After this, the variable will be resolvable.
-		*/
-		void define_var_id(const std::string& id) override;
-
-		/*
-		* Returns the type name of the given reference.
-		*/
-		std::optional<var_lookup_res> resolve_var_id(const extended_ast::identifier& id) const override;
-
-		/*
-		* Defines the given name within this scope as a type. After this, type references with the name
-		* will be resolvable.
-		*/
-		void define_type(std::string id, const extended_ast::unique_node& t) override;
-
-		/*
-		* Returns the type data of the type with the given name if it exists.
-		*/
-		std::optional<type_lookup_res> resolve_type(const extended_ast::identifier& id) const override;
 	};
 
 	struct var_resolve_res
@@ -276,97 +159,6 @@ namespace fe::resolution::detail
 
 	using type_resolve_res = detail::type_lookup_res;
 
-	//class node_iterator
-	//{
-	//	node* current;
-	//	std::stack<node*> post_order_stack;
-
-	//public:
-	//	node_iterator(node* root)
-	//	{
-	//		if (root)
-	//		{
-	//			post_order_stack.push(root);
-	//			push_left_children(root);
-	//			current = post_order_stack.top();
-	//		}
-	//		// If iterator is end()
-	//		else
-	//		{
-	//			current = nullptr;
-	//		}
-	//	}
-
-	//	node_iterator& operator++()
-	//	{
-	//		// If iterator is end()
-	//		if (current == nullptr)
-	//		{
-	//			return *this;
-	//		}
-
-	//		auto peek = post_order_stack.top();
-
-	//		auto children = peek->get_children();
-	//		// Leaf
-	//		if (children.size() == 0)
-	//		{
-	//			post_order_stack.pop();
-	//		}
-	//		// Inner
-	//		else
-	//		{
-	//			auto last_visited_child = std::find(children.begin(), children.end(), current);
-	//			// Children visited
-	//			if (last_visited_child + 1 == children.end())
-	//			{
-	//				post_order_stack.pop();
-	//			}
-	//			// Children left
-	//			else
-	//			{
-	//				push_left_children((last_visited_child + 1)->get());
-	//			}
-	//		}
-
-	//		current = post_order_stack.top();
-	//		return *this;
-	//	}
-
-	//	node& operator*()
-	//	{
-	//		return *current;
-	//	}
-
-	//	std::size_t depth()
-	//	{
-	//		return post_order_stack.size();
-	//	}
-
-	//	std::optional<var_resolve_res> resolve_reference(const extended_ast::identifier& name) const;
-
-	//	std::optional<type_resolve_res> resolve_type(const extended_ast::identifier& name) const;
-
-	//	void define_type(const extended_ast::identifier& id, const extended_ast::unique_node& content);
-
-	//	void define_type(const extended_ast::identifier& id, const nested_type& content);
-
-	//	//void declare(extended_ast::identifier id, extended_ast::identifier type_name);
-
-	//	void define(const extended_ast::identifier_tuple& id);
-
-	//	void define(const extended_ast::identifier& id);
-
-	//private:
-	//	void push_left_children(node* n)
-	//	{
-	//		if (n->get_children().size() > 0)
-	//		{
-	//			post_order_stack.push(n->get_children().at(0).get());
-	//			push_left_children(post_order_stack.top());
-	//		}
-	//	}
-	//};
 }
 
 namespace fe::resolution
@@ -406,5 +198,7 @@ namespace fe::resolution
 
 	private:
 		std::unique_ptr<scope_tree_node> root;
+
+		std::unordered_map<std::string, scoped_node> modules;
 	};
 }
