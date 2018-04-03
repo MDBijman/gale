@@ -1,11 +1,5 @@
 #include "fe/data/extended_ast.h"
 
-// Building scopes
-namespace fe::ext_ast
-{
-
-}
-
 // Resolving
 namespace fe::ext_ast
 {
@@ -62,7 +56,6 @@ namespace fe::ext_ast
 		assert(n.type == node_type::FUNCTION);
 		assert(n.parent_id.has_value());
 		assert(n.children.size() == 4);
-		copy_parent_scope(n, ast);
 
 		auto& parent = ast.get_node(n.parent_id.value());
 
@@ -149,7 +142,6 @@ namespace fe::ext_ast
 		resolve(ast.get_node(n.children[1]), ast);
 	}
 
-
 	// Helper for declarations
 	void declare_lhs(node& lhs, node& type, ast& ast)
 	{
@@ -163,11 +155,11 @@ namespace fe::ext_ast
 			assert(type.data_index.has_value());
 			auto& type_id = ast.get_data<identifier>(type.data_index.value());
 
-			ast.get_scope(n.scope_index.value()).declare_variable(lhs_id.segments[0], type_id);
+			ast.get_scope(lhs.scope_index.value()).declare_variable(lhs_id.segments[0], type_id);
 		}
 		else if (lhs.type == node_type::IDENTIFIER_TUPLE)
 		{
-
+			assert(!"Not implemented");
 		}
 	}
 
@@ -185,35 +177,42 @@ namespace fe::ext_ast
 		declare_lhs(lhs_node, type_node, ast);
 
 		auto& rhs_node = ast.get_node(n.children[2]);
-
-		if (lhs_node.type == node_type::IDENTIFIER)
-		{
-			assert(lhs_node.data_index.has_value());
-			auto& lhs_id = ast.get_data<identifier>(lhs_node.data_index.value());
-			assert(type_node.data_index.has_value());
-			auto& type_id = ast.get_data<identifier>(type_node.data_index.value());
-
-			ast.get_scope(n.scope_index.value()).declare_variable(lhs_id.segments[0], type_id);
-		}
-		else if (lhs_node.type == node_type::IDENTIFIER_TUPLE)
-		{
-
-		}
+		resolve(rhs_node, ast);
 	}
 
 	void resolve_type_definition(node& n, ast& ast)
 	{
 		assert(n.type == node_type::TYPE_DEFINITION);
+		// identifier type_dec
+		assert(n.children.size() == 2);
+		copy_parent_scope(n, ast);
+
+		auto& id_node = ast.get_node(n.children[0]);
+		assert(id_node.type == node_type::IDENTIFIER);
+
+		auto& type_node = ast.get_node(n.children[1]);
+		assert(type_node.type == node_type::DECLARATION);
+		resolve(id_node, ast);
 	}
 
 	void resolve_reference(node& n, ast& ast)
 	{
 		assert(n.type == node_type::REFERENCE);
+		assert(n.children.size() == 1);
+		copy_parent_scope(n, ast);
+
+		auto& child_node = ast.get_node(n.children[0]);
+		resolve(child_node, ast);
 	}
 
 	void resolve_array_value(node& n, ast& ast)
 	{
 		assert(n.type == node_type::ARRAY_VALUE);
+		assert(n.children.size() == 1);
+		copy_parent_scope(n, ast);
+
+		auto& child_node = ast.get_node(n.children[0]);
+		resolve(child_node, ast);
 	}
 
 	void resolve(node& n, ast& ast)
