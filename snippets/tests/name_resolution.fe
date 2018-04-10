@@ -1,8 +1,10 @@
 module name_resolution_tests
 import [std std.io]
 
-fn foo std.i32 a -> std.i32 = a;
 fn foo std.i64 a -> std.i64 = a;
 
 var x : std.i64 = 4;
 foo x;
+
+var y : std.i64 = x + 2;
+std.io.print "asd";

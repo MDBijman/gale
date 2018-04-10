@@ -1,9 +1,7 @@
 #pragma once
-#include "fe/data/runtime_environment.h"
-#include "fe/data/type_environment.h"
-#include "fe/modes/project.h"
 #include "fe/data/values.h"
 #include "fe/data/types.h"
+#include "fe/data/scope.h"
 #include <Windows.h>
 
 namespace fe
@@ -28,11 +26,11 @@ namespace fe
 				return 0;
 			};
 
-			static std::tuple<type_environment, runtime_environment, resolution::scoped_node> load()
+			static scope load()
 			{
-				resolution::scoped_node se;
-				type_environment te{};
 				runtime_environment re{};
+				ext_ast::name_scope se{};
+				ext_ast::type_scope te{};
 
 				using namespace fe::values;
 
@@ -40,10 +38,9 @@ namespace fe
 				{
 					types::function_type create_window_type{ types::str(), types::any() };
 
-					se.declare_var_id("create_window", extended_ast::identifier("_function"));
-					se.define_var_id("create_window");
-					te.set_type(extended_ast::identifier("create_window"),
-						types::unique_type(create_window_type.copy()));
+					se.declare_variable("create_window");
+					se.define_variable("create_window");
+					te.set_type("create_window", types::unique_type(create_window_type.copy()));
 					re.set_value("create_window", native_function([](unique_value t) -> unique_value {
 						auto name = dynamic_cast<values::str*>(t.get())->val;
 
@@ -105,12 +102,10 @@ namespace fe
 
 				// Poll
 				{
-					se.declare_var_id("poll", extended_ast::identifier("_function"));
-					se.define_var_id("poll");
-					te.set_type(extended_ast::identifier("poll"), fe::types::unique_type(new types::function_type(
-						types::any(),
-						types::voidt()
-						)));
+					se.declare_variable("poll");
+					se.define_variable("poll");
+					te.set_type("poll", fe::types::unique_type(new types::function_type(
+						types::any(), types::voidt())));
 					re.set_value("poll", native_function([](unique_value from) -> unique_value {
 						HWND window = dynamic_cast<custom_value<HWND>*>(from.get())->val;
 
@@ -124,15 +119,7 @@ namespace fe
 					}));
 				}
 
-				return { te, re, se };
-			}
-
-			static native_module* load_as_module()
-			{
-				auto[te, re, se] = load();
-				auto scope_env = resolution::scope_environment(std::make_unique<resolution::scope_tree_node>(std::move(se)));
-
-				return new native_module(module_name{ "std", "ui" }, std::move(re), std::move(te), std::move(scope_env));
+				return scope(re, te, se);
 			}
 		}
 	}

@@ -55,10 +55,47 @@ int main(int argc, char** argv)
 				return -1;
 			}
 
-			fe::project proj(argv[2], std::vector<std::string>{ argv[3] }, std::move(pipeline));
-			auto[te, re, se] = proj.interp();
-			std::cout << te.to_string() << "\n";
-			std::cout << re.to_string() << std::endl;
+			fe::project proj(std::move(pipeline));
+			// core
+			{
+				auto core_scope = fe::core::operations::load();
+				proj.add_module({ "_core" }, core_scope);
+			}
+
+			// std io
+			{
+				auto i = fe::stdlib::input::load();
+				auto o = fe::stdlib::output::load();
+				i.merge(std::move(o));
+				proj.add_module({ "std", "io" }, i);
+			}
+
+			// std ui
+			{
+				auto ui_scope = fe::stdlib::ui::load();
+				proj.add_module({ "std", "ui" }, ui_scope);
+			}
+
+			// std types
+			{
+				auto type_scope = fe::stdlib::typedefs::load();
+				proj.add_module({ "std" }, type_scope);
+			}
+
+			for (auto& item : std::experimental::filesystem::recursive_directory_iterator(argv[2]))
+			{
+				auto path = item.path();
+				if (path.filename().extension() != ".fe") continue;
+
+				auto file_or_error = utils::files::read_file(path.string());
+				if (std::holds_alternative<std::exception>(file_or_error))
+				{
+					std::cout << "File not found\n";
+					continue;
+				}
+				auto& code = std::get<std::string>(file_or_error);
+				proj.add_module(std::move(code));
+			}
 		}
 		else if (mode == "help")
 		{

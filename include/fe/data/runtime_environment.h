@@ -150,7 +150,7 @@ namespace fe
 
 		void add_module(std::string name, runtime_environment other)
 		{
-			add_module({ std::move(name) }, std::move(other));
+			add_module(std::vector<std::string>{ std::move(name) }, std::move(other));
 		}
 
 		runtime_environment get_module(std::string name)
