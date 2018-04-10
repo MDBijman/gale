@@ -1,8 +1,7 @@
 #pragma once
-#include "fe/data/core_ast.h"
 #include "fe/data/values.h"
 #include "fe/data/types.h"
-#include "fe/modes/module.h"
+#include "fe/data/scope.h"
 
 namespace fe
 {
@@ -10,25 +9,33 @@ namespace fe
 	{
 		namespace typedefs
 		{
-			static std::tuple<type_environment, runtime_environment, resolution::scope_environment> load()
+			static scope load()
 			{
-				type_environment t{};
 				runtime_environment r{};
-				resolution::scoped_node s{};
+				ext_ast::type_scope t{};
+				ext_ast::name_scope s{};
 
-				s.define_type("i32", resolution::nested_type());
-				t.define_type(extended_ast::identifier("i32"), types::make_unique(types::i32()));
-				s.define_type("str", resolution::nested_type());
-				t.define_type(extended_ast::identifier("str"), types::make_unique(types::str()));
-				s.define_type("bool", resolution::nested_type());
-				t.define_type(extended_ast::identifier("bool"), types::make_unique(types::boolean()));
+				s.define_type("i32", {});
+				t.define_type("i32", types::make_unique(types::i32()));
+				s.define_type("i64", {});
+				t.define_type("i64", types::make_unique(types::i64()));
 
-				s.declare_var_id("to_string", extended_ast::identifier("_function"));
-				s.define_var_id("to_string");
-				t.set_type(extended_ast::identifier("to_string"),
+				s.define_type("str", {});
+				t.define_type("str", types::make_unique(types::str()));
+
+				s.define_type("bool", {});
+				t.define_type("bool", types::make_unique(types::boolean()));
+
+				s.declare_variable("to_string");
+				s.define_variable("to_string");
+				t.set_type("to_string",
 					types::unique_type(new types::function_type(types::unique_type(new types::any()), types::unique_type(new types::str()))));
 				r.set_value("to_string", values::native_function([](values::unique_value val) -> values::unique_value {
 					if (auto num = dynamic_cast<values::i32*>(val.get()))
+					{
+						return values::unique_value(new values::str(std::to_string(num->val)));
+					}
+					else if (auto num = dynamic_cast<values::i64*>(val.get()))
 					{
 						return values::unique_value(new values::str(std::to_string(num->val)));
 					}
@@ -42,13 +49,7 @@ namespace fe
 					}
 				}));
 
-				return { t, r, s };
-			}
-
-			static native_module* load_as_module()
-			{
-				auto[te, re, se] = load();
-				return new native_module("std", std::move(re), std::move(te), std::move(se));
+				return scope(std::move(r), std::move(t), std::move(s));
 			}
 		}
 	}

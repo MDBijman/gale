@@ -2,8 +2,7 @@
 #include "fe/data/core_ast.h"
 #include "fe/data/values.h"
 #include "fe/data/types.h"
-#include "fe/data/runtime_environment.h"
-#include "fe/data/type_environment.h"
+#include "fe/data/scope.h"
 
 namespace fe
 {
@@ -11,16 +10,16 @@ namespace fe
 	{
 		namespace input
 		{
-			static std::tuple<type_environment, runtime_environment, resolution::scope_environment> load()
+			static scope load()
 			{
-				type_environment te{};
 				runtime_environment re{};
-				resolution::scoped_node se{};
+				ext_ast::name_scope se{};
+				ext_ast::type_scope te{};
 
 				{
-					se.declare_var_id("get", extended_ast::identifier("_function"));
-					se.define_var_id("get");
-					te.set_type(extended_ast::identifier("get"), types::unique_type(new types::function_type(
+					se.declare_variable("get");
+					se.define_variable("get");
+					te.set_type("get", types::unique_type(new types::function_type(
 						types::unique_type(new types::product_type()), types::unique_type(new types::i32())
 					)));
 					re.set_value("get", values::unique_value(new values::native_function(
@@ -30,7 +29,7 @@ namespace fe
 					)));
 				}
 
-				return { te, re, resolution::scope_environment(se) };
+				return scope(re, te, se);
 			}
 		}
 	}

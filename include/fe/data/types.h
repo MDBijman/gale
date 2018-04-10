@@ -3,6 +3,7 @@
 #include <variant>
 #include <memory>
 #include <optional>
+#include <assert.h>
 
 namespace fe
 {
@@ -83,6 +84,7 @@ namespace fe
 			case atom_type::ANY:    return "any";      break;
 			case atom_type::VOID:   return "void";     break;
 			}
+			assert(!"Unknown atom type");
 		};
 
 		template<atom_type Type>
