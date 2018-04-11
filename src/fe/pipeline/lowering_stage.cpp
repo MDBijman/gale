@@ -300,23 +300,21 @@ namespace fe::ext_ast
 		auto param_tuple = core_ast::unique_node(new core_ast::tuple(std::move(params),
 			types::unique_type(new types::unset())));
 
+		std::string function_name;
 		switch (n.kind)
 		{
-		case node_type::ADDITION:
-			return new core_ast::function_call(
-				core_ast::identifier({ "_core" }, "add", {}, 0),
-				std::move(param_tuple), types::unique_type(new types::unset())
-			);
-			break;
-		case node_type::EQUALITY:
-			return new core_ast::function_call(
-				core_ast::identifier({ "_core" }, "eq", {}, 0),
-				std::move(param_tuple), types::unique_type(new types::unset())
-			);
-			break;
-		default:
-			throw std::runtime_error("Node type not implemented");
+		case node_type::ADDITION:      function_name = "add";  break;
+		case node_type::EQUALITY:      function_name = "eq";   break;
+		case node_type::GREATER_OR_EQ: function_name = "gte";  break;
+		case node_type::GREATER_THAN:  function_name = "gt";   break;
+		case node_type::LESS_OR_EQ:    function_name = "lte";  break;
+		case node_type::LESS_THAN:     function_name = "lt";   break;
+		default: throw std::runtime_error("Node type not implemented");
 		}
+		return new core_ast::function_call(
+			core_ast::identifier({ "_core" }, function_name, {}, 0),
+			std::move(param_tuple), types::unique_type(new types::unset())
+		);
 	}
 
 	core_ast::node* lower(node& n, ast& ast)
