@@ -34,27 +34,26 @@ namespace fe
 		// Identifier
 
 		identifier::identifier(std::vector<std::string> modules, std::string name, std::vector<int> offsets,
-			std::size_t depth, types::unique_type t) :
+			std::size_t depth) :
 			modules(std::move(modules)), variable_name(std::move(name)),
-			offsets(std::move(offsets)), type(std::move(t)), scope_depth(depth) {}
+			offsets(std::move(offsets)), scope_depth(depth) {}
 
 		identifier::identifier(const identifier& other) :
 			modules(other.modules), variable_name(other.variable_name),
-			offsets(other.offsets), type(other.type->copy()), scope_depth(other.scope_depth) {}
+			offsets(other.offsets), scope_depth(other.scope_depth) {}
 
 		identifier& identifier::operator=(const identifier& other)
 		{
 			this->modules = other.modules;
 			this->variable_name = other.variable_name;
 			this->offsets = other.offsets;
-			this->type = types::unique_type(other.type->copy());
 			this->scope_depth = other.scope_depth;
 			return *this;
 		}
 
 		identifier::identifier(identifier&& other) :
 			modules(std::move(other.modules)), variable_name(std::move(other.variable_name)),
-			offsets(std::move(other.offsets)), type(std::move(other.type)), scope_depth(std::move(other.scope_depth))
+			offsets(std::move(other.offsets)), scope_depth(std::move(other.scope_depth))
 		{}
 
 		identifier& identifier::operator=(identifier&& other)
@@ -62,7 +61,6 @@ namespace fe
 			this->modules = std::move(other.modules);
 			this->variable_name = std::move(other.variable_name);
 			this->offsets = std::move(other.offsets);
-			this->type = std::move(other.type);
 			this->scope_depth = std::move(other.scope_depth);
 			return *this;
 		}
@@ -267,7 +265,8 @@ namespace fe
 			{
 				res = block_node->interp(env);
 			}
-			env.pop();
+			// Only pop if this is not the root block
+			if(env.depth() > 1) env.pop();
 			return res;
 		}
 
@@ -378,18 +377,15 @@ namespace fe
 
 			for (auto& path : paths)
 			{
-				env.push();
 				auto test_res = path.first->interp(env);
 				auto res_bool = dynamic_cast<values::boolean*>(test_res.get());
 
 				if (res_bool->val)
 				{
 					auto res = path.second->interp(env);
-					env.pop();
 					return res;
 				}
 
-				env.pop();
 			}
 
 			return values::unique_value(new values::void_value());

@@ -147,13 +147,13 @@
     <ClCompile Include="src\tests\fe\destructuring_tests.cpp" />
     <ClCompile Include="src\tests\fe\name_resolution_tests.cpp" />
     <ClCompile Include="src\tests\fe\while_tests.cpp" />
-    <ClCompile Include="src\tests\tools\grammar_tests.cpp" />
-    <ClCompile Include="src\tests\tools\lr_tests.cpp" />
-    <ClCompile Include="src\tests\tools\performance_tests.cpp" />
-    <ClCompile Include="src\tools\bnf_grammar.cpp" />
-    <ClCompile Include="src\tools\lr_parser.cpp" />
-    <ClCompile Include="src\tools\ll_parser.cpp" />
-    <ClCompile Include="src\tools\reader.cpp" />
+    <ClCompile Include="src\tests\utils\grammar_tests.cpp" />
+    <ClCompile Include="src\tests\utils\lr_tests.cpp" />
+    <ClCompile Include="src\tests\utils\performance_tests.cpp" />
+    <ClCompile Include="src\utils\parsing\bnf_grammar.cpp" />
+    <ClCompile Include="src\utils\parsing\ll_parser.cpp" />
+    <ClCompile Include="src\utils\parsing\lr_parser.cpp" />
+    <ClCompile Include="src\utils\reading\reader.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\fe\data\core_ast.h" />
@@ -183,6 +183,7 @@
     <ClInclude Include="include\fe\pipeline\pipeline.h" />
     <ClInclude Include="include\fe\pipeline\resolution_stage.h" />
     <ClInclude Include="include\fe\pipeline\typechecker_stage.h" />
+    <ClInclude Include="include\tests\test_utils.h" />
     <ClInclude Include="include\utils\lexing\lexer.h" />
     <ClInclude Include="include\utils\parsing\bnf_grammar.h" />
     <ClInclude Include="include\utils\parsing\bnf_parser.h" />

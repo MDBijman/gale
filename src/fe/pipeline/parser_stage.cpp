@@ -59,6 +59,7 @@ namespace fe
 			item = parser.new_non_terminal();
 			stmt_semicln = parser.new_non_terminal();
 			block_elements = parser.new_non_terminal();
+			block_result = parser.new_non_terminal();
 		}
 
 		{
@@ -194,7 +195,8 @@ namespace fe
 				left_bracket, operation, comma, operation, lrb, comma, operation, rrb, star, right_bracket
 			} })
 			.new_rule({ block, { left_curly_bracket, block_elements, right_curly_bracket } })
-			.new_rule({ block_elements, { statement, semicolon, block_elements, alt, lsb, expression, rsb } })
+			.new_rule({ block_elements, { statement, semicolon, block_elements, alt, lsb, block_result, rsb } })
+			.new_rule({ block_result, { expression } })
 			.new_rule({ array_value, { left_square_bracket, operation, lrb, comma, operation, rrb, star, right_square_bracket } })
 			.new_rule({ if_expr, { if_keyword, left_bracket, operation, right_bracket, block } })
 

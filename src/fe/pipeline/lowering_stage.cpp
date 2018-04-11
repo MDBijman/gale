@@ -43,6 +43,14 @@ namespace fe::ext_ast
 		return new core_ast::block(std::move(children), types::unique_type(new types::unset()));
 	}
 
+	core_ast::node* lower_block_result(node& n, ast& ast)
+	{
+		assert(n.kind == node_type::BLOCK_RESULT);
+		assert(n.children.size() == 1);
+		auto& child = ast.get_node(n.children[0]);
+		return lower(child, ast);
+	}
+
 	core_ast::node* lower_function(node& n, ast& ast)
 	{
 		assert(n.kind == node_type::FUNCTION);
@@ -148,13 +156,15 @@ namespace fe::ext_ast
 			identifier.segments.begin(), 
 			identifier.segments.end() - 1 
 			);
+		// If the scope distance is not defined then this id is the lhs of a declaration
+		auto scope_distance = identifier.scope_distance ? *identifier.scope_distance : 0;
+
 
 		return new core_ast::identifier{
 			std::move(modules),
 			std::move(identifier.segments.at(modules.size())),
 			{},
-			0,
-			types::unique_type(new types::unset())
+			*identifier.scope_distance
 		};
 	}
 
@@ -280,25 +290,31 @@ namespace fe::ext_ast
 
 	core_ast::node* lower_binary_op(node& n, ast& ast)
 	{
-		assert(std::find(binary_ops.begin(), binary_ops.end(), n.kind) != binary_ops.end());
+		assert(ext_ast::is_binary_op(n.kind));
 		assert(n.children.size() == 2);
 
-		if (n.kind == node_type::ADDITION)
+		std::vector<core_ast::unique_node> params;
+		for (auto child : n.children)
+			params.push_back(core_ast::unique_node(lower(ast.get_node(child), ast)));
+
+		auto param_tuple = core_ast::unique_node(new core_ast::tuple(std::move(params),
+			types::unique_type(new types::unset())));
+
+		switch (n.kind)
 		{
-			std::vector<core_ast::unique_node> params;
-			for (auto child : n.children)
-				params.push_back(core_ast::unique_node(lower(ast.get_node(child), ast)));
-
-			auto param_tuple = core_ast::unique_node(new core_ast::tuple(std::move(params), 
-				types::unique_type(new types::unset())));
-
+		case node_type::ADDITION:
 			return new core_ast::function_call(
-				core_ast::identifier({ "_core" }, "add", {}, 0, types::unique_type(new types::i64())),
+				core_ast::identifier({ "_core" }, "add", {}, 0),
 				std::move(param_tuple), types::unique_type(new types::unset())
 			);
-		}
-		else
-		{
+			break;
+		case node_type::EQUALITY:
+			return new core_ast::function_call(
+				core_ast::identifier({ "_core" }, "eq", {}, 0),
+				std::move(param_tuple), types::unique_type(new types::unset())
+			);
+			break;
+		default:
 			throw std::runtime_error("Node type not implemented");
 		}
 	}
@@ -310,6 +326,7 @@ namespace fe::ext_ast
 		case node_type::ASSIGNMENT:         return lower_assignment(n, ast);           break;
 		case node_type::TUPLE:              return lower_tuple(n, ast);                break;
 		case node_type::BLOCK:              return lower_block(n, ast);                break;
+		case node_type::BLOCK_RESULT:       return lower_block_result(n, ast);         break;
 		case node_type::FUNCTION:           return lower_function(n, ast);             break;
 		case node_type::WHILE_LOOP:         return lower_while_loop(n, ast);           break;
 		case node_type::IF_STATEMENT:       return lower_if_statement(n, ast);         break;
@@ -328,18 +345,11 @@ namespace fe::ext_ast
 		case node_type::TYPE_ATOM:          return lower_type_atom(n, ast);            break;
 		case node_type::REFERENCE:          return lower_reference(n, ast);            break;
 		case node_type::ARRAY_VALUE:        return lower_array_value(n, ast);          break;
-		default: 
-		{
-			if (std::find(binary_ops.begin(), binary_ops.end(), n.kind) != binary_ops.end())
-			{
-				return lower_binary_op(n, ast);
-			}
-			else
-			{
-				assert(!"Node type not lowerable");
-				throw std::runtime_error("Fatal Error - Node type not lowerable");
-			}
-		}
+		default:
+			if (ext_ast::is_binary_op(n.kind)) return lower_binary_op(n, ast);
+
+			assert(!"Node type not lowerable");
+			throw std::runtime_error("Fatal Error - Node type not lowerable");
 		}
 	}
 }
