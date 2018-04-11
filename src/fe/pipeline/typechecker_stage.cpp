@@ -91,23 +91,38 @@ namespace fe::ext_ast
 	types::unique_type typeof_block(node& n, ast& ast)
 	{
 		assert(n.kind == node_type::BLOCK);
-
+		if (n.parent_id)
+			n.type_scope_id = ast.create_type_scope(*ast.get_node(*n.parent_id).type_scope_id);
 		if (n.children.size() == 0) return types::unique_type(new types::voidt());
 
+		// Typecheck all children except for the last one, which might be a return value
 		for (auto i = 0; i < n.children.size() - 1; i++)
 		{
 			auto& elem_node = ast.get_node(i);
 			typecheck(elem_node, ast);
 		}
 
-		auto last_id = *n.children.rbegin();
-		auto& last_node = ast.get_node(last_id);
-
-		if (n.children.size() > 0)
+		auto& last_node = ast.get_node(*n.children.rbegin());
+		if (last_node.kind == node_type::BLOCK_RESULT)
 		{
-			// #todo return voidt if last child is a statement
+			// Block with return value
 			return typeof(last_node, ast);
 		}
+		else
+		{
+			// Block with only statements
+			typecheck(last_node, ast);
+			return types::unique_type(new types::voidt());
+		}
+	}
+
+	types::unique_type typeof_block_result(node& n, ast& ast)
+	{
+		assert(n.kind == node_type::BLOCK_RESULT);
+		assert(n.children.size() == 1);
+		copy_parent_scope(n, ast);
+		auto& child = ast.get_node(n.children[0]);
+		return typeof(child, ast);
 	}
 
 	types::unique_type typeof_type_atom(node& n, ast& ast)
@@ -146,26 +161,42 @@ namespace fe::ext_ast
 
 	types::unique_type typeof_binary_op(node& n, ast& ast)
 	{
-		assert(std::find(binary_ops.begin(), binary_ops.end(), n.kind) != binary_ops.end());
+		assert(ext_ast::is_binary_op(n.kind));
 		assert(n.children.size() == 2);
 		copy_parent_scope(n, ast);
 
-		if (n.kind == node_type::ADDITION)
-		{
-			auto& lhs_node = ast.get_node(n.children[0]);
-			auto& rhs_node = ast.get_node(n.children[1]);
-			
-			auto lhs_type = typeof(lhs_node, ast);
-			auto rhs_type = typeof(rhs_node, ast);
+		auto& lhs_node = ast.get_node(n.children[0]);
+		auto& rhs_node = ast.get_node(n.children[1]);
 
+		auto lhs_type = typeof(lhs_node, ast);
+		auto rhs_type = typeof(rhs_node, ast);
+
+		switch (n.kind)
+		{
+		case node_type::ADDITION:
+		case node_type::SUBTRACTION:
+		case node_type::MULTIPLICATION:
+		case node_type::DIVISION:
+		case node_type::MODULO:
+		{
 			assert(*lhs_type == &types::i64());
 			assert(*rhs_type == &types::i64());
 
 			return types::unique_type(new types::i64());
 		}
-		else
+		case node_type::EQUALITY:
+		case node_type::GREATER_OR_EQ:
+		case node_type::GREATER_THAN:
+		case node_type::LESS_OR_EQ:
+		case node_type::LESS_THAN:
 		{
-			throw std::runtime_error("Binary op not implemented");
+			assert(*lhs_type == &types::i64());
+			assert(*rhs_type == &types::i64());
+
+			return types::unique_type(new types::boolean());
+		}
+		default:
+			throw std::runtime_error("Typeof for binary op not implemented");
 		}
 	}
 
@@ -237,7 +268,6 @@ namespace fe::ext_ast
 		}
 	}
 
-
 	void typecheck_tuple_declaration(node& n, ast& ast)
 	{
 		assert(n.kind == node_type::TUPLE_DECLARATION);
@@ -305,7 +335,7 @@ namespace fe::ext_ast
 		assert(id_node.data_index);
 		auto& id_data = ast.get_data<identifier>(*id_node.data_index);
 		assert(id_data.segments.size() == 1);
-		
+
 		auto& type_node = ast.get_node(n.children[1]);
 		assert(type_node.data_index);
 		auto& type_id_data = ast.get_data<identifier>(*type_node.data_index);
@@ -327,11 +357,21 @@ namespace fe::ext_ast
 		assert(n.kind == node_type::ASSIGNMENT);
 		// id value
 		assert(n.children.size() == 2);
+		copy_parent_scope(n, ast);
 
-		auto& value_node = ast.get_node(n.children[0]);
-		typecheck(value_node, ast);
-		// #todo check if value type is same as typeof id
-		// #todo set this type to void
+		auto& scope = ast.get_type_scope(*n.type_scope_id);
+
+		auto& id_node = ast.get_node(n.children[0]);
+		assert(id_node.data_index);
+		auto& id_data = ast.get_data<identifier>(*id_node.data_index);
+		auto res = scope.resolve_variable(id_data);
+		assert(res);
+		auto& id_type = res->type;
+
+		auto& value_node = ast.get_node(n.children[1]);
+		auto value_type = typeof(value_node, ast);
+
+		assert(id_type == &*value_type);
 	}
 
 	// Type expressions
@@ -433,13 +473,15 @@ namespace fe::ext_ast
 		assert(n.kind == node_type::IF_STATEMENT);
 		// test body
 		assert(n.children.size() == 2);
+		copy_parent_scope(n, ast);
 
 		auto& test_node = ast.get_node(n.children[0]);
-		typecheck(test_node, ast);
+		auto& test_node_type = typeof(test_node, ast);
 
 		auto& body_node = ast.get_node(n.children[1]);
-		typecheck(body_node, ast);
+		auto& body_node_type = typeof(body_node, ast);
 
+		assert(*test_node_type == &types::boolean());
 		// #todo check test type is boolean and set this type to body type
 	}
 
@@ -487,20 +529,14 @@ namespace fe::ext_ast
 		case node_type::TUPLE:             return typeof_tuple(n, ast);
 		case node_type::FUNCTION_CALL:     return typeof_function_call(n, ast);
 		case node_type::BLOCK:             return typeof_block(n, ast);
+		case node_type::BLOCK_RESULT:      return typeof_block_result(n, ast);
 		case node_type::TYPE_ATOM:         return typeof_type_atom(n, ast);
 		case node_type::ATOM_DECLARATION:  return typeof_atom_declaration(n, ast);
-		default: 
-		{
-			if(std::find(binary_ops.begin(), binary_ops.end(), n.kind) != binary_ops.end())
-			{
-				return typeof_binary_op(n, ast);
-			}
-			else
-			{
-				assert(!"This node cannot be typeofed");
-				std::runtime_error("Node cannot be typeofed");
-			}
-		}
+		default:
+			if (ext_ast::is_binary_op(n.kind)) return typeof_binary_op(n, ast);
+
+			assert(!"This node cannot be typeofed");
+			throw std::runtime_error("Node cannot be typeofed");
 		}
 	}
 }

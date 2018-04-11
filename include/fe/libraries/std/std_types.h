@@ -12,6 +12,7 @@ namespace fe
 			static scope load()
 			{
 				runtime_environment r{};
+				r.push();
 				ext_ast::type_scope t{};
 				ext_ast::name_scope s{};
 

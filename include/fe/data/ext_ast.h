@@ -18,6 +18,7 @@ namespace fe::ext_ast
 		ASSIGNMENT,
 		TUPLE,
 		BLOCK,
+		BLOCK_RESULT,
 		FUNCTION,
 		WHILE_LOOP,
 		IF_STATEMENT,
@@ -63,11 +64,19 @@ namespace fe::ext_ast
 		LESS_OR_EQ,
 	};
 
-	const auto binary_ops = { 
-		node_type::ADDITION, node_type::SUBTRACTION, 
-		node_type::MULTIPLICATION, node_type::DIVISION,
-		node_type::MODULO
-	};
+	constexpr bool is_binary_op(node_type kind)
+	{
+		return (kind == node_type::ADDITION
+			|| kind == node_type::SUBTRACTION
+			|| kind == node_type::MULTIPLICATION
+			|| kind == node_type::DIVISION
+			|| kind == node_type::MODULO
+			|| kind == node_type::EQUALITY
+			|| kind == node_type::GREATER_OR_EQ
+			|| kind == node_type::GREATER_THAN
+			|| kind == node_type::LESS_OR_EQ
+			|| kind == node_type::LESS_THAN);
+	}
 
 	/*
 	* The index of a piece of data in a data store. Each node type that contains data has its own data type

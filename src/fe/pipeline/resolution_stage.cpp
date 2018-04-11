@@ -20,8 +20,16 @@ namespace fe::ext_ast
 		assert(n.children.size() == 2);
 		copy_parent_scope(n, ast);
 
-		for (auto child : n.children)
-			resolve(ast.get_node(child), ast);
+		auto& lhs_node = ast.get_node(n.children[0]);
+		assert(lhs_node.data_index);
+		auto& lhs_data = ast.get_data<identifier>(*lhs_node.data_index);
+		auto& scope = ast.get_name_scope(*n.name_scope_id);
+		auto res = scope.resolve_variable(lhs_data);
+		assert(res);
+		lhs_data.scope_distance = res->scope_distance;
+
+		auto& value_node = ast.get_node(n.children[1]);
+		resolve(value_node, ast);
 	}
 
 	void resolve_tuple(node& n, ast& ast)
@@ -47,6 +55,15 @@ namespace fe::ext_ast
 
 		for (auto child : n.children)
 			resolve(ast.get_node(child), ast);
+	}
+
+	void resolve_block_result(node& n, ast& ast)
+	{
+		assert(n.kind == node_type::BLOCK_RESULT);
+		assert(n.children.size() == 1);
+		copy_parent_scope(n, ast);
+		auto& child = ast.get_node(n.children[0]);
+		resolve(child, ast);
 	}
 
 	// #todo make this regular resolve?
@@ -265,10 +282,9 @@ namespace fe::ext_ast
 		resolve(child_node, ast);
 	}
 
-
 	void resolve_binary_op(node& n, ast& ast)
 	{
-		assert(std::find(binary_ops.begin(), binary_ops.end(), n.kind) != binary_ops.end());
+		assert(ext_ast::is_binary_op(n.kind));
 		assert(n.children.size() == 2);
 		copy_parent_scope(n, ast);
 
@@ -285,6 +301,7 @@ namespace fe::ext_ast
 		case node_type::ASSIGNMENT:        resolve_assignment(n, ast);       break;
 		case node_type::TUPLE:             resolve_tuple(n, ast);            break;
 		case node_type::BLOCK:             resolve_block(n, ast);            break;
+		case node_type::BLOCK_RESULT:      resolve_block_result(n, ast);     break;
 		case node_type::FUNCTION:          resolve_function(n, ast);         break;
 		case node_type::WHILE_LOOP:        resolve_while_loop(n, ast);       break;
 		case node_type::IF_STATEMENT:      resolve_if_statement(n, ast);     break;
@@ -303,15 +320,10 @@ namespace fe::ext_ast
 		case node_type::MODULE_DECLARATION: break;
 		case node_type::IMPORT_DECLARATION: break;
 		default:
-		{
-			if (std::find(binary_ops.begin(), binary_ops.end(), n.kind) != binary_ops.end())
-				resolve_binary_op(n, ast);
-			else
-			{
-				assert(!"Node type not resolvable");
-				throw std::runtime_error("Node type not resolvable");
-			}
-		}
+			if (ext_ast::is_binary_op(n.kind)) { resolve_binary_op(n, ast); return; }
+
+			assert(!"Node type not resolvable");
+			throw std::runtime_error("Node type not resolvable");
 		}
 	}
 }

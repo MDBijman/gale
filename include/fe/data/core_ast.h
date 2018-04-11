@@ -78,7 +78,7 @@ namespace fe
 		struct identifier : public node
 		{
 			identifier(std::vector<std::string> module_names, std::string variables, std::vector<int> offset,
-				std::size_t depth, types::unique_type t);
+				size_t depth = std::numeric_limits<size_t>::max());
 
 			// Copy
 			identifier(const identifier& other);
@@ -101,16 +101,14 @@ namespace fe
 						std::vector<std::string>{modules.begin() + 1, modules.end()},
 						std::string(variable_name),
 						std::vector<int>(offsets),
-						scope_depth,
-						types::unique_type(type->copy())
+						scope_depth
 					);
 			}
 
 			std::vector<std::string> modules;
 			std::string variable_name;
 			std::vector<int> offsets;
-			types::unique_type type;
-			std::size_t scope_depth;
+			size_t scope_depth;
 		};
 
 		struct identifier_tuple

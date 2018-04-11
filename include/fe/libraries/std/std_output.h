@@ -7,6 +7,7 @@ namespace fe::stdlib::output
 	{
 		ext_ast::name_scope se;
 		runtime_environment re;
+		re.push();
 		ext_ast::type_scope te;
 
 		using namespace values;
