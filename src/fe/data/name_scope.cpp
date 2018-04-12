@@ -58,7 +58,8 @@ namespace fe::ext_ast
 
 	std::optional<name_scope::var_lookup> name_scope::resolve_variable(const identifier& module, const name& var) const
 	{
-		assert(module.segments.size() > 0);
+		if (module.segments.size() == 0) return this->resolve_variable(var);
+
 		if (auto mod_pos = modules.find(module); mod_pos != modules.end())
 		{
 			return mod_pos->second->resolve_variable(var);
