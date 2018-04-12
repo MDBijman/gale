@@ -6,4 +6,4 @@ type Pair = (std.i64 a, Nested m);
 
 var x: Pair = Pair (1, Nested (3, 4));
 var z: std.i64 = x.m.x;
-std.io.print std.io.to_string z;
+std.io.print std.to_string z;

@@ -239,34 +239,38 @@ namespace fe::ext_ast
 
 		assert(n.data_index);
 		auto& id_data = ast.get_data<identifier>(*n.data_index);
-		auto& name = id_data.segments[0];
-		identifier fields = id_data.without_first_segment();
+		for (auto i = 0; i < id_data.segments.size(); i++)
+		{
+			identifier module(std::vector<std::string>(id_data.segments.begin(), id_data.segments.begin() + i));
+			std::string name = *(id_data.segments.begin() + i);
+			identifier fields(std::vector<std::string>(id_data.segments.begin() + i + 1, id_data.segments.end()));
 
-		if (auto resolved_as_var = scope.resolve_variable(name); resolved_as_var)
-		{
-			id_data.scope_distance = resolved_as_var->scope_distance;
-			if (id_data.segments.size() > 1)
+			if (auto resolved_as_var = scope.resolve_variable(module, name); resolved_as_var)
 			{
-				assert(resolved_as_var->type_node);
-				auto& type_node = ast.get_node(*resolved_as_var->type_node);
-				id_data.offsets = resolve_field(type_node, ast, fields).value();
+				id_data.scope_distance = resolved_as_var->scope_distance;
+				if (fields.segments.size() > 1)
+				{
+					assert(resolved_as_var->type_node);
+					auto& type_node = ast.get_node(*resolved_as_var->type_node);
+					id_data.offsets = resolve_field(type_node, ast, fields).value();
+				}
+				else
+				{
+					id_data.offsets = {};
+				}
+				return;
 			}
-			else
+			else if (auto resolved_as_type = scope.resolve_type(module, name); resolved_as_type)
 			{
+				id_data.scope_distance = resolved_as_type->scope_distance;
+				// You cannot reference a field within a type as a type name
+				assert(id_data.segments.size() == 1);
 				id_data.offsets = {};
+				return;
 			}
 		}
-		else if (auto resolved_as_type = scope.resolve_type(name); resolved_as_type)
-		{
-			id_data.scope_distance = resolved_as_type->scope_distance;
-			// You cannot reference a field within a type as a type name
-			assert(id_data.segments.size() == 1);
-			id_data.offsets = {};
-		}
-		else
-		{
-			throw fe::resolution_error{ std::string("Unknown identifier: ").append(id_data) };
-		}
+
+		throw resolution_error{ std::string("Unknown identifier: ").append(id_data) };
 	}
 
 	void resolve_function_call(node& n, ast& ast)
