@@ -34,6 +34,8 @@ namespace fe::ext_ast
 		// Parent scope
 		std::optional<type_scope*> parent;
 
+		types::type& resolve_offsets(const std::vector<size_t>& offsets, types::type* t, size_t cur = 0);
+
 	public:
 		type_scope() {}
 		type_scope(type_scope* p) : parent(p) {}
