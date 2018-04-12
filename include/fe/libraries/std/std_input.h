@@ -18,16 +18,15 @@ namespace fe
 				ext_ast::type_scope te{};
 
 				{
+					using namespace values;
+					using namespace types;
 					se.declare_variable("get");
 					se.define_variable("get");
-					te.set_type("get", types::unique_type(new types::function_type(
-						types::unique_type(new types::product_type()), types::unique_type(new types::i32())
-					)));
-					re.set_value("get", values::unique_value(new values::native_function(
-						[](values::unique_value t) -> values::unique_value {
-							return values::unique_value(new values::i32(std::cin.get()));
-						}
-					)));
+					te.set_type("get", unique_type(
+						new function_type(unique_type(new product_type()), unique_type(new types::i32()))));
+					re.set_value("get", unique_value(new native_function([](unique_value t) -> unique_value {
+						return unique_value(new values::i32(std::cin.get()));
+					})));
 				}
 
 				return scope(re, te, se);
