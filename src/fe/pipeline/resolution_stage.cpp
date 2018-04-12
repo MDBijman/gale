@@ -265,7 +265,7 @@ namespace fe::ext_ast
 		}
 		else
 		{
-			throw fe::resolution_error{ "Unknown identifier" };
+			throw fe::resolution_error{ std::string("Unknown identifier: ").append(id_data) };
 		}
 	}
 

@@ -39,6 +39,15 @@ namespace fe::ext_ast
 				std::vector<size_t>(offsets.begin(), end) 
 			);
 		}
+
+		operator std::string() const
+		{
+			std::string o;
+			for(auto i = 0; i < segments.size() - 1; i++)
+				o += segments.at(i) + ".";
+			o += *segments.rbegin();
+			return o;
+		}
 	};
 
 	inline bool operator==(const identifier& a, const identifier& b)
