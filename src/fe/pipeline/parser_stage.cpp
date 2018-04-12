@@ -207,11 +207,11 @@ namespace fe
 				atom_variable_declaration
 			} })
 
-			.new_rule({ atom_variable_declaration, { type_operation, identifier } })
 			.new_rule({ tuple_variable_declaration, {
 				left_bracket, right_bracket, alt,
-				left_bracket, variable_declaration, comma, variable_declaration, lrb, comma, variable_declaration, rrb, star, right_bracket
+				left_bracket, atom_variable_declaration, comma, atom_variable_declaration, lrb, comma, atom_variable_declaration, rrb, star, right_bracket
 			} })
+			.new_rule({ atom_variable_declaration, { type_operation, identifier } })
 
 			// Type Expressions
 

@@ -15,10 +15,8 @@ namespace fe::ext_ast
 		auto& value_node = ast.get_node(n.children[1]);
 		core_ast::unique_node value = core_ast::unique_node(lower(value_node, ast));
 
-		return new core_ast::set(
-			*dynamic_cast<core_ast::identifier*>(lhs.get()), false,
-			std::move(value), types::unique_type(new types::unset())
-		);
+		return new core_ast::set(*dynamic_cast<core_ast::identifier*>(lhs.get()), false,
+			std::move(value));
 	}
 
 	core_ast::node* lower_tuple(node& n, ast& ast)
@@ -29,7 +27,7 @@ namespace fe::ext_ast
 		{
 			children.push_back(core_ast::unique_node(lower(ast.get_node(child), ast)));
 		}
-		return new core_ast::tuple(std::move(children), types::unique_type(new types::unset()));
+		return new core_ast::tuple(std::move(children));
 	}
 
 	core_ast::node* lower_block(node& n, ast& ast)
@@ -40,7 +38,7 @@ namespace fe::ext_ast
 		{
 			children.push_back(core_ast::unique_node(lower(ast.get_node(child), ast)));
 		}
-		return new core_ast::block(std::move(children), types::unique_type(new types::unset()));
+		return new core_ast::block(std::move(children));
 	}
 
 	core_ast::node* lower_block_result(node& n, ast& ast)
@@ -93,8 +91,7 @@ namespace fe::ext_ast
 		return new core_ast::function(
 			std::move(*dynamic_cast<core_ast::identifier*>(core_ast::unique_node(lower(id_node, ast)).get())),
 			std::move(parameters),
-			core_ast::unique_node(lower(body_node, ast)),
-			types::unique_type(new types::unset())
+			core_ast::unique_node(lower(body_node, ast))
 		);
 	}
 
@@ -108,8 +105,7 @@ namespace fe::ext_ast
 
 		return new core_ast::while_loop(
 			core_ast::unique_node(lower(test_node, ast)),
-			core_ast::unique_node(lower(body_node, ast)),
-			types::unset()
+			core_ast::unique_node(lower(body_node, ast))
 		);
 	}
 
@@ -154,16 +150,15 @@ namespace fe::ext_ast
 		auto& identifier = ast.get_data<ext_ast::identifier>(n.data_index.value());
 		auto modules = std::vector<std::string>(
 			identifier.segments.begin(), 
-			identifier.segments.end() - 1 
+			identifier.segments.end() - 1 - identifier.offsets.size()
 			);
 		// If the scope distance is not defined then this id is the lhs of a declaration
 		auto scope_distance = identifier.scope_distance ? *identifier.scope_distance : 0;
 
-
 		return new core_ast::identifier{
 			std::move(modules),
 			std::move(identifier.segments.at(modules.size())),
-			{},
+			identifier.offsets,
 			*identifier.scope_distance
 		};
 	}
@@ -200,11 +195,8 @@ namespace fe::ext_ast
 		auto& param_node = ast.get_node(n.children[1]);
 		auto lowered_param = core_ast::unique_node(lower(param_node, ast));
 
-		return new core_ast::function_call(
-			*static_cast<core_ast::identifier*>(lowered_id.get()),
-			std::move(lowered_param),
-			types::unique_type(new types::unset())
-		);
+		return new core_ast::function_call(*static_cast<core_ast::identifier*>(lowered_id.get()),
+			std::move(lowered_param));
 	}
 
 	core_ast::node* lower_module_declaration(node& n, ast& ast)
@@ -244,10 +236,8 @@ namespace fe::ext_ast
 		auto lowered_rhs = core_ast::unique_node(lower(rhs_node, ast));
 		// #todo return core_ast::set
 
-		return new core_ast::set(
-			*dynamic_cast<core_ast::identifier*>(lowered_lhs.get()), true,
-			std::move(lowered_rhs), types::unique_type(type->type.copy())
-		);
+		return new core_ast::set(*dynamic_cast<core_ast::identifier*>(lowered_lhs.get()), true,
+			std::move(lowered_rhs));
 	}
 
 	core_ast::node* lower_tuple_declaration(node& n, ast& ast)
@@ -257,8 +247,22 @@ namespace fe::ext_ast
 
 	core_ast::node* lower_type_definition(node& n, ast& ast)
 	{
+		assert(n.kind == node_type::TYPE_DEFINITION);
+		assert(n.children.size() == 2);
+
+		auto& id_node = ast.get_node(n.children[0]);
+		auto lhs = core_ast::unique_node(lower(id_node, ast));
+		auto function_name = core_ast::unique_node(lhs->copy());
 		// #todo return core_ast::set with constructor
-		return new core_ast::no_op();
+
+		auto parameter = core_ast::identifier({}, { "_arg0" }, {}, 0);
+		auto return_statement = core_ast::unique_node(new core_ast::identifier({}, { "_arg0" }, {}, 0));
+		return new core_ast::set(
+			 *static_cast<core_ast::identifier*>(lhs.get()), true,
+			core_ast::unique_node(new core_ast::function(
+				std::move(*static_cast<core_ast::identifier*>(function_name.get())),
+				std::move(parameter), std::move(return_statement)))
+		);
 	}
 
 	core_ast::node* lower_type_atom(node& n, ast& ast)
@@ -285,7 +289,7 @@ namespace fe::ext_ast
 			children.push_back(core_ast::unique_node(lower(ast.get_node(child), ast)));
 		}
 
-		return new core_ast::tuple(std::move(children), types::unset());
+		return new core_ast::tuple(std::move(children));
 	}
 
 	core_ast::node* lower_binary_op(node& n, ast& ast)
@@ -297,8 +301,7 @@ namespace fe::ext_ast
 		for (auto child : n.children)
 			params.push_back(core_ast::unique_node(lower(ast.get_node(child), ast)));
 
-		auto param_tuple = core_ast::unique_node(new core_ast::tuple(std::move(params),
-			types::unique_type(new types::unset())));
+		auto param_tuple = core_ast::unique_node(new core_ast::tuple(std::move(params)));
 
 		std::string function_name;
 		switch (n.kind)
@@ -311,10 +314,8 @@ namespace fe::ext_ast
 		case node_type::LESS_THAN:     function_name = "lt";   break;
 		default: throw std::runtime_error("Node type not implemented");
 		}
-		return new core_ast::function_call(
-			core_ast::identifier({ "_core" }, function_name, {}, 0),
-			std::move(param_tuple), types::unique_type(new types::unset())
-		);
+		return new core_ast::function_call(core_ast::identifier({ "_core" }, function_name, {}, 0), 
+			std::move(param_tuple));
 	}
 
 	core_ast::node* lower(node& n, ast& ast)

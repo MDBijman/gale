@@ -1,10 +1,9 @@
 module name_resolution_tests
 import [std std.io]
 
-fn foo std.i64 a -> std.i64 = a;
+type Nested = (std.i64 x, std.i64 y);
+type Pair = (std.i64 a, Nested m);
 
-var x : std.i64 = 4;
-foo x;
-
-var y : std.i64 = x + 2;
-std.io.print "asd";
+var x: Pair = Pair (1, Nested (3, 4));
+var z: std.i64 = x.m.x;
+std.io.print std.io.to_string z;

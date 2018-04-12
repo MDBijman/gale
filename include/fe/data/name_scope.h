@@ -9,50 +9,27 @@ namespace fe::ext_ast
 {
 	using name = std::string;
 
-	struct field
-	{
-		field(name n, std::vector<field> fields);
-
-		std::optional<std::vector<int64_t>> resolve(const identifier& id) const;
-
-		name id;
-		std::vector<field> fields;
-
-		bool operator==(const field& o)
-		{
-			if (id != o.id) return false;
-
-			if (fields.size() != o.fields.size()) return false;
-			for (auto i = 0; i < fields.size(); i++)
-			{
-				if (!(fields[i] == o.fields[i])) return false;
-			}
-
-			return true;
-		}
-	};
-}
-
-namespace fe::ext_ast
-{
 	class name_scope
 	{
 		struct type_lookup
 		{
 			std::size_t scope_distance;
-			field type_structure;
+			node_id type_node;
 		};
 
 		struct var_lookup
 		{
 			std::size_t scope_distance;
+			std::optional<node_id> type_node;
 		};
 
 		/*
 		* The identifiers in a scope are all named variables that can be referenced from within that scope.
 		* The name of the type is also stored, for resolving nested field references later.
 		*/
-		std::unordered_map<name, bool> variables;
+		std::unordered_map<name, std::pair<node_id, bool>> variables;
+
+		std::unordered_map<name, bool> opaque_variables;
 
 		/*
 		* The nested types in a scope include all type declarations that contain a named variable within it
@@ -69,13 +46,14 @@ namespace fe::ext_ast
 		* encounters the Pair type definition, it adds the nested names a and b to this map. When the variable x is
 		* defined, 'Pair' is found in this map, causing x.a and x.b to be added to the scope.
 		*/
-		std::unordered_map<name, field> types;
+		std::unordered_map<name, node_id> types;
 
 		std::unordered_map<identifier, name_scope*> modules;
 
 		// Parent scope
 		std::optional<name_scope*> parent;
 
+		
 	public:
 		/*
 		* Adds all variables, types, and modules to this scope.
@@ -92,7 +70,14 @@ namespace fe::ext_ast
 		// Variable names
 
 		/*
-		* Declares the variable with the given name within this scope. The variable will not yet be resolvable.
+		* Declares the variable within this scope, with the node begin the type node of the variable. 
+		* The variable will not yet be resolvable.
+		*/
+		void declare_variable(const name& id, node_id node);
+
+		/*
+		* Declares a variable with no accessible fields.
+		* The variable will not yet be resolvable.
 		*/
 		void declare_variable(const name& id);
 
@@ -104,19 +89,21 @@ namespace fe::ext_ast
 		/*
 		* Returns the type name of the given reference.
 		*/
-		std::optional<var_lookup> resolve_variable(const identifier& id) const;
+		std::optional<var_lookup> resolve_variable(const identifier& module, const name& var) const;
+		std::optional<var_lookup> resolve_variable(const name& var) const;
 
 		// Type names
 
 		/*
-		* Defines the given name within this scope as the type given.
+		* Defines the given name within this scope as the type given, with the node being the type expression.
 		* After this, type references with the name will be resolvable.
 		*/
-		void define_type(const name& n, const std::vector<field>& t);
+		void define_type(const name& n, node_id t);
 
 		/*
 		* Returns the type data of the type with the given name if it exists.
 		*/
-		std::optional<type_lookup> resolve_type(const identifier& id) const;
+		std::optional<type_lookup> resolve_type(const identifier& module, const name& var) const;
+		std::optional<type_lookup> resolve_type(const name& var) const;
 	};
 }

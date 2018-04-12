@@ -1,5 +1,6 @@
 #include "fe/data/ext_ast.h"
 #include "fe/pipeline/resolution_stage.h"
+#include "fe/pipeline/error.h"
 
 // Resolving
 namespace fe::ext_ast
@@ -19,12 +20,13 @@ namespace fe::ext_ast
 		assert(n.kind == node_type::ASSIGNMENT);
 		assert(n.children.size() == 2);
 		copy_parent_scope(n, ast);
+		auto& scope = ast.get_name_scope(*n.name_scope_id);
 
 		auto& lhs_node = ast.get_node(n.children[0]);
 		assert(lhs_node.data_index);
 		auto& lhs_data = ast.get_data<identifier>(*lhs_node.data_index);
-		auto& scope = ast.get_name_scope(*n.name_scope_id);
-		auto res = scope.resolve_variable(lhs_data);
+		assert(lhs_data.segments.size() == 1);
+		auto res = scope.resolve_variable(lhs_data.segments[0]);
 		assert(res);
 		lhs_data.scope_distance = res->scope_distance;
 
@@ -35,10 +37,7 @@ namespace fe::ext_ast
 	void resolve_tuple(node& n, ast& ast)
 	{
 		assert(n.kind == node_type::TUPLE);
-		auto& parent = ast.get_node(*n.parent_id);
-		assert(parent.name_scope_id);
-		n.name_scope_id = ast.create_name_scope(*parent.name_scope_id);
-
+		copy_parent_scope(n, ast);
 		for (auto child : n.children)
 			resolve(ast.get_node(child), ast);
 	}
@@ -76,10 +75,12 @@ namespace fe::ext_ast
 		auto& id_node = ast.get_node(n.children[0]);
 		assert(id_node.data_index);
 		auto& id_data = ast.get_data<identifier>(id_node.data_index.value());
+		assert(id_data.segments.size() == 1);
+		auto& type_name = id_data.segments[0];
 
 		assert(n.name_scope_id);
 		auto& scope = ast.get_name_scope(*n.name_scope_id);
-		auto res = scope.resolve_type(id_data);
+		auto res = scope.resolve_type(type_name);
 		assert(res);
 		id_data.scope_distance = res->scope_distance;
 	}
@@ -112,7 +113,7 @@ namespace fe::ext_ast
 		auto& id_data = ast.get_data<identifier>(id_node.data_index.value());
 		assert(id_data.segments.size() == 1);
 
-		parent_scope.declare_variable(id_data.segments[0]);
+		parent_scope.declare_variable(id_data.segments[0], n.id);
 		parent_scope.define_variable(id_data.segments[0]);
 
 		n.name_scope_id = ast.create_name_scope(*parent.name_scope_id);
@@ -161,6 +162,75 @@ namespace fe::ext_ast
 			resolve(ast.get_node(child), ast);
 	}
 
+	// Helper
+	std::optional<std::vector<size_t>> resolve_field(node& type_node, ast& ast, const identifier& id)
+	{
+		copy_parent_scope(type_node, ast);
+		assert(type_node.name_scope_id);
+		auto& scope = ast.get_name_scope(*type_node.name_scope_id);
+
+		if (type_node.kind == node_type::IDENTIFIER)
+		{
+			auto& id_data = ast.get_data<identifier>(*type_node.data_index);
+			auto& res = scope.resolve_type(id_data.without_last_segment(), *id_data.segments.rbegin());
+			assert(res);
+			auto& referenced_type_node = ast.get_node(res->type_node);
+			return resolve_field(referenced_type_node, ast, id);
+		}
+		else if (type_node.kind == node_type::TUPLE_DECLARATION)
+		{
+			size_t index = 0;
+			for (auto child : type_node.children)
+			{
+				auto& child_node = ast.get_node(child);
+				auto res = resolve_field(child_node, ast, id);
+				if (res)
+				{
+					auto offsets = std::vector<size_t>();
+					offsets.push_back(index);
+					offsets.insert(offsets.end(), res->begin(), res->end());
+					return offsets;
+				}
+				index++;
+			}
+
+			return std::nullopt;
+		}
+		else if (type_node.kind == node_type::ATOM_DECLARATION)
+		{
+			assert(type_node.children.size() == 2);
+			auto& id_node = ast.get_node(type_node.children[1]);
+			auto& id_data = ast.get_data<identifier>(*id_node.data_index);
+			assert(id_data.segments.size() == 1);
+			if (id.segments[0] == id_data.segments[0])
+			{
+				if (id.segments.size() > 1)
+				{
+					auto& new_type_node = ast.get_node(type_node.children[0]);
+					return resolve_field(new_type_node, ast, id.without_first_segment());
+				}
+				else
+				{
+					return std::vector<size_t>();
+				}
+			}
+
+			return std::nullopt;
+		}
+		else if (type_node.kind == node_type::TYPE_ATOM)
+		{
+			assert(id.segments.size() > 0);
+			assert(type_node.children.size() == 1);
+			auto& id_node = ast.get_node(type_node.children[0]);
+			return resolve_field(id_node, ast, id);
+		}
+		else
+		{
+			assert(!"Unimplemented");
+		}
+		return std::nullopt;
+	}
+
 	void resolve_id(node& n, ast& ast)
 	{
 		assert(n.kind == node_type::IDENTIFIER);
@@ -169,9 +239,34 @@ namespace fe::ext_ast
 
 		assert(n.data_index);
 		auto& id_data = ast.get_data<identifier>(*n.data_index);
-		auto resolved = scope.resolve_variable(id_data);
-		assert(resolved);
-		id_data.scope_distance = resolved->scope_distance;
+		auto& name = id_data.segments[0];
+		identifier fields = id_data.without_first_segment();
+
+		if (auto resolved_as_var = scope.resolve_variable(name); resolved_as_var)
+		{
+			id_data.scope_distance = resolved_as_var->scope_distance;
+			if (id_data.segments.size() > 1)
+			{
+				assert(resolved_as_var->type_node);
+				auto& type_node = ast.get_node(*resolved_as_var->type_node);
+				id_data.offsets = resolve_field(type_node, ast, fields).value();
+			}
+			else
+			{
+				id_data.offsets = {};
+			}
+		}
+		else if (auto resolved_as_type = scope.resolve_type(name); resolved_as_type)
+		{
+			id_data.scope_distance = resolved_as_type->scope_distance;
+			// You cannot reference a field within a type as a type name
+			assert(id_data.segments.size() == 1);
+			id_data.offsets = {};
+		}
+		else
+		{
+			throw fe::resolution_error{ "Unknown identifier" };
+		}
 	}
 
 	void resolve_function_call(node& n, ast& ast)
@@ -193,21 +288,28 @@ namespace fe::ext_ast
 
 		auto& id_node = ast.get_node(n.children[0]);
 		assert(id_node.kind == node_type::IDENTIFIER);
+		assert(id_node.data_index);
+		auto& id_data = ast.get_data<identifier>(*id_node.data_index);
+		assert(id_data.segments.size() == 1);
+
+		auto& scope = ast.get_name_scope(*n.name_scope_id);
 
 		auto& type_node = ast.get_node(n.children[1]);
-		assert(type_node.kind == node_type::DECLARATION);
-		resolve(id_node, ast);
+		assert(type_node.kind == node_type::ATOM_DECLARATION || type_node.kind == node_type::TUPLE_DECLARATION);
+		scope.define_type(id_data.segments[0], type_node.id);
 	}
 
 	// Helper for declarations
-	void declare_lhs(node& lhs, ast& ast)
+	void declare_lhs(node& lhs, ast& ast, node& type_node)
 	{
 		assert(lhs.kind == node_type::IDENTIFIER || lhs.kind == node_type::IDENTIFIER_TUPLE);
 		if (lhs.kind == node_type::IDENTIFIER)
 		{
 			assert(lhs.data_index);
 			auto& lhs_id = ast.get_data<identifier>(lhs.data_index.value());
-			ast.get_name_scope(lhs.name_scope_id.value()).declare_variable(lhs_id.segments[0]);
+			assert(lhs.name_scope_id);
+			auto& scope = ast.get_name_scope(*lhs.name_scope_id);
+			scope.declare_variable(lhs_id.segments[0], type_node.id);
 		}
 		else if (lhs.kind == node_type::IDENTIFIER_TUPLE)
 		{
@@ -221,8 +323,10 @@ namespace fe::ext_ast
 		if (lhs.kind == node_type::IDENTIFIER)
 		{
 			assert(lhs.data_index);
-			auto& lhs_id = ast.get_data<identifier>(lhs.data_index.value());
-			ast.get_name_scope(lhs.name_scope_id.value()).define_variable(lhs_id.segments[0]);
+			auto& lhs_id = ast.get_data<identifier>(*lhs.data_index);
+			assert(lhs.name_scope_id);
+			auto& scope = ast.get_name_scope(*lhs.name_scope_id);
+			scope.define_variable(lhs_id.segments[0]);
 		}
 		else if (lhs.kind == node_type::IDENTIFIER_TUPLE)
 		{
@@ -241,12 +345,26 @@ namespace fe::ext_ast
 		lhs_node.name_scope_id = n.name_scope_id;
 		auto& type_node = ast.get_node(n.children[1]);
 		type_node.name_scope_id = n.name_scope_id;
-		declare_lhs(lhs_node, ast);
+		assert(type_node.data_index);
+		declare_lhs(lhs_node, ast, type_node);
 
 		auto& rhs_node = ast.get_node(n.children[2]);
 		resolve(rhs_node, ast);
 
 		define_lhs(lhs_node, ast);
+	}
+
+	void resolve_tuple_declaration(node& n, ast& ast)
+	{
+		assert(n.kind == node_type::TUPLE_DECLARATION);
+		copy_parent_scope(n, ast);
+
+		for (auto child : n.children)
+		{
+			auto& child_node = ast.get_node(child);
+			assert(child_node.kind == node_type::DECLARATION || child_node.kind == node_type::TUPLE_DECLARATION);
+			resolve(child_node, ast);
+		}
 	}
 
 	void resolve_atom_declaration(node& n, ast& ast)
@@ -258,8 +376,10 @@ namespace fe::ext_ast
 		auto& id_node = ast.get_node(n.children[1]);
 		assert(id_node.kind == node_type::IDENTIFIER);
 		assert(id_node.data_index);
-		auto& node_id = ast.get_data<identifier>(id_node.data_index.value());
-		ast.get_name_scope(n.name_scope_id.value()).declare_variable(node_id.segments[0]);
+		auto& node_id = ast.get_data<identifier>(*id_node.data_index);
+		assert(n.name_scope_id);
+		auto& scope = ast.get_name_scope(*n.name_scope_id);
+		scope.declare_variable(node_id.segments[0], n.children[0]);
 	}
 
 	void resolve_reference(node& n, ast& ast)

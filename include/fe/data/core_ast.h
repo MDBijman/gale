@@ -39,8 +39,6 @@ namespace fe
 				return new no_op(*this);
 			}
 			values::unique_value interp(runtime_environment&) override;
-
-			types::unique_type type;
 		};
 
 		struct literal : public node
@@ -72,12 +70,11 @@ namespace fe
 			}
 
 			values::unique_value val;
-			types::unique_type type;
 		};
 
 		struct identifier : public node
 		{
-			identifier(std::vector<std::string> module_names, std::string variables, std::vector<int> offset,
+			identifier(std::vector<std::string> module_names, std::string variables, std::vector<size_t> offset,
 				size_t depth = std::numeric_limits<size_t>::max());
 
 			// Copy
@@ -100,14 +97,14 @@ namespace fe
 					identifier(
 						std::vector<std::string>{modules.begin() + 1, modules.end()},
 						std::string(variable_name),
-						std::vector<int>(offsets),
+						std::vector<size_t>(offsets),
 						scope_depth
 					);
 			}
 
 			std::vector<std::string> modules;
 			std::string variable_name;
-			std::vector<int> offsets;
+			std::vector<size_t> offsets;
 			size_t scope_depth;
 		};
 
@@ -118,8 +115,8 @@ namespace fe
 
 		struct set : public node
 		{
-			set(identifier id, bool is_dec, unique_node value, types::unique_type t);
-			set(identifier_tuple lhs, unique_node value, types::unique_type t);
+			set(identifier id, bool is_dec, unique_node value);
+			set(identifier_tuple lhs, unique_node value);
 
 			// Copy
 			set(const set& other);
@@ -138,12 +135,11 @@ namespace fe
 			std::variant<identifier, identifier_tuple> lhs;
 			bool is_declaration;
 			unique_node value;
-			types::unique_type type;
 		};
 
 		struct function : public node
 		{
-			function(identifier&& name, std::variant<std::vector<identifier>, identifier>&& parameters, unique_node&& body, types::unique_type t);
+			function(identifier&& name, std::variant<std::vector<identifier>, identifier>&& parameters, unique_node&& body);
 
 			// Copy
 			function(const function& other);
@@ -163,7 +159,6 @@ namespace fe
 			// Either a named tuple or a single argument
 			std::variant<std::vector<identifier>, identifier> parameters;
 			unique_node body;
-			types::unique_type type;
 		};
 
 		// Derivatives
@@ -171,8 +166,7 @@ namespace fe
 
 		struct tuple : public node
 		{
-			tuple(std::vector<unique_node> children, types::unique_type t);
-			tuple(std::vector<unique_node> children, types::type& t);
+			tuple(std::vector<unique_node> children);
 
 			// Copy
 			tuple(const tuple& other);
@@ -189,13 +183,12 @@ namespace fe
 			values::unique_value interp(runtime_environment&) override;
 
 			std::vector<unique_node> children;
-			types::unique_type type;
 		};
 
 
 		struct block : public node
 		{
-			block(std::vector<unique_node> children, types::unique_type t);
+			block(std::vector<unique_node> children);
 
 			// Copy
 			block(const block& other);
@@ -212,12 +205,11 @@ namespace fe
 			values::unique_value interp(runtime_environment&) override;
 
 			std::vector<unique_node> children;
-			types::unique_type type;
 		};
 
 		struct function_call : public node
 		{
-			function_call(identifier id, unique_node parameter, types::unique_type t);
+			function_call(identifier id, unique_node parameter);
 
 			// Copy
 			function_call(const function_call& other);
@@ -235,7 +227,6 @@ namespace fe
 
 			identifier id;
 			unique_node parameter;
-			types::unique_type type;
 		};
 
 		struct branch : public node
@@ -257,7 +248,6 @@ namespace fe
 			values::unique_value interp(runtime_environment&) override;
 
 			std::vector<std::pair<unique_node, unique_node>> paths;
-			types::unique_type type;
 		};
 
 		struct reference : public node
@@ -277,12 +267,11 @@ namespace fe
 			values::unique_value interp(runtime_environment&) override;
 
 			unique_node exp;
-			types::unique_type type;
 		};
 
 		struct while_loop : public node
 		{
-			while_loop(unique_node test_code, unique_node body, const types::type& t);
+			while_loop(unique_node test_code, unique_node body);
 
 			// Copy
 			while_loop(const while_loop& other);
@@ -300,7 +289,6 @@ namespace fe
 
 			unique_node test;
 			unique_node body;
-			types::unique_type type;
 		};
 	}
 }

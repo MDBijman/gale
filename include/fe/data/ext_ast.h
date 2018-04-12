@@ -78,25 +78,20 @@ namespace fe::ext_ast
 			|| kind == node_type::LESS_THAN);
 	}
 
-	/*
-	* The index of a piece of data in a data store. Each node type that contains data has its own data type
-	* and corresponding data store. If a node type has no data, then the index will be the maximum value,
-	* i.e. std::numeric_limits<data_index>::max().
-	*/
-	using data_index = size_t;
-	using type_index = size_t;
-	using scope_index = size_t;
-	using node_id = size_t;
-
 	struct node
 	{
 		node() {}
-		node(node_type t) : kind(t) {}
-		node(node_type t, data_index i) : kind(t), data_index(i) {}
-		node(node_type t, data_index i, std::vector<node_id> children) : kind(t), data_index(i), children(children) {}
-		node(node_type t, std::vector<node_id> children) : kind(t), children(children) {}
+		node(node_id id, node_type t) :
+			id(id), kind(t) {}
+		node(node_id id, node_type t, data_index i) :
+			id(id), kind(t), data_index(i) {}
+		node(node_id id, node_type t, data_index i, std::vector<node_id> children) :
+			id(id), kind(t), data_index(i), children(children) {}
+		node(node_id id, node_type t, std::vector<node_id> children) :
+			id(id), kind(t), children(children) {}
 
 		node_type kind;
+		node_id id;
 		std::vector<node_id> children;
 		std::optional<node_id> parent_id;
 
@@ -105,7 +100,11 @@ namespace fe::ext_ast
 		std::optional<scope_index> name_scope_id;
 		std::optional<scope_index> type_scope_id;
 	};
+}
 
+
+namespace fe::ext_ast
+{
 	namespace detail
 	{
 		template<class T, size_t SIZE>
@@ -159,7 +158,7 @@ namespace fe::ext_ast
 		ast(node_type t)
 		{
 			root = nodes.create();
-			nodes.get_at(root) = node(t);
+			nodes.get_at(root) = node(root, t);
 			nodes.get_at(root).data_index = create_node_data(t);
 			nodes.get_at(root).name_scope_id = create_name_scope();
 			nodes.get_at(root).type_scope_id = create_type_scope();
@@ -175,6 +174,7 @@ namespace fe::ext_ast
 		node_id create_node(node_type t)
 		{
 			auto new_node = nodes.create();
+			get_node(new_node).id = new_node;
 			get_node(new_node).kind = t;
 			get_node(new_node).data_index = create_node_data(t);
 			return new_node;

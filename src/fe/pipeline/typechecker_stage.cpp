@@ -141,24 +141,6 @@ namespace fe::ext_ast
 		return types::unique_type(res->type.copy());
 	}
 
-	types::unique_type typeof_atom_declaration(node& n, ast& ast)
-	{
-		assert(n.kind == node_type::ATOM_DECLARATION);
-		assert(n.children.size() == 2);
-		copy_parent_scope(n, ast);
-
-		auto& type_node = ast.get_node(n.children[0]);
-		auto atom_type = typeof(type_node, ast);
-
-		auto& id_node = ast.get_node(n.children[1]);
-		assert(id_node.data_index);
-		auto& id_data = ast.get_data<identifier>(*id_node.data_index);
-
-		auto& scope = ast.get_type_scope(*n.type_scope_id);
-		scope.set_type(id_data.segments[0], types::unique_type(atom_type->copy()));
-		return atom_type;
-	}
-
 	types::unique_type typeof_binary_op(node& n, ast& ast)
 	{
 		assert(ext_ast::is_binary_op(n.kind));
@@ -198,6 +180,33 @@ namespace fe::ext_ast
 		default:
 			throw std::runtime_error("Typeof for binary op not implemented");
 		}
+	}
+
+	types::unique_type typeof_atom_declaration(node& n, ast& ast)
+	{
+		assert(n.kind == node_type::ATOM_DECLARATION);
+		assert(n.children.size() == 2);
+		copy_parent_scope(n, ast);
+
+		auto& type_atom_child = ast.get_node(n.children[0]);
+		assert(type_atom_child.kind == node_type::TYPE_ATOM);
+		return typeof(type_atom_child, ast);
+	}
+
+	types::unique_type typeof_tuple_declaration(node& n, ast& ast)
+	{
+		assert(n.kind == node_type::TUPLE_DECLARATION);
+		copy_parent_scope(n, ast);
+
+		std::vector<types::unique_type> types;
+		for (auto child : n.children)
+		{
+			auto& child_node = ast.get_node(child);
+			assert(child_node.kind == node_type::ATOM_DECLARATION || child_node.kind == node_type::TUPLE_DECLARATION);
+			types.push_back(typeof(child_node, ast));
+		}
+
+		return types::unique_type(new types::product_type(std::move(types)));
 	}
 
 	// Typecheck
@@ -268,15 +277,32 @@ namespace fe::ext_ast
 		}
 	}
 
-	void typecheck_tuple_declaration(node& n, ast& ast)
+	void declare_atom_declaration(node& n, ast& ast)
+	{
+		assert(n.kind == node_type::ATOM_DECLARATION);
+		assert(n.children.size() == 2);
+		copy_parent_scope(n, ast);
+
+		auto& type_node = ast.get_node(n.children[0]);
+		auto atom_type = typeof(type_node, ast);
+
+		auto& id_node = ast.get_node(n.children[1]);
+		assert(id_node.data_index);
+		auto& id_data = ast.get_data<identifier>(*id_node.data_index);
+
+		auto& scope = ast.get_type_scope(*n.type_scope_id);
+		scope.set_type(id_data.segments[0], std::move(atom_type));
+	}
+
+	void declare_tuple_declaration(node& n, ast& ast)
 	{
 		assert(n.kind == node_type::TUPLE_DECLARATION);
+		copy_parent_scope(n, ast);
 
 		for (auto child : n.children)
 		{
 			auto& child_node = ast.get_node(child);
-			assert(child_node.kind == node_type::ATOM_DECLARATION || child_node.kind == node_type::TUPLE_DECLARATION);
-			typecheck(child_node, ast);
+			declare_atom_declaration(child_node, ast);
 		}
 	}
 
@@ -292,6 +318,8 @@ namespace fe::ext_ast
 		auto& id_node_data = ast.get_data<identifier>(*id_node.data_index);
 
 		auto& from_node = ast.get_node(n.children[1]);
+		if (from_node.kind == node_type::ATOM_DECLARATION)
+			declare_atom_declaration(from_node, ast);
 		auto from_type = typeof(from_node, ast);
 		auto& to_node = ast.get_node(n.children[2]);
 		auto to_type = typeof(to_node, ast);
@@ -299,9 +327,7 @@ namespace fe::ext_ast
 		// Put function name in parent scope
 		auto& parent_scope = ast.get_type_scope(parent_scope_id);
 		parent_scope.set_type(id_node_data.segments[0], types::unique_type(new types::function_type(
-			types::unique_type(from_type->copy()),
-			types::unique_type(to_type->copy())
-		)));
+				types::unique_type(from_type->copy()), types::unique_type(to_type->copy()))));
 
 		// #todo test
 		auto& body_node = ast.get_node(n.children[3]);
@@ -315,11 +341,24 @@ namespace fe::ext_ast
 	{
 		assert(n.kind == node_type::TYPE_DEFINITION);
 		assert(n.children.size() == 2);
+		copy_parent_scope(n, ast);
 
-		auto& variable_dec_node = ast.get_node(n.children[1]);
-		typecheck(variable_dec_node, ast);
+		auto& id_node = ast.get_node(n.children[0]);
+		assert(id_node.data_index);
+		auto& id_data = ast.get_data<identifier>(*id_node.data_index);
+		assert(id_data.segments.size() == 1);
 
-		// #todo set in env a new type with the n.children[0] id with the rhs type
+		auto& type_node = ast.get_node(n.children[1]);
+		auto rhs = typeof(type_node, ast);
+
+		auto& scope = ast.get_type_scope(*n.type_scope_id);
+		scope.define_type(id_data.segments[0], types::unique_type(rhs->copy()));
+
+		auto function_type = types::unique_type(new types::function_type(
+			types::unique_type(rhs->copy()), 
+			types::unique_type(rhs->copy())
+		));
+		scope.set_type(id_data.segments[0], std::move(function_type));
 	}
 
 	void typecheck_declaration(node& n, ast& ast)
@@ -499,7 +538,6 @@ namespace fe::ext_ast
 		case node_type::MATCH_BRANCH:      typecheck_match_branch(n, ast);      break;
 		case node_type::MATCH:             typecheck_match(n, ast);             break;
 		case node_type::BLOCK:             typecheck_block(n, ast);             break;
-		case node_type::TUPLE_DECLARATION: typecheck_tuple_declaration(n, ast); break;
 		case node_type::FUNCTION:          typecheck_function(n, ast);          break;
 		case node_type::TYPE_DEFINITION:   typecheck_type_definition(n, ast);   break;
 		case node_type::DECLARATION:       typecheck_declaration(n, ast);       break;
@@ -532,6 +570,7 @@ namespace fe::ext_ast
 		case node_type::BLOCK_RESULT:      return typeof_block_result(n, ast);
 		case node_type::TYPE_ATOM:         return typeof_type_atom(n, ast);
 		case node_type::ATOM_DECLARATION:  return typeof_atom_declaration(n, ast);
+		case node_type::TUPLE_DECLARATION: return typeof_tuple_declaration(n, ast);
 		default:
 			if (ext_ast::is_binary_op(n.kind)) return typeof_binary_op(n, ast);
 
