@@ -25,28 +25,28 @@ namespace fe::detail
 				this->variables.insert({ elem.first, values::unique_value(elem.second->copy()) });
 		}
 
-		std::optional<values::value*> valueof(const core_ast::identifier& name,
-			int scope_depth)
+		std::optional<values::value*> valueof(const core_ast::identifier& name, size_t scope_depth)
 		{
+			// Check parent scope
 			if (scope_depth > 0)
 			{
-				return parent.has_value()
-					? parent.value()->valueof(name, scope_depth - 1)
-					: std::nullopt;
+				return parent ? (*parent)->valueof(name, scope_depth - 1) : std::nullopt;
 			}
 
-			auto loc = variables.find(name.variable_name);
-			if (loc == variables.end())
-				return std::nullopt;
-
-			values::value* value = loc->second.get();
-
-			for (auto offset : name.offsets)
+			// Check this scope
+			if (auto loc = variables.find(name.variable_name); loc != variables.end())
 			{
-				value = dynamic_cast<values::tuple*>(value)->val.at(offset).get();
+				values::value* value = loc->second.get();
+
+				for (auto offset : name.offsets)
+				{
+					value = dynamic_cast<values::tuple*>(value)->val.at(offset).get();
+				}
+
+				return value;
 			}
 
-			return value;
+			return std::nullopt;
 		}
 
 		void set_value(const std::string& name, values::unique_value value)
@@ -96,12 +96,17 @@ namespace fe
 	class runtime_environment
 	{
 	public:
-		runtime_environment() { push(); }
+		runtime_environment() { }
 		runtime_environment(const runtime_environment& other, std::size_t depth) :
 			scopes(other.scopes),
 			modules(other.modules)
 		{
 			for (std::size_t i = 0; i < depth; i++) pop();
+		}
+
+		size_t depth()
+		{
+			return this->scopes.size();
 		}
 
 		void push()
@@ -140,6 +145,7 @@ namespace fe
 				else
 				{
 					runtime_environment new_re;
+					new_re.push();
 
 					new_re.add_module(std::vector<std::string>(name.begin() + 1, name.end()), std::move(other));
 
@@ -150,7 +156,7 @@ namespace fe
 
 		void add_module(std::string name, runtime_environment other)
 		{
-			add_module({ std::move(name) }, std::move(other));
+			add_module(std::vector<std::string>{ std::move(name) }, std::move(other));
 		}
 
 		runtime_environment get_module(std::string name)

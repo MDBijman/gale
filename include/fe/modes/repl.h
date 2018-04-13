@@ -4,63 +4,42 @@
 #include "fe/libraries/std/std_ui.h"
 #include "fe/libraries/core/core_operations.h"
 #include "utils/reading/reader.h"
+#include "project.h"
 
 
 namespace fe
 {
 	class repl
 	{
+		project proj;
+
 	public:
-		explicit repl(fe::pipeline pipeline) : pipeline(std::move(pipeline)) {}
+		explicit repl(fe::pipeline pipeline) : proj(std::move(pipeline)) {}
 
 		void run()
 		{
-			// Load modules
-			auto runtime_environment = fe::runtime_environment{};
-			auto type_environment = fe::type_environment{};
-			auto name_environment = fe::scope_environment{};
-
-			// Core (global namespace)
+			// core
 			{
-				auto[re, te, se] = fe::core::operations::load();
-				runtime_environment.add_global_module(std::move(re));
-				type_environment.add_global_module(std::move(te));
-				name_environment.add_global_module(std::move(se));
+				auto core_scope = fe::core::operations::load();
+				proj.add_module({ "_core" }, core_scope);
 			}
 
-			// Std lib
+			// std io
 			{
-				auto std_runtime = fe::runtime_environment{};
-				auto std_typeset = fe::type_environment{};
-				auto std_nameset = fe::scope_environment{};
+				auto io_scope = fe::stdlib::input::load();
+				proj.add_module({ "std", "io" }, io_scope);
+			}
 
-				// IO utilities
-				{
-					auto[te, re, se] = fe::stdlib::input::load();
-					std_nameset.add_module("io", std::move(se));
-					std_typeset.add_module("io", std::move(te));
-					std_runtime.add_module("io", std::move(re));
-				}
+			// std ui
+			{
+				auto ui_scope = fe::stdlib::ui::load();
+				proj.add_module({ "std", "ui" }, ui_scope);
+			}
 
-				// UI utilities
-				{
-					auto[te, re, se] = fe::stdlib::ui::load();
-					std_nameset.add_module("ui", std::move(se));
-					std_typeset.add_module("ui", std::move(te));
-					std_runtime.add_module("ui", std::move(re));
-				}
-
-				// Standard types
-				{
-					auto[te, re, se] = fe::stdlib::ui::load();
-					std_nameset.add_global_module(std::move(se));
-					std_typeset.add_global_module(std::move(te));
-					std_runtime.add_global_module(std::move(re));
-				}
-
-				type_environment.add_module("std", std::move(std_typeset));
-				runtime_environment.add_module("std", std::move(std_runtime));
-				name_environment.add_module("std", std::move(std_nameset));
+			// std types
+			{
+				auto type_scope = fe::stdlib::typedefs::load();
+				proj.add_module({ "std" }, type_scope);
 			}
 
 			while (1) {
@@ -73,8 +52,8 @@ namespace fe
 
 				if (code == "env")
 				{
-					std::cout << type_environment.to_string(true) << std::endl;
-					std::cout << runtime_environment.to_string(true) << std::endl;
+					//std::cout << te.to_string(true) << std::endl;
+					//std::cout << re.to_string(true) << std::endl;
 					continue;
 				}
 
@@ -96,25 +75,8 @@ namespace fe
 					code = std::get<std::string>(file_or_error);
 				}
 
-				auto lexed = pipeline.lex(std::move(code));
-				auto parsed = pipeline.parse(std::move(lexed));
-				auto ne = pipeline.resolve(*parsed, fe::scope_environment(name_environment));
-				auto typechecked = pipeline.typecheck(std::move(parsed), fe::type_environment(type_environment));
-				auto lowered = pipeline.lower(std::move(typechecked.first));
-				auto interped = pipeline.interp(std::move(lowered), fe::runtime_environment(runtime_environment));
-
-				std::cout << std::get<fe::values::unique_value>(interped)->to_string() << std::endl;
-
-				auto te = typechecked.second;
-				auto re = interped.second;
-				type_environment.add_global_module(std::move(te));
-				runtime_environment.add_global_module(std::move(re));
-				name_environment.add_global_module(std::move(ne));
+				proj.eval(code);
 			}
 		}
-
-
-	private:
-		fe::pipeline pipeline;
 	};
 }
