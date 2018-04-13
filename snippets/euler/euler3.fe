@@ -1,0 +1,30 @@
+module euler3
+import [std std.io]
+
+std.io.print "requires larger than i32 datatype";
+
+fn is_prime std.i32 n -> std.bool = {
+	var x : std.i32 = 2;
+
+	var res : std.bool = true;
+	while (x < n / 2) {
+		if (n % x == 0) { res = false; };
+		x = x + 1;
+	};
+	res;
+};
+
+var number : std.i32 = 600851475143; 
+var curr : std.i32 = number / 2;
+
+while (curr > 1) {
+	if (number % curr == 0) {
+		if (is_prime curr) {
+			std.io.print std.to_string curr;
+		};
+	};
+
+	curr = curr - 1;
+};
+
+std.io.print std.to_string curr;

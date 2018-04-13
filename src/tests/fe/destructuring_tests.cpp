@@ -1,39 +1,51 @@
 #include <catch2/catch.hpp>
 
+// test utils
+#include "tests/test_utils.h"
+
+// lang
+#include "fe/modes/project.h"
 #include "fe/pipeline/pipeline.h"
-#include "fe/data/type_environment.h"
-#include "fe/data/scope_environment.h"
-#include "fe/data/runtime_environment.h"
-#include "fe/language_definition.h"
+
+// libs
+#include "fe/libraries/core/core_operations.h"
+#include "fe/libraries/std/std_input.h"
+#include "fe/libraries/std/std_output.h"
 #include "fe/libraries/std/std_types.h"
 
-SCENARIO("destructuring of product values", "[language_feature destructuring]")
+TEST_CASE("destructuring of product values", "[language_feature][destructuring]")
 {
-	GIVEN("a new pipeline")
-	{
-		fe::pipeline p;
+	fe::project p{ fe::pipeline() };
 
-		WHEN("a destructuring statement is parsed")
-		{
-			auto code = 
-R"code(
-type Quad = (std.i32 a, std.i32 b, std.i32 c, std.i32 d);
+	// core
+	{
+		auto core_scope = fe::core::operations::load();
+		p.add_module({ "_core" }, core_scope);
+	}
+
+	// std io
+	{
+		auto i = fe::stdlib::input::load();
+		auto o = fe::stdlib::output::load();
+		i.merge(std::move(o));
+		p.add_module({ "std", "io" }, i);
+	}
+
+	// std types
+	{
+		auto type_scope = fe::stdlib::typedefs::load();
+		p.add_module({ "std" }, type_scope);
+	}
+
+	auto code =
+		R"code(
+import [std]
+type Quad = (std.i64 a, std.i64 b, std.i64 c, std.i64 d);
 var (a, b, c, _) : Quad = Quad (1, 2, 3, 4);
 )code";
-			auto lexed = p.lex(std::move(code));
-			auto parsed = p.parse(std::move(lexed));
 
-			fe::code_module cm(fe::module_name{ "" }, std::move(parsed));
-			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::stdlib::typedefs::load_as_module()));
-			
-			auto[te, re, se] = cm.interp(p);
-
-			THEN("the variable values should be correct")
-			{
-				auto valueof_a = re.valueof(fe::core_ast::identifier({}, "a", {}, 0, nullptr));
-				REQUIRE(dynamic_cast<fe::values::i32*>(valueof_a.value()));
-				REQUIRE(dynamic_cast<fe::values::i32*>(valueof_a.value())->val == 1);
-			}
-		}
-	}
+	testing::test_scope scope(p.eval(std::move(code)));
+	REQUIRE(scope.value_equals("a", fe::values::i64(1)));
+	REQUIRE(scope.value_equals("b", fe::values::i64(2)));
+	REQUIRE(scope.value_equals("c", fe::values::i64(3)));
 }

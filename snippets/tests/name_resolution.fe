@@ -1,20 +1,9 @@
 module name_resolution_tests
 import [std std.io]
 
-var test : std.i32 = 3;
-fn nested std.i32 a -> std.i32 = test;
+type Nested = (std.i64 x, std.i64 y);
+type Pair = (std.i64 a, Nested m);
 
-fn outside std.i32 a -> std.i32 = {
-	var test : std.i32 = 6;
-	nested a;
-};
-
-fn id std.i32 a -> std.i32 = {
-	a;
-};
-
-fn get_string std.i32 a -> std.str = {
-	"3";
-};
-
-std.io.print std.to_string outside 3;
+var x: Pair = Pair (1, Nested (3, 4));
+var z: std.i64 = x.m.x;
+std.io.print std.to_string z;
