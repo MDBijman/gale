@@ -327,7 +327,7 @@ namespace fe::ext_ast
 		// Put function name in parent scope
 		auto& parent_scope = ast.get_type_scope(parent_scope_id);
 		parent_scope.set_type(id_node_data.segments[0], types::unique_type(new types::function_type(
-				types::unique_type(from_type->copy()), types::unique_type(to_type->copy()))));
+			types::unique_type(from_type->copy()), types::unique_type(to_type->copy()))));
 
 		// #todo test
 		auto& body_node = ast.get_node(n.children[3]);
@@ -355,10 +355,34 @@ namespace fe::ext_ast
 		scope.define_type(id_data.segments[0], types::unique_type(rhs->copy()));
 
 		auto function_type = types::unique_type(new types::function_type(
-			types::unique_type(rhs->copy()), 
+			types::unique_type(rhs->copy()),
 			types::unique_type(rhs->copy())
 		));
 		scope.set_type(id_data.segments[0], std::move(function_type));
+	}
+
+	std::optional<types::unique_type> resolve_offsets(types::type& t, ast& ast, std::vector<size_t> offsets)
+	{
+		if (offsets.size() == 0) return types::unique_type(t.copy());
+		if (auto pt = dynamic_cast<types::product_type*>(&t))
+		{
+			if (offsets.size() == 1)
+			{
+				return types::unique_type(pt->product.at(offsets[0])->copy());
+			}
+			else
+			{
+				std::vector<size_t> new_offsets(offsets.begin() + 1, offsets.end());
+				return resolve_offsets(*pt->product.at(offsets[0]), ast, new_offsets);
+			}
+		}
+		else
+		{
+			assert(!"Unimplemented");
+		}
+
+	
+		return std::nullopt;
 	}
 
 	void typecheck_declaration(node& n, ast& ast)
@@ -370,11 +394,6 @@ namespace fe::ext_ast
 
 		auto& scope = ast.get_type_scope(*n.name_scope_id);
 
-		auto& id_node = ast.get_node(n.children[0]);
-		assert(id_node.data_index);
-		auto& id_data = ast.get_data<identifier>(*id_node.data_index);
-		assert(id_data.segments.size() == 1);
-
 		auto& type_node = ast.get_node(n.children[1]);
 		assert(type_node.data_index);
 		auto& type_id_data = ast.get_data<identifier>(*type_node.data_index);
@@ -383,12 +402,24 @@ namespace fe::ext_ast
 
 		auto& val_node = ast.get_node(n.children[2]);
 		auto val_type = typeof(val_node, ast);
-
 		assert(type == &*val_type);
 
-		scope.set_type(id_data.segments[0], std::move(val_type));
+		auto& lhs_node = ast.get_node(n.children[0]);
+		if (lhs_node.kind == node_type::IDENTIFIER)
+		{
+			assert(lhs_node.data_index);
+			auto& id_data = ast.get_data<identifier>(*lhs_node.data_index);
+			assert(id_data.segments.size() == 1);
+			scope.set_type(id_data.segments[0], std::move(val_type));
+		}
+		else if (lhs_node.kind == node_type::IDENTIFIER_TUPLE)
+		{
 
-		// #todo check type of value == type
+		}
+		else
+		{
+			assert(!"Illegal lhs of declaration");
+		}
 	}
 
 	void typecheck_assignment(node& n, ast& ast)
@@ -497,14 +528,15 @@ namespace fe::ext_ast
 		assert(n.kind == node_type::WHILE_LOOP);
 		// test body
 		assert(n.children.size() == 2);
+		copy_parent_scope(n, ast);
 
 		auto& test_node = ast.get_node(n.children[0]);
-		typecheck(test_node, ast);
+		auto type = typeof(test_node, ast);
+
+		assert(*type == &types::boolean());
 
 		auto& body_node = ast.get_node(n.children[1]);
 		typecheck(body_node, ast);
-
-		// #todo check test type is boolean and set this type to body type
 	}
 
 	void typecheck_if_statement(node& n, ast& ast)

@@ -231,6 +231,54 @@ namespace fe::ext_ast
 		return std::nullopt;
 	}
 
+	std::optional<node_id> resolve_offsets(node& type_node, ast& ast, std::vector<size_t> offsets)
+	{
+		copy_parent_scope(type_node, ast);
+		assert(type_node.name_scope_id);
+		auto& scope = ast.get_name_scope(*type_node.name_scope_id);
+
+		if (type_node.kind == node_type::IDENTIFIER)
+		{
+			auto& id_data = ast.get_data<identifier>(*type_node.data_index);
+			auto& res = scope.resolve_type(id_data.without_last_segment(), *id_data.segments.rbegin());
+			assert(res);
+			auto& referenced_type_node = ast.get_node(res->type_node);
+			return resolve_offsets(referenced_type_node, ast, offsets);
+		}
+		else if (type_node.kind == node_type::TUPLE_DECLARATION)
+		{
+			auto first_offset = *offsets.begin();
+			auto new_offsets = std::vector<size_t>(offsets.begin() + 1, offsets.end());
+			auto& new_node = ast.get_node(type_node.children.at(first_offset));
+			return resolve_offsets(new_node, ast, new_offsets);
+		}
+		else if (type_node.kind == node_type::ATOM_DECLARATION)
+		{
+			assert(type_node.children.size() == 2);
+			auto& id_node = ast.get_node(type_node.children[1]);
+			auto& id_data = ast.get_data<identifier>(*id_node.data_index);
+			assert(id_data.segments.size() == 1);
+			auto& new_type_node = ast.get_node(type_node.children[0]);
+
+			if (offsets.size() > 1)
+				return resolve_offsets(new_type_node, ast, offsets);
+			else
+				return type_node.children[0];
+		}
+		else if (type_node.kind == node_type::TYPE_ATOM)
+		{
+			assert(offsets.size() > 0);
+			assert(type_node.children.size() == 1);
+			auto& id_node = ast.get_node(type_node.children[0]);
+			return resolve_offsets(id_node, ast, offsets);
+		}
+		else
+		{
+			assert(!"Unimplemented");
+		}
+		return std::nullopt;
+	}
+
 	void resolve_id(node& n, ast& ast)
 	{
 		assert(n.kind == node_type::IDENTIFIER);
@@ -307,6 +355,7 @@ namespace fe::ext_ast
 	void declare_lhs(node& lhs, ast& ast, node& type_node)
 	{
 		assert(lhs.kind == node_type::IDENTIFIER || lhs.kind == node_type::IDENTIFIER_TUPLE);
+		copy_parent_scope(lhs, ast);
 		if (lhs.kind == node_type::IDENTIFIER)
 		{
 			assert(lhs.data_index);
@@ -317,7 +366,16 @@ namespace fe::ext_ast
 		}
 		else if (lhs.kind == node_type::IDENTIFIER_TUPLE)
 		{
-			assert(!"Not implemented");
+			size_t i = 0;
+			for (auto child : lhs.children)
+			{
+				auto new_type_id = resolve_offsets(type_node, ast, std::vector<size_t>{i});
+				assert(new_type_id);
+				auto& new_type_node = ast.get_node(*new_type_id);
+				auto& new_lhs = ast.get_node(child);
+				declare_lhs(new_lhs, ast, new_type_node);
+				i++;
+			}
 		}
 	}
 
@@ -334,7 +392,11 @@ namespace fe::ext_ast
 		}
 		else if (lhs.kind == node_type::IDENTIFIER_TUPLE)
 		{
-			assert(!"Not implemented");
+			for (auto child : lhs.children)
+			{
+				auto& new_lhs = ast.get_node(child);
+				define_lhs(new_lhs, ast);
+			}
 		}
 	}
 

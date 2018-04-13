@@ -223,10 +223,6 @@ namespace fe::ext_ast
 		assert(n.kind == node_type::DECLARATION);
 		assert(n.children.size() == 3);
 
-		auto& lhs_node = ast.get_node(n.children[0]);
-		auto lowered_lhs = core_ast::unique_node(lower(lhs_node, ast));
-		// #todo do destructuring
-
 		auto& type_node = ast.get_node(n.children[1]);
 		auto& type = ast
 			.get_type_scope(*type_node.type_scope_id)
@@ -234,10 +230,27 @@ namespace fe::ext_ast
 
 		auto& rhs_node = ast.get_node(n.children[2]);
 		auto lowered_rhs = core_ast::unique_node(lower(rhs_node, ast));
-		// #todo return core_ast::set
 
-		return new core_ast::set(*dynamic_cast<core_ast::identifier*>(lowered_lhs.get()), true,
-			std::move(lowered_rhs));
+		auto& lhs_node = ast.get_node(n.children[0]);
+		if (lhs_node.kind == node_type::IDENTIFIER)
+		{
+			auto lowered_lhs = core_ast::unique_node(lower(lhs_node, ast));
+
+			return new core_ast::set(*dynamic_cast<core_ast::identifier*>(lowered_lhs.get()), true,
+				std::move(lowered_rhs));
+		}
+		else if (lhs_node.kind == node_type::IDENTIFIER_TUPLE)
+		{
+			core_ast::identifier_tuple lhs;
+			for (auto child : lhs_node.children)
+			{
+				auto& child_node = ast.get_node(child);
+				auto lowered_lhs = core_ast::unique_node(lower(child_node, ast));
+				lhs.ids.push_back(*dynamic_cast<core_ast::identifier*>(lowered_lhs.get()));
+			}
+			
+			return new core_ast::set(lhs, std::move(lowered_rhs));
+		}
 	}
 
 	core_ast::node* lower_tuple_declaration(node& n, ast& ast)
@@ -258,7 +271,7 @@ namespace fe::ext_ast
 		auto parameter = core_ast::identifier({}, { "_arg0" }, {}, 0);
 		auto return_statement = core_ast::unique_node(new core_ast::identifier({}, { "_arg0" }, {}, 0));
 		return new core_ast::set(
-			 *static_cast<core_ast::identifier*>(lhs.get()), true,
+			*static_cast<core_ast::identifier*>(lhs.get()), true,
 			core_ast::unique_node(new core_ast::function(
 				std::move(*static_cast<core_ast::identifier*>(function_name.get())),
 				std::move(parameter), std::move(return_statement)))
@@ -314,7 +327,7 @@ namespace fe::ext_ast
 		case node_type::LESS_THAN:     function_name = "lt";   break;
 		default: throw std::runtime_error("Node type not implemented");
 		}
-		return new core_ast::function_call(core_ast::identifier({ "_core" }, function_name, {}, 0), 
+		return new core_ast::function_call(core_ast::identifier({ "_core" }, function_name, {}, 0),
 			std::move(param_tuple));
 	}
 
