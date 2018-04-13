@@ -319,12 +319,16 @@ namespace fe::ext_ast
 		std::string function_name;
 		switch (n.kind)
 		{
-		case node_type::ADDITION:      function_name = "add";  break;
-		case node_type::EQUALITY:      function_name = "eq";   break;
-		case node_type::GREATER_OR_EQ: function_name = "gte";  break;
-		case node_type::GREATER_THAN:  function_name = "gt";   break;
-		case node_type::LESS_OR_EQ:    function_name = "lte";  break;
-		case node_type::LESS_THAN:     function_name = "lt";   break;
+		case node_type::ADDITION:       function_name = "add";  break;
+		case node_type::SUBTRACTION:    function_name = "sub";  break;
+		case node_type::MULTIPLICATION: function_name = "mul";  break;
+		case node_type::DIVISION:       function_name = "div";  break;
+		case node_type::MODULO:         function_name = "mod";  break;
+		case node_type::EQUALITY:       function_name = "eq";   break;
+		case node_type::GREATER_OR_EQ:  function_name = "gte";  break;
+		case node_type::GREATER_THAN:   function_name = "gt";   break;
+		case node_type::LESS_OR_EQ:     function_name = "lte";  break;
+		case node_type::LESS_THAN:      function_name = "lt";   break;
 		default: throw std::runtime_error("Node type not implemented");
 		}
 		return new core_ast::function_call(core_ast::identifier({ "_core" }, function_name, {}, 0),
