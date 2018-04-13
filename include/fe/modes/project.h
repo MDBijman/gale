@@ -82,7 +82,7 @@ namespace fe
 				}
 			}
 
-			scope& core_module = modules.at({ "_core" });
+			scope& core_module = modules.at(module_name{ "_core" });
 			root_name_scope.add_module(ext_ast::identifier{ {"_core"} }, &core_module.name_env());
 			root_type_scope.add_module(ext_ast::identifier{ {"_core"} }, &core_module.type_env());
 			runtime_env.add_module("_core", core_module.runtime_env());

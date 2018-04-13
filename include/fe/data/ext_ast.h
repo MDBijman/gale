@@ -128,6 +128,11 @@ namespace fe::ext_ast
 				return data.at(i);
 			}
 
+			bool is_occupied(data_index i)
+			{
+				return occupieds[i];
+			}
+
 			void free_at(data_index i)
 			{
 				occupieds[i] = false;
@@ -269,6 +274,8 @@ namespace fe::ext_ast
 		{
 			for (node_id i = 0; i < nodes.get_data().size(); i++)
 			{
+				if (!nodes.is_occupied(i))
+					continue;
 				if (nodes.get_at(i).kind == t)
 					return i;
 			}

@@ -1,43 +1,50 @@
 #include <catch2/catch.hpp>
 
+// test utils
+#include "tests/test_utils.h"
+
+// lang
+#include "fe/modes/project.h"
 #include "fe/pipeline/pipeline.h"
-#include "fe/language_definition.h"
-#include "fe/libraries/std/std_types.h"
+
+// libs
 #include "fe/libraries/core/core_operations.h"
-//
-//SCENARIO("while loop", "[language_feature while]")
-//{
-//	GIVEN("a new pipeline")
-//	{
-//		fe::pipeline p;
-//
-//		WHEN("while loop is interpreted")
-//		{
-//			auto code =
-//R"code(
-//import [std std.io]
-//
-//var x : std.i32 = 3;
-//
-//while (x == 3) {
-//	x = x - 1;
-//};
-//)code";
-//			auto lexed = p.lex(std::move(code));
-//			auto parsed = p.parse(std::move(lexed));
-//
-//			fe::code_module cm(fe::module_name{ "" }, std::move(parsed));
-//			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::stdlib::typedefs::load_as_module()));
-//			cm.imports.push_back(std::shared_ptr<fe::native_module>(fe::core::operations::load_as_module()));
-//
-//			auto[te, re, se] = cm.interp(p);
-//
-//			THEN("the variable values should be correct")
-//			{
-//				auto valueof_x = re.valueof(fe::core_ast::identifier({}, "x", {}, 0, nullptr));
-//				REQUIRE(dynamic_cast<fe::values::i32*>(valueof_x.value()));
-//				REQUIRE(dynamic_cast<fe::values::i32*>(valueof_x.value())->val == 2);
-//			}
-//		}
-//	}
-//}
+#include "fe/libraries/std/std_input.h"
+#include "fe/libraries/std/std_output.h"
+#include "fe/libraries/std/std_types.h"
+
+TEST_CASE("while loop", "[language_feature][while]")
+{
+	fe::project p{ fe::pipeline() };
+
+	// core
+	{
+		auto core_scope = fe::core::operations::load();
+		p.add_module({ "_core" }, core_scope);
+	}
+
+	// std io
+	{
+		auto i = fe::stdlib::input::load();
+		auto o = fe::stdlib::output::load();
+		i.merge(std::move(o));
+		p.add_module({ "std", "io" }, i);
+	}
+
+	// std types
+	{
+		auto type_scope = fe::stdlib::typedefs::load();
+		p.add_module({ "std" }, type_scope);
+	}
+
+	auto code = R"code(
+import [std]
+var x : std.i64 = 6;
+while (x > 3) {
+	x = x - 1;
+};
+)code";
+
+	testing::test_scope scope(p.eval(std::move(code)));
+	REQUIRE(scope.value_equals("x", fe::values::i64(3)));
+}

@@ -4,8 +4,8 @@
 #include "tests/test_utils.h"
 
 // lang
-#include "fe/pipeline/pipeline.h"
 #include "fe/modes/project.h"
+#include "fe/pipeline/pipeline.h"
 
 // libs
 #include "fe/libraries/core/core_operations.h"
