@@ -65,9 +65,12 @@ namespace fe::ext_ast
 		std::string value;
 	};
 
+	enum class number_type { I32, I64, UI32, UI64 };
+
 	struct number
 	{
 		uint64_t value;
+		number_type type;
 	};
 
 	/*

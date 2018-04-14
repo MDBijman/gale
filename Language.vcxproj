@@ -145,6 +145,7 @@
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\tests\fe\comparison_tests.cpp" />
     <ClCompile Include="src\tests\fe\destructuring_tests.cpp" />
+    <ClCompile Include="src\tests\fe\literal_inference_tests.cpp" />
     <ClCompile Include="src\tests\fe\name_resolution_tests.cpp" />
     <ClCompile Include="src\tests\fe\while_tests.cpp" />
     <ClCompile Include="src\tests\utils\grammar_tests.cpp" />

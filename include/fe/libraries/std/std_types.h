@@ -19,6 +19,10 @@ namespace fe::stdlib::typedefs
 			t.define_type("i32", unique_type(new types::i32()));
 			s.define_type("i64", {});
 			t.define_type("i64", unique_type(new types::i64()));
+			s.define_type("ui32", {});
+			t.define_type("ui32", unique_type(new types::ui32()));
+			s.define_type("ui64", {});
+			t.define_type("ui64", unique_type(new types::ui64()));
 
 			s.define_type("str", {});
 			t.define_type("str", unique_type(new types::str()));

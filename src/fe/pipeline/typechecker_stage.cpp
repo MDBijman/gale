@@ -8,6 +8,31 @@
 namespace fe::ext_ast
 {	
 	// Helpers
+	static bool is_convertible(types::type& t1, types::type& t2)
+	{
+		// #todo generic check
+		if (t1 == &t2) return true;
+
+		if (auto lhs = dynamic_cast<types::i64*>(&t1); lhs)
+		{
+			if (dynamic_cast<types::i32*>(&t2) != nullptr) { return true; }
+			if (dynamic_cast<types::ui32*>(&t2) != nullptr) { return true; }
+		}
+		if (auto lhs = dynamic_cast<types::ui64*>(&t1); lhs)
+		{
+			if (dynamic_cast<types::ui32*>(&t2) != nullptr) { return true; }
+		}
+		if (auto rhs = dynamic_cast<types::sum_type*>(&t2))
+		{
+			for (auto& t3 : rhs->sum)
+			{
+				if (is_convertible(t1, *t3)) return true;
+			}
+		}
+
+		return false;
+	}
+
 	static void copy_parent_scope(node& n, ast& ast)
 	{
 		assert(n.parent_id);
@@ -42,7 +67,47 @@ namespace fe::ext_ast
 		auto& number_data = ast.get_data<number>(*n.data_index);
 
 		// #todo return the smallest int type that can fit the value
-		return types::unique_type(new types::i64());
+
+		// Negative numbers
+		std::vector<types::unique_type> sum_types;
+
+		if (number_data.value > std::numeric_limits<int32_t>::min() && number_data.value < 0)
+		{
+			sum_types.push_back(types::unique_type(new types::ui32()));
+			sum_types.push_back(types::unique_type(new types::ui64()));
+		}
+		else if (number_data.value > std::numeric_limits<int64_t>::min() && number_data.value < std::numeric_limits<int32_t>::min())
+		{
+			sum_types.push_back(types::unique_type(new types::ui64()));
+		}
+		// Positive numbers
+		else if (number_data.value >= 0 && number_data.value <= std::numeric_limits<int32_t>::max())
+		{
+			sum_types.push_back(types::unique_type(new types::ui32()));
+			sum_types.push_back(types::unique_type(new types::ui64()));
+			sum_types.push_back(types::unique_type(new types::i32()));
+			sum_types.push_back(types::unique_type(new types::i64()));
+		}
+		else if (number_data.value > std::numeric_limits<int32_t>::max() && number_data.value <= std::numeric_limits<uint32_t>::max())
+		{
+			sum_types.push_back(types::unique_type(new types::ui32()));
+			sum_types.push_back(types::unique_type(new types::ui64()));
+			sum_types.push_back(types::unique_type(new types::i64()));
+		}
+		else if (number_data.value > std::numeric_limits<uint32_t>::max() && number_data.value <= std::numeric_limits<int64_t>::max())
+		{
+			sum_types.push_back(types::unique_type(new types::ui64()));
+			sum_types.push_back(types::unique_type(new types::i64()));
+		}
+		else if (number_data.value > std::numeric_limits<int64_t>::max() && number_data.value <= std::numeric_limits<uint64_t>::max())
+		{
+			sum_types.push_back(types::unique_type(new types::i64()));
+		}
+
+		if (sum_types.size() > 0) return types::unique_type(new types::sum_type(std::move(sum_types)));
+
+		assert(!"Cannot infer number literal type");
+		throw std::runtime_error("Cannot infer number literal type");
 	}
 
 	types::unique_type typeof_string(node& n, ast& ast)
@@ -381,7 +446,7 @@ namespace fe::ext_ast
 			assert(!"Unimplemented");
 		}
 
-	
+
 		return std::nullopt;
 	}
 
@@ -398,11 +463,12 @@ namespace fe::ext_ast
 		assert(type_node.data_index);
 		auto& type_id_data = ast.get_data<identifier>(*type_node.data_index);
 		auto type_lookup = scope.resolve_type(type_id_data);
+		assert(type_lookup);
 		auto& type = type_lookup->type;
 
 		auto& val_node = ast.get_node(n.children[2]);
 		auto val_type = typeof(val_node, ast);
-		assert(type == &*val_type);
+		assert(is_convertible(type, *val_type));
 
 		auto& lhs_node = ast.get_node(n.children[0]);
 		if (lhs_node.kind == node_type::IDENTIFIER)
