@@ -160,6 +160,9 @@
     <ClCompile Include="src\tests\utils\performance_tests.cpp">
       <Filter>Source Files\tests\utils</Filter>
     </ClCompile>
+    <ClCompile Include="src\tests\fe\literal_inference_tests.cpp">
+      <Filter>Source Files\tests\fe</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\fe\data\core_ast.h">

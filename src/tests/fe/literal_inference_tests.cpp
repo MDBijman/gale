@@ -9,11 +9,9 @@
 
 // libs
 #include "fe/libraries/core/core_operations.h"
-#include "fe/libraries/std/std_input.h"
-#include "fe/libraries/std/std_output.h"
 #include "fe/libraries/std/std_types.h"
 
-TEST_CASE("destructuring of product values", "[destructuring]")
+TEST_CASE("inference of literals", "[literals]")
 {
 	fe::project p{ fe::pipeline() };
 
@@ -21,14 +19,6 @@ TEST_CASE("destructuring of product values", "[destructuring]")
 	{
 		auto core_scope = fe::core::operations::load();
 		p.add_module({ "_core" }, core_scope);
-	}
-
-	// std io
-	{
-		auto i = fe::stdlib::input::load();
-		auto o = fe::stdlib::output::load();
-		i.merge(std::move(o));
-		p.add_module({ "std", "io" }, i);
 	}
 
 	// std types
@@ -40,12 +30,17 @@ TEST_CASE("destructuring of product values", "[destructuring]")
 	auto code =
 		R"code(
 import [std]
-type Quad = (std.i64 a, std.i64 b, std.i64 c, std.i64 d);
-var (a, b, c, _) : Quad = Quad (1, 2, 3, 4);
+var a : std.i32 = 1;
+var b : std.i64 = 1;
+var c : std.ui32 = 1;
+var d : std.ui64 = 1;
+var e : std.str = "one";
 )code";
 
 	testing::test_scope scope(p.eval(std::move(code)));
-	REQUIRE(scope.value_equals("a", fe::values::i64(1)));
-	REQUIRE(scope.value_equals("b", fe::values::i64(2)));
-	REQUIRE(scope.value_equals("c", fe::values::i64(3)));
+	REQUIRE(scope.value_equals("a", fe::values::i32(1)));
+	REQUIRE(scope.value_equals("b", fe::values::i64(1)));
+	REQUIRE(scope.value_equals("c", fe::values::ui32(1)));
+	REQUIRE(scope.value_equals("d", fe::values::ui64(1)));
+	REQUIRE(scope.value_equals("e", fe::values::str("one")));
 }
