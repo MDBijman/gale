@@ -4,40 +4,9 @@ namespace fe
 {
 	namespace types
 	{
-		// Atom Type
-
-		atom_type::atom_type(std::string name) : name(name) {}
-
-		// Move
-		atom_type::atom_type(atom_type&& other) : name(std::move(other.name)) {}
-		atom_type& atom_type::operator=(atom_type&& other)
-		{
-			this->name = std::move(other.name);
-			return *this;
-		}
-
-		// Copy
-		atom_type::atom_type(const atom_type& other) : name(other.name) {}
-		atom_type& atom_type::operator=(const atom_type& other)
-		{
-			this->name = other.name;
-			return *this;
-		}
-
-		std::string atom_type::to_string() const
-		{
-			return "atom_type " + name;
-		}
-
-		// Unset
-		std::string unset_type::to_string() const
-		{
-			return "unset_type";
-		}
-
 		// Array
 
-		array_type::array_type() : element_type(new unset_type()) {}
+		array_type::array_type() : element_type(new unset()) {}
 		array_type::array_type(unique_type t) : element_type(std::move(t)) {}
 		array_type::array_type(type& t) : element_type(t.copy()) {}
 
@@ -67,7 +36,7 @@ namespace fe
 
 		// Reference
 
-		reference_type::reference_type() : referred_type(new unset_type()) {}
+		reference_type::reference_type() : referred_type(new unset()) {}
 		reference_type::reference_type(unique_type t) : referred_type(std::move(t)) {}
 		reference_type::reference_type(type& t) : referred_type(t.copy()) {}
 
@@ -240,39 +209,8 @@ namespace fe
 			return r;
 		}
 
-		// Any Type
-
-		any_type::any_type() {}
-
-		any_type::any_type(any_type&& other) {}
-
-		any_type& any_type::operator=(any_type&& other)
-		{
-			return *this;
-		}
-
-		any_type::any_type(const any_type& other) {}
-
-		any_type& any_type::operator=(const any_type& other)
-		{
-			return *this;
-		}
-
-		std::string any_type::to_string() const
-		{
-			return "any_type";
-		}
 
 		// Operators
-		bool operator==(const atom_type& one, const atom_type& two)
-		{
-			return one.name == two.name;
-		}
-
-		bool operator==(const unset_type& one, const unset_type& two)
-		{
-			return true;
-		}
 
 		bool operator==(const sum_type& one, const sum_type& two)
 		{
@@ -311,11 +249,6 @@ namespace fe
 		bool operator==(const reference_type& one, const reference_type& two)
 		{
 			return *one.referred_type == two.referred_type.get();
-		}
-
-		bool operator==(const any_type& one, const any_type& two)
-		{
-			return true;
 		}
 	}
 }

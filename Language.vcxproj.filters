@@ -24,9 +24,6 @@
     <Filter Include="Source Files\tests\fe">
       <UniqueIdentifier>{4e95b8f4-7cf0-4a8e-bd9e-eaa05ca6722d}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\tests\tools">
-      <UniqueIdentifier>{41aecb1a-45c3-4599-9406-1a69c228a146}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source Files\fe\modes">
       <UniqueIdentifier>{20b41d34-941f-405b-8bbf-af897becab04}</UniqueIdentifier>
     </Filter>
@@ -69,15 +66,15 @@
     <Filter Include="Resource Files\snippets\syntax">
       <UniqueIdentifier>{d2eed966-3785-41d1-aa0f-06b991095d00}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\tests\utils">
+      <UniqueIdentifier>{297b88f1-c9a8-442d-8052-a15ae1a0b2ec}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="snippets\project\modeling_module.fe">
       <Filter>Resource Files\snippets\project</Filter>
     </None>
     <None Include="snippets\tests\name_resolution.fe">
-      <Filter>Resource Files\snippets\tests</Filter>
-    </None>
-    <None Include="snippets\tests\performance_empty.fe">
       <Filter>Resource Files\snippets\tests</Filter>
     </None>
     <None Include="snippets\euler\euler1.fe">
@@ -92,6 +89,9 @@
     <None Include="snippets\syntax\statements.fe">
       <Filter>Resource Files\snippets\syntax</Filter>
     </None>
+    <None Include="snippets\tests\performance_empty.fe">
+      <Filter>Resource Files\snippets\tests</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
@@ -100,20 +100,11 @@
     <ClCompile Include="src\fe\data\core_ast.cpp">
       <Filter>Source Files\fe\data</Filter>
     </ClCompile>
-    <ClCompile Include="src\fe\data\extended_ast.cpp">
-      <Filter>Source Files\fe\data</Filter>
-    </ClCompile>
     <ClCompile Include="src\fe\data\types.cpp">
       <Filter>Source Files\fe\data</Filter>
     </ClCompile>
     <ClCompile Include="src\fe\data\values.cpp">
       <Filter>Source Files\fe\data</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tools\ll_parser.cpp">
-      <Filter>Source Files\utils\parsing</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tools\lr_parser.cpp">
-      <Filter>Source Files\utils\parsing</Filter>
     </ClCompile>
     <ClCompile Include="src\fe\pipeline\resolution_stage.cpp">
       <Filter>Source Files\fe\pipeline</Filter>
@@ -121,32 +112,14 @@
     <ClCompile Include="src\fe\pipeline\typechecker_stage.cpp">
       <Filter>Source Files\fe\pipeline</Filter>
     </ClCompile>
-    <ClCompile Include="src\tools\bnf_grammar.cpp">
-      <Filter>Source Files\utils\parsing</Filter>
-    </ClCompile>
     <ClCompile Include="src\tests\fe\destructuring_tests.cpp">
       <Filter>Source Files\tests\fe</Filter>
     </ClCompile>
     <ClCompile Include="src\tests\fe\name_resolution_tests.cpp">
       <Filter>Source Files\tests\fe</Filter>
     </ClCompile>
-    <ClCompile Include="src\tests\tools\grammar_tests.cpp">
-      <Filter>Source Files\tests\tools</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tests\tools\lr_tests.cpp">
-      <Filter>Source Files\tests\tools</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tests\tools\performance_tests.cpp">
-      <Filter>Source Files\tests\tools</Filter>
-    </ClCompile>
     <ClCompile Include="src\fe\language_definition.cpp">
       <Filter>Source Files\fe</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tools\reader.cpp">
-      <Filter>Source Files\utils\reading</Filter>
-    </ClCompile>
-    <ClCompile Include="src\fe\data\scope_environment.cpp">
-      <Filter>Source Files\fe\data</Filter>
     </ClCompile>
     <ClCompile Include="src\tests\fe\while_tests.cpp">
       <Filter>Source Files\tests\fe</Filter>
@@ -157,12 +130,45 @@
     <ClCompile Include="src\fe\pipeline\parser_stage.cpp">
       <Filter>Source Files\fe\pipeline</Filter>
     </ClCompile>
+    <ClCompile Include="src\fe\pipeline\lowering_stage.cpp">
+      <Filter>Source Files\fe\pipeline</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fe\pipeline\cst_to_ast_stage.cpp">
+      <Filter>Source Files\fe\pipeline</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fe\data\name_scope.cpp">
+      <Filter>Source Files\fe\data</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fe\data\type_scope.cpp">
+      <Filter>Source Files\fe\data</Filter>
+    </ClCompile>
+    <ClCompile Include="src\utils\parsing\bnf_grammar.cpp">
+      <Filter>Source Files\utils\parsing</Filter>
+    </ClCompile>
+    <ClCompile Include="src\utils\parsing\ll_parser.cpp">
+      <Filter>Source Files\utils\parsing</Filter>
+    </ClCompile>
+    <ClCompile Include="src\utils\parsing\lr_parser.cpp">
+      <Filter>Source Files\utils\parsing</Filter>
+    </ClCompile>
+    <ClCompile Include="src\utils\reading\reader.cpp">
+      <Filter>Source Files\utils\reading</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tests\utils\grammar_tests.cpp">
+      <Filter>Source Files\tests\utils</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tests\utils\lr_tests.cpp">
+      <Filter>Source Files\tests\utils</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tests\utils\performance_tests.cpp">
+      <Filter>Source Files\tests\utils</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tests\fe\literal_inference_tests.cpp">
+      <Filter>Source Files\tests\fe</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\fe\data\core_ast.h">
-      <Filter>Source Files\fe\data</Filter>
-    </ClInclude>
-    <ClInclude Include="include\fe\data\extended_ast.h">
       <Filter>Source Files\fe\data</Filter>
     </ClInclude>
     <ClInclude Include="include\fe\data\runtime_environment.h">
@@ -173,9 +179,6 @@
     </ClInclude>
     <ClInclude Include="include\fe\data\values.h">
       <Filter>Source Files\fe\data</Filter>
-    </ClInclude>
-    <ClInclude Include="include\fe\modes\module.h">
-      <Filter>Source Files\fe\modes</Filter>
     </ClInclude>
     <ClInclude Include="include\fe\modes\project.h">
       <Filter>Source Files\fe\modes</Filter>
@@ -225,9 +228,6 @@
     <ClInclude Include="include\fe\libraries\core\core_operations.h">
       <Filter>Source Files\fe\libraries\core</Filter>
     </ClInclude>
-    <ClInclude Include="include\fe\libraries\language\language_module.h">
-      <Filter>Source Files\fe\libraries\language</Filter>
-    </ClInclude>
     <ClInclude Include="include\utils\lexing\lexer.h">
       <Filter>Source Files\utils\lexing</Filter>
     </ClInclude>
@@ -255,11 +255,29 @@
     <ClInclude Include="include\utils\parsing\lr_parser.h">
       <Filter>Source Files\utils\parsing</Filter>
     </ClInclude>
-    <ClInclude Include="include\fe\data\scope_environment.h">
+    <ClInclude Include="include\fe\pipeline\resolution_stage.h">
+      <Filter>Source Files\fe\pipeline</Filter>
+    </ClInclude>
+    <ClInclude Include="include\fe\pipeline\typechecker_stage.h">
+      <Filter>Source Files\fe\pipeline</Filter>
+    </ClInclude>
+    <ClInclude Include="include\fe\data\type_scope.h">
       <Filter>Source Files\fe\data</Filter>
     </ClInclude>
-    <ClInclude Include="include\fe\data\type_environment.h">
+    <ClInclude Include="include\fe\data\name_scope.h">
       <Filter>Source Files\fe\data</Filter>
+    </ClInclude>
+    <ClInclude Include="include\fe\data\scope.h">
+      <Filter>Source Files\fe\data</Filter>
+    </ClInclude>
+    <ClInclude Include="include\fe\data\ext_ast_data.h">
+      <Filter>Source Files\fe\data</Filter>
+    </ClInclude>
+    <ClInclude Include="include\fe\data\ext_ast.h">
+      <Filter>Source Files\fe\data</Filter>
+    </ClInclude>
+    <ClInclude Include="include\tests\test_utils.h">
+      <Filter>Source Files\tests</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

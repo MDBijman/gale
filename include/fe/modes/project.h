@@ -2,144 +2,104 @@
 #include "fe/pipeline/pipeline.h"
 #include "fe/language_definition.h"
 #include "utils/reading/reader.h"
-#include "fe/data/extended_ast.h"
-#include "fe/modes/module.h"
-#include "module.h"
+#include "fe/data/ext_ast.h"
+#include "fe/data/scope.h"
 #include "fe/libraries/core/core_operations.h"
 #include "fe/libraries/std/std_ui.h"
 #include "fe/libraries/std/std_output.h"
 #include "fe/libraries/std/std_types.h"
 
-#include <filesystem>
 #include <string>
+#include <vector>
+#include <unordered_map>
 
 namespace fe
 {
-	class code_file
+	using module_name = std::vector<std::string>;
+}
+
+namespace std
+{
+	template<> struct hash<fe::module_name>
 	{
-	public:
-		code_file(extended_ast::unique_node root) : root(std::move(root))
+		size_t operator()(const fe::module_name& o) const
 		{
-			if (auto lines = dynamic_cast<extended_ast::tuple*>(this->root.get()))
-			{
-				for (auto& line : lines->children)
-				{
-					if (auto mod_declaration = dynamic_cast<extended_ast::module_declaration*>(line.get()))
-						name = std::vector<std::string>{ mod_declaration->name.to_string() };
-
-					if (auto imp_declaration = dynamic_cast<extended_ast::import_declaration*>(line.get()))
-					{
-						for (const extended_ast::identifier& module_import : imp_declaration->modules)
-						{
-							imports.push_back(module_import.segments);
-						}
-					}
-				}
-			}
-
-			imports.push_back(module_name{ "core" });
+			size_t h;
+			for (const auto& name : o)
+				h ^= hash<string>()(name);
+			return h;
 		}
-
-		code_file(const code_file& other) : root(extended_ast::unique_node(other.root->copy())), name(other.name),
-			imports(other.imports) {}
-
-		extended_ast::unique_node root;
-		module_name name;
-		std::vector<module_name> imports;
 	};
+}
 
-	class module_graph
-	{
-	public:
-		module_graph() {}
-		module_graph(std::vector<code_file> modules, module_name root_module)
-		{
-			nodes.push_back(std::shared_ptr<native_module>(core::operations::load_as_module()));
-			nodes.push_back(std::shared_ptr<native_module>(stdlib::ui::load_as_module()));
-			nodes.push_back(std::shared_ptr<native_module>(stdlib::types::load_as_module()));
-			nodes.push_back(std::make_shared<native_module>(stdlib::output::load()));
-
-			// At offset, only code modules are in the nodes vector, before that are all the native modules
-			auto offset = nodes.size();
-
-			for (auto& mod : modules)
-			{
-				auto new_module = std::make_shared<code_module>(code_module(mod.name, std::move(mod.root)));
-
-				if (mod.name == root_module)
-					root = new_module;
-
-				nodes.push_back(new_module);
-			}
-
-			for (auto i = 0; i < modules.size(); i++)
-			{
-				auto& mod = modules.at(i);
-				auto code_mod = static_cast<code_module*>(nodes.at(i + offset).get());
-
-				for (const auto& import : mod.imports)
-				{
-					auto imported_module = std::find_if(nodes.begin(), nodes.end(), [&](std::shared_ptr<module>& node) { 
-						return node->get_name() == import; 
-					});
-
-					if (imported_module == nodes.end())
-						throw std::runtime_error("Unknown module");
-
-					code_mod->imports.push_back(*imported_module);
-				}
-			}
-		}
-
-		std::shared_ptr<module> root;
-		std::vector<std::shared_ptr<module>> nodes;
-	};
-
+namespace fe
+{
 	class project
 	{
 	public:
-		project(const std::string folder, module_name main_module, fe::pipeline pipeline) : pl(std::move(pipeline))
+		project(fe::pipeline pipeline) : pl(std::move(pipeline)) {}
+
+		void add_module(const module_name& id, scope m)
 		{
-			graph = parse_project(folder, std::move(main_module));
+			modules.insert({ id, m });
 		}
 
-		std::tuple<type_environment, runtime_environment, scope_environment> interp()
+		void add_module(std::string code)
 		{
-			return graph.root->interp(pl);
+			auto tokens = pl.lex(std::move(code));
+			auto ast = pl.parse(std::move(tokens));
+
+			auto module_scope = eval(ast);
+			auto& name = ast.get_module_name().value().segments;
+
+			add_module(name, module_scope);
 		}
 
+		scope eval(std::string code)
+		{
+			auto tokens = pl.lex(std::move(code));
+			auto ast = pl.parse(std::move(tokens));
+			return eval(ast);
+		}
+
+		scope eval(ext_ast::ast& ast)
+		{
+			auto& root_node = ast.get_node(ast.root_id());
+			ext_ast::name_scope& root_name_scope = ast.get_name_scope(*root_node.name_scope_id);
+			ext_ast::type_scope& root_type_scope = ast.get_type_scope(*root_node.type_scope_id);
+			runtime_environment runtime_env;
+
+			if (auto imports = ast.get_imports(); imports)
+			{
+				for (const ext_ast::identifier& imp : *imports)
+				{
+					auto pos = modules.find(imp.segments);
+					assert(pos != modules.end());
+
+					root_name_scope.add_module(imp, &pos->second.name_env());
+					root_type_scope.add_module(imp, &pos->second.type_env());
+					runtime_env.add_module(imp.segments, pos->second.runtime_env());
+				}
+			}
+
+			scope& core_module = modules.at(module_name{ "_core" });
+			root_name_scope.add_module(ext_ast::identifier{ {"_core"} }, &core_module.name_env());
+			root_type_scope.add_module(ext_ast::identifier{ {"_core"} }, &core_module.type_env());
+			runtime_env.add_module("_core", core_module.runtime_env());
+
+			pl.typecheck(ast);
+			auto core_ast = pl.lower(ast);
+			auto re = pl.interp(*core_ast, runtime_env);
+
+			return scope(
+				re,
+				ast.get_type_scope(root_node.type_scope_id.value()),
+				ast.get_name_scope(root_node.name_scope_id.value())
+			);
+		}
 
 	private:
-		module_graph parse_project(std::string folder, module_name main)
-		{
-			std::vector<std::string> code_files;
-			for (auto& item : std::experimental::filesystem::recursive_directory_iterator(folder))
-			{
-				auto path = item.path();
-				if (path.filename().extension() != ".fe") continue;
-
-				auto file_or_error = utils::files::read_file(path.string());
-				if (std::holds_alternative<std::exception>(file_or_error))
-				{
-					std::cout << "File not found\n";
-					continue;
-				}
-				code_files.push_back(std::move(std::get<std::string>(file_or_error)));
-			}
-
-			std::vector<code_file> parsed_files;
-			for (auto&& text_file : code_files)
-			{
-				auto lexed = pl.lex(std::move(text_file));
-				auto parsed = pl.parse(std::move(lexed));
-				parsed_files.push_back(code_file(std::move(parsed)));
-			}
-
-			return module_graph(std::move(parsed_files), main);
-		}
-
-
-		module_graph graph;
+		std::unordered_map<module_name, scope> modules;
 		fe::pipeline pl;
 	};
 }

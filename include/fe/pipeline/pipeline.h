@@ -3,11 +3,11 @@
 #include "fe/pipeline/lexer_to_parser_stage.h"
 #include "fe/pipeline/parser_stage.h"
 #include "fe/pipeline/cst_to_ast_stage.h"
+#include "fe/pipeline/resolution_stage.h"
+#include "fe/pipeline/typechecker_stage.h"
 #include "fe/pipeline/lowering_stage.h"
-#include "fe/pipeline/interpreting_stage.h"
 #include "fe/pipeline/error.h"
-#include "fe/data/scope_environment.h"
-#include "fe/data/type_environment.h"
+
 #include "fe/data/runtime_environment.h"
 #include "utils/parsing/bnf_grammar.h"
 
@@ -25,21 +25,8 @@ namespace fe
 			lexer(lexing_stage{}),
 			parser(parsing_stage{}),
 			lex_to_parse_converter(lexer_to_parser_stage{}),
-			cst_to_ast_converter(cst_to_ast_stage{}),
-			lowerer(lowering_stage{}),
-			interpreter(interpreting_stage{})
+			cst_to_ast_converter(cst_to_ast_stage{})
 		{}
-
-		std::tuple<values::unique_value, type_environment, runtime_environment, scope_environment> process(std::string&& code, type_environment tenv, runtime_environment renv, scope_environment senv) 
-		{
-			auto lexed = lex(std::move(code));
-			auto parsed = parse(std::move(lexed));
-			auto scope_env = resolve(*parsed, std::move(senv));
-			auto tchecked = typecheck(std::move(parsed), std::move(tenv));
-			auto lowered = lower(std::move(tchecked.first));
-			auto interped = interp(std::move(lowered), std::move(renv));
-			return { std::move(interped.first), std::move(tchecked.second), std::move(interped.second), std::move(scope_env) };
-		}
 
 		std::vector<utils::bnf::terminal_node> lex(std::string&& code) const
 		{
@@ -54,7 +41,7 @@ namespace fe
 			return std::get<std::vector<utils::bnf::terminal_node>>(lex_to_parse_output);
 		}
 
-		extended_ast::unique_node parse(std::vector<utils::bnf::terminal_node>&& tokens) 
+		ext_ast::ast parse(std::vector<utils::bnf::terminal_node>&& tokens) 
 		{
 			auto parse_output = std::move(parser.parse(tokens));
 			if (std::holds_alternative<utils::ebnfe::error>(parse_output))
@@ -65,40 +52,28 @@ namespace fe
 			if (std::holds_alternative<cst_to_ast_error>(cst_to_ast_output))
 				throw std::get<cst_to_ast_error>(cst_to_ast_output);
 
-			return std::move(std::get<extended_ast::unique_node>(cst_to_ast_output));
+			return std::move(std::get<ext_ast::ast>(cst_to_ast_output));
 		}
 
-		scope_environment resolve(extended_ast::node& ast, scope_environment&& env)
+		void typecheck(ext_ast::ast& ast) const
 		{
-			ast.resolve(std::move(env));
-			return env;
+			auto root = ast.root_id();
+			auto& root_node = ast.get_node(root);
+			ext_ast::resolve(root_node, ast);
+			ext_ast::typecheck(root_node, ast);
 		}
 
-		std::pair<extended_ast::unique_node, type_environment> typecheck(extended_ast::unique_node extended_ast, type_environment&& tenv) const
+		core_ast::unique_node lower(ext_ast::ast& ast) const
 		{
-			extended_ast->typecheck(tenv);
-			return std::make_pair(std::move(extended_ast), std::move(tenv));
+			auto root = ast.root_id();
+			auto& root_node = ast.get_node(root);
+			return core_ast::unique_node(ext_ast::lower(root_node, ast));
 		}
 
-		core_ast::unique_node lower(extended_ast::unique_node tree) const
+		runtime_environment interp(core_ast::node& n, runtime_environment re) const
 		{
-			auto lower_output = std::move(lowerer.lower(std::move(tree)));
-			if (std::holds_alternative<lower_error>(lower_output))
-				throw std::get<lower_error>(lower_output);
-			return std::move(std::get<core_ast::unique_node>(lower_output));
-		}
-
-		std::pair<values::unique_value, runtime_environment> interp(core_ast::unique_node tree, runtime_environment&& renv) const
-		{
-			auto interp_output = interpreter.interpret(std::move(tree), std::move(renv));
-			if (std::holds_alternative<interp_error>(interp_output))
-				throw std::get<interp_error>(interp_output);
-			auto interp_result = std::move(std::get<std::tuple<core_ast::unique_node, values::unique_value, runtime_environment>>(interp_output));
-
-			return {
-				std::move(std::get<values::unique_value>(interp_result)),
-				std::move(std::get<runtime_environment>(interp_result))
-			};
+			n.interp(re);
+			return re;
 		}
 
 	private:
@@ -106,7 +81,5 @@ namespace fe
 		parsing_stage parser;
 		lexer_to_parser_stage lex_to_parse_converter;
 		cst_to_ast_stage cst_to_ast_converter;
-		lowering_stage lowerer;
-		interpreting_stage interpreter;
 	};
 }
