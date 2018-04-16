@@ -13,7 +13,7 @@
 #include "fe/libraries/std/std_output.h"
 #include "fe/libraries/std/std_types.h"
 
-TEST_CASE("resolving nested names", "[language_feature][name_resolution]")
+TEST_CASE("resolving nested names", "[name_resolution]")
 {
 	fe::project p{ fe::pipeline() };
 

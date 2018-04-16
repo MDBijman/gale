@@ -181,17 +181,17 @@ namespace fe::ext_ast
 	{
 		assert(n.kind == node_type::NUMBER);
 		assert(n.children.size() == 0);
-		assert(n.type_scope_id);
-		auto& type_scope = ast.get_type_scope(*n.type_scope_id);
 		auto& numb_data = ast.get_data<number>(n.data_index.value());
 
 		switch (numb_data.type)
 		{
+		case number_type::UI32: return new core_ast::literal(values::unique_value(new values::ui32(numb_data.value)));
+		case number_type::UI64: return new core_ast::literal(values::unique_value(new values::ui64(numb_data.value)));
 		case number_type::I32:  return new core_ast::literal(values::unique_value(new values::i32(numb_data.value)));
 		case number_type::I64:  return new core_ast::literal(values::unique_value(new values::i64(numb_data.value)));
-		case number_type::UI32:	return new core_ast::literal(values::unique_value(new values::ui32(numb_data.value)));
-		case number_type::UI64:	return new core_ast::literal(values::unique_value(new values::ui64(numb_data.value)));
-		default: throw std::runtime_error("Unknown number type");
+		default:
+			assert(!"Unknown number_type enum value");
+			throw std::runtime_error("Unknown number_type enum value");
 		}
 	}
 
@@ -319,9 +319,6 @@ namespace fe::ext_ast
 	{
 		assert(ext_ast::is_binary_op(n.kind));
 		assert(n.children.size() == 2);
-
-		long int x = -2147483999;
-		decltype(x);
 
 		std::vector<core_ast::unique_node> params;
 		for (auto child : n.children)

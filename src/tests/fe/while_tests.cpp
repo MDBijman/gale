@@ -13,7 +13,7 @@
 #include "fe/libraries/std/std_output.h"
 #include "fe/libraries/std/std_types.h"
 
-TEST_CASE("while loop", "[language_feature][while]")
+TEST_CASE("while loop", "[while]")
 {
 	fe::project p{ fe::pipeline() };
 

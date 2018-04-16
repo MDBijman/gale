@@ -3,6 +3,8 @@
 #include <optional>
 #include <string>
 
+namespace fe::types { struct type; }
+
 namespace fe::ext_ast
 {
 	// Node datatypes
@@ -65,11 +67,11 @@ namespace fe::ext_ast
 		std::string value;
 	};
 
-	enum class number_type { I32, I64, UI32, UI64 };
+	enum class number_type { UI32, I32, UI64, I64 };
 
 	struct number
 	{
-		uint64_t value;
+		long long int value;
 		number_type type;
 	};
 

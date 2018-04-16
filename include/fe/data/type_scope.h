@@ -7,6 +7,115 @@
 
 namespace fe::ext_ast
 {
+	struct conversion_constraint
+	{
+		types::type& to;
+
+		conversion_constraint(types::type& t) : to(t) {}
+
+		bool satisfied_by(types::type& t)
+		{
+			if (to == &t) return true;
+
+			// Number literals
+			{
+				if (auto lhs = dynamic_cast<types::i64*>(&to); lhs)
+				{
+					if (dynamic_cast<types::i32*>(&t) != nullptr) { return true; }
+					if (dynamic_cast<types::ui32*>(&t) != nullptr) { return true; }
+				}
+				if (auto lhs = dynamic_cast<types::ui64*>(&to); lhs)
+				{
+					if (dynamic_cast<types::ui32*>(&t) != nullptr) { return true; }
+				}
+			}
+
+			// Sum type
+			{
+				if (auto lhs = dynamic_cast<types::sum_type*>(&t))
+				{
+					for (auto& lhs_elem : lhs->sum)
+					{
+						if (conversion_constraint(*lhs_elem).satisfied_by(t)) return true;
+					}
+				}
+			}
+
+			return false;
+		}
+
+		conversion_constraint element(size_t i)
+		{
+			if (auto product = dynamic_cast<types::product_type*>(&to))
+			{
+				return conversion_constraint(*product->product.at(i));
+			}
+
+			assert(!"Cannot get element of this conversion constraint");
+		}
+	};
+
+	struct equality_constraint
+	{
+		types::type& to;
+		equality_constraint(types::type& t) : to(t) {}
+
+		bool satisfied_by(types::type& t)
+		{
+			return (to == &t);
+		}
+
+		equality_constraint element(size_t i)
+		{
+			if (auto product = dynamic_cast<types::product_type*>(&to))
+			{
+				return equality_constraint(*product->product.at(i));
+			}
+
+			assert(!"Cannot get element of this equality constraint");
+		}
+	};
+
+	using type_constraint = std::variant<conversion_constraint, equality_constraint>;
+
+	class type_constraints
+	{
+	public:
+		std::vector<type_constraint> constraints;
+
+		type_constraints() {}
+		type_constraints(std::vector<type_constraint> tc) : constraints(std::move(tc)) {}
+
+		bool satisfied_by(types::type& t)
+		{
+			for (auto& constraint : constraints)
+			{
+				auto satisfied = std::visit(([&t](auto& x) -> bool { return x.satisfied_by(t); }), constraint);
+				if (!satisfied) return false;
+			}
+
+			return true;
+		}
+
+		type_constraints element(size_t i)
+		{
+			std::vector<type_constraint> sub_constraints;
+
+			for (auto& constraint : constraints)
+			{
+				auto sub = std::visit(([i](auto& x) -> type_constraint { 
+					return type_constraint(x.element(i)); 
+				}), constraint);
+				sub_constraints.push_back(std::move(sub));
+			}
+
+			return type_constraints(std::move(sub_constraints));
+		}
+	};
+}
+
+namespace fe::ext_ast
+{
 	using name = std::string;
 
 	class type_scope
