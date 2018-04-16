@@ -7,32 +7,7 @@
 
 namespace fe::ext_ast
 {	
-	// Helpers
-	static bool is_convertible(types::type& t1, types::type& t2)
-	{
-		// #todo generic check
-		if (t1 == &t2) return true;
-
-		if (auto lhs = dynamic_cast<types::i64*>(&t1); lhs)
-		{
-			if (dynamic_cast<types::i32*>(&t2) != nullptr) { return true; }
-			if (dynamic_cast<types::ui32*>(&t2) != nullptr) { return true; }
-		}
-		if (auto lhs = dynamic_cast<types::ui64*>(&t1); lhs)
-		{
-			if (dynamic_cast<types::ui32*>(&t2) != nullptr) { return true; }
-		}
-		if (auto rhs = dynamic_cast<types::sum_type*>(&t2))
-		{
-			for (auto& t3 : rhs->sum)
-			{
-				if (is_convertible(t1, *t3)) return true;
-			}
-		}
-
-		return false;
-	}
-
+	// Helper
 	static void copy_parent_scope(node& n, ast& ast)
 	{
 		assert(n.parent_id);
@@ -42,7 +17,7 @@ namespace fe::ext_ast
 	}
 
 	// Typeof
-	types::unique_type typeof_identifier(node& n, ast& ast)
+	types::unique_type typeof_identifier(node& n, ast& ast, type_constraints tc)
 	{
 		assert(n.kind == node_type::IDENTIFIER);
 		assert(n.children.size() == 0);
@@ -57,7 +32,7 @@ namespace fe::ext_ast
 		return types::unique_type(res->type.copy());
 	}
 
-	types::unique_type typeof_number(node& n, ast& ast)
+	types::unique_type typeof_number(node& n, ast& ast, type_constraints tc)
 	{
 		assert(n.kind == node_type::NUMBER);
 		assert(n.children.size() == 0);
@@ -66,51 +41,43 @@ namespace fe::ext_ast
 		assert(n.data_index);
 		auto& number_data = ast.get_data<number>(*n.data_index);
 
-		// #todo return the smallest int type that can fit the value
-
-		// Negative numbers
-		std::vector<types::unique_type> sum_types;
-
-		if (number_data.value > std::numeric_limits<int32_t>::min() && number_data.value < 0)
+		if (tc.satisfied_by(types::i32()))
 		{
-			sum_types.push_back(types::unique_type(new types::ui32()));
-			sum_types.push_back(types::unique_type(new types::ui64()));
-		}
-		else if (number_data.value > std::numeric_limits<int64_t>::min() && number_data.value < std::numeric_limits<int32_t>::min())
-		{
-			sum_types.push_back(types::unique_type(new types::ui64()));
-		}
-		// Positive numbers
-		else if (number_data.value >= 0 && number_data.value <= std::numeric_limits<int32_t>::max())
-		{
-			sum_types.push_back(types::unique_type(new types::ui32()));
-			sum_types.push_back(types::unique_type(new types::ui64()));
-			sum_types.push_back(types::unique_type(new types::i32()));
-			sum_types.push_back(types::unique_type(new types::i64()));
-		}
-		else if (number_data.value > std::numeric_limits<int32_t>::max() && number_data.value <= std::numeric_limits<uint32_t>::max())
-		{
-			sum_types.push_back(types::unique_type(new types::ui32()));
-			sum_types.push_back(types::unique_type(new types::ui64()));
-			sum_types.push_back(types::unique_type(new types::i64()));
-		}
-		else if (number_data.value > std::numeric_limits<uint32_t>::max() && number_data.value <= std::numeric_limits<int64_t>::max())
-		{
-			sum_types.push_back(types::unique_type(new types::ui64()));
-			sum_types.push_back(types::unique_type(new types::i64()));
-		}
-		else if (number_data.value > std::numeric_limits<int64_t>::max() && number_data.value <= std::numeric_limits<uint64_t>::max())
-		{
-			sum_types.push_back(types::unique_type(new types::i64()));
+			assert(number_data.value > std::numeric_limits<int32_t>::min());
+			assert(number_data.value < std::numeric_limits<int32_t>::max());
+			number_data.type = number_type::I32;
+			return types::unique_type(new types::i32());
 		}
 
-		if (sum_types.size() > 0) return types::unique_type(new types::sum_type(std::move(sum_types)));
+		if (tc.satisfied_by(types::ui32()))
+		{
+			assert(number_data.value > std::numeric_limits<int32_t>::min());
+			assert(number_data.value < std::numeric_limits<int32_t>::max());
+			number_data.type = number_type::UI32;
+			return types::unique_type(new types::ui32());
+		}
+
+		if (tc.satisfied_by(types::i64()))
+		{
+			assert(number_data.value > std::numeric_limits<int64_t>::min());
+			assert(number_data.value < std::numeric_limits<int64_t>::max());
+			number_data.type = number_type::I64;
+			return types::unique_type(new types::i64());
+		}
+
+		if (tc.satisfied_by(types::ui64()))
+		{
+			assert(number_data.value > std::numeric_limits<uint64_t>::min());
+			assert(number_data.value < std::numeric_limits<uint64_t>::max());
+			number_data.type = number_type::UI64;
+			return types::unique_type(new types::ui64());
+		}
 
 		assert(!"Cannot infer number literal type");
 		throw std::runtime_error("Cannot infer number literal type");
 	}
 
-	types::unique_type typeof_string(node& n, ast& ast)
+	types::unique_type typeof_string(node& n, ast& ast, type_constraints tc)
 	{
 		assert(n.kind == node_type::STRING);
 		assert(n.children.size() == 0);
@@ -122,26 +89,26 @@ namespace fe::ext_ast
 		return types::unique_type(new types::str());
 	}
 
-	types::unique_type typeof_tuple(node& n, ast& ast)
+	types::unique_type typeof_tuple(node& n, ast& ast, type_constraints tc)
 	{
 		assert(n.kind == node_type::TUPLE);
-		assert(n.type_scope_id);
-		if (n.parent_id)
-			copy_parent_scope(n, ast);
-		else
-			n.name_scope_id = ast.create_name_scope();
+		copy_parent_scope(n, ast);
 
 		types::product_type* pt = new types::product_type();
 		auto res = types::unique_type(pt);
+
+		size_t index = 0;
 		for (auto child : n.children)
 		{
 			auto& child_node = ast.get_node(child);
-			pt->product.push_back(typeof(child_node, ast));
+			pt->product.push_back(typeof(child_node, ast, tc.element(index)));
+
+			index++;
 		}
 		return res;
 	}
 
-	types::unique_type typeof_function_call(node& n, ast& ast)
+	types::unique_type typeof_function_call(node& n, ast& ast, type_constraints tc)
 	{
 		assert(n.kind == node_type::FUNCTION_CALL);
 		assert(n.children.size() == 2);
@@ -150,10 +117,14 @@ namespace fe::ext_ast
 		auto& id_node = ast.get_node(n.children[0]);
 		auto res = typeof(id_node, ast);
 		auto function_type = dynamic_cast<types::function_type*>(res.get());
+
+		auto& arg_node = ast.get_node(n.children[1]);
+		auto arg_type = typeof(arg_node, ast, type_constraints({ equality_constraint(*function_type->from) }));
+
 		return std::move(function_type->to);
 	}
 
-	types::unique_type typeof_block(node& n, ast& ast)
+	types::unique_type typeof_block(node& n, ast& ast, type_constraints tc)
 	{
 		assert(n.kind == node_type::BLOCK);
 		if (n.parent_id)
@@ -181,7 +152,7 @@ namespace fe::ext_ast
 		}
 	}
 
-	types::unique_type typeof_block_result(node& n, ast& ast)
+	types::unique_type typeof_block_result(node& n, ast& ast, type_constraints tc)
 	{
 		assert(n.kind == node_type::BLOCK_RESULT);
 		assert(n.children.size() == 1);
@@ -190,7 +161,7 @@ namespace fe::ext_ast
 		return typeof(child, ast);
 	}
 
-	types::unique_type typeof_type_atom(node& n, ast& ast)
+	types::unique_type typeof_type_atom(node& n, ast& ast, type_constraints tc)
 	{
 		assert(n.kind == node_type::TYPE_ATOM);
 		assert(n.children.size() == 1);
@@ -206,7 +177,7 @@ namespace fe::ext_ast
 		return types::unique_type(res->type.copy());
 	}
 
-	types::unique_type typeof_binary_op(node& n, ast& ast)
+	types::unique_type typeof_binary_op(node& n, ast& ast, type_constraints tc)
 	{
 		assert(ext_ast::is_binary_op(n.kind));
 		assert(n.children.size() == 2);
@@ -216,7 +187,7 @@ namespace fe::ext_ast
 		auto& rhs_node = ast.get_node(n.children[1]);
 
 		auto lhs_type = typeof(lhs_node, ast);
-		auto rhs_type = typeof(rhs_node, ast);
+		auto rhs_type = typeof(rhs_node, ast, type_constraints({ equality_constraint(*lhs_type) }));
 
 		switch (n.kind)
 		{
@@ -226,10 +197,7 @@ namespace fe::ext_ast
 		case node_type::DIVISION:
 		case node_type::MODULO:
 		{
-			assert(*lhs_type == &types::i64());
-			assert(*rhs_type == &types::i64());
-
-			return types::unique_type(new types::i64());
+			return types::unique_type(lhs_type->copy());
 		}
 		case node_type::EQUALITY:
 		case node_type::GREATER_OR_EQ:
@@ -237,9 +205,6 @@ namespace fe::ext_ast
 		case node_type::LESS_OR_EQ:
 		case node_type::LESS_THAN:
 		{
-			assert(*lhs_type == &types::i64());
-			assert(*rhs_type == &types::i64());
-
 			return types::unique_type(new types::boolean());
 		}
 		default:
@@ -247,7 +212,7 @@ namespace fe::ext_ast
 		}
 	}
 
-	types::unique_type typeof_atom_declaration(node& n, ast& ast)
+	types::unique_type typeof_atom_declaration(node& n, ast& ast, type_constraints tc)
 	{
 		assert(n.kind == node_type::ATOM_DECLARATION);
 		assert(n.children.size() == 2);
@@ -258,7 +223,7 @@ namespace fe::ext_ast
 		return typeof(type_atom_child, ast);
 	}
 
-	types::unique_type typeof_tuple_declaration(node& n, ast& ast)
+	types::unique_type typeof_tuple_declaration(node& n, ast& ast, type_constraints tc)
 	{
 		assert(n.kind == node_type::TUPLE_DECLARATION);
 		copy_parent_scope(n, ast);
@@ -467,8 +432,7 @@ namespace fe::ext_ast
 		auto& type = type_lookup->type;
 
 		auto& val_node = ast.get_node(n.children[2]);
-		auto val_type = typeof(val_node, ast);
-		assert(is_convertible(type, *val_type));
+		auto val_type = typeof(val_node, ast, type_constraints({ equality_constraint(type) }));
 
 		auto& lhs_node = ast.get_node(n.children[0]);
 		if (lhs_node.kind == node_type::IDENTIFIER)
@@ -480,7 +444,18 @@ namespace fe::ext_ast
 		}
 		else if (lhs_node.kind == node_type::IDENTIFIER_TUPLE)
 		{
+			size_t i = 0;
+			for (auto child : lhs_node.children)
+			{
+				auto& child_node = ast.get_node(child);
+				assert(child_node.data_index);
+				auto& child_id = ast.get_data<identifier>(*child_node.data_index);
 
+				auto res = resolve_offsets(*val_type, ast, std::vector<size_t>{ i });
+				assert(res);
+				scope.set_type(child_id.segments[0], std::move(*res));
+				i++;
+			}
 		}
 		else
 		{
@@ -505,7 +480,7 @@ namespace fe::ext_ast
 		auto& id_type = res->type;
 
 		auto& value_node = ast.get_node(n.children[1]);
-		auto value_type = typeof(value_node, ast);
+		auto value_type = typeof(value_node, ast, type_constraints({ equality_constraint(id_type) }));
 
 		assert(id_type == &*value_type);
 	}
@@ -622,12 +597,6 @@ namespace fe::ext_ast
 		// #todo check test type is boolean and set this type to body type
 	}
 
-	void typecheck_number(node& n, ast& ast)
-	{
-		assert(n.kind == node_type::NUMBER);
-		assert(n.children.size() == 0);
-	}
-
 	void typecheck(node& n, ast& ast)
 	{
 		switch (n.kind)
@@ -648,29 +617,28 @@ namespace fe::ext_ast
 		case node_type::ARRAY_VALUE:       typecheck_array_value(n, ast);       break;
 		case node_type::WHILE_LOOP:        typecheck_while_loop(n, ast);        break;
 		case node_type::IF_STATEMENT:      typecheck_if_statement(n, ast);      break;
-		case node_type::NUMBER:            typecheck_number(n, ast);            break;
 		case node_type::MODULE_DECLARATION:
 		case node_type::IMPORT_DECLARATION: break;
 		default: assert(!"This node cannot be typechecked");
 		}
 	}
 
-	types::unique_type typeof(node& n, ast& ast)
+	types::unique_type typeof(node& n, ast& ast, type_constraints tc)
 	{
 		switch (n.kind)
 		{
-		case node_type::IDENTIFIER:        return typeof_identifier(n, ast);
-		case node_type::NUMBER:            return typeof_number(n, ast);
-		case node_type::STRING:            return typeof_string(n, ast);
-		case node_type::TUPLE:             return typeof_tuple(n, ast);
-		case node_type::FUNCTION_CALL:     return typeof_function_call(n, ast);
-		case node_type::BLOCK:             return typeof_block(n, ast);
-		case node_type::BLOCK_RESULT:      return typeof_block_result(n, ast);
-		case node_type::TYPE_ATOM:         return typeof_type_atom(n, ast);
-		case node_type::ATOM_DECLARATION:  return typeof_atom_declaration(n, ast);
-		case node_type::TUPLE_DECLARATION: return typeof_tuple_declaration(n, ast);
+		case node_type::IDENTIFIER:        return typeof_identifier(n, ast, tc);
+		case node_type::NUMBER:            return typeof_number(n, ast, tc);
+		case node_type::STRING:            return typeof_string(n, ast, tc);
+		case node_type::TUPLE:             return typeof_tuple(n, ast, tc);
+		case node_type::FUNCTION_CALL:     return typeof_function_call(n, ast, tc);
+		case node_type::BLOCK:             return typeof_block(n, ast, tc);
+		case node_type::BLOCK_RESULT:      return typeof_block_result(n, ast, tc);
+		case node_type::TYPE_ATOM:         return typeof_type_atom(n, ast, tc);
+		case node_type::ATOM_DECLARATION:  return typeof_atom_declaration(n, ast, tc);
+		case node_type::TUPLE_DECLARATION: return typeof_tuple_declaration(n, ast, tc);
 		default:
-			if (ext_ast::is_binary_op(n.kind)) return typeof_binary_op(n, ast);
+			if (ext_ast::is_binary_op(n.kind)) return typeof_binary_op(n, ast, tc);
 
 			assert(!"This node cannot be typeofed");
 			throw std::runtime_error("Node cannot be typeofed");

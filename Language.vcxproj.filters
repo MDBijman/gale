@@ -89,6 +89,9 @@
     <None Include="snippets\syntax\statements.fe">
       <Filter>Resource Files\snippets\syntax</Filter>
     </None>
+    <None Include="snippets\tests\performance_empty.fe">
+      <Filter>Resource Files\snippets\tests</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">

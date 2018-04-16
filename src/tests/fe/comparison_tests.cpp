@@ -10,7 +10,7 @@
 #include "fe/libraries/std/std_types.h"
 
 
-TEST_CASE("comparison operators", "[language_feature][operators]")
+TEST_CASE("comparison operators", "[operators]")
 {
 	fe::project p{ fe::pipeline() };
 	// core

@@ -72,17 +72,17 @@ namespace fe
 		{
 			switch (lit)
 			{
-			case atom_type::I32:    return "std.i32";  break;
-			case atom_type::I64:    return "std.i64";  break;
-			case atom_type::UI32:   return "std.ui32"; break;
-			case atom_type::UI64:   return "std.ui64"; break;
-			case atom_type::F32:    return "std.f32";  break;
-			case atom_type::F64:    return "std.f64";  break;
-			case atom_type::STRING: return "std.str";  break;
-			case atom_type::BOOL:   return "std.bool"; break;
-			case atom_type::UNSET:  return "unset";    break;
-			case atom_type::ANY:    return "any";      break;
-			case atom_type::VOID:   return "void";     break;
+			case atom_type::I32:       return "std.i32";    break;
+			case atom_type::I64:       return "std.i64";    break;
+			case atom_type::UI32:      return "std.ui32";   break;
+			case atom_type::UI64:      return "std.ui64";   break;
+			case atom_type::F32:       return "std.f32";    break;
+			case atom_type::F64:       return "std.f64";    break;
+			case atom_type::STRING:    return "std.str";    break;
+			case atom_type::BOOL:      return "std.bool";   break;
+			case atom_type::UNSET:     return "unset";      break;
+			case atom_type::ANY:       return "any";        break;
+			case atom_type::VOID:      return "void";       break;
 			}
 			assert(!"Unknown atom type");
 			throw std::runtime_error("Unknown atom type");
@@ -109,17 +109,17 @@ namespace fe
 			type* copy() const override { return copyable::copy(*this); }
 		};
 
-		using i32     = atom<atom_type::I32>;
-		using i64     = atom<atom_type::I64>;
-		using ui32    = atom<atom_type::UI32>;
-		using ui64    = atom<atom_type::UI64>;
-		using f32     = atom<atom_type::F32>;
-		using f64     = atom<atom_type::F64>;
-		using boolean = atom<atom_type::BOOL>;
-		using str     = atom<atom_type::STRING>;
-		using any     = atom<atom_type::ANY>;
-		using unset   = atom<atom_type::UNSET>;
-		using voidt   = atom<atom_type::VOID>;
+		using i32        = atom<atom_type::I32>;
+		using i64        = atom<atom_type::I64>;
+		using ui32       = atom<atom_type::UI32>;
+		using ui64       = atom<atom_type::UI64>;
+		using f32        = atom<atom_type::F32>;
+		using f64        = atom<atom_type::F64>;
+		using boolean    = atom<atom_type::BOOL>;
+		using str        = atom<atom_type::STRING>;
+		using any        = atom<atom_type::ANY>;
+		using unset      = atom<atom_type::UNSET>;
+		using voidt      = atom<atom_type::VOID>;
 
 		// Composition types
 
