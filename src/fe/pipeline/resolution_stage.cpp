@@ -296,7 +296,7 @@ namespace fe::ext_ast
 			if (auto resolved_as_var = scope.resolve_variable(module, name); resolved_as_var)
 			{
 				id_data.scope_distance = resolved_as_var->scope_distance;
-				if (fields.segments.size() > 1)
+				if (fields.segments.size() > 0)
 				{
 					assert(resolved_as_var->type_node);
 					auto& type_node = ast.get_node(*resolved_as_var->type_node);
