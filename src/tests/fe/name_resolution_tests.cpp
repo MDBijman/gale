@@ -13,7 +13,7 @@
 #include "fe/libraries/std/std_output.h"
 #include "fe/libraries/std/std_types.h"
 
-TEST_CASE("resolving nested names", "[name_resolution]")
+TEST_CASE("resolving nested names", "[nesting]")
 {
 	fe::project p{ fe::pipeline() };
 
@@ -41,12 +41,14 @@ TEST_CASE("resolving nested names", "[name_resolution]")
 import [std std.io]
 
 type Nested = (std.i64 x, std.i64 y);
-type Pair = (std.i64 a, Nested m);
+type Pair = (std.i32 a, Nested m);
 
 var x: Pair = Pair (1, Nested (3, 4));
 var z: std.i64 = x.m.x;
+var o: std.i32 = x.a;
 )code";
 
 	testing::test_scope scope(p.eval(std::move(code)));
 	REQUIRE(scope.value_equals("z", fe::values::i64(3)));
+	REQUIRE(scope.value_equals("o", fe::values::i32(1)));
 }
