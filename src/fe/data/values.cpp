@@ -34,30 +34,30 @@ namespace fe
 
 
 		tuple::tuple() {}
-		tuple::tuple(std::vector<unique_value> values) : content(std::move(values)) {}
+		tuple::tuple(std::vector<unique_value> values) : val(std::move(values)) {}
 
 		// Copy
 		tuple::tuple(const tuple& other) 
 		{
-			for (decltype(auto) elem : other.content)
+			for (decltype(auto) elem : other.val)
 			{
-				this->content.push_back(unique_value(elem->copy()));
+				this->val.push_back(unique_value(elem->copy()));
 			}
 		}
 		tuple& tuple::operator=(const tuple& other)
 		{
-			for (decltype(auto) elem : other.content)
+			for (decltype(auto) elem : other.val)
 			{
-				this->content.push_back(unique_value(elem->copy()));
+				this->val.push_back(unique_value(elem->copy()));
 			}
 			return *this;
 		}
 
 		// Move
-		tuple::tuple(tuple&& other) : content(std::move(other.content)) {}
+		tuple::tuple(tuple&& other) : val(std::move(other.val)) {}
 		tuple& tuple::operator=(tuple&& other)
 		{
-			this->content = std::move(other.content);
+			this->val = std::move(other.val);
 			return *this;
 		}
 
@@ -65,10 +65,10 @@ namespace fe
 		{
 			std::string r("tuple (");
 
-			for (auto it = content.begin(); it != content.end(); it++)
+			for (auto it = val.begin(); it != val.end(); it++)
 			{
 				r.append(it->get()->to_string());
-				if (it != content.end() - 1)
+				if (it != val.end() - 1)
 					r.append(", ");
 			}
 

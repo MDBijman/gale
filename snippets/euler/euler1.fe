@@ -1,0 +1,22 @@
+module euler1
+import [std std.io]
+
+var sum : std.i32 = 0;
+
+var x : std.i32 = 1000;
+while (x > 1) {
+	x = x - 1;
+
+	var y : std.i32 = x % 5;
+	var z : std.i32 = x % 3;
+
+	y match {
+		| y == 0 -> { sum = sum + x; }
+		| 1 == 1 -> z match {
+			| z == 0 -> { sum = sum + x; }
+			| 1 == 1 -> { sum = sum + 0; }
+		}
+	};
+};
+
+std.io.print std.to_string sum;

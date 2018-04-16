@@ -1,178 +1,84 @@
 #pragma once
-#include "fe/modes/module.h"
-#include "fe/data/runtime_environment.h"
-#include "fe/data/type_environment.h"
+#include "fe/data/scope.h"
 
-namespace fe
+namespace fe::core::operations
 {
-	namespace core
+	template<class LhsData, class RhsData, class Op, class ResData>
+	static values::unique_value bin_op(values::unique_value val)
 	{
-		namespace operations
+		auto t = dynamic_cast<values::tuple*>(val.get());
+
+		auto a = dynamic_cast<LhsData*>(t->val[0].get());
+		auto b = dynamic_cast<RhsData*>(t->val[1].get());
+
+		return values::make_unique(ResData(Op()(*a, *b)));
+	}
+
+	template<class LhsData, class RhsData, class Op, class ResData>
+	static void add_bin_op(runtime_environment& re, ext_ast::type_scope& te, ext_ast::name_scope& se,
+		std::string name, types::type& from, types::type& to)
+	{
+		se.declare_variable(name);
+		se.define_variable(name);
+		te.set_type(name, types::make_unique(types::function_type(from, to)));
+		re.set_value(name, values::make_unique(values::native_function(bin_op<LhsData, RhsData, Op, ResData>)));
+	}
+
+	template<class InData, class Op, class ResData>
+	static void add_bin_op(runtime_environment& re, ext_ast::type_scope& te, ext_ast::name_scope& se,
+		std::string name, types::type& from, types::type& to)
+	{
+		add_bin_op<InData, InData, Op, ResData>(re, te, se, name, from, to);
+	}
+
+	template<class Elem>
+	struct get_op
+	{
+		decltype(Elem::val) operator()(values::tuple& t, values::i32& i)
 		{
-			static std::tuple<runtime_environment, type_environment, scope_environment> load()
-			{
-				runtime_environment re;
-				type_environment te;
-				scope_environment se;
-
-				using namespace fe::types;
-				using namespace fe::values;
-
-				auto from = product_type();
-				from.product.emplace_back(types::make_unique(atom_type{"std.i32"}));
-				from.product.emplace_back(types::make_unique(atom_type{"std.i32"}));
-
-				se.declare(extended_ast::identifier({ "eq" }), extended_ast::identifier({ "_function" }));
-				se.define(extended_ast::identifier({ "eq" }));
-				te.set_type(extended_ast::identifier({ "eq" }),
-					types::make_unique(function_type(from, atom_type{ "std.bool" })));
-				re.set_value("eq", values::make_unique(native_function([](unique_value val) -> unique_value {
-					auto t = dynamic_cast<tuple*>(val.get());
-
-					auto a = dynamic_cast<integer*>(t->content[0].get());
-					auto b = dynamic_cast<integer*>(t->content[1].get());
-
-					return values::make_unique(boolean(a->val == b->val));
-				})));
-
-				se.declare(extended_ast::identifier({ "lt" }), extended_ast::identifier({ "_function" }));
-				se.define(extended_ast::identifier({ "lt" }));
-				te.set_type(extended_ast::identifier({ "lt" }),
-					types::make_unique(function_type(from, atom_type{ "std.bool" })));
-				re.set_value("lt", values::make_unique(native_function([](unique_value val) -> unique_value {
-					auto t = dynamic_cast<tuple*>(val.get());
-
-					auto a = dynamic_cast<integer*>(t->content[0].get());
-					auto b = dynamic_cast<integer*>(t->content[1].get());
-
-					return values::make_unique(boolean(a->val < b->val));
-				})));
-
-				se.declare(extended_ast::identifier({ "lte" }), extended_ast::identifier({ "_function" }));
-				se.define(extended_ast::identifier({ "lte" }));
-				te.set_type(extended_ast::identifier({ "lte" }),
-					types::make_unique(function_type(from, atom_type{ "std.bool" })));
-				re.set_value("lte", values::make_unique(native_function([](unique_value val) -> unique_value {
-					auto t = dynamic_cast<tuple*>(val.get());
-
-					auto a = dynamic_cast<integer*>(t->content[0].get());
-					auto b = dynamic_cast<integer*>(t->content[1].get());
-
-					return values::make_unique(boolean(a->val <= b->val));
-				})));
-
-				se.declare(extended_ast::identifier({ "gt" }), extended_ast::identifier({ "_function" }));
-				se.define(extended_ast::identifier({ "gt" }));
-				te.set_type(extended_ast::identifier({ "gt" }),
-					types::make_unique(function_type(from, atom_type{ "std.bool" })));
-				re.set_value("gt", values::make_unique(native_function([](unique_value val) -> unique_value {
-					auto t = dynamic_cast<tuple*>(val.get());
-
-					auto a = dynamic_cast<integer*>(t->content[0].get());
-					auto b = dynamic_cast<integer*>(t->content[1].get());
-
-					return values::make_unique(boolean(a->val > b->val));
-				})));
-
-				se.declare(extended_ast::identifier({ "gte" }), extended_ast::identifier({ "_function" }));
-				se.define(extended_ast::identifier({ "gte" }));
-				te.set_type(extended_ast::identifier({ "gte" }),
-					types::make_unique(function_type(from, atom_type{ "std.bool" })));
-				re.set_value("gte", values::make_unique(native_function([](unique_value val) -> unique_value {
-					auto t = dynamic_cast<tuple*>(val.get());
-
-					auto a = dynamic_cast<integer*>(t->content[0].get());
-					auto b = dynamic_cast<integer*>(t->content[1].get());
-
-					return values::make_unique(boolean(a->val >= b->val));
-				})));
-
-				se.declare(extended_ast::identifier({ "sub" }), extended_ast::identifier({ "_function" }));
-				se.define(extended_ast::identifier({ "sub" }));
-				te.set_type(extended_ast::identifier({ "sub" }),
-					types::make_unique(function_type(from, atom_type{ "std.i32" })));
-				re.set_value("sub", values::make_unique(native_function([](unique_value val) -> unique_value {
-					auto t = dynamic_cast<tuple*>(val.get());
-
-					auto a = dynamic_cast<integer*>(t->content[0].get());
-					auto b = dynamic_cast<integer*>(t->content[1].get());
-
-					return values::make_unique(integer(a->val - b->val));
-				})));
-
-				se.declare(extended_ast::identifier({ "add" }), extended_ast::identifier({ "_function" }));
-				se.define(extended_ast::identifier({ "add" }));
-				te.set_type(extended_ast::identifier({ "add" }),
-					types::make_unique(function_type(from, atom_type{ "std.i32" })));
-				re.set_value("add", values::make_unique(native_function([](unique_value val) -> unique_value {
-					auto t = dynamic_cast<tuple*>(val.get());
-
-					auto a = dynamic_cast<integer*>(t->content[0].get());
-					auto b = dynamic_cast<integer*>(t->content[1].get());
-
-					return values::make_unique(integer(a->val + b->val));
-				})));
-
-				se.declare(extended_ast::identifier({ "mul" }), extended_ast::identifier({ "_function" }));
-				se.define(extended_ast::identifier({ "mul" }));
-				te.set_type(extended_ast::identifier({ "mul" }),
-					types::make_unique(function_type(from, atom_type{ "std.i32" })));
-				re.set_value("mul", values::make_unique(native_function([](unique_value val) -> unique_value {
-					auto t = dynamic_cast<tuple*>(val.get());
-
-					auto a = dynamic_cast<integer*>(t->content[0].get());
-					auto b = dynamic_cast<integer*>(t->content[1].get());
-
-					return values::make_unique(integer(a->val * b->val));
-				})));
-
-				se.declare(extended_ast::identifier({ "div" }), extended_ast::identifier({ "_function" }));
-				se.define(extended_ast::identifier({ "div" }));
-				te.set_type(extended_ast::identifier({ "div" }),
-					types::make_unique(function_type(from, atom_type{ "std.i32" })));
-				re.set_value("div", values::make_unique(native_function([](unique_value val) -> unique_value {
-					auto t = dynamic_cast<tuple*>(val.get());
-
-					auto a = dynamic_cast<integer*>(t->content[0].get());
-					auto b = dynamic_cast<integer*>(t->content[1].get());
-
-					return values::make_unique(integer(a->val / b->val));
-				})));
-
-				se.declare(extended_ast::identifier({ "mod" }), extended_ast::identifier({ "_function" }));
-				se.define(extended_ast::identifier({ "mod" }));
-				te.set_type(extended_ast::identifier({ "mod" }),
-					types::make_unique(function_type(from, atom_type{ "std.i32" })));
-				re.set_value("mod", values::make_unique(native_function([](unique_value val) -> unique_value {
-					auto t = dynamic_cast<tuple*>(val.get());
-
-					auto a = dynamic_cast<integer*>(t->content[0].get());
-					auto b = dynamic_cast<integer*>(t->content[1].get());
-
-					return values::make_unique(integer(a->val % b->val));
-				})));
-
-				se.declare(extended_ast::identifier({ "get" }), extended_ast::identifier({ "_function" }));
-				se.define(extended_ast::identifier({ "get" }));
-				te.set_type(extended_ast::identifier({ "get" }),
-					types::make_unique(function_type(from, atom_type{ "std.i32" })));
-				re.set_value("get", values::make_unique(native_function([](unique_value val) -> unique_value {
-					auto t = dynamic_cast<tuple*>(val.get());
-
-					auto a = dynamic_cast<tuple*>(t->content[0].get());
-					auto b = dynamic_cast<integer*>(t->content[1].get());
-
-					return unique_value(a->content.at(b->val)->copy());
-				})));
-
-				return { re, te, se };
-			}
-
-			static native_module* load_as_module()
-			{
-				auto[re, te, se] = load();
-				return new native_module("core", std::move(re), std::move(te), std::move(se));
-			}
+			return dynamic_cast<Elem*>(t.val.at(i.val).get())->val;
 		}
+	};
+
+	static scope load()
+	{
+		runtime_environment re;
+		re.push();
+		ext_ast::type_scope te;
+		ext_ast::name_scope se;
+
+		{
+			auto from = types::product_type();
+			from.product.emplace_back(types::make_unique(types::i64()));
+			from.product.emplace_back(types::make_unique(types::i64()));
+
+			add_bin_op<values::i64, std::equal_to<values::i64>, values::boolean>(re, te, se, "eq", from, types::boolean());
+			add_bin_op<values::i64, std::less<values::i64>, values::boolean>(re, te, se, "lt", from, types::boolean());
+			add_bin_op<values::i64, std::less_equal<values::i64>, values::boolean>(re, te, se, "lte", from, types::boolean());
+			add_bin_op<values::i64, std::greater<values::i64>, values::boolean>(re, te, se, "gt", from, types::boolean());
+			add_bin_op<values::i64, std::greater_equal<values::i64>, values::boolean>(re, te, se, "gte", from, types::boolean());
+
+			add_bin_op<values::i64, std::minus<values::i64>, values::i64>(re, te, se, "sub", from, types::i64());
+			add_bin_op<values::i64, std::plus<values::i64>, values::i64>(re, te, se, "add", from, types::i64());
+			add_bin_op<values::i64, std::multiplies<values::i64>, values::i64>(re, te, se, "mul", from, types::i64());
+			add_bin_op<values::i64, std::divides<values::i64>, values::i64>(re, te, se, "div", from, types::i64());
+			add_bin_op<values::i64, std::modulus<values::i64>, values::i64>(re, te, se, "mod", from, types::i64());
+		}
+
+		{
+			auto from = types::product_type();
+			from.product.emplace_back(types::make_unique(types::i64()));
+			from.product.emplace_back(types::make_unique(types::i64()));
+
+			//add_bin_op<values::i64, std::equal_to<values::i64>, values::boolean>(re, te, se, "eq", from, types::boolean());
+		}
+
+
+		auto from = types::product_type();
+		from.product.emplace_back(types::make_unique(types::array_type(types::i32())));
+		from.product.emplace_back(types::make_unique(types::i32()));
+		add_bin_op<values::tuple, values::i32, get_op<values::i32>, values::i32>(re, te, se, "get", from, types::i32());
+
+		return scope(re, te, se);
 	}
 }

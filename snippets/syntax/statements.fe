@@ -1,0 +1,12 @@
+module statements
+import [std std.io]
+
+var x : std.i32 = 1;
+
+if (x == 1) { 
+	x = 2;
+	3
+};
+
+
+std.io.print std.to_string x;

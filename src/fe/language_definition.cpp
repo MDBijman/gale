@@ -25,7 +25,7 @@ namespace fe
 			type_atom, reference_type, array_type, reference, array_value, while_loop,
 			arithmetic, equality, type_operation, type_modifiers, assignable, identifier_tuple,
 			assignment, greater_than, modulo, less_or_equal, comparison, greater_or_equal, less_than,
-			if_expr, item, stmt_semicln, block_elements
+			if_expr, item, stmt_semicln, block_elements, block_result
 			;
 	}
 

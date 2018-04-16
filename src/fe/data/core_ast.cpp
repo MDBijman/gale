@@ -11,18 +11,16 @@ namespace fe
 	{
 		// No op
 
-		no_op::no_op() : type(new types::unset_type()) {}
+		no_op::no_op() {}
 
-		no_op::no_op(const no_op& other) : type(other.type->copy()) {}
+		no_op::no_op(const no_op& other) {}
 		no_op& no_op::operator=(const no_op& other)
 		{
-			this->type = types::unique_type(other.type->copy());
 			return *this;
 		}
-		no_op::no_op(no_op&& other) : type(std::move(other.type)) {}
+		no_op::no_op(no_op&& other) {}
 		no_op& no_op::operator=(no_op&& other)
 		{
-			this->type = std::move(other.type);
 			return *this;
 		}
 
@@ -31,107 +29,29 @@ namespace fe
 			return values::make_unique(values::void_value());
 		}
 
-		// Integer
-
-		integer::integer(values::integer val) : type(new types::atom_type("std.i32")), value(val) {}
-		
-		integer::integer(const integer& other) : value(other.value), type(other.type->copy()) {}
-		integer& integer::operator=(const integer& other)
-		{
-			this->value = other.value;
-			this->type = types::unique_type(other.type->copy());
-			return *this;
-		}
-		integer::integer(integer&& other) : value(std::move(other.value)), type(std::move(other.type)) {}
-		integer& integer::operator=(integer&& other)
-		{
-			this->value = std::move(other.value);
-			this->type = std::move(other.type);
-			return *this;
-		}
-
-		values::unique_value integer::interp(runtime_environment &)
-		{
-			return values::unique_value(this->value.copy());
-		}
-
-		// String
-
-		string::string(values::string val) : type(new types::atom_type("std.str")), value(val) {}
-		
-		string::string(const string& other) : value(other.value), type(other.type->copy()) {}
-		string& string::operator=(const string& other)
-		{
-			this->value = other.value;
-			this->type = types::unique_type(other.type->copy());
-			return *this;
-		}
-		string::string(string&& other) : value(std::move(other.value)), type(std::move(other.type)) {}
-		string& string::operator=(string&& other)
-		{
-			this->value = std::move(other.value);
-			this->type = std::move(other.type);
-			return *this;
-		}
-
-		values::unique_value string::interp(runtime_environment &)
-		{
-			return values::unique_value(this->value.copy());
-		}
-
-		// Boolean
-
-		boolean::boolean(values::boolean val) : type(new types::atom_type("std.bool")), value(val) {}
-		
-		boolean::boolean(const boolean& other) : value(other.value), type(other.type->copy()) {}
-		boolean& boolean::operator=(const boolean& other)
-		{
-			this->value = other.value;
-			this->type = types::unique_type(other.type->copy());
-			return *this;
-		}
-		boolean::boolean(boolean&& other) : value(std::move(other.value)), type(std::move(other.type)) {}
-		boolean& boolean::operator=(boolean&& other)
-		{
-			this->value = std::move(other.value);
-			this->type = std::move(other.type);
-			return *this;
-		}
-
-		node* boolean::copy()
-		{
-			return new boolean(*this);
-		}
-
-		values::unique_value boolean::interp(runtime_environment &)
-		{
-			return values::unique_value(this->value.copy());
-		}
-
 		// Identifier
 
-		identifier::identifier(std::vector<std::string> modules, std::string name, std::vector<int> offsets,
-			std::size_t depth, types::unique_type t) :
+		identifier::identifier(std::vector<std::string> modules, std::string name, std::vector<size_t> offsets,
+			std::size_t depth) :
 			modules(std::move(modules)), variable_name(std::move(name)),
-			offsets(std::move(offsets)), type(std::move(t)), scope_depth(depth) {}
+			offsets(std::move(offsets)), scope_depth(depth) {}
 
 		identifier::identifier(const identifier& other) :
 			modules(other.modules), variable_name(other.variable_name),
-			offsets(other.offsets), type(other.type->copy()), scope_depth(other.scope_depth) {}
+			offsets(other.offsets), scope_depth(other.scope_depth) {}
 
 		identifier& identifier::operator=(const identifier& other)
 		{
 			this->modules = other.modules;
 			this->variable_name = other.variable_name;
 			this->offsets = other.offsets;
-			this->type = types::unique_type(other.type->copy());
 			this->scope_depth = other.scope_depth;
 			return *this;
 		}
 
 		identifier::identifier(identifier&& other) :
 			modules(std::move(other.modules)), variable_name(std::move(other.variable_name)),
-			offsets(std::move(other.offsets)), type(std::move(other.type)), scope_depth(std::move(other.scope_depth))
+			offsets(std::move(other.offsets)), scope_depth(std::move(other.scope_depth))
 		{}
 
 		identifier& identifier::operator=(identifier&& other)
@@ -139,7 +59,6 @@ namespace fe
 			this->modules = std::move(other.modules);
 			this->variable_name = std::move(other.variable_name);
 			this->offsets = std::move(other.offsets);
-			this->type = std::move(other.type);
 			this->scope_depth = std::move(other.scope_depth);
 			return *this;
 		}
@@ -153,31 +72,29 @@ namespace fe
 
 		// Set
 
-		set::set(identifier id, bool is_dec, unique_node value, types::unique_type t) : lhs(std::move(id)),
-			is_declaration(is_dec), value(std::move(value)), type(std::move(t)) {}
+		set::set(identifier id, bool is_dec, unique_node value) : lhs(std::move(id)),
+			is_declaration(is_dec), value(std::move(value)) {}
 
-		set::set(identifier_tuple lhs, unique_node value, types::unique_type t) : lhs(lhs), value(std::move(value)),
-			type(std::move(t)), is_declaration(true) {}
+		set::set(identifier_tuple lhs, unique_node value) : lhs(lhs), value(std::move(value)),
+			 is_declaration(true) {}
 
 		set::set(const set& other) : lhs(other.lhs), value(unique_node(other.value->copy())),
-			type(other.type->copy()), is_declaration(other.is_declaration) {}
+			 is_declaration(other.is_declaration) {}
 
 		set& set::operator=(const set& other)
 		{
 			this->lhs = other.lhs;
-			this->type = types::unique_type(other.type->copy());
 			this->value = unique_node(other.value->copy());
 			this->is_declaration = other.is_declaration;
 			return *this;
 		}
 
 		set::set(set&& other) : lhs(std::move(other.lhs)), value(std::move(other.value)),
-			type(std::move(other.type)), is_declaration(other.is_declaration) {}
+			 is_declaration(other.is_declaration) {}
 
 		set& set::operator=(set&& other)
 		{
 			this->lhs = std::move(other.lhs);
-			this->type = std::move(other.type);
 			this->value = std::move(other.value);
 			this->is_declaration = other.is_declaration;
 			return *this;
@@ -199,11 +116,11 @@ namespace fe
 
 					auto tuple = static_cast<values::tuple*>(&value);
 
-					assert(id_tuple.ids.size() == tuple->content.size());
+					assert(id_tuple.ids.size() == tuple->val.size());
 
 					for (int i = 0; i < id_tuple.ids.size(); i++)
 					{
-						interp(id_tuple.ids.at(i), *tuple->content.at(i));
+						interp(id_tuple.ids.at(i), *tuple->val.at(i));
 					}
 				}
 				else if (std::holds_alternative<identifier>(ids))
@@ -227,30 +144,28 @@ namespace fe
 		// Function
 
 		function::function(identifier&& name, std::variant<std::vector<identifier>, identifier>&& parameters,
-			unique_node&& body, types::unique_type t) : name(std::move(name)), parameters(std::move(parameters)),
-			type(std::move(t)), body(std::move(body)) {}
+			unique_node&& body) : name(std::move(name)), parameters(std::move(parameters)),
+			body(std::move(body)) {}
 
 		function::function(const function& other) : name(other.name), parameters(other.parameters),
-			body(other.body->copy()), type(other.type->copy()) {}
+			body(other.body->copy()){}
 
 		function& function::operator=(const function& other)
 		{
 			this->name = other.name;
 			this->parameters = other.parameters;
 			this->body.reset(other.body->copy());
-			this->type = types::unique_type(other.type->copy());
 			return *this;
 		}
 
 		function::function(function&& other) : name(std::move(other.name)), parameters(std::move(other.parameters)),
-			body(std::move(other.body)), type(std::move(other.type)) {}
+			body(std::move(other.body)) {}
 
 		function& function::operator=(function&& other)
 		{
 			this->name = std::move(other.name);
 			this->parameters = std::move(other.parameters);
 			this->body = std::move(other.body);
-			this->type = std::move(other.type);
 			return *this;
 		}
 
@@ -263,13 +178,9 @@ namespace fe
 
 		// Tuple
 
-		tuple::tuple(std::vector<unique_node> children, types::unique_type t) : type(std::move(t)),
-			children(std::move(children)) {}
+		tuple::tuple(std::vector<unique_node> children) : children(std::move(children)) {}
 
-		tuple::tuple(std::vector<unique_node> children, types::type & t) : type(t.copy()),
-			children(std::move(children)) {}
-
-		tuple::tuple(const tuple& other) : type(other.type->copy())
+		tuple::tuple(const tuple& other) 
 		{
 			for (decltype(auto) other_child : other.children)
 			{
@@ -283,14 +194,12 @@ namespace fe
 			{
 				this->children.push_back(unique_node(other_child->copy()));
 			}
-			this->type = types::unique_type(other.type->copy());
 			return *this;
 		}
-		tuple::tuple(tuple&& other) : type(std::move(other.type)), children(std::move(other.children)) {}
+		tuple::tuple(tuple&& other) : children(std::move(other.children)) {}
 
 		tuple& tuple::operator=(tuple&& other)
 		{
-			this->type = std::move(other.type);
 			this->children = std::move(other.children);
 			return *this;
 		}
@@ -308,10 +217,9 @@ namespace fe
 
 		// Block
 
-		block::block(std::vector<unique_node> children, types::unique_type t) : type(std::move(t)),
-			children(std::move(children)) {}
+		block::block(std::vector<unique_node> children) : children(std::move(children)) {}
 
-		block::block(const block& other) : type(other.type->copy())
+		block::block(const block& other)
 		{
 			for (decltype(auto) other_child : other.children)
 			{
@@ -325,13 +233,11 @@ namespace fe
 			{
 				this->children.push_back(unique_node(other_child->copy()));
 			}
-			this->type = types::unique_type(other.type->copy());
 			return *this;
 		}
-		block::block(block&& other) : type(std::move(other.type)), children(std::move(other.children)) {}
+		block::block(block&& other) : children(std::move(other.children)) {}
 		block& block::operator=(block&& other)
 		{
-			this->type = std::move(other.type);
 			this->children = std::move(other.children);
 			return *this;
 		}
@@ -344,34 +250,32 @@ namespace fe
 			{
 				res = block_node->interp(env);
 			}
-			env.pop();
+			// Only pop if this is not the root block
+			if(env.depth() > 1) env.pop();
 			return res;
 		}
 
 		// Function Call
 
-		function_call::function_call(identifier id, unique_node parameter, types::unique_type t)
-			: type(std::move(t)), id(std::move(id)), parameter(std::move(parameter)) {}
+		function_call::function_call(identifier id, unique_node parameter)
+			: id(std::move(id)), parameter(std::move(parameter)) {}
 
-		function_call::function_call(const function_call& other) : id(other.id), parameter(other.parameter->copy()),
-			type(other.type->copy()) {}
+		function_call::function_call(const function_call& other) : id(other.id), parameter(other.parameter->copy()) {}
 
 		function_call& function_call::operator=(const function_call& other)
 		{
 			this->id = other.id;
 			this->parameter.reset(other.parameter->copy());
-			this->type = types::unique_type(other.type->copy());
 			return *this;
 		}
 
 		function_call::function_call(function_call&& other) : id(std::move(other.id)),
-			parameter(std::move(other.parameter)), type(std::move(other.type)) {}
+			parameter(std::move(other.parameter)) {}
 
 		function_call& function_call::operator=(function_call&& other)
 		{
 			this->id = std::move(other.id);
 			this->parameter = std::move(other.parameter);
-			this->type = std::move(other.type);
 			return *this;
 		}
 
@@ -404,7 +308,7 @@ namespace fe
 					for (auto i = 0; i < parameters.size(); i++)
 					{
 						auto& id = parameters.at(i);
-						function_env.set_value(id.variable_name, std::move(param_tuple->content.at(i)));
+						function_env.set_value(id.variable_name, std::move(param_tuple->val.at(i)));
 					}
 				}
 				else
@@ -424,8 +328,6 @@ namespace fe
 
 		branch::branch(const branch& other)
 		{
-			if (other.type)
-				type = types::unique_type(other.type->copy());
 			for (auto& path : other.paths)
 			{
 				this->paths.push_back(std::make_pair(unique_node(path.first->copy()),
@@ -439,14 +341,12 @@ namespace fe
 				this->paths.push_back(std::make_pair(unique_node(path.first->copy()),
 					unique_node(path.second->copy())));
 			}
-			this->type = types::unique_type(other.type->copy());
 			return *this;
 		}
-		branch::branch(branch&& other) : type(std::move(other.type)), paths(std::move(other.paths)) {}
+		branch::branch(branch&& other) : paths(std::move(other.paths)) {}
 		branch& branch::operator=(branch&& other)
 		{
 			this->paths = std::move(other.paths);
-			this->type = std::move(other.type);
 			return *this;
 		}
 
@@ -455,18 +355,15 @@ namespace fe
 
 			for (auto& path : paths)
 			{
-				env.push();
 				auto test_res = path.first->interp(env);
 				auto res_bool = dynamic_cast<values::boolean*>(test_res.get());
 
 				if (res_bool->val)
 				{
 					auto res = path.second->interp(env);
-					env.pop();
 					return res;
 				}
 
-				env.pop();
 			}
 
 			return values::unique_value(new values::void_value());
@@ -474,19 +371,17 @@ namespace fe
 
 		reference::reference(unique_node exp) : exp(std::move(exp)) {}
 
-		reference::reference(const reference& other) : exp(unique_node(other.exp->copy())), type(other.type->copy()) {}
+		reference::reference(const reference& other) : exp(unique_node(other.exp->copy())) {}
 		reference& reference::operator=(const reference& other)
 		{
 			this->exp = unique_node(other.exp->copy());
-			this->type = types::unique_type(other.type->copy());
 			return *this;
 		}
 
-		reference::reference(reference&& other) : exp(std::move(other.exp)), type(std::move(other.type)) {}
+		reference::reference(reference&& other) : exp(std::move(other.exp)) {}
 		reference& reference::operator=(reference&& other)
 		{
 			this->exp = std::move(other.exp);
-			this->type = std::move(other.type);
 			return *this;
 		}
 
@@ -497,28 +392,25 @@ namespace fe
 
 		// While Loop
 
-		while_loop::while_loop(unique_node test_code, unique_node body, const types::type& t) : 
-			test(std::move(test_code)), body(std::move(body)), type(t.copy()) {}
+		while_loop::while_loop(unique_node test_code, unique_node body) : 
+			test(std::move(test_code)), body(std::move(body)) {}
 
 		while_loop::while_loop(const while_loop& other) : node(other), test(unique_node(other.test->copy())),
-			body(unique_node(other.body->copy())), type(types::unique_type(other.type->copy())) {}
+			body(unique_node(other.body->copy())) {}
 
 		while_loop& while_loop::operator=(const while_loop& other)
 		{
 			this->body = unique_node(other.body->copy());
 			this->test = unique_node(other.test->copy());
-			this->type = types::unique_type(other.type->copy());
 			return *this;
 		}
 
-		while_loop::while_loop(while_loop&& other) : test(std::move(other.test)), body(std::move(other.body)),
-			type(std::move(other.type)) {}
+		while_loop::while_loop(while_loop&& other) : test(std::move(other.test)), body(std::move(other.body)) {}
 
 		while_loop& while_loop::operator=(while_loop&& other)
 		{
 			this->body = std::move(other.body);
 			this->test = std::move(other.test);
-			this->type = std::move(other.type);
 			return *this;
 		}
 
