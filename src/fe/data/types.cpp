@@ -28,9 +28,9 @@ namespace fe
 			return *this;
 		}
 
-		std::string array_type::to_string() const
+		array_type::operator std::string() const
 		{
-			return "array_type (" + element_type->to_string() + ")";
+			return "array_type (" + std::string(*element_type) + ")";
 		}
 
 
@@ -58,9 +58,9 @@ namespace fe
 			return *this;
 		}
 
-		std::string reference_type::to_string() const
+		reference_type::operator std::string() const
 		{
-			return "reference_type (" + referred_type->to_string() + ")";
+			return "reference_type (" + std::string(*referred_type) + ")";
 		}
 
 
@@ -97,13 +97,13 @@ namespace fe
 			return *this;
 		}
 
-		std::string sum_type::to_string() const
+		sum_type::operator std::string() const
 		{
 			std::string r = "sum_type (";
 
 			for (auto it = sum.begin(); it != sum.end(); ++it)
 			{
-				r.append((*it)->to_string());
+				r.append(std::string(**it));
 
 				if (it != sum.end() - 1)
 				{
@@ -148,13 +148,13 @@ namespace fe
 			return *this;
 		}
 
-		std::string product_type::to_string() const
+		product_type::operator std::string() const
 		{
 			std::string r = "product_type (";
 
 			for (auto it = product.begin(); it != product.end(); ++it)
 			{
-				r.append(it->get()->to_string());
+				r.append(std::string(**it));
 
 				if (it != product.end() - 1)
 				{
@@ -197,13 +197,13 @@ namespace fe
 			return *this;
 		}
 
-		std::string function_type::to_string() const
+		function_type::operator std::string() const
 		{
 			std::string r = "function_type (";
 
-			r.append(from->to_string());
+			r.append(std::string(*from));
 			r.append(", ");
-			r.append(to->to_string());
+			r.append(std::string(*to));
 
 			r.append(")");
 			return r;
