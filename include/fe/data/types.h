@@ -44,7 +44,7 @@ namespace fe
 		struct type
 		{
 			virtual ~type() = 0 {};
-			virtual std::string to_string() const = 0;
+			virtual operator std::string() const = 0;
 			virtual type* copy() const = 0;
 			virtual bool operator==(type* other) const = 0;
 		};
@@ -101,10 +101,11 @@ namespace fe
 			atom(const atom& other) {}
 			atom& operator=(const atom& other) {}
 
-			std::string to_string() const override
+			operator std::string() const override
 			{
 				return atom_type_str(Type);
 			}
+
 			bool operator==(type* other) const override { return comparable::operator==(other); }
 			type* copy() const override { return copyable::copy(*this); }
 		};
@@ -136,7 +137,7 @@ namespace fe
 			sum_type(const sum_type& other);
 			sum_type& operator=(const sum_type& other);
 
-			std::string to_string() const override;
+			operator std::string() const override;
 			bool operator==(type* other) const override { return comparable::operator==(other); }
 			type* copy() const override { return copyable::copy(*this); }
 
@@ -157,7 +158,7 @@ namespace fe
 			array_type(const array_type& other);
 			array_type& operator=(const array_type& other);
 
-			std::string to_string() const override;
+			operator std::string() const override;
 			bool operator==(type* other) const override { return comparable::operator==(other); }
 			type* copy() const override { return copyable::copy(*this); }
 
@@ -178,7 +179,7 @@ namespace fe
 			reference_type(const reference_type& other);
 			reference_type& operator=(const reference_type& other);
 
-			std::string to_string() const override;
+			operator std::string() const override;
 			bool operator==(type* other) const override { return comparable::operator==(other); }
 			type* copy() const override { return copyable::copy(*this); }
 
@@ -198,7 +199,7 @@ namespace fe
 			product_type(const product_type& other);
 			product_type& operator=(const product_type& other);
 
-			std::string to_string() const;
+			operator std::string() const override;
 			bool operator==(type* other) const override { return comparable::operator==(other); }
 			type* copy() const override { return copyable::copy(*this); }
 
@@ -218,7 +219,7 @@ namespace fe
 			function_type(const function_type& other);
 			function_type& operator=(const function_type& other);
 
-			std::string to_string() const;
+			operator std::string() const override;
 			bool operator==(type* other) const override { return comparable::operator==(other); }
 			type* copy() const override { return copyable::copy(*this); }
 
