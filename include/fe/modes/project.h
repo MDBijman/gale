@@ -24,7 +24,7 @@ namespace std
 	{
 		size_t operator()(const fe::module_name& o) const
 		{
-			size_t h;
+			size_t h = 0;
 			for (const auto& name : o)
 				h ^= hash<string>()(name);
 			return h;
