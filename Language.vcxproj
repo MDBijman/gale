@@ -132,13 +132,14 @@
     <None Include="snippets\tests\performance_empty.fe" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\fe\data\core_ast.cpp" />
     <ClCompile Include="src\fe\data\name_scope.cpp" />
     <ClCompile Include="src\fe\data\types.cpp" />
     <ClCompile Include="src\fe\data\type_scope.cpp" />
     <ClCompile Include="src\fe\data\values.cpp" />
+    <ClCompile Include="src\fe\data\value_scope.cpp" />
     <ClCompile Include="src\fe\language_definition.cpp" />
     <ClCompile Include="src\fe\pipeline\cst_to_ast_stage.cpp" />
+    <ClCompile Include="src\fe\pipeline\interpreting_stage.cpp" />
     <ClCompile Include="src\fe\pipeline\lowering_stage.cpp" />
     <ClCompile Include="src\fe\pipeline\parser_stage.cpp" />
     <ClCompile Include="src\fe\pipeline\resolution_stage.cpp" />
@@ -160,13 +161,13 @@
   <ItemGroup>
     <ClInclude Include="include\fe\data\core_ast.h" />
     <ClInclude Include="include\fe\data\ext_ast.h" />
-    <ClInclude Include="include\fe\data\ext_ast_data.h" />
+    <ClInclude Include="include\fe\data\ast_data.h" />
     <ClInclude Include="include\fe\data\scope.h" />
-    <ClInclude Include="include\fe\data\runtime_environment.h" />
     <ClInclude Include="include\fe\data\types.h" />
     <ClInclude Include="include\fe\data\name_scope.h" />
     <ClInclude Include="include\fe\data\type_scope.h" />
     <ClInclude Include="include\fe\data\values.h" />
+    <ClInclude Include="include\fe\data\value_scope.h" />
     <ClInclude Include="include\fe\language_definition.h" />
     <ClInclude Include="include\fe\libraries\core\core_operations.h" />
     <ClInclude Include="include\fe\libraries\std\std_input.h" />
@@ -187,6 +188,7 @@
     <ClInclude Include="include\fe\pipeline\typechecker_stage.h" />
     <ClInclude Include="include\tests\test_utils.h" />
     <ClInclude Include="include\utils\lexing\lexer.h" />
+    <ClInclude Include="include\utils\memory\data_store.h" />
     <ClInclude Include="include\utils\parsing\bnf_grammar.h" />
     <ClInclude Include="include\utils\parsing\bnf_parser.h" />
     <ClInclude Include="include\utils\parsing\ebnfe_parser.h" />

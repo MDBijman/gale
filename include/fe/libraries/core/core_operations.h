@@ -15,7 +15,7 @@ namespace fe::core::operations
 	}
 
 	template<class LhsData, class RhsData, class Op, class ResData>
-	static void add_bin_op(runtime_environment& re, ext_ast::type_scope& te, ext_ast::name_scope& se,
+	static void add_bin_op(value_scope& re, ext_ast::type_scope& te, ext_ast::name_scope& se,
 		std::string name, types::type& from, types::type& to)
 	{
 		se.declare_variable(name);
@@ -25,7 +25,7 @@ namespace fe::core::operations
 	}
 
 	template<class InData, class Op, class ResData>
-	static void add_bin_op(runtime_environment& re, ext_ast::type_scope& te, ext_ast::name_scope& se,
+	static void add_bin_op(value_scope& re, ext_ast::type_scope& te, ext_ast::name_scope& se,
 		std::string name, types::type& from, types::type& to)
 	{
 		add_bin_op<InData, InData, Op, ResData>(re, te, se, name, from, to);
@@ -42,10 +42,9 @@ namespace fe::core::operations
 
 	static scope load()
 	{
-		runtime_environment re;
-		re.push();
 		ext_ast::type_scope te;
 		ext_ast::name_scope se;
+		value_scope re;
 
 		{
 			auto from = types::product_type();

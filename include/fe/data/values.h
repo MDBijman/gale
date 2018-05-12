@@ -8,11 +8,7 @@
 // Forward declaration of core ast
 namespace fe
 {
-	namespace core_ast
-	{
-		struct node;
-		using unique_node = std::unique_ptr<node>;
-	}
+	using node_id = size_t;
 }
 
 namespace fe
@@ -164,7 +160,7 @@ namespace fe
 		struct function : public value, private detail::comparable<function, value>, 
 			private detail::copyable<function, value>
 		{
-			function(core_ast::unique_node func);
+			function(node_id id);
 
 			// Copy
 			function(const function& other);
@@ -180,13 +176,13 @@ namespace fe
 
 			bool operator==(const function& other) const
 			{
-				return func.get() == other.func.get();
+				return func == other.func;
 			}
 
 			// #todo use typechecking result of func
 			types::unique_type get_type() const override { return types::make_unique(types::atom<types::atom_type::ANY>()); }
 
-			core_ast::unique_node func;
+			node_id func;
 		};
 
 		struct tuple : public value, private detail::comparable<tuple, value>, 

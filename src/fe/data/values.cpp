@@ -7,21 +7,21 @@ namespace fe
 	{
 		// Function
 
-		function::function(core_ast::unique_node func) : func(std::move(func)) {}
+		function::function(node_id func) : func(func) {}
 
 		// Copy
-		function::function(const function& other) : func(core_ast::unique_node(other.func->copy())) {}
+		function::function(const function& other) : func(other.func) {}
 		function& function::operator=(const function& other)
 		{
-			this->func = core_ast::unique_node(other.func->copy());
+			this->func = other.func;
 			return *this;
 		}
 
 		// Move
-		function::function(function&& other) : func(std::move(other.func)) {}
+		function::function(function&& other) : func(other.func) {}
 		function& function::operator=(function&& other)
 		{
-			this->func = std::move(other.func);
+			this->func = other.func;
 			return *this;
 		}
 
