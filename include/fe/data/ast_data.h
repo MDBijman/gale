@@ -10,6 +10,7 @@ namespace fe::ext_ast
 	struct identifier
 	{
 		identifier() {}
+		identifier(std::string name) : segments({ name }) {}
 		identifier(std::vector<std::string> segs) : segments(segs) {}
 		identifier(std::vector<std::string> segs, size_t sd) : segments(segs), scope_distance(sd) {}
 		identifier(std::vector<std::string> segs, size_t sd, std::vector<size_t> offsets) :
@@ -80,7 +81,8 @@ namespace fe::core_ast
 {
 	struct identifier
 	{
-		identifier() {}
+		identifier() : scope_distance(0) {}
+		identifier(std::string name) : variable_name(name), scope_distance(0) {}
 		identifier(std::vector<std::string> modules, std::string name, size_t sd, std::vector<size_t> offsets) :
 			modules(modules), variable_name(name), scope_distance(sd), offsets(offsets) {}
 

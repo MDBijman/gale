@@ -3,6 +3,7 @@
 #include <unordered_map>
 
 #include "fe/data/ast_data.h"
+#include "fe/data/values.h"
 
 namespace fe
 {
@@ -17,6 +18,7 @@ namespace fe
 	public:
 		value_scope();
 		value_scope(const value_scope& other);
+		value_scope(value_scope&& other);
 
 		void add_module(const core_ast::identifier&, value_scope*);
 

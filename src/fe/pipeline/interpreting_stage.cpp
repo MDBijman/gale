@@ -82,7 +82,7 @@ namespace fe::core_ast
 			assert(lhs.data_index);
 			auto& data = ast.get_data<identifier>(*lhs.data_index);
 			auto& scope = ast.get_value_scope(*lhs.value_scope_id);
-			scope.set_value(data.variable_name, std::move(v), 0);
+			scope.set_value(data.variable_name, std::move(v), data.scope_distance);
 		}
 		else if (lhs.kind == node_type::IDENTIFIER_TUPLE)
 		{
@@ -114,6 +114,8 @@ namespace fe::core_ast
 
 		auto& lhs = ast.get_node(n.children[0]);
 		set_lhs(lhs, std::move(val), ast);
+
+		return values::unique_value(new values::void_value());
 	}
 
 	values::unique_value interpret_function(node& n, ast& ast)
@@ -142,8 +144,14 @@ namespace fe::core_ast
 	values::unique_value interpret_block(node& n, ast& ast)
 	{
 		assert(n.kind == node_type::BLOCK);
-		auto parent_scope_id = *ast.get_node(*n.parent_id).value_scope_id;
-		n.value_scope_id = ast.create_value_scope(parent_scope_id);
+		if (n.parent_id)
+		{
+			auto& parent = ast.get_node(*n.parent_id);
+			assert(parent.value_scope_id);
+			n.value_scope_id = ast.create_value_scope(*parent.value_scope_id);
+		}
+		else
+			assert(n.value_scope_id);
 
 		values::unique_value last_val;
 		for (auto child_id : n.children)
@@ -161,28 +169,37 @@ namespace fe::core_ast
 		assert(n.children.size() == 2);
 		copy_parent_scope(n, ast);
 
-		auto& scope = ast.get_value_scope(*n.value_scope_id);
-
-		auto& id_node = ast.get_node(n.children[0]);
-		assert(id_node.data_index);
-		auto& id_data = ast.get_data<identifier>(*id_node.data_index);
-		std::optional<values::value*> id_val = scope.valueof(id_data, id_data.scope_distance);
-		assert(id_val);
-		values::function* func = dynamic_cast<values::function*>(*id_val);
-		assert(func);
-		auto& func_node = ast.get_node(func->func);
-
-		func_node.value_scope_id = ast.create_value_scope(*ast.get_node(*func_node.parent_id).value_scope_id);
-		auto& func_scope = ast.get_value_scope(*func_node.value_scope_id);
-
-		auto& params_node = ast.get_node(func_node.children[1]);
-
+		// Interpret parameter
 		auto& val_node = ast.get_node(n.children[1]);
 		values::unique_value arg = interpret(val_node, ast);
 
-		set_lhs(params_node, std::move(arg), ast);
+		// Lookup function name
+		auto& id_node = ast.get_node(n.children[0]);
+		assert(id_node.data_index);
+		auto& id_data = ast.get_data<identifier>(*id_node.data_index);
+		std::optional<values::value*> id_val = ast
+			.get_value_scope(*n.value_scope_id)
+			.valueof(id_data, id_data.scope_distance);
+		assert(id_val);
 
-		return interpret(ast.get_node(func_node.children[2]), ast);
+		// Call function
+		if (values::function* func = dynamic_cast<values::function*>(*id_val))
+		{
+			auto& func_node = ast.get_node(func->func);
+
+			func_node.value_scope_id = ast.create_value_scope(*ast.get_node(*func_node.parent_id).value_scope_id);
+			auto& func_scope = ast.get_value_scope(*func_node.value_scope_id);
+
+			auto& params_node = ast.get_node(func_node.children[1]);
+
+			set_lhs(params_node, std::move(arg), ast);
+
+			return interpret(ast.get_node(func_node.children[2]), ast);
+		}
+		else if (values::native_function* func = dynamic_cast<values::native_function*>(*id_val))
+		{
+			return func->function(std::move(arg));
+		}
 	}
 
 	values::unique_value interpret_branch(node& n, ast& ast)
@@ -207,7 +224,7 @@ namespace fe::core_ast
 			}
 		}
 
-		throw std::runtime_error("Error: no branch path matched");
+		return values::unique_value(new values::void_value());
 	}
 
 	values::unique_value interpret_reference(node& n, ast& ast)
@@ -219,6 +236,7 @@ namespace fe::core_ast
 	{
 		assert(n.kind == node_type::WHILE_LOOP);
 		assert(n.children.size() == 2);
+		copy_parent_scope(n, ast);
 
 		auto& test_node = ast.get_node(n.children[0]);
 		auto& body_node = ast.get_node(n.children[1]);
@@ -237,35 +255,28 @@ namespace fe::core_ast
 	{
 		switch (n.kind)
 		{
-		case node_type::NOP:           interpret_nop(n, ast);
-		case node_type::NUMBER:        interpret_number(n, ast);
-		case node_type::STRING:        interpret_string(n, ast);
-		case node_type::BOOLEAN:       interpret_boolean(n, ast);
-		case node_type::IDENTIFIER:    interpret_identifier(n, ast);
-		case node_type::SET:           interpret_set(n, ast);
-		case node_type::FUNCTION:      interpret_function(n, ast);
-		case node_type::TUPLE:         interpret_tuple(n, ast);
-		case node_type::BLOCK:         interpret_block(n, ast);
-		case node_type::FUNCTION_CALL: interpret_function_call(n, ast);
-		case node_type::BRANCH:        interpret_branch(n, ast);
-		case node_type::REFERENCE:     interpret_reference(n, ast);
-		case node_type::WHILE_LOOP:    interpret_while_loop(n, ast);
+		case node_type::NOP:           return interpret_nop(n, ast);
+		case node_type::NUMBER:        return interpret_number(n, ast);
+		case node_type::STRING:        return interpret_string(n, ast);
+		case node_type::BOOLEAN:       return interpret_boolean(n, ast);
+		case node_type::IDENTIFIER:    return interpret_identifier(n, ast);
+		case node_type::SET:           return interpret_set(n, ast);
+		case node_type::FUNCTION:      return interpret_function(n, ast);
+		case node_type::TUPLE:         return interpret_tuple(n, ast);
+		case node_type::BLOCK:         return interpret_block(n, ast);
+		case node_type::FUNCTION_CALL: return interpret_function_call(n, ast);
+		case node_type::BRANCH:        return interpret_branch(n, ast);
+		case node_type::REFERENCE:     return interpret_reference(n, ast);
+		case node_type::WHILE_LOOP:    return interpret_while_loop(n, ast);
 		default:
 			throw std::runtime_error("Error: unknown node type");
 		}
 	}
 
-	std::variant<values::unique_value, interp_error> interpret(core_ast::ast& ast)
+	std::variant<values::unique_value, interp_error> interpret(ast& ast)
 	{
 		auto& root_node = ast.get_node(ast.root_id());
 
-		try
-		{
-			return interpret(root_node, ast);
-		}
-		catch (...)
-		{
-			return interp_error();
-		}
+		return interpret(root_node, ast);
 	}
 }

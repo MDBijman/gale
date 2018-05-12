@@ -7,10 +7,9 @@ namespace fe::stdlib::typedefs
 {
 	static scope load()
 	{
-		runtime_environment r{};
-		r.push();
-		ext_ast::type_scope t{};
-		ext_ast::name_scope s{};
+		ext_ast::type_scope t;
+		ext_ast::name_scope s;
+		value_scope r;
 
 		{
 			using namespace values;
@@ -34,7 +33,7 @@ namespace fe::stdlib::typedefs
 			s.define_variable("to_string");
 			t.set_type("to_string",
 				unique_type(new function_type(unique_type(new any()), unique_type(new types::str()))));
-			r.set_value("to_string", native_function([](unique_value val) -> unique_value {
+			r.set_value("to_string", unique_value(new native_function([](unique_value val) -> unique_value {
 				if (auto num = dynamic_cast<values::i32*>(val.get()))
 				{
 					return unique_value(new values::str(std::to_string(num->val)));
@@ -51,7 +50,7 @@ namespace fe::stdlib::typedefs
 				{
 					return unique_value(new values::str(b->to_string()));
 				}
-			}));
+			})));
 		}
 
 		return scope(std::move(r), std::move(t), std::move(s));

@@ -227,7 +227,9 @@ namespace fe::ext_ast
 			case node_type::NUMBER:     return numbers.create();
 			case node_type::STRING:     return strings.create();
 			case node_type::BOOLEAN:    return booleans.create();
-			default:                    return std::nullopt;
+			default:                   
+				if (is_binary_op(t)) return strings.create();
+				return std::nullopt;
 			}
 		}
 
