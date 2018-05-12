@@ -4,11 +4,13 @@
 namespace fe
 {
 	value_scope::value_scope() {}
-	value_scope::value_scope(const value_scope& other) : parent(other.parent)
+	value_scope::value_scope(const value_scope& other) : parent(other.parent), modules(other.modules)
 	{
 		for (const auto& elem : other.variables)
 			this->variables.insert({ elem.first, values::unique_value(elem.second->copy()) });
 	}
+	value_scope::value_scope(value_scope&& other) : 
+		parent(other.parent), modules(std::move(other.modules)), variables(std::move(other.variables)) {}
 
 	void value_scope::add_module(const core_ast::identifier& id, value_scope* o)
 	{
@@ -32,6 +34,14 @@ namespace fe
 		if (scope_depth > 0)
 		{
 			return parent ? (*parent)->valueof(name, scope_depth - 1) : std::nullopt;
+		}
+
+		// Check modules
+		if (name.modules.size() > 0)
+		{
+			std::vector<std::string> modules(name.modules.begin(), name.modules.end() - 1);
+			auto& module = this->modules.at(core_ast::identifier(modules, name.modules.back(), 0, {}));
+			return module->valueof(core_ast::identifier(name.variable_name), 0);
 		}
 
 		// Check this scope

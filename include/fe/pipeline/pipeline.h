@@ -65,7 +65,7 @@ namespace fe
 
 		core_ast::ast lower(ext_ast::ast& ast) const
 		{
-			return lower(ast);
+			return ext_ast::lower(ast);
 		}
 
 		values::unique_value interp(core_ast::ast& n) const

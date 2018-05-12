@@ -62,6 +62,8 @@ namespace fe::ext_ast
 
 		void set_parent(name_scope* other);
 
+		size_t depth();
+
 		/*
 		* Adds the scope to this module accessible through the module_name.
 		*/

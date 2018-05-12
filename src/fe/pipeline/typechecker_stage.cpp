@@ -128,13 +128,21 @@ namespace fe::ext_ast
 	{
 		assert(n.kind == node_type::BLOCK);
 		if (n.parent_id)
-			n.type_scope_id = ast.create_type_scope(*ast.get_node(*n.parent_id).type_scope_id);
+		{
+			auto& parent = ast.get_node(*n.parent_id);
+			assert(parent.type_scope_id);
+			n.type_scope_id = ast.create_type_scope(*parent.type_scope_id);
+		}
+		// If we dont have a parent we already have a scope
+		else
+			assert(n.type_scope_id);
+
 		if (n.children.size() == 0) return types::unique_type(new types::voidt());
 
 		// Typecheck all children except for the last one, which might be a return value
 		for (auto i = 0; i < n.children.size() - 1; i++)
 		{
-			auto& elem_node = ast.get_node(i);
+			auto& elem_node = ast.get_node(n.children[i]);
 			typecheck(elem_node, ast);
 		}
 
@@ -183,11 +191,16 @@ namespace fe::ext_ast
 		assert(n.children.size() == 2);
 		copy_parent_scope(n, ast);
 
+		assert(n.data_index);
+		auto& type_signature = ast.get_data<string>(*n.data_index);
+
 		auto& lhs_node = ast.get_node(n.children[0]);
 		auto& rhs_node = ast.get_node(n.children[1]);
 
 		auto lhs_type = typeof(lhs_node, ast);
 		auto rhs_type = typeof(rhs_node, ast, type_constraints({ equality_constraint(*lhs_type) }));
+
+		types::unique_type res_type;
 
 		switch (n.kind)
 		{
@@ -197,7 +210,8 @@ namespace fe::ext_ast
 		case node_type::DIVISION:
 		case node_type::MODULO:
 		{
-			return types::unique_type(lhs_type->copy());
+			res_type = types::unique_type(lhs_type->copy());
+			break;
 		}
 		case node_type::EQUALITY:
 		case node_type::GREATER_OR_EQ:
@@ -205,11 +219,34 @@ namespace fe::ext_ast
 		case node_type::LESS_OR_EQ:
 		case node_type::LESS_THAN:
 		{
-			return types::unique_type(new types::boolean());
+			res_type = types::unique_type(new types::boolean());
+			break;
 		}
 		default:
 			throw std::runtime_error("Typeof for binary op not implemented");
 		}
+
+		switch (n.kind)
+		{
+		case node_type::ADDITION:       type_signature.value = "add";  break;
+		case node_type::SUBTRACTION:    type_signature.value = "sub";  break;
+		case node_type::MULTIPLICATION: type_signature.value = "mul";  break;
+		case node_type::DIVISION:       type_signature.value = "div";  break;
+		case node_type::MODULO:         type_signature.value = "mod";  break;
+		case node_type::EQUALITY:       type_signature.value = "eq";   break;
+		case node_type::GREATER_OR_EQ:  type_signature.value = "gte";  break;
+		case node_type::GREATER_THAN:   type_signature.value = "gt";   break;
+		case node_type::LESS_OR_EQ:     type_signature.value = "lte";  break;
+		case node_type::LESS_THAN:      type_signature.value = "lt";   break;
+		default: throw std::runtime_error("Node type not implemented");
+		}
+		type_signature.value += " ";
+		type_signature.value +=
+			"(" + lhs_type->operator std::string() + ", " + rhs_type->operator std::string() + ")";
+		type_signature.value += " -> ";
+		type_signature.value += res_type->operator std::string();
+
+		return res_type;
 	}
 
 	types::unique_type typeof_atom_declaration(node& n, ast& ast, type_constraints tc)
@@ -293,7 +330,13 @@ namespace fe::ext_ast
 	{
 		assert(n.kind == node_type::BLOCK);
 		if (n.parent_id)
-			n.type_scope_id = ast.create_type_scope(*ast.get_node(*n.parent_id).type_scope_id);
+		{
+			auto& parent = ast.get_node(*n.parent_id);
+			assert(parent.type_scope_id);
+			n.type_scope_id = ast.create_type_scope(*parent.type_scope_id);
+		}
+		else
+			assert(n.name_scope_id);
 
 		for (auto element : n.children)
 		{

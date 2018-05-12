@@ -56,30 +56,28 @@ namespace fe::ext_ast
 		{
 			return var_lookup{ std::distance(variables.begin(), pos), resolve_offsets(id.offsets, pos->second.get()) };
 		}
-		else
+
+		for (auto i = 0; i < id.segments.size() - 1; i++)
 		{
-			for (auto i = 0; i < id.segments.size() - 1; i++)
+			identifier module_id;
+			module_id.segments = std::vector<std::string>(id.segments.begin(), id.segments.begin() + i + 1);
+
+			auto pos = modules.find(module_id);
+			if (pos == modules.end()) continue;
+
+			identifier new_id;
+			new_id.segments = std::vector<std::string>(id.segments.begin() + i + 1, id.segments.end());
+
+			if (auto module_lookup = pos->second->resolve_variable(new_id); module_lookup)
+				return module_lookup;
+		}
+
+		if (parent)
+		{
+			if (auto parent_lookup = (*parent)->resolve_variable(id); parent_lookup)
 			{
-				identifier module_id;
-				module_id.segments = std::vector<std::string>(id.segments.begin(), id.segments.begin() + i + 1);
-
-				if (auto pos = modules.find(module_id); pos != modules.end())
-				{
-					identifier new_id;
-					new_id.segments = std::vector<std::string>(id.segments.begin() + i + 1, id.segments.end());
-
-					if (auto module_lookup = pos->second->resolve_variable(new_id); module_lookup)
-						return module_lookup;
-				}
-			}
-
-			if (parent)
-			{
-				if (auto parent_lookup = (*parent)->resolve_variable(id); parent_lookup)
-				{
-					parent_lookup->scope_distance++;
-					return parent_lookup;
-				}
+				parent_lookup->scope_distance++;
+				return parent_lookup;
 			}
 		}
 

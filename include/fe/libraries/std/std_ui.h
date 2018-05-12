@@ -24,11 +24,9 @@ namespace fe::stdlib::ui
 
 	static scope load()
 	{
-		runtime_environment re{};
-		re.push();
 		ext_ast::name_scope se{};
 		ext_ast::type_scope te{};
-
+		value_scope re{};
 
 		// Create Window
 		{
@@ -39,7 +37,7 @@ namespace fe::stdlib::ui
 			se.declare_variable("create_window");
 			se.define_variable("create_window");
 			te.set_type("create_window", unique_type(create_window_type.copy()));
-			re.set_value("create_window", native_function([](unique_value t) -> unique_value {
+			re.set_value("create_window", unique_value(new native_function([](unique_value t) -> unique_value {
 				auto name = dynamic_cast<values::str*>(t.get())->val;
 
 				WNDCLASSEX wc;
@@ -93,7 +91,7 @@ namespace fe::stdlib::ui
 				UpdateWindow(hwndMain);
 
 				return unique_value(new custom_value<HWND>(hwndMain));
-			}));
+			})));
 		}
 
 		// 
@@ -105,7 +103,7 @@ namespace fe::stdlib::ui
 			se.declare_variable("poll");
 			se.define_variable("poll");
 			te.set_type("poll", unique_type(new function_type(types::any(), types::voidt())));
-			re.set_value("poll", native_function([](unique_value from) -> unique_value {
+			re.set_value("poll", unique_value(new native_function([](unique_value from) -> unique_value {
 				HWND window = dynamic_cast<custom_value<HWND>*>(from.get())->val;
 
 				MSG Msg;
@@ -115,7 +113,7 @@ namespace fe::stdlib::ui
 					DispatchMessage(&Msg);
 				}
 				return unique_value(new void_value());
-			}));
+			})));
 		}
 
 		return scope(re, te, se);

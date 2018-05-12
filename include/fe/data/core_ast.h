@@ -35,13 +35,13 @@ namespace fe::core_ast
 
 	struct node
 	{
+		node() : kind(node_type::NOP), id(0) {}
 		node(node_type t) : kind(t) {}
 
 		node_type kind;
 		node_id id;
 		std::vector<node_id> children;
 		std::optional<node_id> parent_id;
-
 
 		std::optional<data_index> data_index;
 		std::optional<scope_index> value_scope_id;
@@ -65,6 +65,8 @@ namespace fe::core_ast
 		{
 			root = nodes.create();
 			nodes.get_at(root) = node(t);
+			nodes.get_at(root).data_index = create_node_data(t);
+			nodes.get_at(root).value_scope_id = create_value_scope();
 		}
 
 		node_id root_id()

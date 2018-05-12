@@ -6,9 +6,8 @@ namespace fe::stdlib::output
 	static scope load()
 	{
 		ext_ast::name_scope se;
-		runtime_environment re;
-		re.push();
 		ext_ast::type_scope te;
+		value_scope re;
 
 		{
 			using namespace types;
