@@ -3,7 +3,7 @@
 #include <optional>
 #include <vector>
 #include <variant>
-#include "fe/data/ext_ast_data.h"
+#include "fe/data/ast_data.h"
 
 namespace fe::ext_ast
 {

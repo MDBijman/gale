@@ -65,7 +65,7 @@ namespace fe
 		auto& root = std::get<utils::ebnfe::non_terminal_node>(*node);
 		ext_ast::ast ast(nt_to_node_type(root.value));
 
-		std::function<ext_ast::node_id(utils::ebnfe::node&)> convert_node = 
+		std::function<node_id(utils::ebnfe::node&)> convert_node = 
 			[&ast, &convert_node](utils::ebnfe::node& n) {
 			if (std::holds_alternative<utils::ebnfe::non_terminal_node>(n))
 			{
@@ -96,16 +96,16 @@ namespace fe
 				auto data_id = node.data_index.value();
 
 				if (t_type == terminals::number)
-					ast.get_data<ext_ast::number>(data_id).value = atoi(t.token.c_str());
+					ast.get_data<number>(data_id).value = atoi(t.token.c_str());
 
 				else if (t_type == terminals::word)
-					ast.get_data<ext_ast::string>(data_id).value = t.token.substr(1, t.token.size() - 2);
+					ast.get_data<string>(data_id).value = t.token.substr(1, t.token.size() - 2);
 
 				else if (t_type == terminals::true_keyword)
-					ast.get_data<ext_ast::boolean>(data_id).value = true;
+					ast.get_data<boolean>(data_id).value = true;
 
 				else if (t_type == terminals::false_keyword)
-					ast.get_data<ext_ast::boolean>(data_id).value = false;
+					ast.get_data<boolean>(data_id).value = false;
 
 				else if (t_type == terminals::identifier)
 				{
