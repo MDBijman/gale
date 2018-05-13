@@ -28,16 +28,16 @@ namespace fe::core_ast
 		switch (num.type)
 		{
 			case number_type::I32:
-				return values::unique_value(new values::i32(num.value));
+				return values::unique_value(new values::i32(static_cast<int32_t>(num.value)));
 				break;
 			case number_type::I64:
-				return values::unique_value(new values::i64(num.value));
+				return values::unique_value(new values::i64(static_cast<int64_t>(num.value)));
 				break;
 			case number_type::UI32:
-				return values::unique_value(new values::ui32(num.value));
+				return values::unique_value(new values::ui32(static_cast<uint32_t>(num.value)));
 				break;
 			case number_type::UI64:
-				return values::unique_value(new values::ui64(num.value));
+				return values::unique_value(new values::ui64(static_cast<uint64_t>(num.value)));
 				break;
 			default:
 				throw std::runtime_error("Error: unknown number type");
@@ -67,7 +67,7 @@ namespace fe::core_ast
 		copy_parent_scope(n, ast);
 		auto& data = ast.get_data<identifier>(*n.data_index);
 		auto& scope = ast.get_value_scope(*n.value_scope_id);
-		auto& val = scope.valueof(data, data.scope_distance);
+		auto& val = scope.valueof(data, data.scope_distance, ast.value_scope_cb());
 		assert(val);
 
 		return values::unique_value((*val)->copy());
@@ -82,7 +82,7 @@ namespace fe::core_ast
 			assert(lhs.data_index);
 			auto& data = ast.get_data<identifier>(*lhs.data_index);
 			auto& scope = ast.get_value_scope(*lhs.value_scope_id);
-			scope.set_value(data.variable_name, std::move(v), data.scope_distance);
+			scope.set_value(data.variable_name, std::move(v), data.scope_distance, ast.value_scope_cb());
 		}
 		else if (lhs.kind == node_type::IDENTIFIER_TUPLE)
 		{
@@ -179,7 +179,7 @@ namespace fe::core_ast
 		auto& id_data = ast.get_data<identifier>(*id_node.data_index);
 		std::optional<values::value*> id_val = ast
 			.get_value_scope(*n.value_scope_id)
-			.valueof(id_data, id_data.scope_distance);
+			.valueof(id_data, id_data.scope_distance, ast.value_scope_cb());
 		assert(id_val);
 
 		// Call function
