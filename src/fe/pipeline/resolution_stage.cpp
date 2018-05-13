@@ -26,7 +26,7 @@ namespace fe::ext_ast
 		assert(lhs_node.data_index);
 		auto& lhs_data = ast.get_data<identifier>(*lhs_node.data_index);
 		assert(lhs_data.segments.size() == 1);
-		auto res = scope.resolve_variable(lhs_data.segments[0]);
+		auto res = scope.resolve_variable(lhs_data.segments[0], ast.name_scope_cb());
 		assert(res);
 		lhs_data.scope_distance = res->scope_distance;
 
@@ -83,7 +83,7 @@ namespace fe::ext_ast
 
 		assert(n.name_scope_id);
 		auto& scope = ast.get_name_scope(*n.name_scope_id);
-		auto res = scope.resolve_type(type_name);
+		auto res = scope.resolve_type(type_name, ast.name_scope_cb());
 		assert(res);
 		id_data.scope_distance = res->scope_distance;
 	}
@@ -175,7 +175,7 @@ namespace fe::ext_ast
 		if (type_node.kind == node_type::IDENTIFIER)
 		{
 			auto& id_data = ast.get_data<identifier>(*type_node.data_index);
-			auto& res = scope.resolve_type(id_data.without_last_segment(), *id_data.segments.rbegin());
+			auto& res = scope.resolve_type(id_data.without_last_segment(), *id_data.segments.rbegin(), ast.name_scope_cb());
 			assert(res);
 			auto& referenced_type_node = ast.get_node(res->type_node);
 			return resolve_field(referenced_type_node, ast, id);
@@ -243,7 +243,7 @@ namespace fe::ext_ast
 		if (type_node.kind == node_type::IDENTIFIER)
 		{
 			auto& id_data = ast.get_data<identifier>(*type_node.data_index);
-			auto& res = scope.resolve_type(id_data.without_last_segment(), *id_data.segments.rbegin());
+			auto& res = scope.resolve_type(id_data.without_last_segment(), *id_data.segments.rbegin(), ast.name_scope_cb());
 			assert(res);
 			auto& referenced_type_node = ast.get_node(res->type_node);
 			return resolve_offsets(referenced_type_node, ast, offsets);
@@ -296,7 +296,7 @@ namespace fe::ext_ast
 			std::string name = *(id_data.segments.begin() + i);
 			identifier fields(std::vector<std::string>(id_data.segments.begin() + i + 1, id_data.segments.end()));
 
-			if (auto resolved_as_var = scope.resolve_variable(module, name); resolved_as_var)
+			if (auto resolved_as_var = scope.resolve_variable(module, name, ast.name_scope_cb()); resolved_as_var)
 			{
 				id_data.scope_distance = resolved_as_var->scope_distance;
 				if (fields.segments.size() > 0)
@@ -311,7 +311,7 @@ namespace fe::ext_ast
 				}
 				return;
 			}
-			else if (auto resolved_as_type = scope.resolve_type(module, name); resolved_as_type)
+			else if (auto resolved_as_type = scope.resolve_type(module, name, ast.name_scope_cb()); resolved_as_type)
 			{
 				id_data.scope_distance = resolved_as_type->scope_distance;
 				// You cannot reference a field within a type as a type name

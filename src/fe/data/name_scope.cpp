@@ -26,18 +26,18 @@ namespace fe::ext_ast
 		}
 	}
 
-	void name_scope::set_parent(name_scope* other)
+	void name_scope::set_parent(scope_index other)
 	{
 		this->parent = other;
 	}
 
-	size_t name_scope::depth()
+	size_t name_scope::depth(get_scope_cb cb)
 	{
-		if (parent) return (*parent)->depth() + 1;
+		if (parent) return cb(*parent)->depth(cb) + 1;
 		return 0;
 	}
 
-	void name_scope::add_module(const identifier& module_name, name_scope* scope)
+	void name_scope::add_module(const identifier& module_name, scope_index scope)
 	{
 		this->modules.insert({ module_name, scope });
 	}
@@ -62,18 +62,18 @@ namespace fe::ext_ast
 		if (opaque_variables.find(id) != opaque_variables.end()) opaque_variables.at(id) = true;
 	}
 
-	std::optional<name_scope::var_lookup> name_scope::resolve_variable(const identifier& module, const name& var) const
+	std::optional<name_scope::var_lookup> name_scope::resolve_variable(const identifier& module, const name& var, get_scope_cb cb) const
 	{
-		if (module.segments.size() == 0) return this->resolve_variable(var);
+		if (module.segments.size() == 0) return this->resolve_variable(var, cb);
 
 		if (auto mod_pos = modules.find(module); mod_pos != modules.end())
 		{
-			return mod_pos->second->resolve_variable(var);
+			return cb(mod_pos->second)->resolve_variable(var, cb);
 		}
 		// If all lookups fail try parent
 		else if (parent)
 		{
-			if (auto parent_lookup = (*parent)->resolve_variable(module, var); parent_lookup)
+			if (auto parent_lookup = cb(*parent)->resolve_variable(module, var, cb); parent_lookup)
 			{
 				parent_lookup->scope_distance++;
 				return parent_lookup;
@@ -83,7 +83,7 @@ namespace fe::ext_ast
 		return std::nullopt;
 	}
 
-	std::optional<name_scope::var_lookup> name_scope::resolve_variable(const name& var) const
+	std::optional<name_scope::var_lookup> name_scope::resolve_variable(const name& var, get_scope_cb cb) const
 	{
 		if (auto pos = variables.find(var); pos != variables.end())
 		{
@@ -95,7 +95,7 @@ namespace fe::ext_ast
 		}
 		else if (parent)
 		{
-			if (auto parent_lookup = (*parent)->resolve_variable(var); parent_lookup)
+			if (auto parent_lookup = cb(*parent)->resolve_variable(var, cb); parent_lookup)
 			{
 				parent_lookup->scope_distance++;
 				return parent_lookup;
@@ -110,17 +110,17 @@ namespace fe::ext_ast
 		this->types.insert({ n, t });
 	}
 
-	std::optional<name_scope::type_lookup> name_scope::resolve_type(const identifier& module, const name& var) const
+	std::optional<name_scope::type_lookup> name_scope::resolve_type(const identifier& module, const name& var, get_scope_cb cb) const
 	{
-		if (module.segments.size() == 0) return this->resolve_type(var);
+		if (module.segments.size() == 0) return this->resolve_type(var, cb);
 
 		if (auto mod_pos = modules.find(module); mod_pos != modules.end())
 		{
-			return mod_pos->second->resolve_type(var);
+			return cb(mod_pos->second)->resolve_type(var, cb);
 		}
 		else if (parent)
 		{
-			if (auto parent_lookup = (*parent)->resolve_type(module, var); parent_lookup)
+			if (auto parent_lookup = cb(*parent)->resolve_type(module, var, cb); parent_lookup)
 			{
 				parent_lookup->scope_distance++;
 				return parent_lookup;
@@ -129,7 +129,7 @@ namespace fe::ext_ast
 		return std::nullopt;
 	}
 
-	std::optional<name_scope::type_lookup> name_scope::resolve_type(const name& var) const
+	std::optional<name_scope::type_lookup> name_scope::resolve_type(const name& var, get_scope_cb cb) const
 	{
 		if (auto pos = types.find(var); pos != types.end())
 		{
@@ -137,7 +137,7 @@ namespace fe::ext_ast
 		}
 		else if (parent)
 		{
-			if (auto parent_lookup = (*parent)->resolve_type(var); parent_lookup)
+			if (auto parent_lookup = cb(*parent)->resolve_type(var, cb); parent_lookup)
 			{
 				parent_lookup->scope_distance++;
 				return parent_lookup;
