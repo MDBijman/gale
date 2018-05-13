@@ -27,7 +27,7 @@ namespace fe::ext_ast
 		auto& scope = ast.get_type_scope(*n.type_scope_id);
 		assert(n.data_index);
 		auto& id = ast.get_data<identifier>(*n.data_index);
-		auto& res = scope.resolve_variable(id);
+		auto& res = scope.resolve_variable(id, ast.type_scope_cb());
 		assert(res);
 		return types::unique_type(res->type.copy());
 	}
@@ -180,7 +180,7 @@ namespace fe::ext_ast
 		auto& id_data = ast.get_data<identifier>(*id_node.data_index);
 
 		auto& scope = ast.get_type_scope(*n.type_scope_id);
-		auto res = scope.resolve_type(id_data);
+		auto res = scope.resolve_type(id_data, ast.type_scope_cb());
 		assert(res);
 		return types::unique_type(res->type.copy());
 	}
@@ -470,7 +470,7 @@ namespace fe::ext_ast
 		auto& type_node = ast.get_node(n.children[1]);
 		assert(type_node.data_index);
 		auto& type_id_data = ast.get_data<identifier>(*type_node.data_index);
-		auto type_lookup = scope.resolve_type(type_id_data);
+		auto type_lookup = scope.resolve_type(type_id_data, ast.type_scope_cb());
 		assert(type_lookup);
 		auto& type = type_lookup->type;
 
@@ -518,7 +518,7 @@ namespace fe::ext_ast
 		auto& id_node = ast.get_node(n.children[0]);
 		assert(id_node.data_index);
 		auto& id_data = ast.get_data<identifier>(*id_node.data_index);
-		auto res = scope.resolve_variable(id_data);
+		auto res = scope.resolve_variable(id_data, ast.type_scope_cb());
 		assert(res);
 		auto& id_type = res->type;
 

@@ -1,6 +1,7 @@
 #pragma once
 #include <unordered_map>
 #include <string>
+#include <functional>
 
 #include "fe/data/types.h"
 #include "fe/data/ast_data.h"
@@ -138,16 +139,18 @@ namespace fe::ext_ast
 		// The defined types
 		std::unordered_map<name, types::unique_type> types;
 
-		std::unordered_map<identifier, type_scope*> modules;
+		std::unordered_map<identifier, scope_index> modules;
 
 		// Parent scope
-		std::optional<type_scope*> parent;
+		std::optional<scope_index> parent;
 
 		types::type& resolve_offsets(const std::vector<size_t>& offsets, types::type* t, size_t cur = 0);
 
 	public:
+		using get_scope_cb = std::function<type_scope*(scope_index)>;
+
 		type_scope() {}
-		type_scope(type_scope* p) : parent(p) {}
+		type_scope(scope_index p) : parent(p) {}
 		type_scope(const type_scope& o)
 		{
 			for (const auto& variable : o.variables)
@@ -159,23 +162,30 @@ namespace fe::ext_ast
 			{
 				types.insert({ type.first, types::unique_type(type.second->copy()) });
 			}
+
+			for (const auto& mod : o.modules)
+			{
+				modules.insert({ mod.first, mod.second });
+			}
+
+			parent = o.parent;
 		}
 		type_scope(type_scope&& o) : variables(std::move(o.variables)), types(std::move(o.types)) {}
 
-		void add_module(const identifier& module_name, type_scope* scope);
+		void add_module(const identifier& module_name, scope_index scope);
 
-		void set_parent(type_scope* other);
+		void set_parent(scope_index other);
 
 		void merge(type_scope other);
 
 		// Types of variables
 
 		void set_type(const name& n, types::unique_type t);
-		std::optional<var_lookup> resolve_variable(const identifier& n);
+		std::optional<var_lookup> resolve_variable(const identifier& n, get_scope_cb);
 
 		// Defined types
 
 		void define_type(const name& n, types::unique_type t);
-		std::optional<type_lookup> resolve_type(const identifier& n);
+		std::optional<type_lookup> resolve_type(const identifier& n, get_scope_cb);
 	};
 }

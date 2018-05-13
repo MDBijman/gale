@@ -42,12 +42,11 @@ namespace fe::ext_ast
 	{
 		assert(n.kind == node_type::BLOCK);
 		auto block = new_ast.create_node(core_ast::node_type::BLOCK);
-		auto& block_node = new_ast.get_node(block);
 
 		for (auto child : n.children)
 		{
 			auto new_child = lower(ast.get_node(child), ast, new_ast);
-			block_node.children.push_back(new_child);
+			new_ast.get_node(block).children.push_back(new_child);
 			new_ast.get_node(new_child).parent_id = block;
 		}
 		return block;
@@ -120,14 +119,15 @@ namespace fe::ext_ast
 		assert(n.kind == node_type::WHILE_LOOP);
 		assert(n.children.size() == 2);
 		auto new_while = new_ast.create_node(core_ast::node_type::WHILE_LOOP);
-		auto& while_node = new_ast.get_node(new_while);
 		
 		auto test_id = lower(ast.get_node(n.children[0]), ast, new_ast);
 		new_ast.get_node(test_id).parent_id = new_while;
-		while_node.children.push_back(test_id);
 
 		auto body_id = lower(ast.get_node(n.children[1]), ast, new_ast);
 		new_ast.get_node(body_id).parent_id = new_while;
+
+		auto& while_node = new_ast.get_node(new_while);
+		while_node.children.push_back(test_id);
 		while_node.children.push_back(body_id);
 
 		return new_while;
@@ -138,14 +138,15 @@ namespace fe::ext_ast
 		assert(n.kind == node_type::IF_STATEMENT);
 		assert(n.children.size() == 2);
 		auto branch = new_ast.create_node(core_ast::node_type::BRANCH);
-		auto& branch_node = new_ast.get_node(branch);
 		
 		auto test_id = lower(ast.get_node(n.children[0]), ast, new_ast);
 		new_ast.get_node(test_id).parent_id = branch;
-		branch_node.children.push_back(test_id);
 
 		auto body_id = lower(ast.get_node(n.children[1]), ast, new_ast);
 		new_ast.get_node(body_id).parent_id = branch;
+
+		auto& branch_node = new_ast.get_node(branch);
+		branch_node.children.push_back(test_id);
 		branch_node.children.push_back(body_id);
 
 		return branch;
@@ -157,20 +158,22 @@ namespace fe::ext_ast
 		assert(n.children.size() % 2 == 0);
 
 		auto branch = new_ast.create_node(core_ast::node_type::BRANCH);
-		auto& branch_node = new_ast.get_node(branch);
 
 		for (auto child : n.children)
 		{
 			auto& child_node = ast.get_node(child);
 			assert(child_node.kind == node_type::MATCH_BRANCH);
 			assert(child_node.children.size() == 2);
-			auto test = lower(ast.get_node(child_node.children[0]), ast, new_ast);
-			auto body = lower(ast.get_node(child_node.children[1]), ast, new_ast);
 
-			branch_node.children.push_back(test);
+			auto test = lower(ast.get_node(child_node.children[0]), ast, new_ast);
 			new_ast.get_node(test).parent_id = branch;
-			branch_node.children.push_back(body);
+
+			auto body = lower(ast.get_node(child_node.children[1]), ast, new_ast);
 			new_ast.get_node(body).parent_id = branch;
+
+			auto& branch_node = new_ast.get_node(branch);
+			branch_node.children.push_back(test);
+			branch_node.children.push_back(body);
 		}
 
 		return branch;
@@ -242,7 +245,6 @@ namespace fe::ext_ast
 		assert(n.children.size() == 2);
 
 		auto fun_id = new_ast.create_node(core_ast::node_type::FUNCTION_CALL);
-		auto& fun_node = new_ast.get_node(fun_id);
 
 		auto id_id = lower(ast.get_node(n.children[0]), ast, new_ast);
 		auto& id_node = new_ast.get_node(id_id);
@@ -252,6 +254,7 @@ namespace fe::ext_ast
 		auto& param_node = new_ast.get_node(param_id);
 		param_node.parent_id = fun_id;
 
+		auto& fun_node = new_ast.get_node(fun_id);
 		fun_node.children.push_back(id_id);
 		fun_node.children.push_back(param_id);
 
@@ -283,35 +286,33 @@ namespace fe::ext_ast
 		assert(n.children.size() == 3);
 
 		auto dec = new_ast.create_node(core_ast::node_type::SET);
-		auto& dec_node = new_ast.get_node(dec);
 
 		auto& lhs_node = ast.get_node(n.children[0]);
 		if (lhs_node.kind == node_type::IDENTIFIER)
 		{
 			auto lhs = lower(lhs_node, ast, new_ast);
 			new_ast.get_node(lhs).parent_id = dec;
-			dec_node.children.push_back(lhs);
+			new_ast.get_node(dec).children.push_back(lhs);
 		}
 		else if (lhs_node.kind == node_type::IDENTIFIER_TUPLE)
 		{
 			auto lhs = new_ast.create_node(core_ast::node_type::IDENTIFIER_TUPLE);
-			auto& new_lhs_node = new_ast.get_node(lhs);
-			new_lhs_node.parent_id = dec;
+			new_ast.get_node(lhs).parent_id = dec;
 
 			for (auto child : lhs_node.children)
 			{
 				auto new_child_id = lower(ast.get_node(child), ast, new_ast);
 				auto& new_child_node = new_ast.get_node(new_child_id);
 				new_child_node.parent_id = lhs;
-				new_lhs_node.children.push_back(new_child_id);
+				new_ast.get_node(lhs).children.push_back(new_child_id);
 			}
 
-			dec_node.children.push_back(lhs);
+			new_ast.get_node(dec).children.push_back(lhs);
 		}
 
 		auto rhs = lower(ast.get_node(n.children[2]), ast, new_ast);
 		new_ast.get_node(rhs).parent_id = dec;
-		dec_node.children.push_back(rhs);
+		new_ast.get_node(dec).children.push_back(rhs);
 
 		return dec;
 	}
@@ -328,18 +329,19 @@ namespace fe::ext_ast
 		assert(n.children.size() == 2);
 
 		auto set = new_ast.create_node(core_ast::node_type::SET);
-		auto& set_node = new_ast.get_node(set);
 
 		auto lhs = lower(ast.get_node(n.children[0]), ast, new_ast);
 		auto& lhs_node = new_ast.get_node(lhs);
 		assert(lhs_node.kind == core_ast::node_type::IDENTIFIER);
 		auto& lhs_data = new_ast.get_data<core_ast::identifier>(*lhs_node.data_index);
 		lhs_node.parent_id = set;
-		set_node.children.push_back(lhs);
 
 		auto fn_rhs = new_ast.create_node(core_ast::node_type::FUNCTION);
 		auto& fn_node = new_ast.get_node(fn_rhs);
 		fn_node.parent_id = set;
+
+		auto& set_node = new_ast.get_node(set);
+		set_node.children.push_back(lhs);
 		set_node.children.push_back(fn_rhs);
 
 		{
@@ -349,7 +351,7 @@ namespace fe::ext_ast
 			name_data.variable_name = lhs_data.variable_name;
 			name_node.parent_id = fn_rhs;
 
-			fn_node.children.push_back(fn_name);
+			new_ast.get_node(fn_rhs).children.push_back(fn_name);
 
 			auto param = new_ast.create_node(core_ast::node_type::IDENTIFIER);
 			auto& param_node = new_ast.get_node(param);
@@ -358,8 +360,8 @@ namespace fe::ext_ast
 			param_node.parent_id = fn_rhs;
 
 			// Push twice, for parameter and body
-			fn_node.children.push_back(param);
-			fn_node.children.push_back(param);
+			new_ast.get_node(fn_rhs).children.push_back(param);
+			new_ast.get_node(fn_rhs).children.push_back(param);
 		}
 
 		return set;
@@ -405,33 +407,30 @@ namespace fe::ext_ast
 		assert(n.data_index);
 
 		auto fun_call = new_ast.create_node(core_ast::node_type::FUNCTION_CALL);
-		auto& fun_call_node = new_ast.get_node(fun_call);
 
 		auto fun_name_id = new_ast.create_node(core_ast::node_type::IDENTIFIER);
-		auto& fun_name_node = new_ast.get_node(fun_name_id);
-		auto& name_data = new_ast.get_data<core_ast::identifier>(*fun_name_node.data_index);
+		auto& name_data = new_ast.get_data<core_ast::identifier>(*new_ast.get_node(fun_name_id).data_index);
 		name_data.modules = { "_core" };
 		name_data.variable_name = ast.get_data<string>(*n.data_index).value;
 		name_data.offsets = {};
 		assert(n.name_scope_id);
-		name_data.scope_distance = ast.get_name_scope(*n.name_scope_id).depth();
+		name_data.scope_distance = ast.get_name_scope(*n.name_scope_id).depth(ast.name_scope_cb());
 
-		fun_call_node.children.push_back(fun_name_id);
-		fun_name_node.parent_id = fun_call;
+		new_ast.get_node(fun_call).children.push_back(fun_name_id);
+		new_ast.get_node(fun_name_id).parent_id = fun_call;
 
 		auto param_tuple = new_ast.create_node(core_ast::node_type::TUPLE);
-		auto& param_tuple_node = new_ast.get_node(param_tuple);
 
 		for (auto child : n.children)
 		{
 			auto new_child_id = lower(ast.get_node(child), ast, new_ast);
 			auto& new_child_node = new_ast.get_node(new_child_id);
 			new_child_node.parent_id = param_tuple;
-			param_tuple_node.children.push_back(new_child_id);
+			new_ast.get_node(param_tuple).children.push_back(new_child_id);
 		}
 
-		fun_call_node.children.push_back(param_tuple);
-		param_tuple_node.parent_id = fun_call;
+		new_ast.get_node(fun_call).children.push_back(param_tuple);
+		new_ast.get_node(param_tuple).parent_id = fun_call;
 
 		return fun_call;
 	}
@@ -478,12 +477,11 @@ namespace fe::ext_ast
 
 		core_ast::ast new_ast(core_ast::node_type::BLOCK);
 		auto block = new_ast.root_id();
-		auto& block_node = new_ast.get_node(block);
 
 		for (auto child : root.children)
 		{
 			auto new_child = lower(ast.get_node(child), ast, new_ast);
-			block_node.children.push_back(new_child);
+			new_ast.get_node(block).children.push_back(new_child);
 			new_ast.get_node(new_child).parent_id = block;
 		}
 

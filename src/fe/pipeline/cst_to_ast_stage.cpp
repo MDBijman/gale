@@ -75,14 +75,13 @@ namespace fe
 				auto nt_type = nt.value;
 				auto ast_node_type = nt_to_node_type(nt_type);
 				auto node_id = ast.create_node(ast_node_type);
-				auto& node_children = ast.get_node(node_id).children;
 
 				// Convert children
 				for (auto&& node_child : nt.children)
 				{
 					auto new_node = convert_node(*node_child);
 					ast.get_node(new_node).parent_id = node_id;
-					node_children.push_back(new_node);
+					ast.get_node(node_id).children.push_back(new_node);
 				}
 
 				return node_id;
@@ -146,12 +145,11 @@ namespace fe
 			}
 		};
 
-		auto& root_node = ast.get_node(ast.root_id());
 		for (decltype(auto) child : root.children)
 		{
 			auto new_node = convert_node(*child);
 			ast.get_node(new_node).parent_id = ast.root_id();
-			root_node.children.push_back(new_node);
+			ast.get_node(ast.root_id()).children.push_back(new_node);
 		}
 
 		return ast;

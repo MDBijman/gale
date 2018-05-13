@@ -8,7 +8,7 @@
 
 #include <chrono>
 
-TEST_CASE("the entire language pipeline should be fast enough", "[pipeline]")
+TEST_CASE("the entire language pipeline should be fast enough", "[performance]")
 {
 	fe::pipeline p;
 
@@ -38,5 +38,31 @@ TEST_CASE("the entire language pipeline should be fast enough", "[pipeline]")
 
 		time = std::chrono::duration<double, std::milli>(then - now).count();
 		std::cout << "File parse in: " << time << " ms" << std::endl;
+	}
+
+	SECTION("a long file parse")
+	{
+		// Init parse table
+		p.parse({ });
+
+		std::string code = 
+R"c(module statements
+import [std std.io]
+
+var x : std.i32 = 1;
+x = 2;
+)c";
+
+		for (int i = 0; i < 100; i++)
+			code += "x = 2;\n";
+
+		auto now = std::chrono::steady_clock::now();
+		auto lex_output = p.lex(std::move(code));
+
+		p.parse(std::move(lex_output));
+		auto then = std::chrono::steady_clock::now();
+
+		auto time = std::chrono::duration<double, std::milli>(then - now).count();
+		std::cout << "Long parse: " << time << " ms" << "\n";
 	}
 }

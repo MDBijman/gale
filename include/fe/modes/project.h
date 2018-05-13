@@ -65,16 +65,20 @@ namespace fe
 		scope eval(ext_ast::ast& ast)
 		{
 			auto& root_node = ast.get_node(ast.root_id());
-
 			scope& core_module = modules.at(module_name{ "_core" });
+			{
+				// Name scope
+				auto core_name_scope = ast.create_name_scope();
+				ast.get_name_scope(core_name_scope).merge(core_module.name_env());
+				ast.get_name_scope(*root_node.name_scope_id)
+					.add_module(ext_ast::identifier("_core"), core_name_scope);
 
-			// Name scope
-			ext_ast::name_scope& root_name_scope = ast.get_name_scope(*root_node.name_scope_id);
-			root_name_scope.add_module(ext_ast::identifier("_core"), &core_module.name_env());
-
-			// Type scope
-			ext_ast::type_scope& root_type_scope = ast.get_type_scope(*root_node.type_scope_id);
-			root_type_scope.add_module(ext_ast::identifier("_core"), &core_module.type_env());
+				// Type scope
+				auto core_type_scope = ast.create_type_scope();
+				ast.get_type_scope(core_type_scope).merge(core_module.type_env());
+				ast.get_type_scope(*root_node.type_scope_id)
+					.add_module(ext_ast::identifier("_core"), core_type_scope);
+			}
 
 			// Add name and type scopes of imports
 			auto imports = ast.get_imports();
@@ -85,8 +89,15 @@ namespace fe
 					auto pos = modules.find(imp.segments);
 					assert(pos != modules.end());
 
-					root_name_scope.add_module(imp, &pos->second.name_env());
-					root_type_scope.add_module(imp, &pos->second.type_env());
+					auto module_name_scope = ast.create_name_scope();
+					ast.get_name_scope(module_name_scope).merge(pos->second.name_env());
+					ast.get_name_scope(*root_node.name_scope_id)
+						.add_module(imp, module_name_scope);
+
+					auto module_type_scope = ast.create_type_scope();
+					ast.get_type_scope(module_type_scope).merge(pos->second.type_env());
+					ast.get_type_scope(*root_node.type_scope_id)
+						.add_module(imp, module_type_scope);
 				}
 			}
 
@@ -98,8 +109,12 @@ namespace fe
 			auto& core_root_node = core_ast.get_node(core_ast.root_id());
 
 			// Value scope
-			value_scope& root_value_scope = core_ast.get_value_scope(*core_root_node.value_scope_id);
-			root_value_scope.add_module(core_ast::identifier("_core"), &core_module.value_env());
+			{
+				auto core_value_scope = core_ast.create_value_scope();
+				core_ast.get_value_scope(core_value_scope).merge(core_module.value_env());
+				core_ast.get_value_scope(*core_root_node.value_scope_id)
+					.add_module(core_ast::identifier("_core"), core_value_scope);
+			}
 
 			// Add value scopes of imports
 			if (imports)
@@ -108,9 +123,13 @@ namespace fe
 				{
 					auto pos = modules.find(imp.segments);
 					assert(pos != modules.end());
-					root_value_scope.add_module(
-						core_ast::identifier(imp.without_last_segment().segments, imp.segments.back(), 0, {}),
-						&pos->second.value_env());
+
+					auto module_value_scope = core_ast.create_value_scope();
+					core_ast.get_value_scope(module_value_scope).merge(pos->second.value_env());
+					core_ast.get_value_scope(*core_root_node.value_scope_id)
+						.add_module(
+							core_ast::identifier(imp.without_last_segment().segments, imp.segments.back(), 0, {}),
+							module_value_scope);
 				}
 			}
 
@@ -118,9 +137,9 @@ namespace fe
 			pl.interp(core_ast);
 
 			return scope(
-				root_value_scope,
-				root_type_scope,
-				root_name_scope
+				core_ast.get_value_scope(*core_root_node.value_scope_id),
+				ast.get_type_scope(*root_node.type_scope_id),
+				ast.get_name_scope(*root_node.name_scope_id)
 			);
 		}
 
