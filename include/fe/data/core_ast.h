@@ -49,14 +49,14 @@ namespace fe::core_ast
 
 	class ast
 	{
-		memory::data_store<node, 256> nodes;
-		memory::data_store<value_scope, 64> value_scopes;
+		memory::dynamic_store<node> nodes;
+		memory::dynamic_store<value_scope> value_scopes;
 
 		// Storage of node data
-		memory::data_store<identifier, 64> identifiers;
-		memory::data_store<boolean, 64> booleans;
-		memory::data_store<string, 64> strings;
-		memory::data_store<number, 64> numbers;
+		memory::dynamic_store<identifier> identifiers;
+		memory::dynamic_store<boolean> booleans;
+		memory::dynamic_store<string> strings;
+		memory::dynamic_store<number> numbers;
 
 		node_id root;
 
@@ -97,13 +97,18 @@ namespace fe::core_ast
 		scope_index create_value_scope(scope_index parent)
 		{
 			auto new_scope = value_scopes.create();
-			value_scopes.get_at(new_scope).set_parent(&value_scopes.get_at(parent));
+			value_scopes.get_at(new_scope).set_parent(parent);
 			return new_scope;
 		}
 
 		value_scope& get_value_scope(scope_index id)
 		{
 			return value_scopes.get_at(id);
+		}
+
+		value_scope::get_scope_cb value_scope_cb()
+		{
+			return [&](scope_index i) { return &value_scopes.get_at(i); };
 		}
 
 		// Node data 

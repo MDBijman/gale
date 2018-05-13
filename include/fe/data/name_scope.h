@@ -3,6 +3,7 @@
 #include <optional>
 #include <vector>
 #include <variant>
+#include <functional>
 #include "fe/data/ast_data.h"
 
 namespace fe::ext_ast
@@ -48,26 +49,27 @@ namespace fe::ext_ast
 		*/
 		std::unordered_map<name, node_id> types;
 
-		std::unordered_map<identifier, name_scope*> modules;
+		std::unordered_map<identifier, scope_index> modules;
 
 		// Parent scope
-		std::optional<name_scope*> parent;
+		std::optional<scope_index> parent;
 
-		
 	public:
+		using get_scope_cb = std::function<name_scope*(scope_index)>;
+
 		/*
 		* Adds all variables, types, and modules to this scope.
 		*/
 		void merge(name_scope other);
 
-		void set_parent(name_scope* other);
+		void set_parent(scope_index other);
 
-		size_t depth();
+		size_t depth(get_scope_cb);
 
 		/*
 		* Adds the scope to this module accessible through the module_name.
 		*/
-		void add_module(const identifier& module_name, name_scope* scope);
+		void add_module(const identifier& module_name, scope_index scope);
 
 		// Variable names
 
@@ -81,18 +83,18 @@ namespace fe::ext_ast
 		* Declares a variable with no accessible fields.
 		* The variable will not yet be resolvable.
 		*/
-		void declare_variable(const name& id);
+		void declare_variable(const name&);
 
 		/*
 		* Defines the given name within this scope. After this, the variable will be resolvable.
 		*/
-		void define_variable(const name& id);
+		void define_variable(const name&);
 
 		/*
 		* Returns the type name of the given reference.
 		*/
-		std::optional<var_lookup> resolve_variable(const identifier& module, const name& var) const;
-		std::optional<var_lookup> resolve_variable(const name& var) const;
+		std::optional<var_lookup> resolve_variable(const identifier& module, const name& var, get_scope_cb) const;
+		std::optional<var_lookup> resolve_variable(const name&, get_scope_cb) const;
 
 		// Type names
 
@@ -105,7 +107,7 @@ namespace fe::ext_ast
 		/*
 		* Returns the type data of the type with the given name if it exists.
 		*/
-		std::optional<type_lookup> resolve_type(const identifier& module, const name& var) const;
-		std::optional<type_lookup> resolve_type(const name& var) const;
+		std::optional<type_lookup> resolve_type(const identifier& module, const name& var, get_scope_cb) const;
+		std::optional<type_lookup> resolve_type(const name&, get_scope_cb) const;
 	};
 }

@@ -35,12 +35,12 @@ namespace fe::ext_ast
 		}
 	}
 
-	void type_scope::add_module(const identifier& name, type_scope* scope)
+	void type_scope::add_module(const identifier& name, scope_index scope)
 	{
 		this->modules.insert({ name, scope });
 	}
 
-	void type_scope::set_parent(type_scope* other)
+	void type_scope::set_parent(scope_index other)
 	{
 		this->parent = other;
 	}
@@ -50,7 +50,7 @@ namespace fe::ext_ast
 		this->variables.insert({ n,std::move(t) });
 	}
 
-	std::optional<type_scope::var_lookup> type_scope::resolve_variable(const identifier& id)
+	std::optional<type_scope::var_lookup> type_scope::resolve_variable(const identifier& id, get_scope_cb cb)
 	{
 		if (auto pos = variables.find(id.segments[0]); pos != variables.end())
 		{
@@ -67,14 +67,14 @@ namespace fe::ext_ast
 
 			identifier new_id;
 			new_id.segments = std::vector<std::string>(id.segments.begin() + i + 1, id.segments.end());
-
-			if (auto module_lookup = pos->second->resolve_variable(new_id); module_lookup)
+			
+			if (auto module_lookup = cb(pos->second)->resolve_variable(new_id, cb); module_lookup)
 				return module_lookup;
 		}
 
 		if (parent)
 		{
-			if (auto parent_lookup = (*parent)->resolve_variable(id); parent_lookup)
+			if (auto parent_lookup = cb(*parent)->resolve_variable(id, cb); parent_lookup)
 			{
 				parent_lookup->scope_distance++;
 				return parent_lookup;
@@ -90,7 +90,7 @@ namespace fe::ext_ast
 		this->types.insert({ n, std::move(t) });
 	}
 
-	std::optional<type_scope::type_lookup> type_scope::resolve_type(const identifier& id)
+	std::optional<type_scope::type_lookup> type_scope::resolve_type(const identifier& id, get_scope_cb cb)
 	{
 		if (auto pos = types.find(id.segments[0]); pos != types.end())
 		{
@@ -108,14 +108,14 @@ namespace fe::ext_ast
 					identifier new_id;
 					new_id.segments = std::vector<std::string>(id.segments.begin() + i, id.segments.end());
 
-					if (auto module_lookup = pos->second->resolve_type(new_id); module_lookup)
+					if (auto module_lookup = cb(pos->second)->resolve_type(new_id, cb); module_lookup)
 						return module_lookup;
 				}
 			}
 
 			if (parent)
 			{
-				if (auto parent_lookup = (*parent)->resolve_type(id); parent_lookup)
+				if (auto parent_lookup = cb(*parent)->resolve_type(id, cb); parent_lookup)
 				{
 					parent_lookup->scope_distance++;
 					return parent_lookup;

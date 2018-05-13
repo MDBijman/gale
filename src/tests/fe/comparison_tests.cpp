@@ -41,7 +41,6 @@ var y : std.i64 = 0;
 
 )code";
 
-
 	SECTION("equals true")
 	{
 		std::string equals_code = code + "if (x == 3) { y = 1; };";
