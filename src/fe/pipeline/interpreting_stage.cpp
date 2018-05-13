@@ -132,7 +132,7 @@ namespace fe::core_ast
 		assert(n.kind == node_type::TUPLE);
 		copy_parent_scope(n, ast);
 
-		std::unique_ptr<values::tuple> val(new values::tuple);
+		std::unique_ptr<values::tuple> val(new values::tuple());
 		for (auto child_id : n.children)
 		{
 			auto& child = ast.get_node(child_id);
