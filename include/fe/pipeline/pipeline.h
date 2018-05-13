@@ -6,9 +6,9 @@
 #include "fe/pipeline/resolution_stage.h"
 #include "fe/pipeline/typechecker_stage.h"
 #include "fe/pipeline/lowering_stage.h"
+#include "fe/pipeline/interpreting_stage.h"
 #include "fe/pipeline/error.h"
 
-#include "fe/data/runtime_environment.h"
 #include "utils/parsing/bnf_grammar.h"
 
 #include <memory>
@@ -63,17 +63,18 @@ namespace fe
 			ext_ast::typecheck(root_node, ast);
 		}
 
-		core_ast::unique_node lower(ext_ast::ast& ast) const
+		core_ast::ast lower(ext_ast::ast& ast) const
 		{
-			auto root = ast.root_id();
-			auto& root_node = ast.get_node(root);
-			return core_ast::unique_node(ext_ast::lower(root_node, ast));
+			return ext_ast::lower(ast);
 		}
 
-		runtime_environment interp(core_ast::node& n, runtime_environment re) const
+		values::unique_value interp(core_ast::ast& n) const
 		{
-			n.interp(re);
-			return re;
+			auto res = core_ast::interpret(n);
+			if (std::holds_alternative<interp_error>(res))
+				throw std::get<interp_error>(res);
+
+			return std::move(std::get<values::unique_value>(res));
 		}
 
 	private:

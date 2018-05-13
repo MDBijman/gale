@@ -9,7 +9,8 @@
 
 #include "fe/data/name_scope.h"
 #include "fe/data/type_scope.h"
-#include "fe/data/ext_ast_data.h"
+#include "fe/data/ast_data.h"
+#include "utils/memory/data_store.h"
 
 namespace fe::ext_ast
 {
@@ -105,57 +106,17 @@ namespace fe::ext_ast
 
 namespace fe::ext_ast
 {
-	namespace detail
-	{
-		template<class T, size_t SIZE>
-		class data_store
-		{
-			std::array<T, SIZE> data;
-			std::array<bool, SIZE> occupieds;
-		public:
-			data_store() : occupieds({ false }) {}
-
-			data_index create()
-			{
-				auto free_pos = std::find(occupieds.begin(), occupieds.end(), false);
-				*free_pos = true;
-				return std::distance(occupieds.begin(), free_pos);
-			}
-
-			T& get_at(data_index i)
-			{
-				assert(occupieds[i]);
-				return data.at(i);
-			}
-
-			bool is_occupied(data_index i)
-			{
-				return occupieds[i];
-			}
-
-			void free_at(data_index i)
-			{
-				occupieds[i] = false;
-			}
-
-			const std::array<T, SIZE>& get_data()
-			{
-				return data;
-			}
-		};
-	}
-
 	class ast
 	{
-		detail::data_store<node, 256> nodes;
-		detail::data_store<name_scope, 64> name_scopes;
-		detail::data_store<type_scope, 64> type_scopes;
+		memory::data_store<node, 256> nodes;
+		memory::data_store<name_scope, 64> name_scopes;
+		memory::data_store<type_scope, 64> type_scopes;
 
 		// Storage of node data
-		detail::data_store<identifier, 64> identifiers;
-		detail::data_store<boolean, 64> booleans;
-		detail::data_store<string, 64> strings;
-		detail::data_store<number, 64> numbers;
+		memory::data_store<identifier, 64> identifiers;
+		memory::data_store<boolean, 64> booleans;
+		memory::data_store<string, 64> strings;
+		memory::data_store<number, 64> numbers;
 
 		node_id root;
 
@@ -266,7 +227,9 @@ namespace fe::ext_ast
 			case node_type::NUMBER:     return numbers.create();
 			case node_type::STRING:     return strings.create();
 			case node_type::BOOLEAN:    return booleans.create();
-			default:                    return std::nullopt;
+			default:                   
+				if (is_binary_op(t)) return strings.create();
+				return std::nullopt;
 			}
 		}
 

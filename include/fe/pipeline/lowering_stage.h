@@ -4,5 +4,6 @@
 
 namespace fe::ext_ast
 {
-	core_ast::node* lower(node& n, ast& ast);
+	core_ast::ast lower(ast& ast);
+	core_ast::node_id lower(node& n, ast& ast, core_ast::ast& new_ast);
 }
