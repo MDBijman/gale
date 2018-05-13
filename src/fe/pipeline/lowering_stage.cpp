@@ -26,13 +26,12 @@ namespace fe::ext_ast
 	{
 		assert(n.kind == node_type::TUPLE);
 		auto tuple = new_ast.create_node(core_ast::node_type::TUPLE);
-		auto& tuple_node = new_ast.get_node(tuple);
 
 		for (auto child : n.children)
 		{
 			auto new_child = lower(ast.get_node(child), ast, new_ast);
 			new_ast.get_node(new_child).parent_id = tuple;
-			tuple_node.children.push_back(new_child);
+			new_ast.get_node(tuple).children.push_back(new_child);
 		}
 
 		return tuple;
