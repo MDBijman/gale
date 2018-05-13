@@ -23,7 +23,7 @@ namespace fe
 			add_mapping(utils::lexing::new_line, utils::bnf::new_line);
 
 			add_mapping(string_token, word);
-			add_mapping(number_token, number);
+			add_mapping(number_token, terminals::number);
 			add_mapping(lrb_token, left_bracket);
 			add_mapping(rrb_token, right_bracket);
 			add_mapping(lcb_token, left_curly_bracket);

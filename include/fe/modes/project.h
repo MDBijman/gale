@@ -24,7 +24,7 @@ namespace std
 	{
 		size_t operator()(const fe::module_name& o) const
 		{
-			size_t h;
+			size_t h = 0;
 			for (const auto& name : o)
 				h ^= hash<string>()(name);
 			return h;
@@ -65,11 +65,20 @@ namespace fe
 		scope eval(ext_ast::ast& ast)
 		{
 			auto& root_node = ast.get_node(ast.root_id());
-			ext_ast::name_scope& root_name_scope = ast.get_name_scope(*root_node.name_scope_id);
-			ext_ast::type_scope& root_type_scope = ast.get_type_scope(*root_node.type_scope_id);
-			runtime_environment runtime_env;
 
-			if (auto imports = ast.get_imports(); imports)
+			scope& core_module = modules.at(module_name{ "_core" });
+
+			// Name scope
+			ext_ast::name_scope& root_name_scope = ast.get_name_scope(*root_node.name_scope_id);
+			root_name_scope.add_module(ext_ast::identifier("_core"), &core_module.name_env());
+
+			// Type scope
+			ext_ast::type_scope& root_type_scope = ast.get_type_scope(*root_node.type_scope_id);
+			root_type_scope.add_module(ext_ast::identifier("_core"), &core_module.type_env());
+
+			// Add name and type scopes of imports
+			auto imports = ast.get_imports();
+			if (imports)
 			{
 				for (const ext_ast::identifier& imp : *imports)
 				{
@@ -78,23 +87,40 @@ namespace fe
 
 					root_name_scope.add_module(imp, &pos->second.name_env());
 					root_type_scope.add_module(imp, &pos->second.type_env());
-					runtime_env.add_module(imp.segments, pos->second.runtime_env());
 				}
 			}
 
-			scope& core_module = modules.at(module_name{ "_core" });
-			root_name_scope.add_module(ext_ast::identifier{ {"_core"} }, &core_module.name_env());
-			root_type_scope.add_module(ext_ast::identifier{ {"_core"} }, &core_module.type_env());
-			runtime_env.add_module("_core", core_module.runtime_env());
-
+			// Stage 1: typecheck
 			pl.typecheck(ast);
+
+			// Stage 2: lower (desugar)
 			auto core_ast = pl.lower(ast);
-			auto re = pl.interp(*core_ast, runtime_env);
+			auto& core_root_node = core_ast.get_node(core_ast.root_id());
+
+			// Value scope
+			value_scope& root_value_scope = core_ast.get_value_scope(*core_root_node.value_scope_id);
+			root_value_scope.add_module(core_ast::identifier("_core"), &core_module.value_env());
+
+			// Add value scopes of imports
+			if (imports)
+			{
+				for (const ext_ast::identifier& imp : *imports)
+				{
+					auto pos = modules.find(imp.segments);
+					assert(pos != modules.end());
+					root_value_scope.add_module(
+						core_ast::identifier(imp.without_last_segment().segments, imp.segments.back(), 0, {}),
+						&pos->second.value_env());
+				}
+			}
+
+			// Stage 3: interpret
+			pl.interp(core_ast);
 
 			return scope(
-				re,
-				ast.get_type_scope(root_node.type_scope_id.value()),
-				ast.get_name_scope(root_node.name_scope_id.value())
+				root_value_scope,
+				root_type_scope,
+				root_name_scope
 			);
 		}
 

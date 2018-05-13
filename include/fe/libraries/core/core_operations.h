@@ -15,9 +15,13 @@ namespace fe::core::operations
 	}
 
 	template<class LhsData, class RhsData, class Op, class ResData>
-	static void add_bin_op(runtime_environment& re, ext_ast::type_scope& te, ext_ast::name_scope& se,
+	static void add_bin_op(value_scope& re, ext_ast::type_scope& te, ext_ast::name_scope& se,
 		std::string name, types::type& from, types::type& to)
 	{
+		name += " ";
+		name += from.operator std::string();
+		name += " -> ";
+		name += to.operator std::string();
 		se.declare_variable(name);
 		se.define_variable(name);
 		te.set_type(name, types::make_unique(types::function_type(from, to)));
@@ -25,7 +29,7 @@ namespace fe::core::operations
 	}
 
 	template<class InData, class Op, class ResData>
-	static void add_bin_op(runtime_environment& re, ext_ast::type_scope& te, ext_ast::name_scope& se,
+	static void add_bin_op(value_scope& re, ext_ast::type_scope& te, ext_ast::name_scope& se,
 		std::string name, types::type& from, types::type& to)
 	{
 		add_bin_op<InData, InData, Op, ResData>(re, te, se, name, from, to);
@@ -42,10 +46,9 @@ namespace fe::core::operations
 
 	static scope load()
 	{
-		runtime_environment re;
-		re.push();
 		ext_ast::type_scope te;
 		ext_ast::name_scope se;
+		value_scope re;
 
 		{
 			auto from = types::product_type();
@@ -67,17 +70,28 @@ namespace fe::core::operations
 
 		{
 			auto from = types::product_type();
-			from.product.emplace_back(types::make_unique(types::i64()));
-			from.product.emplace_back(types::make_unique(types::i64()));
-
-			//add_bin_op<values::i64, std::equal_to<values::i64>, values::boolean>(re, te, se, "eq", from, types::boolean());
+			from.product.emplace_back(types::make_unique(types::array_type(types::i32())));
+			from.product.emplace_back(types::make_unique(types::i32()));
+			add_bin_op<values::tuple, values::i32, get_op<values::i32>, values::i32>(re, te, se, "get", from, types::i32());
 		}
 
+		{
+			auto from = types::product_type();
+			from.product.emplace_back(types::make_unique(types::i32()));
+			from.product.emplace_back(types::make_unique(types::i32()));
 
-		auto from = types::product_type();
-		from.product.emplace_back(types::make_unique(types::array_type(types::i32())));
-		from.product.emplace_back(types::make_unique(types::i32()));
-		add_bin_op<values::tuple, values::i32, get_op<values::i32>, values::i32>(re, te, se, "get", from, types::i32());
+			add_bin_op<values::i32, std::equal_to<values::i32>, values::boolean>(re, te, se, "eq", from, types::boolean());
+			add_bin_op<values::i32, std::less<values::i32>, values::boolean>(re, te, se, "lt", from, types::boolean());
+			add_bin_op<values::i32, std::less_equal<values::i32>, values::boolean>(re, te, se, "lte", from, types::boolean());
+			add_bin_op<values::i32, std::greater<values::i32>, values::boolean>(re, te, se, "gt", from, types::boolean());
+			add_bin_op<values::i32, std::greater_equal<values::i32>, values::boolean>(re, te, se, "gte", from, types::boolean());
+
+			add_bin_op<values::i32, std::minus<values::i32>, values::i32>(re, te, se, "sub", from, types::i32());
+			add_bin_op<values::i32, std::plus<values::i32>, values::i32>(re, te, se, "add", from, types::i32());
+			add_bin_op<values::i32, std::multiplies<values::i32>, values::i32>(re, te, se, "mul", from, types::i32());
+			add_bin_op<values::i32, std::divides<values::i32>, values::i32>(re, te, se, "div", from, types::i32());
+			add_bin_op<values::i32, std::modulus<values::i32>, values::i32>(re, te, se, "mod", from, types::i32());
+		}
 
 		return scope(re, te, se);
 	}

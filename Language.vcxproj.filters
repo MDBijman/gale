@@ -69,6 +69,9 @@
     <Filter Include="Source Files\tests\utils">
       <UniqueIdentifier>{297b88f1-c9a8-442d-8052-a15ae1a0b2ec}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\utils\memory">
+      <UniqueIdentifier>{4b51711a-aed5-4cd1-a967-fa1aea409830}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="snippets\project\modeling_module.fe">
@@ -96,9 +99,6 @@
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
       <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\fe\data\core_ast.cpp">
-      <Filter>Source Files\fe\data</Filter>
     </ClCompile>
     <ClCompile Include="src\fe\data\types.cpp">
       <Filter>Source Files\fe\data</Filter>
@@ -166,12 +166,15 @@
     <ClCompile Include="src\tests\fe\literal_inference_tests.cpp">
       <Filter>Source Files\tests\fe</Filter>
     </ClCompile>
+    <ClCompile Include="src\fe\pipeline\interpreting_stage.cpp">
+      <Filter>Source Files\fe\pipeline</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fe\data\value_scope.cpp">
+      <Filter>Source Files\fe\data</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\fe\data\core_ast.h">
-      <Filter>Source Files\fe\data</Filter>
-    </ClInclude>
-    <ClInclude Include="include\fe\data\runtime_environment.h">
       <Filter>Source Files\fe\data</Filter>
     </ClInclude>
     <ClInclude Include="include\fe\data\types.h">
@@ -270,14 +273,20 @@
     <ClInclude Include="include\fe\data\scope.h">
       <Filter>Source Files\fe\data</Filter>
     </ClInclude>
-    <ClInclude Include="include\fe\data\ext_ast_data.h">
-      <Filter>Source Files\fe\data</Filter>
-    </ClInclude>
     <ClInclude Include="include\fe\data\ext_ast.h">
       <Filter>Source Files\fe\data</Filter>
     </ClInclude>
     <ClInclude Include="include\tests\test_utils.h">
       <Filter>Source Files\tests</Filter>
+    </ClInclude>
+    <ClInclude Include="include\utils\memory\data_store.h">
+      <Filter>Source Files\utils\memory</Filter>
+    </ClInclude>
+    <ClInclude Include="include\fe\data\value_scope.h">
+      <Filter>Source Files\fe\data</Filter>
+    </ClInclude>
+    <ClInclude Include="include\fe\data\ast_data.h">
+      <Filter>Source Files\fe\data</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

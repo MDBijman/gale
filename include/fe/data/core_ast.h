@@ -1,294 +1,130 @@
 #pragma once
-#include "fe/data/types.h"
-#include "fe/data/values.h"
-
 #include <vector>
 #include <optional>
 #include <variant>
 
-namespace fe
+#include "fe/data/types.h"
+#include "fe/data/values.h"
+#include "fe/data/value_scope.h"
+#include "fe/data/ast_data.h"
+#include "utils/memory/data_store.h"
+
+namespace fe::core_ast
 {
-	class runtime_environment;
-
-	namespace core_ast
+	enum class node_type
 	{
-		struct node
+		NOP,
+		NUMBER,
+		STRING,
+		BOOLEAN,
+		IDENTIFIER,
+		IDENTIFIER_TUPLE,
+		SET,
+		FUNCTION,
+		TUPLE,
+		BLOCK,
+		FUNCTION_CALL,
+		BRANCH,
+		REFERENCE,
+		WHILE_LOOP
+	};
+
+	using data_index = size_t;
+	using scope_index = size_t;
+	using node_id = size_t;
+
+	struct node
+	{
+		node() : kind(node_type::NOP), id(0) {}
+		node(node_type t) : kind(t) {}
+
+		node_type kind;
+		node_id id;
+		std::vector<node_id> children;
+		std::optional<node_id> parent_id;
+
+		std::optional<data_index> data_index;
+		std::optional<scope_index> value_scope_id;
+	};
+
+	class ast
+	{
+		memory::data_store<node, 256> nodes;
+		memory::data_store<value_scope, 64> value_scopes;
+
+		// Storage of node data
+		memory::data_store<identifier, 64> identifiers;
+		memory::data_store<boolean, 64> booleans;
+		memory::data_store<string, 64> strings;
+		memory::data_store<number, 64> numbers;
+
+		node_id root;
+
+	public:
+		ast(node_type t)
 		{
-			virtual ~node() {};
-			virtual node* copy() = 0;
-			virtual values::unique_value interp(runtime_environment&) = 0;
-		};
+			root = nodes.create();
+			nodes.get_at(root) = node(t);
+			nodes.get_at(root).data_index = create_node_data(t);
+			nodes.get_at(root).value_scope_id = create_value_scope();
+		}
 
-		using unique_node = std::unique_ptr<node>;
-
-		// Value nodes
-		struct no_op : public node
+		node_id root_id()
 		{
-			no_op();
+			return root;
+		}
 
-			// Copy
-			no_op(const no_op& other);
-			no_op& operator=(const no_op& other);
-
-			// Move
-			no_op(no_op&& other);
-			no_op& operator=(no_op&& other);
-
-			node* copy()
-			{
-				return new no_op(*this);
-			}
-			values::unique_value interp(runtime_environment&) override;
-		};
-
-		struct literal : public node
+		// Nodes
+		node_id create_node(node_type t)
 		{
-			literal(values::unique_value val) : val(std::move(val)) {}
+			auto new_node = nodes.create();
+			get_node(new_node).id = new_node;
+			get_node(new_node).kind = t;
+			get_node(new_node).data_index = create_node_data(t);
+			return new_node;
+		}
 
-			literal(const literal& other) : val(other.val->copy()) {}
-			literal& operator=(const literal& o)
-			{
-				this->val = values::unique_value(o.val->copy());
-				return *this;
-			}
-
-			literal(literal&& other) noexcept : val(std::move(other.val)) {}
-			literal& operator=(literal&& other)
-			{
-				val = std::move(other.val);
-				return *this;
-			}
-
-			node* copy() override
-			{
-				return new literal(*this);
-			}
-
-			values::unique_value interp(runtime_environment&) override
-			{
-				return values::unique_value(val->copy());
-			}
-
-			values::unique_value val;
-		};
-
-		struct identifier : public node
+		node& get_node(node_id id)
 		{
-			identifier(std::vector<std::string> module_names, std::string variables, std::vector<size_t> offset,
-				size_t depth = std::numeric_limits<size_t>::max());
+			return nodes.get_at(id);
+		}
 
-			// Copy
-			identifier(const identifier& other);
-			identifier& operator=(const identifier& other);
-
-			// Move
-			identifier(identifier&& other);
-			identifier& operator=(identifier&& other);
-
-			node* copy()
-			{
-				return new identifier(*this);
-			}
-			values::unique_value interp(runtime_environment&) override;
-
-			identifier without_first_module() const
-			{
-				return
-					identifier(
-						std::vector<std::string>{modules.begin() + 1, modules.end()},
-						std::string(variable_name),
-						std::vector<size_t>(offsets),
-						scope_depth
-					);
-			}
-
-			std::vector<std::string> modules;
-			std::string variable_name;
-			std::vector<size_t> offsets;
-			size_t scope_depth;
-		};
-
-		struct identifier_tuple
+		scope_index create_value_scope()
 		{
-			std::vector<std::variant<identifier, identifier_tuple>> ids;
-		};
+			return value_scopes.create();
+		}
 
-		struct set : public node
+		scope_index create_value_scope(scope_index parent)
 		{
-			set(identifier id, bool is_dec, unique_node value);
-			set(identifier_tuple lhs, unique_node value);
+			auto new_scope = value_scopes.create();
+			value_scopes.get_at(new_scope).set_parent(&value_scopes.get_at(parent));
+			return new_scope;
+		}
 
-			// Copy
-			set(const set& other);
-			set& operator=(const set& other);
-
-			// Move
-			set(set&& other);
-			set& operator=(set&& other);
-
-			node* copy()
-			{
-				return new set(*this);
-			}
-			values::unique_value interp(runtime_environment&) override;
-
-			std::variant<identifier, identifier_tuple> lhs;
-			bool is_declaration;
-			unique_node value;
-		};
-
-		struct function : public node
+		value_scope& get_value_scope(scope_index id)
 		{
-			function(identifier&& name, std::variant<std::vector<identifier>, identifier>&& parameters, unique_node&& body);
+			return value_scopes.get_at(id);
+		}
 
-			// Copy
-			function(const function& other);
-			function& operator=(const function& other);
+		// Node data 
+		template<class DataType>
+		DataType& get_data(data_index i);
+		template<> identifier& get_data<identifier>(data_index i) { return identifiers.get_at(i); }
+		template<> boolean&    get_data<boolean>(data_index i) { return booleans.get_at(i); }
+		template<> string&     get_data<string>(data_index i) { return strings.get_at(i); }
+		template<> number&     get_data<number>(data_index i) { return numbers.get_at(i); }
 
-			// Move
-			function(function&& other);
-			function& operator=(function&& other);
-
-			node* copy()
-			{
-				return new function(*this);
-			}
-			values::unique_value interp(runtime_environment&) override;
-
-			identifier name;
-			// Either a named tuple or a single argument
-			std::variant<std::vector<identifier>, identifier> parameters;
-			unique_node body;
-		};
-
-		// Derivatives
-
-
-		struct tuple : public node
+	private:
+		std::optional<data_index> create_node_data(node_type t)
 		{
-			tuple(std::vector<unique_node> children);
-
-			// Copy
-			tuple(const tuple& other);
-			tuple& operator=(const tuple& other);
-
-			// Move
-			tuple(tuple&& other);
-			tuple& operator=(tuple&& other);
-
-			node* copy()
+			switch (t)
 			{
-				return new tuple(*this);
+			case node_type::IDENTIFIER: return identifiers.create();
+			case node_type::NUMBER:     return numbers.create();
+			case node_type::STRING:     return strings.create();
+			case node_type::BOOLEAN:    return booleans.create();
+			default:                    return std::nullopt;
 			}
-			values::unique_value interp(runtime_environment&) override;
-
-			std::vector<unique_node> children;
-		};
-
-
-		struct block : public node
-		{
-			block(std::vector<unique_node> children);
-
-			// Copy
-			block(const block& other);
-			block& operator=(const block& other);
-
-			// Move
-			block(block&& other);
-			block& operator=(block&& other);
-
-			node* copy()
-			{
-				return new block(*this);
-			}
-			values::unique_value interp(runtime_environment&) override;
-
-			std::vector<unique_node> children;
-		};
-
-		struct function_call : public node
-		{
-			function_call(identifier id, unique_node parameter);
-
-			// Copy
-			function_call(const function_call& other);
-			function_call& operator=(const function_call& other);
-
-			// Move
-			function_call(function_call&& other);
-			function_call& operator=(function_call&& other);
-
-			node* copy()
-			{
-				return new function_call(*this);
-			}
-			values::unique_value interp(runtime_environment&) override;
-
-			identifier id;
-			unique_node parameter;
-		};
-
-		struct branch : public node
-		{
-			branch(std::vector<std::pair<unique_node, unique_node>> paths);
-
-			// Copy
-			branch(const branch& other);
-			branch& operator=(const branch& other);
-
-			// Move
-			branch(branch&& other);
-			branch& operator=(branch&& other);
-
-			node* copy() override
-			{
-				return new branch(*this);
-			}
-			values::unique_value interp(runtime_environment&) override;
-
-			std::vector<std::pair<unique_node, unique_node>> paths;
-		};
-
-		struct reference : public node
-		{
-			reference(unique_node exp);
-
-			reference(const reference& other);
-			reference& operator=(const reference& other);
-
-			reference(reference&& other);
-			reference& operator=(reference&& other);
-
-			node* copy() override
-			{
-				return new reference(*this);
-			}
-			values::unique_value interp(runtime_environment&) override;
-
-			unique_node exp;
-		};
-
-		struct while_loop : public node
-		{
-			while_loop(unique_node test_code, unique_node body);
-
-			// Copy
-			while_loop(const while_loop& other);
-			while_loop& operator=(const while_loop& other);
-
-			// Move
-			while_loop(while_loop&& other);
-			while_loop& operator=(while_loop&& other);
-
-			node* copy() override
-			{
-				return new while_loop(*this);
-			}
-			values::unique_value interp(runtime_environment&) override;
-
-			unique_node test;
-			unique_node body;
-		};
-	}
+		}
+	};
 }

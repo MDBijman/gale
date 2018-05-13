@@ -3,7 +3,7 @@
 #include <optional>
 #include <vector>
 #include <variant>
-#include "fe/data/ext_ast_data.h"
+#include "fe/data/ast_data.h"
 
 namespace fe::ext_ast
 {
@@ -61,6 +61,8 @@ namespace fe::ext_ast
 		void merge(name_scope other);
 
 		void set_parent(name_scope* other);
+
+		size_t depth();
 
 		/*
 		* Adds the scope to this module accessible through the module_name.

@@ -30,7 +30,7 @@ namespace fe
 
 		array_type::operator std::string() const
 		{
-			return "array_type (" + std::string(*element_type) + ")";
+			return "[" + std::string(*element_type) + "]";
 		}
 
 
@@ -60,7 +60,7 @@ namespace fe
 
 		reference_type::operator std::string() const
 		{
-			return "reference_type (" + std::string(*referred_type) + ")";
+			return "&" + std::string(*referred_type);
 		}
 
 
@@ -99,7 +99,7 @@ namespace fe
 
 		sum_type::operator std::string() const
 		{
-			std::string r = "sum_type (";
+			std::string r = "(";
 
 			for (auto it = sum.begin(); it != sum.end(); ++it)
 			{
@@ -107,7 +107,7 @@ namespace fe
 
 				if (it != sum.end() - 1)
 				{
-					r.append(", ");
+					r.append(" | ");
 				}
 			}
 
@@ -150,7 +150,7 @@ namespace fe
 
 		product_type::operator std::string() const
 		{
-			std::string r = "product_type (";
+			std::string r = "(";
 
 			for (auto it = product.begin(); it != product.end(); ++it)
 			{
@@ -199,13 +199,9 @@ namespace fe
 
 		function_type::operator std::string() const
 		{
-			std::string r = "function_type (";
-
-			r.append(std::string(*from));
-			r.append(", ");
+			std::string r = std::string(*from);
+			r.append(" -> ");
 			r.append(std::string(*to));
-
-			r.append(")");
 			return r;
 		}
 

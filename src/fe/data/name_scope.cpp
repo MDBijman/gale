@@ -31,6 +31,12 @@ namespace fe::ext_ast
 		this->parent = other;
 	}
 
+	size_t name_scope::depth()
+	{
+		if (parent) return (*parent)->depth() + 1;
+		return 0;
+	}
+
 	void name_scope::add_module(const identifier& module_name, name_scope* scope)
 	{
 		this->modules.insert({ module_name, scope });
@@ -75,24 +81,6 @@ namespace fe::ext_ast
 		}
 
 		return std::nullopt;
-
-		//{
-		//	// Module lookup
-		//	for (auto i = 0; i < id.segments.size() - 1; i++)
-		//	{
-		//		identifier module_id;
-		//		module_id.segments = std::vector<std::string>(id.segments.begin(), id.segments.begin() + i + 1);
-
-		//		if (auto pos = modules.find(module_id); pos != modules.end())
-		//		{
-		//			identifier new_id;
-		//			new_id.segments = std::vector<std::string>(id.segments.begin() + i + 1, id.segments.end());
-
-		//			if (auto module_lookup = pos->second->resolve_variable(new_id); module_lookup)
-		//				return module_lookup;
-		//		}
-		//	}
-		//}
 	}
 
 	std::optional<name_scope::var_lookup> name_scope::resolve_variable(const name& var) const
@@ -139,21 +127,6 @@ namespace fe::ext_ast
 			}
 		}
 		return std::nullopt;
-
-		/*	for (auto i = 1; i < id.segments.size(); i++)
-				{
-					identifier module_id;
-					module_id.segments = std::vector<std::string>(id.segments.begin(), id.segments.begin() + i);
-
-					if (auto pos = modules.find(module_id); pos != modules.end())
-					{
-						identifier new_id;
-						new_id.segments = std::vector<std::string>(id.segments.begin() + i, id.segments.end());
-
-						if (auto module_lookup = pos->second->resolve_type(new_id); module_lookup)
-							return module_lookup;
-					}
-				}*/
 	}
 
 	std::optional<name_scope::type_lookup> name_scope::resolve_type(const name& var) const
