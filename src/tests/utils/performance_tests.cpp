@@ -50,10 +50,9 @@ R"c(module statements
 import [std std.io]
 
 var x : std.i32 = 1;
-x = 2;
 )c";
 
-		for (int i = 0; i < 100; i++)
+		for (int i = 0; i < 1000; i++)
 			code += "x = 2;\n";
 
 		auto now = std::chrono::steady_clock::now();
