@@ -154,6 +154,7 @@
     <ClCompile Include="src\tests\utils\lr_tests.cpp" />
     <ClCompile Include="src\tests\utils\performance_tests.cpp" />
     <ClCompile Include="src\utils\parsing\bnf_grammar.cpp" />
+    <ClCompile Include="src\utils\parsing\ebnf_parser.cpp" />
     <ClCompile Include="src\utils\parsing\ll_parser.cpp" />
     <ClCompile Include="src\utils\parsing\lr_parser.cpp" />
     <ClCompile Include="src\utils\reading\reader.cpp" />
