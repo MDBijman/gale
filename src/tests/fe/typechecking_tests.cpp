@@ -13,7 +13,7 @@
 #include "fe/libraries/std/std_output.h"
 #include "fe/libraries/std/std_types.h"
 
-TEST_CASE("checking wrong types", "[typechecking]")
+TEST_CASE("faulty code typechecking", "[typechecking]")
 {
 	fe::project p{ fe::pipeline() };
 
@@ -46,16 +46,23 @@ type Pair = (std.i32 a, Nested m);
 var x: Pair = Pair (1, Nested (3, 4));
 )code";
 
-	SECTION("nested atom")
+	SECTION("wrong atom")
 	{
 		auto new_code = code + "var o: std.i64 = x.a;";
 
 		REQUIRE_THROWS_AS(p.eval(std::move(new_code)), fe::typecheck_error);
 	}
 
-	SECTION("product type")
+	SECTION("wrong product type")
 	{
 		auto new_code = code + "var o: Pair = x.m;";
+
+		REQUIRE_THROWS_AS(p.eval(std::move(new_code)), fe::typecheck_error);
+	}
+
+	SECTION("unknown type")
+	{
+		auto new_code = code + "var o: Dummy = x.m;";
 
 		REQUIRE_THROWS_AS(p.eval(std::move(new_code)), fe::typecheck_error);
 	}

@@ -523,7 +523,7 @@ namespace fe::ext_ast
 		assert(type_node.data_index);
 		auto& type_id_data = ast.get_data<identifier>(*type_node.data_index);
 		auto type_lookup = scope.resolve_type(type_id_data, ast.type_scope_cb());
-		assert(type_lookup);
+		if (!type_lookup) throw typecheck_error{ "Unknown type: " + type_id_data.operator std::string() };
 		auto& type = type_lookup->type;
 
 		auto& val_node = ast.get_node(n.children[2]);
@@ -592,8 +592,6 @@ namespace fe::ext_ast
 			auto& child_node = ast.get_node(child);
 			typecheck(child_node, ast);
 		}
-
-		// #todo set this type to product of child types
 	}
 
 	void typecheck_function_type(node& n, ast& ast)
@@ -605,8 +603,6 @@ namespace fe::ext_ast
 		typecheck(from_node, ast);
 		auto& to_node = ast.get_node(n.children[1]);
 		typecheck(to_node, ast);
-
-		// #todo set this type to function_type(from, to)
 	}
 
 	void typecheck_reference_type(node& n, ast& ast)
@@ -616,7 +612,6 @@ namespace fe::ext_ast
 
 		auto& child_node = ast.get_node(n.children[0]);
 		typecheck(child_node, ast);
-		// #todo set this type
 	}
 
 	void typecheck_array_type(node& n, ast& ast)
@@ -626,7 +621,6 @@ namespace fe::ext_ast
 
 		auto& child_node = ast.get_node(n.children[0]);
 		typecheck(child_node, ast);
-		// #todo set this type
 	}
 
 	// End type expressions

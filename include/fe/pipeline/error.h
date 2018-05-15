@@ -42,4 +42,9 @@ namespace fe
 	{
 		std::string message;
 	};
+
+	struct other_error
+	{
+		std::string message;
+	};
 }
