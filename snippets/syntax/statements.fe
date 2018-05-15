@@ -1,13 +1,7 @@
-module statements
 import [std std.io]
 
-var x : std.i32 = 1;
+type Nested = (std.i64 x, std.i64 y);
+type Pair = (std.i32 a, Nested m);
 
-if (x == 1) { 
-	x = 2;
-	3
-};
-
-x = 5;
-
-std.io.print std.to_string x;
+var x: Pair = Pair (1, Nested (3, 4));
+var z: std.i64 = x.m.v;
