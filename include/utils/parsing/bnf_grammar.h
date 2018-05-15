@@ -4,6 +4,7 @@
 #include <memory>
 #include <vector>
 #include <variant>
+#include <stack>
 
 namespace utils::bnf
 {
@@ -100,12 +101,28 @@ namespace utils::bnf
 		std::string token;
 	};
 
+	struct non_terminal_node;
+	void destroy_node(std::variant<terminal_node, non_terminal_node>* n);
+	
 	struct non_terminal_node
 	{
-		non_terminal_node(non_terminal s) : value(s) {}
 		non_terminal value;
-		std::vector<std::unique_ptr<std::variant<terminal_node, non_terminal_node>>> children;
+		std::vector<std::unique_ptr<std::variant<terminal_node, non_terminal_node>, decltype(&destroy_node)>> children;
+
+		non_terminal_node(non_terminal s, std::vector<std::unique_ptr<std::variant<terminal_node, non_terminal_node>>> c)
+			: value(s)
+		{
+			for (auto&& child : c)
+			{
+				children.push_back(std::unique_ptr<std::variant<terminal_node, non_terminal_node>,
+					decltype(&destroy_node)>(child.release(), &destroy_node));
+			}
+		}
+		non_terminal_node(non_terminal s) : value(s) {}
 	};
+
+
+	
 
 	using node = std::variant<terminal_node, non_terminal_node>;
 	using rule = std::pair<non_terminal, std::vector<symbol>>;
