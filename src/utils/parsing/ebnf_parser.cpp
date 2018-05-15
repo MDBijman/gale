@@ -16,6 +16,7 @@ namespace utils::ebnf
 	non_terminal_node bnf_to_ebnf(bnf::non_terminal_node& bnf_tree, 
 		std::unordered_map<non_terminal, std::pair<non_terminal, child_type>>& rule_inheritance) 
 	{
+		// #todo make handling variants easier
 		// Post order traversal of the bnf tree to construct an ebnf tree.
 
 		std::stack<std::unique_ptr<node>> converted;
@@ -316,7 +317,10 @@ namespace utils::ebnf
 			if (std::holds_alternative<bnf::terminal_node>(*extended_ast))
 				return std::make_unique<node>(terminal_node{ &std::get<bnf::terminal_node>(*extended_ast) });
 			else if (std::holds_alternative<bnf::non_terminal_node>(*extended_ast))
-				return std::make_unique<node>(bnf_to_ebnf(std::get<bnf::non_terminal_node>(*extended_ast), nt_child_parents));
+			{
+				auto ebnf = bnf_to_ebnf(std::get<bnf::non_terminal_node>(*extended_ast), nt_child_parents);
+				return std::make_unique<node>(std::move(ebnf));
+			}
 			else
 				return error{ error_code::BNF_ERROR, "BNF parser returned empty value" };
 		}

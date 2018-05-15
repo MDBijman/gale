@@ -217,8 +217,8 @@ namespace utils::lr
 					history.pop();
 				}
 
-				auto new_node = std::make_unique<bnf::node>(bnf::non_terminal(reduce.rule->first));
-				std::get<bnf::non_terminal_node>(*new_node).children = std::move(reduced_states);
+				auto new_node = std::make_unique<bnf::node>(bnf::non_terminal_node(reduce.rule->first,
+					std::move(reduced_states)));
 				result.push(std::move(new_node));
 
 				auto next_state = table.at({ history.top(), reduce.rule->first });
