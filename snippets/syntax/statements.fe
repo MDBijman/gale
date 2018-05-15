@@ -8,5 +8,6 @@ if (x == 1) {
 	3
 };
 
+x = 5;
 
 std.io.print std.to_string x;

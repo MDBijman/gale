@@ -64,11 +64,15 @@ namespace utils::ll
 				// Push the symbols onto the stack
 				for (auto rule_it = rule_rhs.rbegin(); rule_it != rule_rhs.rend(); rule_it++)
 				{
-					std::unique_ptr<bnf::node> new_symbol;
-					if ((*rule_it).is_terminal())
-						new_symbol = std::make_unique<bnf::node>(bnf::terminal_node(rule_it->get_terminal(), ""));
-					else
-						new_symbol = std::make_unique<bnf::node>(bnf::non_terminal_node(rule_it->get_non_terminal()));
+					std::unique_ptr<bnf::node, decltype(&bnf::destroy_node)> new_symbol = ([&]() {
+						if ((*rule_it).is_terminal())
+							return std::unique_ptr<bnf::node, decltype(&bnf::destroy_node)>(
+								new bnf::node(bnf::terminal_node(rule_it->get_terminal(), "")), &bnf::destroy_node);
+						else
+							return std::unique_ptr<bnf::node, decltype(&bnf::destroy_node)>(
+								new bnf::node(bnf::non_terminal_node(rule_it->get_non_terminal())), &bnf::destroy_node);
+					})();
+
 					stack.push(new_symbol.get());
 					nt.children.insert(nt.children.begin(), std::move(new_symbol));
 				}
@@ -107,7 +111,7 @@ namespace utils::ll
 
 			for (auto& first_set : first_sets)
 			{
-				
+
 				// For each non terminal A in the first sets, add the first set of A to the set
 				std::vector<bnf::non_terminal> non_terminals;
 				for (auto& element : first_set.second)
@@ -191,13 +195,13 @@ namespace utils::ll
 				{
 					for (const auto& follower : following_sets.at(it->first))
 					{
-						auto [_, inserted] = table.insert({ { it->first, std::get<bnf::terminal>(follower) }, it });
+						auto[_, inserted] = table.insert({ { it->first, std::get<bnf::terminal>(follower) }, it });
 						if (!inserted) throw std::runtime_error("Conflict");
 					}
 				}
 				else
 				{
-					auto [_, inserted] = table.insert({ { it->first, first.get_terminal() }, it });
+					auto[_, inserted] = table.insert({ { it->first, first.get_terminal() }, it });
 					if (!inserted) throw std::runtime_error("Conflict");
 				}
 			}

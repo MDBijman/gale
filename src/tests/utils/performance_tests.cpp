@@ -52,7 +52,7 @@ import [std std.io]
 var x : std.i32 = 1;
 )c";
 
-		for (int i = 0; i < 1000; i++)
+		for (int i = 0; i < 10000; i++)
 			code += "x = 2;\n";
 
 		auto now = std::chrono::steady_clock::now();
