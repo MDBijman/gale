@@ -5,6 +5,7 @@
 
 #include "fe/data/types.h"
 #include "fe/data/ast_data.h"
+#include "fe/pipeline/error.h"
 
 namespace fe::ext_ast
 {
@@ -45,14 +46,14 @@ namespace fe::ext_ast
 			return false;
 		}
 
-		conversion_constraint element(size_t i)
+		std::optional<conversion_constraint> element(size_t i)
 		{
 			if (auto product = dynamic_cast<types::product_type*>(&to))
 			{
 				return conversion_constraint(*product->product.at(i));
 			}
 
-			assert(!"Cannot get element of this conversion constraint");
+			return std::nullopt;
 		}
 
 		operator std::string() const
@@ -71,14 +72,14 @@ namespace fe::ext_ast
 			return (to == &t);
 		}
 
-		equality_constraint element(size_t i)
+		std::optional<equality_constraint> element(size_t i)
 		{
 			if (auto product = dynamic_cast<types::product_type*>(&to))
 			{
 				return equality_constraint(*product->product.at(i));
 			}
 
-			assert(!"Cannot get element of this equality constraint");
+			return std::nullopt;
 		}
 
 		operator std::string() const
@@ -88,6 +89,8 @@ namespace fe::ext_ast
 	};
 
 	using type_constraint = std::variant<conversion_constraint, equality_constraint>;
+
+	const auto to_string = [](const auto& x) -> std::string { return x.operator std::string(); };
 
 	class type_constraints
 	{
@@ -108,16 +111,22 @@ namespace fe::ext_ast
 			return true;
 		}
 
-		type_constraints element(size_t i)
+		std::optional<type_constraints> element(size_t i)
 		{
 			std::vector<type_constraint> sub_constraints;
 
 			for (auto& constraint : constraints)
 			{
-				auto sub = std::visit(([i](auto& x) -> type_constraint { 
-					return type_constraint(x.element(i)); 
+				auto sub = std::visit(([i](auto& x) -> std::optional<type_constraint> { 
+					auto sub = x.element(i);
+					if (!sub) return std::nullopt;
+					else return type_constraint(*sub); 
 				}), constraint);
-				sub_constraints.push_back(std::move(sub));
+				if(sub) sub_constraints.push_back(std::move(*sub));
+				else return std::nullopt;
+				//else throw typecheck_error{ "constraint " + std::visit(to_string, constraint) 
+					//+ "\n(subconstraint of " + this->operator std::string() + ")"
+					//+ "\ndoes not contain a subconstraint with index " + std::to_string(i) };
 			}
 
 			return type_constraints(std::move(sub_constraints));
@@ -128,7 +137,7 @@ namespace fe::ext_ast
 			std::string o = "type_constraints (";
 			for (auto& constraint : constraints)
 			{
-				o += std::visit([](const auto& x) -> std::string { return x.operator std::string(); }, constraint);
+				o += std::visit(to_string, constraint);
 			}
 			return o + ")";
 		}

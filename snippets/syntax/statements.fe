@@ -6,4 +6,4 @@ type Pair = (std.i32 a, Nested m);
 
 var x: Pair = Pair (1, Nested (3, 4));
 
-var o: std.i64 = x.a;
+var o: Pair = x.m;
