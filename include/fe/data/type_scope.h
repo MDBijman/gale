@@ -54,6 +54,11 @@ namespace fe::ext_ast
 
 			assert(!"Cannot get element of this conversion constraint");
 		}
+
+		operator std::string() const
+		{
+			return "conversion_constraint (" + to.operator std::string() + ")";
+		}
 	};
 
 	struct equality_constraint
@@ -74,6 +79,11 @@ namespace fe::ext_ast
 			}
 
 			assert(!"Cannot get element of this equality constraint");
+		}
+
+		operator std::string() const
+		{
+			return "equality_constraint (" + to.operator std::string() + ")";
 		}
 	};
 
@@ -111,6 +121,16 @@ namespace fe::ext_ast
 			}
 
 			return type_constraints(std::move(sub_constraints));
+		}
+
+		operator std::string() const
+		{
+			std::string o = "type_constraints (";
+			for (auto& constraint : constraints)
+			{
+				o += std::visit([](const auto& x) -> std::string { return x.operator std::string(); }, constraint);
+			}
+			return o + ")";
 		}
 	};
 }

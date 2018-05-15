@@ -175,6 +175,9 @@
     <ClCompile Include="src\utils\parsing\ebnf_parser.cpp">
       <Filter>Source Files\utils\parsing</Filter>
     </ClCompile>
+    <ClCompile Include="src\tests\fe\typechecking_tests.cpp">
+      <Filter>Source Files\tests\fe</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\fe\data\core_ast.h">
