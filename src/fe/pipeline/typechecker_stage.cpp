@@ -29,7 +29,12 @@ namespace fe::ext_ast
 		auto& id = ast.get_data<identifier>(*n.data_index);
 		auto& res = scope.resolve_variable(id, ast.type_scope_cb());
 		assert(res);
-		return types::unique_type(res->type.copy());
+
+		auto t = types::unique_type(res->type.copy());
+		if (!tc.satisfied_by(*t))
+			throw typecheck_error{ id.operator std::string() + " does not match constraints\n" + tc.operator std::string() };
+
+		return t;
 	}
 
 	types::unique_type typeof_number(node& n, ast& ast, type_constraints tc)

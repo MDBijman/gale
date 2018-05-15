@@ -1,7 +1,9 @@
+module statements
 import [std std.io]
 
 type Nested = (std.i64 x, std.i64 y);
 type Pair = (std.i32 a, Nested m);
 
 var x: Pair = Pair (1, Nested (3, 4));
-var z: std.i64 = x.m.v;
+
+var o: std.i64 = x.a;
