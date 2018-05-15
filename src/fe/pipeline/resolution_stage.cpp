@@ -303,7 +303,9 @@ namespace fe::ext_ast
 				{
 					assert(resolved_as_var->type_node);
 					auto& type_node = ast.get_node(*resolved_as_var->type_node);
-					id_data.offsets = resolve_field(type_node, ast, fields).value();
+					auto offsets = resolve_field(type_node, ast, fields);
+					if (!offsets) throw resolution_error{ "Variable does not contain such field" };
+					id_data.offsets = *offsets;
 				}
 				else
 				{
