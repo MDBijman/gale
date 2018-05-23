@@ -87,7 +87,8 @@ namespace fe
 				for (const ext_ast::identifier& imp : *imports)
 				{
 					auto pos = modules.find(imp.segments);
-					assert(pos != modules.end());
+					if (pos == modules.end())
+						throw other_error{ "Cannot find module: " + imp.operator std::string() };
 
 					auto module_name_scope = ast.create_name_scope();
 					ast.get_name_scope(module_name_scope).merge(pos->second.name_env());

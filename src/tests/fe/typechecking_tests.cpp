@@ -13,7 +13,7 @@
 #include "fe/libraries/std/std_output.h"
 #include "fe/libraries/std/std_types.h"
 
-TEST_CASE("resolving nested names", "[name_resolution]")
+TEST_CASE("faulty code typechecking", "[typechecking]")
 {
 	fe::project p{ fe::pipeline() };
 
@@ -44,16 +44,24 @@ type Nested = (std.i64 x, std.i64 y);
 type Pair = (std.i32 a, Nested m);
 
 var x: Pair = Pair (1, Nested (3, 4));
-var z: std.i64 = x.m.x;
-var o: std.i32 = x.a;
 )code";
+	SECTION("wrong product type")
+	{
+		auto new_code = code + "var o: Pair = x.m;";
 
-	testing::test_scope scope(p.eval(std::move(code)));
-	REQUIRE(scope.value_equals("z", fe::values::i64(3)));
-	REQUIRE(scope.value_equals("o", fe::values::i32(1)));
+		REQUIRE_THROWS_AS(p.eval(std::move(new_code)), fe::typecheck_error);
+	}
+
+	SECTION("unknown type")
+	{
+		auto new_code = code + "var o: Dummy = x.m;";
+
+		REQUIRE_THROWS_AS(p.eval(std::move(new_code)), fe::typecheck_error);
+	}
 }
 
-TEST_CASE("resolving non-existent names", "[name_resolution]")
+
+TEST_CASE("declaration with tuple type", "[typechecking]")
 {
 	fe::project p{ fe::pipeline() };
 
@@ -79,24 +87,12 @@ TEST_CASE("resolving non-existent names", "[name_resolution]")
 
 	std::string code = R"code(
 import [std std.io]
-
-type Nested = (std.i64 x, std.i64 y);
-type Pair = (std.i32 a, Nested m);
-
-var x: Pair = Pair (1, Nested (3, 4));
+var x : (std.i32, std.i32) = (1, 2);
 )code";
 
-	SECTION("nested access")
-	{
-		auto new_code = code += "var z: std.i64 = x.m.v;";
-
-		REQUIRE_THROWS_AS(p.eval(std::move(new_code)), fe::resolution_error);
-	}
-
-	SECTION("single variable")
-	{
-		auto new_code = code += "var z: std.i64 = o;";
-
-		REQUIRE_THROWS_AS(p.eval(std::move(new_code)), fe::resolution_error);
-	}
+	auto res = testing::test_scope(p.eval(std::move(code)));
+	std::vector<fe::values::unique_value> x_components;
+	x_components.push_back(fe::values::unique_value(new fe::values::i32(1)));
+	x_components.push_back(fe::values::unique_value(new fe::values::i32(1)));
+	REQUIRE(res.value_equals("x", fe::values::tuple(std::move(x_components))));
 }
