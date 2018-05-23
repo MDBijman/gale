@@ -45,14 +45,6 @@ type Pair = (std.i32 a, Nested m);
 
 var x: Pair = Pair (1, Nested (3, 4));
 )code";
-
-	SECTION("wrong atom")
-	{
-		auto new_code = code + "var o: std.i64 = x.a;";
-
-		REQUIRE_THROWS_AS(p.eval(std::move(new_code)), fe::typecheck_error);
-	}
-
 	SECTION("wrong product type")
 	{
 		auto new_code = code + "var o: Pair = x.m;";
@@ -66,4 +58,41 @@ var x: Pair = Pair (1, Nested (3, 4));
 
 		REQUIRE_THROWS_AS(p.eval(std::move(new_code)), fe::typecheck_error);
 	}
+}
+
+
+TEST_CASE("declaration with tuple type", "[typechecking]")
+{
+	fe::project p{ fe::pipeline() };
+
+	// core
+	{
+		auto core_scope = fe::core::operations::load();
+		p.add_module({ "_core" }, core_scope);
+	}
+
+	// std io
+	{
+		auto i = fe::stdlib::input::load();
+		auto o = fe::stdlib::output::load();
+		i.merge(std::move(o));
+		p.add_module({ "std", "io" }, i);
+	}
+
+	// std types
+	{
+		auto type_scope = fe::stdlib::typedefs::load();
+		p.add_module({ "std" }, type_scope);
+	}
+
+	std::string code = R"code(
+import [std std.io]
+var x : (std.i32, std.i32) = (1, 2);
+)code";
+
+	auto res = testing::test_scope(p.eval(std::move(code)));
+	std::vector<fe::values::unique_value> x_components;
+	x_components.push_back(fe::values::unique_value(new fe::values::i32(1)));
+	x_components.push_back(fe::values::unique_value(new fe::values::i32(1)));
+	REQUIRE(res.value_equals("x", fe::values::tuple(std::move(x_components))));
 }

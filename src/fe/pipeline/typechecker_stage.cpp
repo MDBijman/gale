@@ -543,7 +543,6 @@ namespace fe::ext_ast
 			for (auto child : lhs_node.children)
 			{
 				auto& child_node = ast.get_node(child);
-				assert(child_node.data_index);
 				auto& child_id = ast.get_data<identifier>(*child_node.data_index);
 
 				auto res = resolve_offsets(*val_type, ast, std::vector<size_t>{ i });
