@@ -15,9 +15,9 @@ namespace testing
 		{
 			auto lookup = scope.value_env().valueof(fe::core_ast::identifier({}, name, 0, {}), 0,
 				[](fe::scope_index) { return nullptr; });
-			assert(lookup);
+			if (!lookup) return false;
 			auto value = dynamic_cast<ValueType*>(*lookup);
-			assert(value);
+			if (!value) return false;
 			return *value == val;
 		}
 	};
