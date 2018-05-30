@@ -15,15 +15,14 @@ namespace fe
 		else if (nt == non_terminals::block)                      return node_type::BLOCK;
 		else if (nt == non_terminals::value_tuple)                return node_type::TUPLE;
 		else if (nt == non_terminals::type_definition)            return node_type::TYPE_DEFINITION;
-		else if (nt == non_terminals::export_stmt)                return node_type::EXPORT_STMT;
+		else if (nt == non_terminals::record)                     return node_type::RECORD;
+		else if (nt == non_terminals::record_element)             return node_type::RECORD_ELEMENT;
 		else if (nt == non_terminals::type_tuple)                 return node_type::TYPE_TUPLE;
 		else if (nt == non_terminals::function_type)              return node_type::FUNCTION_TYPE;
 		else if (nt == non_terminals::type_atom)                  return node_type::TYPE_ATOM;
 		else if (nt == non_terminals::function)                   return node_type::FUNCTION;
 		else if (nt == non_terminals::match)                      return node_type::MATCH;
 		else if (nt == non_terminals::match_branch)               return node_type::MATCH_BRANCH;
-		else if (nt == non_terminals::atom_variable_declaration)  return node_type::ATOM_DECLARATION;
-		else if (nt == non_terminals::tuple_variable_declaration) return node_type::TUPLE_DECLARATION;
 		else if (nt == non_terminals::reference_type)             return node_type::REFERENCE_TYPE;
 		else if (nt == non_terminals::array_type)                 return node_type::ARRAY_TYPE;
 		else if (nt == non_terminals::reference)                  return node_type::REFERENCE;
@@ -95,7 +94,7 @@ namespace fe
 				auto data_id = node.data_index.value();
 
 				if (t_type == terminals::number)
-					ast.get_data<number>(data_id).value = atoi(t.token.c_str());
+					ast.get_data<number>(data_id).value = stoll(t.token);
 
 				else if (t_type == terminals::word)
 					ast.get_data<string>(data_id).value = t.token.substr(1, t.token.size() - 2);

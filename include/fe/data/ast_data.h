@@ -94,7 +94,7 @@ namespace fe::core_ast
 		operator std::string() const
 		{
 			std::string o;
-			for (auto i = 0; i < modules.size() - 1; i++)
+			for (int i = 0; i < modules.size(); i++)
 				o += modules.at(i) + ".";
 			o += variable_name;
 			return o;

@@ -47,14 +47,12 @@ namespace fe
 			add_mapping(percentage_token, percentage);
 			add_mapping(lteq_token, lteq);
 			add_mapping(gteq_token, gteq);
+			add_mapping(fat_right_arrow_token, fat_right_arrow);
+			add_mapping(backslash_token, backslash);
 
 			add_mapping(keyword_token, [&](utils::lexing::token token) {
-				if (token.text == "export")
-					return export_keyword;
 				if (token.text == "type")
 					return type_keyword;
-				if (token.text == "fn")
-					return function_keyword;
 				if (token.text == "match")
 					return match_keyword;
 				if (token.text == "module")
@@ -63,22 +61,12 @@ namespace fe
 					return public_keyword;
 				if (token.text == "ref")
 					return ref_keyword;
-				if (token.text == "var")
-					return var_keyword;
+				if (token.text == "let")
+					return let_keyword;
 				if (token.text == "import")
 					return import_keyword;
-				if (token.text == "qualified")
-					return qualified_keyword;
-				if (token.text == "as")
-					return as_keyword;
-				if (token.text == "from")
-					return from_keyword;
 				if (token.text == "while")
 					return while_keyword;
-				if (token.text == "do")
-					return do_keyword;
-				if (token.text == "on")
-					return on_keyword;
 				if (token.text == "true")
 					return true_keyword;
 				if (token.text == "false")

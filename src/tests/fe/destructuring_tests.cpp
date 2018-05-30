@@ -40,8 +40,8 @@ TEST_CASE("destructuring of product values", "[destructuring]")
 	auto code =
 		R"code(
 import [std]
-type Quad = (std.i64 a, std.i64 b, std.i64 c, std.i64 d);
-var (a, b, c, _) : Quad = Quad (1, 2, 3, 4);
+type Quad = (a: std.i64, b: std.i64, c: std.i64, d: std.i64);
+let (a, b, c, _) : Quad = Quad (1, 2, 3, 4);
 )code";
 
 	testing::test_scope scope(p.eval(std::move(code)));

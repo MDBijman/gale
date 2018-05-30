@@ -40,12 +40,12 @@ TEST_CASE("resolving nested names", "[name_resolution]")
 	std::string code = R"code(
 import [std std.io]
 
-type Nested = (std.i64 x, std.i64 y);
-type Pair = (std.i32 a, Nested m);
+type Nested = (x: std.i64 , y: std.i64 );
+type Pair = (a: std.i32, m: Nested );
 
-var x: Pair = Pair (1, Nested (3, 4));
-var z: std.i64 = x.m.x;
-var o: std.i32 = x.a;
+let x: Pair = Pair (1, Nested (3, 4));
+let z: std.i64 = x.m.x;
+let o: std.i32 = x.a;
 )code";
 
 	testing::test_scope scope(p.eval(std::move(code)));
@@ -80,22 +80,29 @@ TEST_CASE("resolving non-existent names", "[name_resolution]")
 	std::string code = R"code(
 import [std std.io]
 
-type Nested = (std.i64 x, std.i64 y);
-type Pair = (std.i32 a, Nested m);
+type Nested = (x: std.i64, y: std.i64);
+type Pair = (a: std.i32 , m: Nested);
 
-var x: Pair = Pair (1, Nested (3, 4));
+let x: Pair = Pair (1, Nested (3, 4));
 )code";
 
 	SECTION("nested access")
 	{
-		auto new_code = code += "var z: std.i64 = x.m.v;";
+		auto new_code = code += "let z: std.i64 = x.m.v;";
 
 		REQUIRE_THROWS_AS(p.eval(std::move(new_code)), fe::resolution_error);
 	}
 
 	SECTION("single variable")
 	{
-		auto new_code = code += "var z: std.i64 = o;";
+		auto new_code = code += "let z: std.i64 = o;";
+
+		REQUIRE_THROWS_AS(p.eval(std::move(new_code)), fe::resolution_error);
+	}
+
+	SECTION("unknown type")
+	{
+		auto new_code = code + "let o: Dummy = x.m;";
 
 		REQUIRE_THROWS_AS(p.eval(std::move(new_code)), fe::resolution_error);
 	}

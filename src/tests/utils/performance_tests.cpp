@@ -49,7 +49,7 @@ TEST_CASE("the entire language pipeline should be fast enough", "[performance]")
 R"c(module statements
 import [std std.io]
 
-var x : std.i32 = 1;
+let x : std.i32 = 1;
 )c";
 
 		for (int i = 0; i < 10000; i++)

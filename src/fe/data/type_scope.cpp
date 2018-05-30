@@ -35,6 +35,13 @@ namespace fe::ext_ast
 		}
 	}
 
+	void type_scope::clear()
+	{
+		this->variables.clear();
+		this->modules.clear();
+		this->types.clear();
+	}
+
 	void type_scope::add_module(const identifier& name, scope_index scope)
 	{
 		this->modules.insert({ name, scope });

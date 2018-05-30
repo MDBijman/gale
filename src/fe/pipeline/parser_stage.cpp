@@ -13,11 +13,9 @@ namespace fe
 			declaration = parser.new_non_terminal();
 			expression = parser.new_non_terminal();
 			value_tuple = parser.new_non_terminal();
-			tuple_element = parser.new_non_terminal();
 			function = parser.new_non_terminal();
 			match = parser.new_non_terminal();
 			match_branch = parser.new_non_terminal();
-			variable_declaration = parser.new_non_terminal();
 			type_expression = parser.new_non_terminal();
 			type_tuple = parser.new_non_terminal();
 			function_type = parser.new_non_terminal();
@@ -25,15 +23,12 @@ namespace fe
 			module_declaration = parser.new_non_terminal();
 			block = parser.new_non_terminal();
 			function_call = parser.new_non_terminal();
-			atom_variable_declaration = parser.new_non_terminal();
-			tuple_variable_declaration = parser.new_non_terminal();
 			type_atom = parser.new_non_terminal();
 			reference_type = parser.new_non_terminal();
 			array_type = parser.new_non_terminal();
 			reference = parser.new_non_terminal();
 			array_value = parser.new_non_terminal();
 			operation = parser.new_non_terminal();
-			factor = parser.new_non_terminal();
 			term = parser.new_non_terminal();
 			addition = parser.new_non_terminal();
 			subtraction = parser.new_non_terminal();
@@ -56,10 +51,11 @@ namespace fe
 			greater_or_equal = parser.new_non_terminal();
 			less_than = parser.new_non_terminal();
 			if_expr = parser.new_non_terminal();
-			item = parser.new_non_terminal();
 			stmt_semicln = parser.new_non_terminal();
 			block_elements = parser.new_non_terminal();
 			block_result = parser.new_non_terminal();
+			record = parser.new_non_terminal();
+			record_element = parser.new_non_terminal();
 		}
 
 		{
@@ -69,9 +65,7 @@ namespace fe
 			right_bracket = parser.new_terminal();
 			number = parser.new_terminal();
 			word = parser.new_terminal();
-			export_keyword = parser.new_terminal();
 			type_keyword = parser.new_terminal();
-			function_keyword = parser.new_terminal();
 			left_curly_bracket = parser.new_terminal();
 			right_curly_bracket = parser.new_terminal();
 			right_arrow = parser.new_terminal();
@@ -83,7 +77,7 @@ namespace fe
 			module_keyword = parser.new_terminal();
 			public_keyword = parser.new_terminal();
 			ref_keyword = parser.new_terminal();
-			var_keyword = parser.new_terminal();
+			let_keyword = parser.new_terminal();
 			semicolon = parser.new_terminal();
 			plus = parser.new_terminal();
 			minus = parser.new_terminal();
@@ -94,19 +88,16 @@ namespace fe
 			colon = parser.new_terminal();
 			dot = parser.new_terminal();
 			import_keyword = parser.new_terminal();
-			qualified_keyword = parser.new_terminal();
-			as_keyword = parser.new_terminal();
-			from_keyword = parser.new_terminal();
 			while_keyword = parser.new_terminal();
-			do_keyword = parser.new_terminal();
 			two_equals = parser.new_terminal();
-			on_keyword = parser.new_terminal();
 			true_keyword = parser.new_terminal();
 			false_keyword = parser.new_terminal();
 			percentage = parser.new_terminal();
 			lteq = parser.new_terminal();
 			gteq = parser.new_terminal();
 			if_keyword = parser.new_terminal();
+			backslash = parser.new_terminal();
+			fat_right_arrow = parser.new_terminal();
 		}
 
 
@@ -128,20 +119,18 @@ namespace fe
 				declaration, alt,
 				assignment, alt,
 				while_loop, alt,
-				operation, alt,
-				function
+				operation
 			} })
 
-
-			.new_rule({ type_definition, { type_keyword, identifier, equals, variable_declaration } })
-			.new_rule({ declaration, { var_keyword, assignable, colon, identifier, equals, operation } })
-			.new_rule({ assignment, { identifier, equals, operation } })
+			.new_rule({ type_definition, { type_keyword, identifier, equals, record } })
+			.new_rule({ record, { left_bracket, record_element, lrb, comma, record_element, rrb, star, right_bracket } })
+			.new_rule({ record_element, { identifier, colon, type_operation } })
+			.new_rule({ declaration, { let_keyword, assignable, colon, type_operation, equals, operation } })
 			.new_rule({ assignable, { identifier, alt, identifier_tuple } })
-			.new_rule({ identifier_tuple, { left_bracket, assignable, comma, assignable, lrb, comma, assignable, rrb,
+			.new_rule({ identifier_tuple, { left_bracket, identifier, comma, identifier, lrb, comma, identifier, rrb,
 				star, right_bracket } })
+			.new_rule({ assignment, { identifier, equals, operation } })
 			.new_rule({ while_loop, { while_keyword, left_bracket, operation, right_bracket, block } })
-			.new_rule({ function, { function_keyword, identifier, variable_declaration, right_arrow, type_operation,
-				equals, operation } })
 
 			// Expressions/Operations
 			// From least to most precedence
@@ -183,7 +172,8 @@ namespace fe
 				brackets, alt,
 				true_keyword, alt,
 				false_keyword, alt,
-				if_expr
+				if_expr, alt,
+				function
 			} })
 
 			.new_rule({ brackets, { left_bracket, operation, right_bracket } })
@@ -199,36 +189,22 @@ namespace fe
 			.new_rule({ block_result, { expression } })
 			.new_rule({ array_value, { left_square_bracket, operation, lrb, comma, operation, rrb, star, right_square_bracket } })
 			.new_rule({ if_expr, { if_keyword, left_bracket, operation, right_bracket, block } })
-
-			// Declarations
-
-			.new_rule({ variable_declaration, {
-				tuple_variable_declaration, alt,
-				atom_variable_declaration
-			} })
-
-			.new_rule({ tuple_variable_declaration, {
-				left_bracket, right_bracket, alt,
-				left_bracket, atom_variable_declaration, comma, atom_variable_declaration, lrb, comma, atom_variable_declaration, rrb, star, right_bracket
-			} })
-			.new_rule({ atom_variable_declaration, { type_operation, identifier } })
-
+			.new_rule({ function, { backslash, assignable, fat_right_arrow, expression } })
+			
 			// Type Expressions
 
 			.new_rule({ type_operation, { type_modifiers } })
 
-			.new_rule({ type_modifiers, { array_type, alt, reference_type, alt, function_type } })
+			.new_rule({ type_modifiers, { array_type, alt, reference_type, alt, function_type, alt, type_expression } })
 			.new_rule({ reference_type, { ref_keyword, type_modifiers } })
 			.new_rule({ array_type, { left_square_bracket, right_square_bracket, type_modifiers } })
-
-			.new_rule({ function_type, { type_expression, right_arrow, type_expression, alt, type_expression } })
+			.new_rule({ function_type, { type_expression, right_arrow, type_modifiers } })
 
 			.new_rule({ type_expression, {
 				type_tuple, alt, type_atom
 			} })
 
 			.new_rule({ type_atom, { identifier } })
-
 			.new_rule({ type_tuple, { left_bracket, type_operation, lrb, comma, type_operation, rrb, star, right_bracket } })
 			;
 
@@ -244,7 +220,6 @@ namespace fe
 			.new_transformation(type_expression, transformation_type::REPLACE_WITH_CHILDREN)
 			.new_transformation(match, transformation_type::REPLACE_IF_ONE_CHILD)
 			.new_transformation(two_equals, transformation_type::REMOVE)
-			.new_transformation(on_keyword, transformation_type::REMOVE)
 			.new_transformation(stmt_semicln, transformation_type::REPLACE_IF_ONE_CHILD)
 			.new_transformation(equality, transformation_type::REPLACE_IF_ONE_CHILD)
 			.new_transformation(arithmetic, transformation_type::REPLACE_WITH_CHILDREN)
@@ -252,18 +227,15 @@ namespace fe
 			.new_transformation(reference, transformation_type::REPLACE_IF_ONE_CHILD)
 			.new_transformation(function_call, transformation_type::REPLACE_IF_ONE_CHILD)
 			.new_transformation(term, transformation_type::REPLACE_WITH_CHILDREN)
-			.new_transformation(factor, transformation_type::REPLACE_WITH_CHILDREN)
 			.new_transformation(operation, transformation_type::REPLACE_WITH_CHILDREN)
 			.new_transformation(brackets, transformation_type::REPLACE_WITH_CHILDREN)
 			.new_transformation(while_keyword, transformation_type::REMOVE)
 			.new_transformation(percentage, transformation_type::REMOVE)
 			.new_transformation(lteq, transformation_type::REMOVE)
+			.new_transformation(fat_right_arrow, transformation_type::REMOVE)
 			.new_transformation(gteq, transformation_type::REMOVE)
-			.new_transformation(do_keyword, transformation_type::REMOVE)
+			.new_transformation(backslash, transformation_type::REMOVE)
 			.new_transformation(import_keyword, transformation_type::REMOVE)
-			.new_transformation(as_keyword, transformation_type::REMOVE)
-			.new_transformation(from_keyword, transformation_type::REMOVE)
-			.new_transformation(qualified_keyword, transformation_type::REMOVE)
 			.new_transformation(colon, transformation_type::REMOVE)
 			.new_transformation(mul, transformation_type::REMOVE)
 			.new_transformation(div, transformation_type::REMOVE)
@@ -272,12 +244,9 @@ namespace fe
 			.new_transformation(semicolon, transformation_type::REMOVE)
 			.new_transformation(ref_keyword, transformation_type::REMOVE)
 			.new_transformation(expression, transformation_type::REPLACE_WITH_CHILDREN)
-			.new_transformation(variable_declaration, transformation_type::REPLACE_WITH_CHILDREN)
 			.new_transformation(left_square_bracket, transformation_type::REMOVE)
 			.new_transformation(right_square_bracket, transformation_type::REMOVE)
 			.new_transformation(utils::ebnfe::terminal(utils::ebnf::epsilon), transformation_type::REMOVE)
-			.new_transformation(tuple_element, transformation_type::REPLACE_WITH_CHILDREN)
-			.new_transformation(type_tuple_elements, transformation_type::REPLACE_WITH_CHILDREN)
 			.new_transformation(statement, transformation_type::REPLACE_WITH_CHILDREN)
 			.new_transformation(module_keyword, transformation_type::REMOVE)
 			.new_transformation(left_bracket, transformation_type::REMOVE)
@@ -285,10 +254,8 @@ namespace fe
 			.new_transformation(left_curly_bracket, transformation_type::REMOVE)
 			.new_transformation(right_curly_bracket, transformation_type::REMOVE)
 			.new_transformation(equals, transformation_type::REMOVE)
-			.new_transformation(export_keyword, transformation_type::REMOVE)
 			.new_transformation(type_keyword, transformation_type::REMOVE)
-			.new_transformation(function_keyword, transformation_type::REMOVE)
-			.new_transformation(var_keyword, transformation_type::REMOVE)
+			.new_transformation(let_keyword, transformation_type::REMOVE)
 			.new_transformation(match_keyword, transformation_type::REMOVE)
 			.new_transformation(right_arrow, transformation_type::REMOVE)
 			.new_transformation(comma, transformation_type::REMOVE)
