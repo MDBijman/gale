@@ -54,9 +54,6 @@
     <Filter Include="Resource Files\snippets">
       <UniqueIdentifier>{9e9feb0e-a547-4a57-bd90-2ebc58caa34c}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Resource Files\snippets\project">
-      <UniqueIdentifier>{da177d42-7c82-4372-9f4a-0ef4b0669307}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Resource Files\snippets\tests">
       <UniqueIdentifier>{b6678e23-e356-44a0-aa4a-2e46664a4d4f}</UniqueIdentifier>
     </Filter>
@@ -74,12 +71,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="snippets\project\modeling_module.fe">
-      <Filter>Resource Files\snippets\project</Filter>
-    </None>
-    <None Include="snippets\tests\name_resolution.fe">
-      <Filter>Resource Files\snippets\tests</Filter>
-    </None>
     <None Include="snippets\euler\euler1.fe">
       <Filter>Resource Files\snippets\euler</Filter>
     </None>

@@ -121,8 +121,10 @@ namespace fe::core_ast
 	values::unique_value interpret_function(node& n, ast& ast)
 	{
 		assert(n.kind == node_type::FUNCTION);
-		assert(n.children.size() == 3);
-		copy_parent_scope(n, ast);
+		assert(n.children.size() == 2);
+		auto parent_scope = ast.get_node(*n.parent_id).value_scope_id;
+		assert(parent_scope);
+		n.value_scope_id = ast.create_value_scope(*parent_scope);
 
 		return values::unique_value(new values::function(n.id));
 	}
@@ -146,9 +148,14 @@ namespace fe::core_ast
 		assert(n.kind == node_type::BLOCK);
 		if (n.parent_id)
 		{
-			auto& parent = ast.get_node(*n.parent_id);
-			assert(parent.value_scope_id);
-			n.value_scope_id = ast.create_value_scope(*parent.value_scope_id);
+			if (n.value_scope_id)
+				ast.get_value_scope(*n.value_scope_id).clear();
+			else
+			{
+				auto& parent = ast.get_node(*n.parent_id);
+				assert(parent.value_scope_id);
+				n.value_scope_id = ast.create_value_scope(*parent.value_scope_id);
+			}
 		}
 		else
 			assert(n.value_scope_id);
@@ -186,15 +193,12 @@ namespace fe::core_ast
 		if (values::function* func = dynamic_cast<values::function*>(*id_val))
 		{
 			auto& func_node = ast.get_node(func->func);
+			ast.get_value_scope(*func_node.value_scope_id).clear();
 
-			func_node.value_scope_id = ast.create_value_scope(*ast.get_node(*func_node.parent_id).value_scope_id);
-			auto& func_scope = ast.get_value_scope(*func_node.value_scope_id);
-
-			auto& params_node = ast.get_node(func_node.children[1]);
-
+			auto& params_node = ast.get_node(func_node.children[0]);
 			set_lhs(params_node, std::move(arg), ast);
 
-			return interpret(ast.get_node(func_node.children[2]), ast);
+			return interpret(ast.get_node(func_node.children[1]), ast);
 		}
 		else if (values::native_function* func = dynamic_cast<values::native_function*>(*id_val))
 		{
@@ -241,11 +245,14 @@ namespace fe::core_ast
 		auto& test_node = ast.get_node(n.children[0]);
 		auto& body_node = ast.get_node(n.children[1]);
 
-		values::boolean* test_val = dynamic_cast<values::boolean*>(interpret(test_node, ast).get());
-		while (test_val->val)
+		values::unique_value test_val = interpret(test_node, ast);
+		assert(dynamic_cast<values::boolean*>(test_val.get()));
+
+		while (static_cast<values::boolean*>(test_val.get())->val)
 		{
 			interpret(body_node, ast);
-			test_val = dynamic_cast<values::boolean*>(interpret(test_node, ast).get());
+			test_val = interpret(test_node, ast);
+			assert(dynamic_cast<values::boolean*>(test_val.get()));
 		}
 
 		return values::unique_value(new values::void_value());

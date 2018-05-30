@@ -39,7 +39,7 @@ TEST_CASE("while loop", "[while]")
 
 	auto code = R"code(
 import [std]
-var x : std.i64 = 6;
+let x : std.i64 = 6;
 while (x > 3) {
 	x = x - 1;
 };

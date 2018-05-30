@@ -86,9 +86,9 @@ namespace utils::bnf
 		operator std::string() const
 		{ 
 			if(std::holds_alternative<terminal>(value))
-				return std::to_string(std::get<terminal>(value));
+				return std::to_string(std::get<terminal>(value))+"t";
 			else if(std::holds_alternative<non_terminal>(value))
-				return std::to_string(std::get<non_terminal>(value));
+				return std::to_string(std::get<non_terminal>(value))+"nt";
 		}
 
 		std::variant<terminal, non_terminal> value;
