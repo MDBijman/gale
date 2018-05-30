@@ -42,7 +42,8 @@ namespace fe
 			mul, div, left_angle_bracket, right_angle_bracket,
 			import_keyword, fat_right_arrow,
 			while_keyword, two_equals, true_keyword,
-			false_keyword, percentage, lteq, gteq, if_keyword, backslash
+			false_keyword, percentage, lteq, gteq, if_keyword, backslash,
+			elseif_keyword, else_keyword
 			;
 	}
 }

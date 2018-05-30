@@ -98,6 +98,8 @@ namespace fe
 			if_keyword = parser.new_terminal();
 			backslash = parser.new_terminal();
 			fat_right_arrow = parser.new_terminal();
+			elseif_keyword = parser.new_terminal();
+			else_keyword = parser.new_terminal();
 		}
 
 
@@ -188,7 +190,8 @@ namespace fe
 			.new_rule({ block_elements, { statement, semicolon, block_elements, alt, lsb, block_result, rsb } })
 			.new_rule({ block_result, { expression } })
 			.new_rule({ array_value, { left_square_bracket, operation, lrb, comma, operation, rrb, star, right_square_bracket } })
-			.new_rule({ if_expr, { if_keyword, left_bracket, operation, right_bracket, block } })
+			.new_rule({ if_expr, { if_keyword, left_bracket, operation, right_bracket, block, 
+				lrb, elseif_keyword, left_bracket, operation, right_bracket, block, rrb, star, lsb, else_keyword, block, rsb } })
 			.new_rule({ function, { backslash, assignable, fat_right_arrow, expression } })
 			
 			// Type Expressions
