@@ -51,6 +51,8 @@ namespace fe
 			greater_or_equal = parser.new_non_terminal();
 			less_than = parser.new_non_terminal();
 			if_expr = parser.new_non_terminal();
+			elseif_expr = parser.new_non_terminal();
+			else_expr = parser.new_non_terminal();
 			stmt_semicln = parser.new_non_terminal();
 			block_elements = parser.new_non_terminal();
 			block_result = parser.new_non_terminal();
@@ -98,6 +100,8 @@ namespace fe
 			if_keyword = parser.new_terminal();
 			backslash = parser.new_terminal();
 			fat_right_arrow = parser.new_terminal();
+			else_keyword = parser.new_terminal();
+			elseif_keyword = parser.new_terminal();
 		}
 
 
@@ -188,9 +192,12 @@ namespace fe
 			.new_rule({ block_elements, { statement, semicolon, block_elements, alt, lsb, block_result, rsb } })
 			.new_rule({ block_result, { expression } })
 			.new_rule({ array_value, { left_square_bracket, operation, lrb, comma, operation, rrb, star, right_square_bracket } })
-			.new_rule({ if_expr, { if_keyword, left_bracket, operation, right_bracket, block } })
+			.new_rule({ if_expr, { if_keyword, left_bracket, operation, right_bracket, block,
+				elseif_expr, star, lsb, else_expr, rsb } })
+			.new_rule({ elseif_expr, { elseif_keyword, left_bracket, operation, right_bracket, block } })
+			.new_rule({ else_expr, { else_keyword, block } })
 			.new_rule({ function, { backslash, assignable, fat_right_arrow, expression } })
-			
+
 			// Type Expressions
 
 			.new_rule({ type_operation, { type_modifiers } })
@@ -263,6 +270,10 @@ namespace fe
 			.new_transformation(right_angle_bracket, transformation_type::REMOVE)
 			.new_transformation(left_angle_bracket, transformation_type::REMOVE)
 			.new_transformation(if_keyword, transformation_type::REMOVE)
+			.new_transformation(elseif_keyword, transformation_type::REMOVE)
+			.new_transformation(else_keyword, transformation_type::REMOVE)
+			.new_transformation(elseif_expr, transformation_type::REPLACE_WITH_CHILDREN)
+			.new_transformation(else_expr, transformation_type::REPLACE_WITH_CHILDREN)
 			;
 	}
 }

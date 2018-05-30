@@ -3,7 +3,7 @@
 #include <catch2/catch.hpp>
 #include <vector>
 
-TEST_CASE("an ebnfe parser should parse correctly given a set of rules", "[ebnfe_parser]")
+TEST_CASE("an ebnfe parser should parse correctly given a set of rules", "[syntax]")
 {
 	utils::ebnfe::parser parser;
 
@@ -82,4 +82,40 @@ TEST_CASE("an ebnfe parser should parse correctly given a set of rules", "[ebnfe
 			REQUIRE(i.token == "a");
 		}
 	}
+}
+
+TEST_CASE("ebnfe grammars should be correctly translated to bnf grammars", "[syntax]")
+{
+	utils::ebnfe::parser parser;
+
+	parser = utils::ebnfe::parser{};
+	// terminals
+	auto if_kw = parser.new_terminal();
+	auto elseif_kw = parser.new_terminal();
+	auto else_kw = parser.new_terminal();
+	auto op = parser.new_terminal();
+	auto block = parser.new_terminal();
+
+	// non terminals
+	auto if_expr = parser.new_non_terminal();
+	auto elseif_expr = parser.new_non_terminal();
+	auto else_expr = parser.new_non_terminal();
+
+	using namespace utils::ebnf::meta;
+	parser
+		.new_rule({ if_expr, { if_kw, op, block, lrb, elseif_expr, rrb, star, lsb, else_expr, rsb } })
+		.new_rule({ elseif_expr, { elseif_kw, op, block } })
+		.new_rule({ else_expr, { else_kw, block } });
+
+
+	auto conv = [](std::vector<utils::ebnfe::terminal> ts) {
+		std::vector<utils::bnf::terminal_node> output;
+		for (auto&x : ts) output.push_back({ x, "" });
+		return output;
+	};
+	auto output_or_error = parser.parse(if_expr, conv({
+		if_kw, op, block, elseif_kw, op, block, elseif_kw, op, block, else_kw, block
+	}));
+
+	REQUIRE(std::holds_alternative<std::unique_ptr<utils::ebnfe::node>>(output_or_error));
 }

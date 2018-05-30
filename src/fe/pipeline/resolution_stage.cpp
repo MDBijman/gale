@@ -141,10 +141,12 @@ namespace fe::ext_ast
 	void resolve_if_statement(node& n, ast& ast)
 	{
 		assert(n.kind == node_type::IF_STATEMENT);
-		assert(n.children.size() == 2);
 		copy_parent_scope(n, ast);
-		resolve(ast.get_node(n.children[0]), ast);
-		resolve(ast.get_node(n.children[1]), ast);
+		assert(n.children.size() >= 2);
+
+		// #cleanup create generic resolve_all_children
+		for (auto child : n.children)
+			resolve(ast.get_node(child), ast);
 	}
 
 	void resolve_match_branch(node& n, ast& ast)

@@ -1,14 +1,14 @@
 module euler2
 import [std std.io]
 
-let prev : std.i32 = 1;
-let cur : std.i32 = 1;
-let sum : std.i32 = 0;
+let prev: std.i32 = 1;
+let cur: std.i32 = 1;
+let sum: std.i32 = 0;
 
 while (cur <= 4000000) {
 	if (cur % 2 == 0) { sum = sum + cur; };
 
-	let tmp : std.i32 = prev;
+	let tmp: std.i32 = prev;
 	prev = cur;
 	cur = tmp + cur;
 };
