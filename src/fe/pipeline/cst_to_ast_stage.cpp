@@ -42,6 +42,8 @@ namespace fe
 		else if (nt == non_terminals::less_than)                  return node_type::LESS_THAN;
 		else if (nt == non_terminals::modulo)                     return node_type::MODULO;
 		else if (nt == non_terminals::if_expr)                    return node_type::IF_STATEMENT;
+		else if (nt == non_terminals::elseif_expr)                return node_type::IF_STATEMENT;
+		else if (nt == non_terminals::else_expr)                  return node_type::IF_STATEMENT;
 		else if (nt == non_terminals::block_result)               return node_type::BLOCK_RESULT;
 		assert(!"Unknown non-terminal");
 		throw std::runtime_error("Unknown non-terminal");

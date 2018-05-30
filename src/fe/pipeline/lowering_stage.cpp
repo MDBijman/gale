@@ -125,18 +125,40 @@ namespace fe::ext_ast
 	core_ast::node_id lower_if_statement(node& n, ast& ast, core_ast::ast& new_ast)
 	{
 		assert(n.kind == node_type::IF_STATEMENT);
-		assert(n.children.size() == 2);
+		assert(n.children.size() >= 2);
 		auto branch = new_ast.create_node(core_ast::node_type::BRANCH);
-		
-		auto test_id = lower(ast.get_node(n.children[0]), ast, new_ast);
-		new_ast.get_node(test_id).parent_id = branch;
 
-		auto body_id = lower(ast.get_node(n.children[1]), ast, new_ast);
-		new_ast.get_node(body_id).parent_id = branch;
+		bool contains_else = n.children.size() % 2 == 1 ? true : false;
+		size_t size_excluding_else = n.children.size() - (n.children.size() % 2);
+		for (int i = 0; i < size_excluding_else; i += 2)
+		{
+			auto test_id = lower(ast.get_node(n.children[i]), ast, new_ast);
+			new_ast.get_node(test_id).parent_id = branch;
 
-		auto& branch_node = new_ast.get_node(branch);
-		branch_node.children.push_back(test_id);
-		branch_node.children.push_back(body_id);
+			auto body_id = lower(ast.get_node(n.children[i + 1]), ast, new_ast);
+			new_ast.get_node(body_id).parent_id = branch;
+
+			auto& branch_node = new_ast.get_node(branch);
+			branch_node.children.push_back(test_id);
+			branch_node.children.push_back(body_id);
+		}
+
+		if (contains_else)
+		{
+			// Create artificial 'test' node which is simply true
+			auto tautology = new_ast.create_node(core_ast::node_type::BOOLEAN);
+			auto& tautology_node = new_ast.get_node(tautology);
+			assert(tautology_node.data_index);
+			new_ast.get_data<boolean>(*tautology_node.data_index).value = true;
+			tautology_node.parent_id = branch;
+
+			auto body_id = lower(ast.get_node(n.children.back()), ast, new_ast);
+			new_ast.get_node(body_id).parent_id = branch;
+
+			auto& branch_node = new_ast.get_node(branch);
+			branch_node.children.push_back(tautology);
+			branch_node.children.push_back(body_id);
+		}
 
 		return branch;
 	}

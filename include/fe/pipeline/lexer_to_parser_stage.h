@@ -73,6 +73,10 @@ namespace fe
 					return false_keyword;
 				if (token.text == "if")
 					return if_keyword;
+				if (token.text == "elseif")
+					return elseif_keyword;
+				if (token.text == "else")
+					return else_keyword;
 				return identifier;
 			});
 		}
