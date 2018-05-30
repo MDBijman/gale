@@ -697,17 +697,27 @@ namespace fe::ext_ast
 	{
 		assert(n.kind == node_type::IF_STATEMENT);
 		// test body
-		assert(n.children.size() == 2);
+		assert(n.children.size() >= 2);
 		copy_parent_scope(n, ast);
 
-		auto& test_node = ast.get_node(n.children[0]);
-		auto& test_node_type = typeof(test_node, ast);
+		auto& if_test_type = typeof(ast.get_node(n.children[0]), ast);
+		auto& if_block_type = typeof(ast.get_node(n.children[1]), ast);
 
-		auto& body_node = ast.get_node(n.children[1]);
-		auto& body_node_type = typeof(body_node, ast);
+		bool contains_else = n.children.size() % 2 == 1 ? true : false;
+		size_t size_excluding_else = n.children.size() - (n.children.size() % 2);
+		for (int i = 2; i < size_excluding_else; i += 2)
+		{
+			auto& test_type = typeof(ast.get_node(n.children[i]), ast);
+			auto& block_type = typeof(ast.get_node(n.children[i + 1]), ast);
+			assert(*test_type == &types::boolean());
+			assert(*block_type == &*if_block_type);
+		}
 
-		assert(*test_node_type == &types::boolean());
-		// #todo check test type is boolean and set this type to body type
+		if (contains_else)
+		{
+			auto& else_block_type = typeof(ast.get_node(n.children.back()), ast);
+			assert(*else_block_type == &*if_block_type);
+		}
 	}
 
 	void typecheck(node& n, ast& ast)
@@ -723,8 +733,8 @@ namespace fe::ext_ast
 		case node_type::ARRAY_VALUE:       typecheck_array_value(n, ast);       break;
 		case node_type::WHILE_LOOP:        typecheck_while_loop(n, ast);        break;
 		case node_type::IF_STATEMENT:      typecheck_if_statement(n, ast);      break;
-		// expression as statement
-		case node_type::MATCH: case node_type::MATCH_BRANCH: 
+			// expression as statement
+		case node_type::MATCH: case node_type::MATCH_BRANCH:
 			typeof(n, ast); break;
 		case node_type::MODULE_DECLARATION:
 		case node_type::IMPORT_DECLARATION: break;
