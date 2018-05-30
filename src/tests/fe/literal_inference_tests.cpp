@@ -30,11 +30,11 @@ TEST_CASE("inference of literals", "[literals]")
 	auto code =
 		R"code(
 import [std]
-var a : std.i32 = 1;
-var b : std.i64 = 1;
-var c : std.ui32 = 1;
-var d : std.ui64 = 1;
-var e : std.str = "one";
+let a : std.i32 = 1;
+let b : std.i64 = 1;
+let c : std.ui32 = 1;
+let d : std.ui64 = 1;
+let e : std.str = "one";
 )code";
 
 	testing::test_scope scope(p.eval(std::move(code)));

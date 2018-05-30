@@ -22,6 +22,8 @@ namespace fe
 		value_scope(const value_scope& other);
 		value_scope(value_scope&& other);
 
+		void clear();
+
 		void add_module(const core_ast::identifier&, scope_index);
 
 		void set_parent(scope_index parent);

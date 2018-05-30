@@ -41,8 +41,8 @@ namespace fe::ext_ast
 
 		// Type declarations
 		TYPE_DEFINITION,
-		ATOM_DECLARATION,
-		TUPLE_DECLARATION,
+		RECORD,
+		RECORD_ELEMENT,
 		IDENTIFIER_TUPLE,
 
 		// Type expressions

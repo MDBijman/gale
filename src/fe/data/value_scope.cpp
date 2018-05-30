@@ -12,6 +12,12 @@ namespace fe
 	value_scope::value_scope(value_scope&& other) : 
 		parent(other.parent), modules(std::move(other.modules)), variables(std::move(other.variables)) {}
 
+	void value_scope::clear()
+	{
+		this->variables.clear();
+		this->modules.clear();
+	}
+
 	void value_scope::add_module(const core_ast::identifier& id, scope_index o)
 	{
 		this->modules.insert({ id, o });

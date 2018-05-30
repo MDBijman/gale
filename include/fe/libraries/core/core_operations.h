@@ -93,6 +93,24 @@ namespace fe::core::operations
 			add_bin_op<values::i32, std::modulus<values::i32>, values::i32>(re, te, se, "mod", from, types::i32());
 		}
 
+		{
+			auto from = types::product_type();
+			from.product.emplace_back(types::make_unique(types::f32()));
+			from.product.emplace_back(types::make_unique(types::f32()));
+
+			add_bin_op<values::f32, std::equal_to<values::f32>, values::boolean>(re, te, se, "eq", from, types::boolean());
+			add_bin_op<values::f32, std::less<values::f32>, values::boolean>(re, te, se, "lt", from, types::boolean());
+			add_bin_op<values::f32, std::less_equal<values::f32>, values::boolean>(re, te, se, "lte", from, types::boolean());
+			add_bin_op<values::f32, std::greater<values::f32>, values::boolean>(re, te, se, "gt", from, types::boolean());
+			add_bin_op<values::f32, std::greater_equal<values::f32>, values::boolean>(re, te, se, "gte", from, types::boolean());
+
+			add_bin_op<values::f32, std::minus<values::f32>, values::f32>(re, te, se, "sub", from, types::f32());
+			add_bin_op<values::f32, std::plus<values::f32>, values::f32>(re, te, se, "add", from, types::f32());
+			add_bin_op<values::f32, std::multiplies<values::f32>, values::f32>(re, te, se, "mul", from, types::f32());
+			add_bin_op<values::f32, std::divides<values::f32>, values::f32>(re, te, se, "div", from, types::f32());
+		}
+
+
 		return scope(re, te, se);
 	}
 }

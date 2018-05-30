@@ -36,8 +36,8 @@ TEST_CASE("comparison operators", "[operators]")
 	std::string code = R"code(
 import [std std.io]
 
-var x : std.i64 = 3;
-var y : std.i64 = 0;
+let x : std.i64 = 3;
+let y : std.i64 = 0;
 
 )code";
 
