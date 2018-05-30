@@ -10,6 +10,10 @@ while (x > 1) {
 	let y : std.i32 = x % 5;
 	let z : std.i32 = x % 3;
 
+	if (y == 0) {
+		sum = sum + x;
+	};
+
 	y match {
 		| y == 0 -> { sum = sum + x; }
 		| 1 == 1 -> z match {
