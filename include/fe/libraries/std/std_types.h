@@ -50,6 +50,22 @@ namespace fe::stdlib::typedefs
 				{
 					return unique_value(new values::str(b->to_string()));
 				}
+				else if (auto f = dynamic_cast<values::f32*>(val.get()))
+				{
+					return unique_value(new values::str(std::to_string(f->val)));
+				}
+
+			})));
+		}
+
+		{
+			s.declare_variable("to_f32");
+			s.define_variable("to_f32");
+			t.set_type("to_f32", types::unique_type(new types::function_type(
+				types::unique_type(new types::i64()), types::unique_type(new types::f32))));
+			r.set_value("to_f32", values::unique_value(new values::native_function([](values::unique_value t) -> values::unique_value {
+				values::i64* v = static_cast<values::i64*>(t.get());
+				return values::unique_value(new values::f32(float(v->val)));
 			})));
 		}
 

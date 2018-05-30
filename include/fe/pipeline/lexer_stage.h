@@ -25,6 +25,7 @@ namespace fe
 			string_token = lexing_rules.create_token("\".*?\"");
 			number_token = lexing_rules.create_token("\\-?[1-9][0-9]*|0");
 			right_arrow_token = lexing_rules.create_token("\\->");
+			fat_right_arrow_token = lexing_rules.create_token("=>");
 			rrb_token = lexing_rules.create_token("\\)");
 			lrb_token = lexing_rules.create_token("\\(");
 			rcb_token = lexing_rules.create_token("\\}");
@@ -48,6 +49,7 @@ namespace fe
 			colon_token = lexing_rules.create_token(":");
 			dot_token = lexing_rules.create_token("\\.");
 			percentage_token = lexing_rules.create_token("%");
+			backslash_token = lexing_rules.create_token("\\\\");
 			lexing_rules.compile();
 			return lexing_rules;
 		}

@@ -62,53 +62,43 @@ namespace fe::ext_ast
 	core_ast::node_id lower_function(node& n, ast& ast, core_ast::ast& new_ast)
 	{
 		assert(n.kind == node_type::FUNCTION);
-		assert(n.children.size() == 4);
+		assert(n.children.size() == 2);
 		auto function_id = new_ast.create_node(core_ast::node_type::FUNCTION);
-		auto& function_node = new_ast.get_node(function_id);
-
-		// Name
-		auto& id_node = ast.get_node(n.children[0]);
-		assert(id_node.kind == node_type::IDENTIFIER);
-		auto new_id_node = lower(id_node, ast, new_ast);
-		new_ast.get_node(new_id_node).parent_id = function_id;
-		function_node.children.push_back(new_id_node);
 
 		// Parameters
-		auto& from_node = ast.get_node(n.children[1]);
-		if (from_node.kind == node_type::TUPLE_DECLARATION)
+		auto& param_node = ast.get_node(n.children[0]);
+		if (param_node.kind == node_type::IDENTIFIER)
+		{
+			auto param_id = lower(param_node, ast, new_ast);
+			new_ast.get_node(param_id).parent_id = function_id;
+			new_ast.get_node(function_id).children.push_back(param_id);
+		}
+		else if (param_node.kind == node_type::IDENTIFIER_TUPLE)
 		{
 			auto param_id = new_ast.create_node(core_ast::node_type::IDENTIFIER_TUPLE);
-			auto& param_node = new_ast.get_node(param_id);
-			function_node.children.push_back(param_id);
-			param_node.parent_id = function_id;
+			auto& new_param_node = new_ast.get_node(param_id);
+			new_ast.get_node(function_id).children.push_back(param_id);
+			new_param_node.parent_id = function_id;
 
-			for (auto child : from_node.children)
+			for (auto child : param_node.children)
 			{
 				auto& child_node = ast.get_node(child);
-				assert(child_node.kind == node_type::ATOM_DECLARATION);
+				assert(child_node.kind == node_type::RECORD_ELEMENT);
 				auto& child_id_node = ast.get_node(child_node.children[1]);
 				assert(child_id_node.kind == node_type::IDENTIFIER);
 
 				auto child_id = lower(child_node, ast, new_ast);
 				new_ast.get_node(child_id).parent_id = param_id;
-				param_node.children.push_back(child_id);
+				new_param_node.children.push_back(child_id);
 			}
-		}
-		else if (from_node.kind == node_type::ATOM_DECLARATION)
-		{
-			auto& param_node = ast.get_node(from_node.children[1]);
-			assert(param_node.kind == node_type::IDENTIFIER);
-			auto param_id = lower(param_node, ast, new_ast);
-			new_ast.get_node(param_id).parent_id = function_id;
-			function_node.children.push_back(param_id);
 		}
 		else throw std::runtime_error("Error: parameter node type incorrect");
 
 		// Body
-		auto& body_node = ast.get_node(n.children[3]);
+		auto& body_node = ast.get_node(n.children[1]);
 		auto new_body = lower(body_node, ast, new_ast);
 		new_ast.get_node(new_body).parent_id = function_id;
-		function_node.children.push_back(new_body);
+		new_ast.get_node(function_id).children.push_back(new_body);
 
 		return function_id;
 	}
@@ -154,13 +144,12 @@ namespace fe::ext_ast
 	core_ast::node_id lower_match(node& n, ast& ast, core_ast::ast& new_ast)
 	{
 		assert(n.kind == node_type::MATCH);
-		assert(n.children.size() % 2 == 0);
 
 		auto branch = new_ast.create_node(core_ast::node_type::BRANCH);
 
-		for (auto child : n.children)
+		for (auto i = 1; i < n.children.size(); i++)
 		{
-			auto& child_node = ast.get_node(child);
+			auto& child_node = ast.get_node(n.children[i]);
 			assert(child_node.kind == node_type::MATCH_BRANCH);
 			assert(child_node.children.size() == 2);
 
@@ -316,9 +305,9 @@ namespace fe::ext_ast
 		return dec;
 	}
 
-	core_ast::node_id lower_tuple_declaration(node& n, ast& ast, core_ast::ast& new_ast)
+	core_ast::node_id lower_record(node& n, ast& ast, core_ast::ast& new_ast)
 	{
-		assert(n.kind == node_type::TUPLE_DECLARATION);
+		assert(n.kind == node_type::RECORD);
 		return new_ast.create_node(core_ast::node_type::NOP);
 	}
 
@@ -332,7 +321,6 @@ namespace fe::ext_ast
 		auto lhs = lower(ast.get_node(n.children[0]), ast, new_ast);
 		auto& lhs_node = new_ast.get_node(lhs);
 		assert(lhs_node.kind == core_ast::node_type::IDENTIFIER);
-		auto& lhs_data = new_ast.get_data<core_ast::identifier>(*lhs_node.data_index);
 		lhs_node.parent_id = set;
 
 		auto fn_rhs = new_ast.create_node(core_ast::node_type::FUNCTION);
@@ -344,14 +332,6 @@ namespace fe::ext_ast
 		set_node.children.push_back(fn_rhs);
 
 		{
-			auto fn_name = new_ast.create_node(core_ast::node_type::IDENTIFIER);
-			auto& name_node = new_ast.get_node(fn_name);
-			auto& name_data = new_ast.get_data<core_ast::identifier>(*name_node.data_index);
-			name_data.variable_name = lhs_data.variable_name;
-			name_node.parent_id = fn_rhs;
-
-			new_ast.get_node(fn_rhs).children.push_back(fn_name);
-
 			auto param = new_ast.create_node(core_ast::node_type::IDENTIFIER);
 			auto& param_node = new_ast.get_node(param);
 			auto& param_data = new_ast.get_data<core_ast::identifier>(*param_node.data_index);
@@ -455,7 +435,7 @@ namespace fe::ext_ast
 		case node_type::IMPORT_DECLARATION: return lower_import_declaration(n, ast, new_ast);   break;
 		case node_type::EXPORT_STMT:        return lower_export_stmt(n, ast, new_ast);          break;
 		case node_type::DECLARATION:        return lower_declaration(n, ast, new_ast);          break;
-		case node_type::TUPLE_DECLARATION:  return lower_tuple_declaration(n, ast, new_ast);    break;
+		case node_type::RECORD:             return lower_record(n, ast, new_ast);               break;
 		case node_type::TYPE_DEFINITION:    return lower_type_definition(n, ast, new_ast);      break;
 		case node_type::TYPE_ATOM:          return lower_type_atom(n, ast, new_ast);            break;
 		case node_type::REFERENCE:          return lower_reference(n, ast, new_ast);            break;

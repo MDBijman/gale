@@ -69,6 +69,10 @@ namespace fe::ext_ast
 
 		bool satisfied_by(types::type& t)
 		{
+			// #todo add more cases? constraints must be redone anyway
+			if (dynamic_cast<types::atom<types::atom_type::ANY>*>(&to))
+				return true;
+
 			return (to == &t);
 		}
 
@@ -200,6 +204,8 @@ namespace fe::ext_ast
 			parent = o.parent;
 		}
 		type_scope(type_scope&& o) : variables(std::move(o.variables)), types(std::move(o.types)) {}
+
+		void clear();
 
 		void add_module(const identifier& module_name, scope_index scope);
 
