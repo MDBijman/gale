@@ -250,8 +250,8 @@ namespace fe
 
 			bool operator==(const native_function& other) const
 			{
-				auto target = function.target<unique_value(unique_value)>();
-				return target == other.function.target<unique_value(unique_value)>();
+				// Just compare pointers, maybe a better solution is possible
+				return this == &other;
 			}
 
 			types::unique_type get_type() const override

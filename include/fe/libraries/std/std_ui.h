@@ -73,7 +73,8 @@ namespace fe::stdlib::ui
 					WS_OVERLAPPEDWINDOW,
 					CW_USEDEFAULT, CW_USEDEFAULT, 240, 120,
 					NULL, NULL, hInstance, NULL);
-
+				
+				auto instance = (HINSTANCE)GetWindowLongPtr(hwndMain, -6);
 				HWND hwndButton = CreateWindow(
 					"BUTTON",  // Predefined class; Unicode assumed 
 					"OK",      // Button text 
@@ -84,7 +85,7 @@ namespace fe::stdlib::ui
 					100,        // Button height
 					hwndMain,     // Parent window
 					NULL,       // No menu.
-					(HINSTANCE)GetWindowLong(hwndMain, -6),
+					instance,
 					NULL);      // Pointer not needed.
 
 				ShowWindow(hwndMain, SW_SHOWDEFAULT);

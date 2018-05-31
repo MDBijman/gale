@@ -54,7 +54,7 @@ namespace fe::stdlib::typedefs
 				{
 					return unique_value(new values::str(std::to_string(f->val)));
 				}
-
+				throw interp_error{ "Cannot cast this value to string" };
 			})));
 		}
 
