@@ -267,6 +267,8 @@ namespace fe::ext_ast
 		case node_type::GREATER_THAN:
 		case node_type::LESS_OR_EQ:
 		case node_type::LESS_THAN:
+		case node_type::AND:
+		case node_type::OR:
 		{
 			res_type = types::unique_type(new types::boolean());
 			break;
@@ -287,6 +289,8 @@ namespace fe::ext_ast
 		case node_type::GREATER_THAN:   type_signature.value = "gt";   break;
 		case node_type::LESS_OR_EQ:     type_signature.value = "lte";  break;
 		case node_type::LESS_THAN:      type_signature.value = "lt";   break;
+		case node_type::AND:            type_signature.value = "and";   break;
+		case node_type::OR:             type_signature.value = "or";   break;
 		default: throw std::runtime_error("Node type not implemented");
 		}
 		type_signature.value += " ";
@@ -734,8 +738,7 @@ namespace fe::ext_ast
 		case node_type::WHILE_LOOP:        typecheck_while_loop(n, ast);        break;
 		case node_type::IF_STATEMENT:      typecheck_if_statement(n, ast);      break;
 			// expression as statement
-		case node_type::MATCH: case node_type::MATCH_BRANCH:
-			typeof(n, ast); break;
+		case node_type::MATCH: case node_type::MATCH_BRANCH: typeof(n, ast); break;
 		case node_type::MODULE_DECLARATION:
 		case node_type::IMPORT_DECLARATION: break;
 		default: assert(!"This node cannot be typechecked");

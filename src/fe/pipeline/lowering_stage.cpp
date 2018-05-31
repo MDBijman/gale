@@ -407,33 +407,114 @@ namespace fe::ext_ast
 		assert(n.children.size() == 2);
 		assert(n.data_index);
 
-		auto fun_call = new_ast.create_node(core_ast::node_type::FUNCTION_CALL);
+		/*
+			Logical operators require special semantics due to short circuiting, so we create explicit branches
+			that implement this.
 
-		auto fun_name_id = new_ast.create_node(core_ast::node_type::IDENTIFIER);
-		auto& name_data = new_ast.get_data<core_ast::identifier>(*new_ast.get_node(fun_name_id).data_index);
-		name_data.modules = { "_core" };
-		name_data.variable_name = ast.get_data<string>(*n.data_index).value;
-		name_data.offsets = {};
-		assert(n.name_scope_id);
-		name_data.scope_distance = ast.get_name_scope(*n.name_scope_id).depth(ast.name_scope_cb());
+			'x && y' becomes 'if (!x) { false } elseif (y) { true } else { false }'
+			'x || y' becomes 'if (x) { true } elseif (y) { true } else { false }'
 
-		new_ast.get_node(fun_call).children.push_back(fun_name_id);
-		new_ast.get_node(fun_name_id).parent_id = fun_call;
+			Other operators are lowered into a function call to the corresponding _core function.
 
-		auto param_tuple = new_ast.create_node(core_ast::node_type::TUPLE);
+			For performance reasons it might make sense to create 'native' core nodes for all/some operations.
 
-		for (auto child : n.children)
+			MB 30-5-2018
+		*/
+
+		if (n.kind == node_type::AND)
 		{
-			auto new_child_id = lower(ast.get_node(child), ast, new_ast);
-			auto& new_child_node = new_ast.get_node(new_child_id);
-			new_child_node.parent_id = param_tuple;
-			new_ast.get_node(param_tuple).children.push_back(new_child_id);
+			auto branch = new_ast.create_node(core_ast::node_type::BRANCH);
+			auto first_test = new_ast.create_node(core_ast::node_type::FUNCTION_CALL, branch);
+			{
+				auto fun_name = new_ast.create_node(core_ast::node_type::IDENTIFIER, first_test);
+				new_ast.get_data<core_ast::identifier>(*new_ast.get_node(fun_name).data_index) = core_ast::identifier(
+					{ "_core" }, "not std.bool -> std.bool",
+					ast.get_name_scope(*n.name_scope_id).depth(ast.name_scope_cb()), {});
+
+				auto fun_arg = lower(ast.get_node(n.children[0]), ast, new_ast);
+				new_ast.get_node(fun_arg).parent_id = first_test;
+
+				new_ast.get_node(first_test).children.push_back(fun_name);
+				new_ast.get_node(first_test).children.push_back(fun_arg);
+			}
+			auto first_body = new_ast.create_node(core_ast::node_type::BOOLEAN, branch);
+			new_ast.get_data<boolean>(*new_ast.get_node(first_body).data_index).value = false;
+
+			auto second_test = lower(ast.get_node(n.children[1]), ast, new_ast);
+			new_ast.get_node(second_test).parent_id = branch;
+			auto second_body = new_ast.create_node(core_ast::node_type::BOOLEAN, branch);
+			new_ast.get_data<boolean>(*new_ast.get_node(second_body).data_index).value = true;
+
+			auto else_test = new_ast.create_node(core_ast::node_type::BOOLEAN, branch);
+			new_ast.get_data<boolean>(*new_ast.get_node(else_test).data_index).value = true;
+			auto else_body = new_ast.create_node(core_ast::node_type::BOOLEAN, branch);
+			new_ast.get_data<boolean>(*new_ast.get_node(else_body).data_index).value = false;
+
+			new_ast.get_node(branch).children.push_back(first_test);
+			new_ast.get_node(branch).children.push_back(first_body);
+			new_ast.get_node(branch).children.push_back(second_test);
+			new_ast.get_node(branch).children.push_back(second_body);
+			new_ast.get_node(branch).children.push_back(else_test);
+			new_ast.get_node(branch).children.push_back(else_body);
+			return branch;
 		}
+		else if (n.kind == node_type::OR)
+		{
+			auto branch = new_ast.create_node(core_ast::node_type::BRANCH);
 
-		new_ast.get_node(fun_call).children.push_back(param_tuple);
-		new_ast.get_node(param_tuple).parent_id = fun_call;
+			auto first_test = lower(ast.get_node(n.children[0]), ast, new_ast);
+			new_ast.get_node(first_test).parent_id = branch;
+			auto first_body = new_ast.create_node(core_ast::node_type::BOOLEAN, branch);
+			new_ast.get_data<boolean>(*new_ast.get_node(first_body).data_index).value = true;
 
-		return fun_call;
+			auto second_test = lower(ast.get_node(n.children[1]), ast, new_ast);
+			new_ast.get_node(second_test).parent_id = branch;
+			auto second_body = new_ast.create_node(core_ast::node_type::BOOLEAN, branch);
+			new_ast.get_data<boolean>(*new_ast.get_node(second_body).data_index).value = true;
+
+			auto else_test = new_ast.create_node(core_ast::node_type::BOOLEAN, branch);
+			new_ast.get_data<boolean>(*new_ast.get_node(else_test).data_index).value = true;
+			auto else_body = new_ast.create_node(core_ast::node_type::BOOLEAN, branch);
+			new_ast.get_data<boolean>(*new_ast.get_node(else_body).data_index).value = false;
+
+			new_ast.get_node(branch).children.push_back(first_test);
+			new_ast.get_node(branch).children.push_back(first_body);
+			new_ast.get_node(branch).children.push_back(second_test);
+			new_ast.get_node(branch).children.push_back(second_body);
+			new_ast.get_node(branch).children.push_back(else_test);
+			new_ast.get_node(branch).children.push_back(else_body);
+			return branch;
+		}
+		else
+		{
+			auto fun_call = new_ast.create_node(core_ast::node_type::FUNCTION_CALL);
+
+			auto fun_name_id = new_ast.create_node(core_ast::node_type::IDENTIFIER);
+			auto& name_data = new_ast.get_data<core_ast::identifier>(*new_ast.get_node(fun_name_id).data_index);
+			name_data.modules = { "_core" };
+			name_data.variable_name = ast.get_data<string>(*n.data_index).value;
+			name_data.offsets = {};
+			assert(n.name_scope_id);
+			name_data.scope_distance = ast.get_name_scope(*n.name_scope_id).depth(ast.name_scope_cb());
+
+			new_ast.get_node(fun_call).children.push_back(fun_name_id);
+			new_ast.get_node(fun_name_id).parent_id = fun_call;
+
+			auto param_tuple = new_ast.create_node(core_ast::node_type::TUPLE);
+
+			for (auto child : n.children)
+			{
+				auto new_child_id = lower(ast.get_node(child), ast, new_ast);
+				auto& new_child_node = new_ast.get_node(new_child_id);
+				new_child_node.parent_id = param_tuple;
+				new_ast.get_node(param_tuple).children.push_back(new_child_id);
+			}
+
+			new_ast.get_node(fun_call).children.push_back(param_tuple);
+			new_ast.get_node(param_tuple).parent_id = fun_call;
+
+			return fun_call;
+		}
 	}
 
 	core_ast::node_id lower(node& n, ast& ast, core_ast::ast& new_ast)

@@ -58,6 +58,9 @@ namespace fe
 			block_result = parser.new_non_terminal();
 			record = parser.new_non_terminal();
 			record_element = parser.new_non_terminal();
+			logical = parser.new_non_terminal();
+			and_expr = parser.new_non_terminal();
+			or_expr = parser.new_non_terminal();
 		}
 
 		{
@@ -102,6 +105,8 @@ namespace fe
 			fat_right_arrow = parser.new_terminal();
 			else_keyword = parser.new_terminal();
 			elseif_keyword = parser.new_terminal();
+			and_keyword = parser.new_terminal();
+			or_keyword = parser.new_terminal();
 		}
 
 
@@ -146,12 +151,16 @@ namespace fe
 			.new_rule({ match_branch, { vertical_line, operation, right_arrow, operation } })
 
 			.new_rule({ comparison, { equality, alt, less_or_equal, alt, less_than, alt,
-				greater_or_equal, alt, greater_than, alt,  arithmetic } })
-			.new_rule({ equality, { arithmetic, two_equals, comparison, } })
-			.new_rule({ less_or_equal, { arithmetic, lteq, comparison } })
-			.new_rule({ less_than, { arithmetic, left_angle_bracket, comparison } })
-			.new_rule({ greater_or_equal, { arithmetic, gteq, comparison } })
-			.new_rule({ greater_than, { arithmetic, right_angle_bracket, comparison } })
+				greater_or_equal, alt, greater_than, alt, logical } })
+			.new_rule({ equality, { logical, two_equals, comparison, } })
+			.new_rule({ less_or_equal, { logical, lteq, comparison } })
+			.new_rule({ less_than, { logical, left_angle_bracket, comparison } })
+			.new_rule({ greater_or_equal, { logical, gteq, comparison } })
+			.new_rule({ greater_than, { logical, right_angle_bracket, comparison } })
+
+			.new_rule({ logical, { and_expr, alt, or_expr, alt, arithmetic } })
+			.new_rule({ and_expr, { arithmetic, and_keyword, logical } })
+			.new_rule({ or_expr, { arithmetic, or_keyword, logical } })
 
 			.new_rule({ arithmetic, { addition, alt, subtraction, alt, term } })
 			.new_rule({ addition, { term, plus, arithmetic } })
@@ -230,6 +239,7 @@ namespace fe
 			.new_transformation(stmt_semicln, transformation_type::REPLACE_IF_ONE_CHILD)
 			.new_transformation(equality, transformation_type::REPLACE_IF_ONE_CHILD)
 			.new_transformation(arithmetic, transformation_type::REPLACE_WITH_CHILDREN)
+			.new_transformation(logical, transformation_type::REPLACE_WITH_CHILDREN)
 			.new_transformation(comparison, transformation_type::REPLACE_WITH_CHILDREN)
 			.new_transformation(reference, transformation_type::REPLACE_IF_ONE_CHILD)
 			.new_transformation(function_call, transformation_type::REPLACE_IF_ONE_CHILD)
@@ -274,6 +284,8 @@ namespace fe
 			.new_transformation(else_keyword, transformation_type::REMOVE)
 			.new_transformation(elseif_expr, transformation_type::REPLACE_WITH_CHILDREN)
 			.new_transformation(else_expr, transformation_type::REPLACE_WITH_CHILDREN)
+			.new_transformation(and_keyword, transformation_type::REMOVE)
+			.new_transformation(or_keyword, transformation_type::REMOVE)
 			;
 	}
 }

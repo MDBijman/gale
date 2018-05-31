@@ -10,7 +10,7 @@ namespace fe
 			lcb_token, rcb_token, comma_token, lsb_token, rsb_token, pipe_token,
 			plus_token, minus_token, mul_token, div_token, lab_token, rab_token,
 			colon_token, dot_token, equality_token, percentage_token, lteq_token, gteq_token,
-			fat_right_arrow_token, backslash_token
+			fat_right_arrow_token, backslash_token, and_token, or_token
 			;
 	}
 
@@ -26,7 +26,8 @@ namespace fe
 			type_atom, reference_type, array_type, reference, array_value, while_loop,
 			arithmetic, equality, type_operation, type_modifiers, assignable, identifier_tuple,
 			assignment, greater_than, modulo, less_or_equal, comparison, greater_or_equal, less_than,
-			if_expr, stmt_semicln, block_elements, block_result, elseif_expr, else_expr
+			if_expr, stmt_semicln, block_elements, block_result, elseif_expr, else_expr,
+			logical, and_expr, or_expr
 			;
 	}
 
@@ -43,7 +44,7 @@ namespace fe
 			import_keyword, fat_right_arrow,
 			while_keyword, two_equals, true_keyword,
 			false_keyword, percentage, lteq, gteq, if_keyword, backslash,
-			else_keyword, elseif_keyword
+			else_keyword, elseif_keyword, and_keyword, or_keyword
 			;
 	}
 }
