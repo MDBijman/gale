@@ -36,6 +36,7 @@ namespace fe
 			gteq_token = lexing_rules.create_token(">=");
 			lab_token = lexing_rules.create_token("<");
 			rab_token = lexing_rules.create_token(">");
+			or_token = lexing_rules.create_token("\\|\\|");
 			pipe_token = lexing_rules.create_token("\\|");
 			comma_token = lexing_rules.create_token(",");
 			equality_token = lexing_rules.create_token("==");
@@ -50,6 +51,7 @@ namespace fe
 			dot_token = lexing_rules.create_token("\\.");
 			percentage_token = lexing_rules.create_token("%");
 			backslash_token = lexing_rules.create_token("\\\\");
+			and_token = lexing_rules.create_token("&&");
 			lexing_rules.compile();
 			return lexing_rules;
 		}

@@ -54,12 +54,17 @@ namespace fe::ext_ast
 		REFERENCE_TYPE,
 		ARRAY_TYPE,
 
-		// (Math) operators
+		//// Operators
+		// Logical
+		AND,
+		OR,
+		// Math
 		ADDITION,
 		SUBTRACTION,
 		MULTIPLICATION,
 		DIVISION,
 		MODULO,
+		// Comparisons
 		EQUALITY,
 		GREATER_THAN,
 		GREATER_OR_EQ,
@@ -78,7 +83,9 @@ namespace fe::ext_ast
 			|| kind == node_type::GREATER_OR_EQ
 			|| kind == node_type::GREATER_THAN
 			|| kind == node_type::LESS_OR_EQ
-			|| kind == node_type::LESS_THAN);
+			|| kind == node_type::LESS_THAN
+			|| kind == node_type::AND
+			|| kind == node_type::OR);
 	}
 
 	struct node
@@ -127,6 +134,7 @@ namespace fe::ext_ast
 		{
 			root = nodes.create();
 			nodes.get_at(root) = node(root, t);
+			nodes.get_at(root).id = root;
 			nodes.get_at(root).data_index = create_node_data(t);
 			nodes.get_at(root).name_scope_id = create_name_scope();
 			nodes.get_at(root).type_scope_id = create_type_scope();

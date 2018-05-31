@@ -110,6 +110,9 @@ namespace fe
 				bool operator>=(const literal& other) const { return val >= other.val; }
 				bool operator< (const literal& other) const { return val <  other.val; }
 				bool operator<=(const literal& other) const { return val <= other.val; }
+				bool operator&&(const literal& other) const { return val && other.val; }
+				bool operator||(const literal& other) const { return val || other.val; }
+				bool operator!() const { return !val; }
 
 				std::string to_string() const override
 				{

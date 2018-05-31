@@ -209,7 +209,7 @@ namespace fe::core_ast
 	values::unique_value interpret_branch(node& n, ast& ast)
 	{
 		assert(n.kind == node_type::BRANCH);
-		assert(n.children.size() % 2 == 0);
+		assert(n.children.size() >= 2);
 
 		copy_parent_scope(n, ast);
 
@@ -219,7 +219,8 @@ namespace fe::core_ast
 
 			auto test_val = interpret(test_node, ast);
 			values::boolean* b = dynamic_cast<values::boolean*>(test_val.get());
-			if (!b) throw std::runtime_error("Error: if test must be of boolean value");
+			if (!b) 
+				throw std::runtime_error("Error: if test must be of boolean value");
 
 			if (b->val)
 			{

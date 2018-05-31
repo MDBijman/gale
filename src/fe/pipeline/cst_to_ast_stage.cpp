@@ -45,6 +45,8 @@ namespace fe
 		else if (nt == non_terminals::elseif_expr)                return node_type::IF_STATEMENT;
 		else if (nt == non_terminals::else_expr)                  return node_type::IF_STATEMENT;
 		else if (nt == non_terminals::block_result)               return node_type::BLOCK_RESULT;
+		else if (nt == non_terminals::and_expr)                   return node_type::AND;
+		else if (nt == non_terminals::or_expr)                    return node_type::OR;
 		assert(!"Unknown non-terminal");
 		throw std::runtime_error("Unknown non-terminal");
 	}
