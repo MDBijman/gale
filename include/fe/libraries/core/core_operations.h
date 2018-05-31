@@ -44,6 +44,28 @@ namespace fe::core::operations
 		}
 	};
 
+	template<class InData, class Op, class ResData>
+	static values::unique_value un_op(values::unique_value val)
+	{
+		auto t = dynamic_cast<InData*>(val.get());
+		return values::make_unique(ResData(Op()(*t)));
+	}
+
+	template<class InData, class Op, class ResData>
+	static void add_un_op(value_scope& re, ext_ast::type_scope& te, ext_ast::name_scope& se,
+		std::string name, types::type& from, types::type& to)
+	{
+		name += " ";
+		name += from.operator std::string();
+		name += " -> ";
+		name += to.operator std::string();
+		se.declare_variable(name);
+		se.define_variable(name);
+		te.set_type(name, types::make_unique(types::function_type(from, to)));
+		re.set_value(name, values::make_unique(values::native_function(un_op<InData, Op, ResData>)));
+	}
+
+
 	static scope load()
 	{
 		ext_ast::type_scope te;
@@ -108,6 +130,11 @@ namespace fe::core::operations
 			add_bin_op<values::f32, std::plus<values::f32>, values::f32>(re, te, se, "add", from, types::f32());
 			add_bin_op<values::f32, std::multiplies<values::f32>, values::f32>(re, te, se, "mul", from, types::f32());
 			add_bin_op<values::f32, std::divides<values::f32>, values::f32>(re, te, se, "div", from, types::f32());
+		}
+
+		{
+			auto from = types::boolean();
+			add_un_op<values::boolean, std::logical_not<values::boolean>, values::boolean>(re, te, se, "not", from, types::boolean());
 		}
 
 

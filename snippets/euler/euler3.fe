@@ -20,11 +20,9 @@ std.io.print "Factoring: ";
 std.io.println std.to_string number;
 
 while (curr > 1) {
-	if (number % curr == 0) {
-		if (is_prime curr) {
-			std.io.print "Prime Factor: ";
-			std.io.println std.to_string curr;
-		};
+	if ((number % curr == 0) && (is_prime curr)) {
+		std.io.print "Prime Factor: ";
+		std.io.println std.to_string curr;
 	};
 
 	curr = curr - 1;

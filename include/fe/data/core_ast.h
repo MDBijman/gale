@@ -84,6 +84,16 @@ namespace fe::core_ast
 			return new_node;
 		}
 
+		node_id create_node(node_type t, node_id parent)
+		{
+			auto new_node = nodes.create();
+			get_node(new_node).id = new_node;
+			get_node(new_node).kind = t;
+			get_node(new_node).data_index = create_node_data(t);
+			get_node(new_node).parent_id = parent;
+			return new_node;
+		}
+
 		node& get_node(node_id id)
 		{
 			return nodes.get_at(id);

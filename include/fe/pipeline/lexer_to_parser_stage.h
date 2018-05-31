@@ -49,6 +49,8 @@ namespace fe
 			add_mapping(gteq_token, gteq);
 			add_mapping(fat_right_arrow_token, fat_right_arrow);
 			add_mapping(backslash_token, backslash);
+			add_mapping(and_token, and_keyword);
+			add_mapping(or_token, or_keyword);
 
 			add_mapping(keyword_token, [&](utils::lexing::token token) {
 				if (token.text == "type")
@@ -89,7 +91,11 @@ namespace fe
 
 			std::transform(in.begin(), in.end(), std::back_inserter(result), [&](lexing::token x) 
 			{
-				const std::variant<ebnf::terminal, std::function<ebnf::terminal(lexing::token)>>& mapped = mapping.at(x.value);
+				auto loc = mapping.find(x.value);
+
+				if (loc == mapping.end()) throw lex_to_parse_error{ "Cannot convert lex token to ast token, no mapping found" };
+
+				const std::variant<ebnf::terminal, std::function<ebnf::terminal(lexing::token)>>& mapped = loc->second;
 
 				if (std::holds_alternative<ebnf::terminal>(mapped))
 				{
