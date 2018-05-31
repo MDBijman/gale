@@ -204,6 +204,10 @@ namespace fe::core_ast
 		{
 			return func->function(std::move(arg));
 		}
+		else
+		{
+			throw interp_error{ "Error: cannot apply non function value" };
+		}
 	}
 
 	values::unique_value interpret_branch(node& n, ast& ast)

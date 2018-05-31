@@ -22,11 +22,11 @@ namespace fe::ext_ast
 		{
 			if (types::product_type* as_product = dynamic_cast<types::product_type*>(t))
 			{
-			return resolve_offsets(offsets, as_product->product.at(offsets.at(cur)).get(), cur + 1);
+				return resolve_offsets(offsets, as_product->product.at(offsets.at(cur)).get(), cur + 1);
 			}
 			else
 			{
-				assert(!"Illegal field access in flat type");
+				throw typecheck_error{ "Cannot access field in non-product type" };
 			}
 		}
 		else
@@ -74,7 +74,7 @@ namespace fe::ext_ast
 
 			identifier new_id;
 			new_id.segments = std::vector<std::string>(id.segments.begin() + i + 1, id.segments.end());
-			
+
 			if (auto module_lookup = cb(pos->second)->resolve_variable(new_id, cb); module_lookup)
 				return module_lookup;
 		}

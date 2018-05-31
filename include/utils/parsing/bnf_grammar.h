@@ -89,6 +89,7 @@ namespace utils::bnf
 				return std::to_string(std::get<terminal>(value))+"t";
 			else if(std::holds_alternative<non_terminal>(value))
 				return std::to_string(std::get<non_terminal>(value))+"nt";
+			else throw std::runtime_error("Symbol holds invalid value");
 		}
 
 		std::variant<terminal, non_terminal> value;

@@ -232,6 +232,8 @@ namespace utils::lr
 				return std::move(result.top());
 			}
 		}
+
+		throw std::runtime_error("Parsing finished without reaching an accept state");
 	}
 
 	std::unordered_map<bnf::symbol, item_set> parser::create_item_sets(const item_set & i)
