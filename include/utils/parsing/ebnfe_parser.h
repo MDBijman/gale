@@ -66,8 +66,7 @@ namespace utils
 
 				decltype(children) new_children;
 
-				auto it = children.begin();
-				while (it != children.end())
+				for(auto it = children.begin(); it != children.end();)
 				{
 					auto child = it->get();
 
@@ -116,12 +115,12 @@ namespace utils
 							// Fallthrough
 							// Remove node and children
 						case transformation_type::REMOVE:
-							it = children.erase(it);
+							it++;
 							break;
 							// Remove node and promote children
 						case transformation_type::REPLACE_WITH_CHILDREN:
 							std::move(nt_child->children.begin(), nt_child->children.end(), std::back_inserter(new_children));
-							it = children.erase(it);
+							it++;
 							break;
 							// Keep node
 						case transformation_type::KEEP:
