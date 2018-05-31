@@ -146,21 +146,21 @@ namespace fe
 
 			.new_rule({ operation, { match } })
 
-			.new_rule({ match, { comparison, match_keyword, left_curly_bracket, match_branch, star,
-				right_curly_bracket, alt, comparison} })
+			.new_rule({ match, { logical, match_keyword, left_curly_bracket, match_branch, star,
+				right_curly_bracket, alt, logical} })
 			.new_rule({ match_branch, { vertical_line, operation, right_arrow, operation } })
 
-			.new_rule({ comparison, { equality, alt, less_or_equal, alt, less_than, alt,
-				greater_or_equal, alt, greater_than, alt, logical } })
-			.new_rule({ equality, { logical, two_equals, comparison, } })
-			.new_rule({ less_or_equal, { logical, lteq, comparison } })
-			.new_rule({ less_than, { logical, left_angle_bracket, comparison } })
-			.new_rule({ greater_or_equal, { logical, gteq, comparison } })
-			.new_rule({ greater_than, { logical, right_angle_bracket, comparison } })
+			.new_rule({ logical, { and_expr, alt, or_expr, alt, comparison} })
+			.new_rule({ and_expr, { comparison, and_keyword, logical } })
+			.new_rule({ or_expr, { comparison, or_keyword, logical } })
 
-			.new_rule({ logical, { and_expr, alt, or_expr, alt, arithmetic } })
-			.new_rule({ and_expr, { arithmetic, and_keyword, logical } })
-			.new_rule({ or_expr, { arithmetic, or_keyword, logical } })
+			.new_rule({ comparison, { equality, alt, less_or_equal, alt, less_than, alt,
+				greater_or_equal, alt, greater_than, alt, arithmetic } })
+			.new_rule({ equality, { arithmetic, two_equals, comparison, } })
+			.new_rule({ less_or_equal, { arithmetic, lteq, comparison } })
+			.new_rule({ less_than, { arithmetic, left_angle_bracket, comparison } })
+			.new_rule({ greater_or_equal, { arithmetic, gteq, comparison } })
+			.new_rule({ greater_than, { arithmetic, right_angle_bracket, comparison } })
 
 			.new_rule({ arithmetic, { addition, alt, subtraction, alt, term } })
 			.new_rule({ addition, { term, plus, arithmetic } })
