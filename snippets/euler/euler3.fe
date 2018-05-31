@@ -1,6 +1,10 @@
 module euler3
 import [std std.io]
+
+std.io.println "";
 std.io.println "Euler 3";
+let before: std.i64 = std.io.time ();
+
 let is_prime: std.i64 -> std.bool = \n => {
 	let x : std.i64 = 2;
 
@@ -12,7 +16,6 @@ let is_prime: std.i64 -> std.bool = \n => {
 	res
 };
 
-let before: std.i64 = std.io.time ();
 let number: std.i64 = 103195; 
 let curr: std.i64 = number / 2;
 
@@ -20,7 +23,7 @@ std.io.print "Factoring: ";
 std.io.println std.to_string number;
 
 while (curr > 1) {
-	if ((number % curr == 0) && (is_prime curr)) {
+	if (number % curr == 0 && is_prime curr) {
 		std.io.print "Prime Factor: ";
 		std.io.println std.to_string curr;
 	};

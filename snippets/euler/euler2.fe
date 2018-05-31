@@ -1,6 +1,10 @@
 module euler2
 import [std std.io]
 
+std.io.println "";
+std.io.println "Euler 2";
+let before: std.i64 = std.io.time ();
+
 let prev: std.i32 = 1;
 let cur: std.i32 = 1;
 let sum: std.i32 = 0;
@@ -14,3 +18,7 @@ while (cur <= 4000000) {
 };
 
 std.io.println std.to_string sum;
+
+let after: std.i64 = std.io.time ();
+std.io.print std.to_string ((std.to_f32 (after - before)) / (std.to_f32 1000000));
+std.io.println " ms";
