@@ -31,7 +31,8 @@ TEST_CASE("an ebnfe parser should parse correctly given a set of rules", "[synta
 
 	SECTION("an id as a value is parsed")
 	{
-		auto output_or_error = parser.parse(Expression, std::vector<utils::bnf::terminal_node>{
+		parser.generate(Expression);
+		auto output_or_error = parser.parse(std::vector<utils::bnf::terminal_node>{
 			{ id, "a" }, { plus, "+" }, { number, "5" }
 		});
 
@@ -65,7 +66,8 @@ TEST_CASE("an ebnfe parser should parse correctly given a set of rules", "[synta
 
 	SECTION("a single id is parsed")
 	{
-		auto output_or_error = parser.parse(Expression, std::vector<utils::bnf::terminal_node>{
+		parser.generate(Expression);
+		auto output_or_error = parser.parse(std::vector<utils::bnf::terminal_node>{
 			{ id, "a" }
 		});
 
@@ -113,7 +115,8 @@ TEST_CASE("ebnfe grammars should be correctly translated to bnf grammars", "[syn
 		for (auto&x : ts) output.push_back({ x, "" });
 		return output;
 	};
-	auto output_or_error = parser.parse(if_expr, conv({
+	parser.generate(if_expr);
+	auto output_or_error = parser.parse(conv({
 		if_kw, op, block, elseif_kw, op, block, elseif_kw, op, block, else_kw, block
 	}));
 
