@@ -111,8 +111,9 @@ namespace utils::ebnf
 								}
 								// Fallthrough
 							case child_type::GROUP:
-								std::move(nt_child.children.rbegin(), nt_child.children.rend(), 
-									std::back_inserter(reversed_children));
+								reversed_children.insert(reversed_children.end(), 
+									std::make_move_iterator(nt_child.children.rbegin()),
+									std::make_move_iterator(nt_child.children.rend()));
 							}
 						}
 						else
@@ -121,11 +122,9 @@ namespace utils::ebnf
 						}
 					}
 
-					std::vector<std::unique_ptr<node>> children;
-					for (auto it = reversed_children.rbegin(); it != reversed_children.rend(); it++)
-						children.push_back(std::move(*it));
+					std::reverse(reversed_children.begin(), reversed_children.end());
 
-					converted.push(std::make_unique<node>(non_terminal_node(curr_node->value, std::move(children))));
+					converted.push(std::make_unique<node>(non_terminal_node(curr_node->value, std::move(reversed_children))));
 					last_visited = curr_node;
 				}
 				// Case 3 
@@ -302,10 +301,15 @@ namespace utils::ebnf
 
 	// Parser
 
-	std::variant<std::unique_ptr<node>, error> parser::parse(non_terminal init, std::vector<bnf::terminal_node> input)
+	void parser::generate(non_terminal init)
+	{
+		this->bnf_parser.generate(init);
+	}
+
+	std::variant<std::unique_ptr<node>, error> parser::parse(std::vector<bnf::terminal_node> input)
 	{
 		try {
-			auto ast_or_error = bnf_parser.parse(init, input);
+			auto ast_or_error = bnf_parser.parse(input);
 
 			// Handle error of bnf parser
 			if (std::holds_alternative<bnf::error>(ast_or_error))
