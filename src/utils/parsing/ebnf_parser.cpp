@@ -19,7 +19,8 @@ namespace utils::ebnf
 		// #todo make handling variants easier
 		// Post order traversal of the bnf tree to construct an ebnf tree.
 
-		std::stack<std::unique_ptr<node>> converted;
+		// This is a vector instead of stack so that we take elements off in the right order, without needing to reverse
+		std::vector<std::unique_ptr<node>> converted;
 
 		// Get bottom left child
 		std::stack<std::variant<bnf::non_terminal_node*, bnf::terminal_node*>> s;
@@ -39,7 +40,7 @@ namespace utils::ebnf
 				if (curr_node->children.size() == 0)
 				{
 					// visit
-					converted.push(std::make_unique<node>(non_terminal_node(curr_node->value, {})));
+					converted.push_back(std::make_unique<node>(non_terminal_node(curr_node->value, {})));
 					last_visited = curr_node;
 					s.pop();
 					continue;
@@ -83,11 +84,10 @@ namespace utils::ebnf
 				{
 					s.pop();
 
-					std::vector<std::unique_ptr<node>> reversed_children;
-					for (int i = 0; i < curr_node->children.size(); i++)
+					std::vector<std::unique_ptr<node>> children;
+					for (int i = curr_node->children.size(); i > 0; i--)
 					{
-						auto child = std::move(converted.top());
-						converted.pop();
+						auto child = std::move(converted.at(converted.size() - i));
 
 						if (std::holds_alternative<non_terminal_node>(*child)
 							&& rule_inheritance.find(std::get<non_terminal_node>(*child).value) != rule_inheritance.end())
@@ -111,20 +111,20 @@ namespace utils::ebnf
 								}
 								// Fallthrough
 							case child_type::GROUP:
-								reversed_children.insert(reversed_children.end(), 
-									std::make_move_iterator(nt_child.children.rbegin()),
-									std::make_move_iterator(nt_child.children.rend()));
+								children.insert(children.end(), 
+									std::make_move_iterator(nt_child.children.begin()),
+									std::make_move_iterator(nt_child.children.end()));
 							}
 						}
 						else
 						{
-							reversed_children.push_back(std::move(child));
+							children.push_back(std::move(child));
 						}
 					}
 
-					std::reverse(reversed_children.begin(), reversed_children.end());
+					converted.resize(converted.size() - curr_node->children.size());
 
-					converted.push(std::make_unique<node>(non_terminal_node(curr_node->value, std::move(reversed_children))));
+					converted.push_back(std::make_unique<node>(non_terminal_node(curr_node->value, std::move(children))));
 					last_visited = curr_node;
 				}
 				// Case 3 
@@ -145,11 +145,11 @@ namespace utils::ebnf
 			{
 				last_visited = std::get<bnf::terminal_node*>(x);
 				s.pop();
-				converted.push(std::make_unique<node>(terminal_node(std::get<bnf::terminal_node*>(last_visited))));
+				converted.push_back(std::make_unique<node>(terminal_node(std::get<bnf::terminal_node*>(last_visited))));
 			}
 		}
 
-		return std::move(std::get<non_terminal_node>(*converted.top()));
+		return std::move(std::get<non_terminal_node>(*converted.back()));
 	}
 
 	// Rule
