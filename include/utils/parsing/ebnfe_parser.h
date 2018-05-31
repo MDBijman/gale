@@ -146,9 +146,14 @@ namespace utils
 		public:
 			parser() {}
 
-			std::variant<std::unique_ptr<node>, error> parse(non_terminal init, std::vector<bnf::terminal_node> input) 
+			void generate(non_terminal init)
 			{
-				auto ebnf_results = ebnf_parser.parse(init, input);
+				ebnf_parser.generate(init);
+			}
+
+			std::variant<std::unique_ptr<node>, error> parse(std::vector<bnf::terminal_node> input) 
+			{
+				auto ebnf_results = ebnf_parser.parse(input);
 				if (std::holds_alternative<ebnf::error>(ebnf_results))
 					return error{ error_code::EBNF_PARSER_ERROR, std::get<ebnf::error>(ebnf_results).message };
 

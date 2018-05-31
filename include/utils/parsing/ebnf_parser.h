@@ -103,7 +103,9 @@ namespace utils::ebnf
 	public:
 		parser() {}
 
-		std::variant<std::unique_ptr<node>, error> parse(non_terminal init, std::vector<bnf::terminal_node> input);
+		void generate(non_terminal init);
+
+		std::variant<std::unique_ptr<node>, error> parse(std::vector<bnf::terminal_node> input);
 
 		parser& new_rule(rule r);
 

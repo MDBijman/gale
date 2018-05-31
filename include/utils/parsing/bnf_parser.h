@@ -37,13 +37,19 @@ namespace utils::bnf
 			return *this;
 		}
 
-		std::variant<std::unique_ptr<node>, error> parse(non_terminal init, std::vector<bnf::terminal_node> input) 
+		void generate(non_terminal init)
+		{
+			if (!table_is_old)
+				return;
+
+			implementation->generate(init, rules);
+			table_is_old = false;
+		}
+
+		std::variant<std::unique_ptr<node>, error> parse(std::vector<bnf::terminal_node> input)
 		{
 			if (table_is_old)
-			{
-				implementation->generate(init, rules);
-				table_is_old = false;
-			}
+				throw std::runtime_error("Parser table is outdated");
 
 			return implementation->parse(input);
 		}
@@ -69,7 +75,7 @@ namespace utils::bnf
 		std::unique_ptr<utils::parser> implementation;
 
 		std::multimap<non_terminal, std::vector<symbol>> rules;
-		
+
 		bool table_is_old = true;
 
 		terminal t_generator = 1;
