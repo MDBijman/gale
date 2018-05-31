@@ -50,23 +50,26 @@ namespace memory
 	{
 		std::vector<T> data;
 		std::vector<bool> occupieds;
+		// @performance this improves speed dramatically when the store is full by avoiding scanning the entire occupieds
+		// maybe additional speed can be gained by bookkeeping all free slots, then this speedup is also gained when
+		// the store is almost full except for some of the last slots
+		bool is_full = true;
 	public:
 		using index = size_t;
 
 		index create()
 		{
-			auto free_pos = std::find(occupieds.begin(), occupieds.end(), false);
-			if (free_pos == occupieds.end())
+			if (is_full)
 			{
 				occupieds.push_back(true);
 				data.push_back(T());
 				return occupieds.size() - 1;
 			}
-			else
-			{
-				*free_pos = true;
-				return std::distance(occupieds.begin(), free_pos);
-			}
+
+			auto free_pos = std::find(occupieds.begin(), occupieds.end(), false);
+			assert(free_pos != occupieds.end());
+			*free_pos = true;
+			return std::distance(occupieds.begin(), free_pos);
 		}
 
 		T& get_at(index i)
@@ -89,6 +92,7 @@ namespace memory
 			assert(i < occupieds.size());
 			assert(data.size() == occupieds.size());
 			occupieds[i] = false;
+			is_full = false;
 		}
 
 		const std::vector<T>& get_data()
