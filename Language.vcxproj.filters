@@ -69,6 +69,9 @@
     <Filter Include="Source Files\utils\memory">
       <UniqueIdentifier>{4b51711a-aed5-4cd1-a967-fa1aea409830}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\utils\algorithms">
+      <UniqueIdentifier>{ee24a8fa-f4b4-4157-8121-1f95d39139a9}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="snippets\euler\euler1.fe">
@@ -168,6 +171,9 @@
     </ClCompile>
     <ClCompile Include="src\tests\fe\typechecking_tests.cpp">
       <Filter>Source Files\tests\fe</Filter>
+    </ClCompile>
+    <ClCompile Include="src\utils\parsing\ebnfe_parser.cpp">
+      <Filter>Source Files\utils\parsing</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -284,6 +290,9 @@
     </ClInclude>
     <ClInclude Include="include\fe\data\ast_data.h">
       <Filter>Source Files\fe\data</Filter>
+    </ClInclude>
+    <ClInclude Include="include\utils\algorithms\tree_traversal.h">
+      <Filter>Source Files\utils\algorithms</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

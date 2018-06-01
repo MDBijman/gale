@@ -1,157 +1,9 @@
 #include "utils/parsing/ebnf_parser.h"
+#include "utils/algorithms/tree_traversal.h"
 #include <stack>
 
 namespace utils::ebnf
 {
-	// Terminal node
-
-	terminal_node::terminal_node(bnf::terminal_node* bnf_node) : value(bnf_node->value), token(bnf_node->token) {}
-
-	// Non terminal node
-
-	non_terminal_node::non_terminal_node(non_terminal val,
-		std::vector<std::unique_ptr<node>> children) : value(val), children(std::move(children))
-	{}
-
-	non_terminal_node bnf_to_ebnf(bnf::non_terminal_node& bnf_tree, 
-		std::unordered_map<non_terminal, std::pair<non_terminal, child_type>>& rule_inheritance) 
-	{
-		// #todo make handling variants easier
-		// Post order traversal of the bnf tree to construct an ebnf tree.
-
-		// This is a vector instead of stack so that we take elements off in the right order, without needing to reverse
-		std::vector<std::unique_ptr<node>> converted;
-
-		// Get bottom left child
-		std::stack<std::variant<bnf::non_terminal_node*, bnf::terminal_node*>> s;
-		s.push(&bnf_tree);
-
-		std::variant<bnf::non_terminal_node*, bnf::terminal_node*> last_visited;
-
-		while (!s.empty())
-		{
-			auto x = s.top();
-			// If we have a non terminal node, we 'recursively' process it
-			if (std::holds_alternative<bnf::non_terminal_node*>(x))
-			{
-				bnf::non_terminal_node* curr_node = std::get<bnf::non_terminal_node*>(x);
-
-				// If the curr_node has no children, we just put it onto the converted stack
-				if (curr_node->children.size() == 0)
-				{
-					// visit
-					converted.push_back(std::make_unique<node>(non_terminal_node(curr_node->value, {})));
-					last_visited = curr_node;
-					s.pop();
-					continue;
-				}
-
-				// If we have children, we check if we can find the last_visited node in the curr_node children
-				// There are 3 cases: not found, found as the last child, found before the last child
-
-				decltype(curr_node->children.begin()) it;
-				for (it = curr_node->children.begin(); it != curr_node->children.end(); it++)
-				{
-					auto& child = *(it->get());
-					// Compare curr vs child
-					if ((std::holds_alternative<bnf::non_terminal_node>(child)
-						&& std::holds_alternative<bnf::non_terminal_node*>(last_visited)
-						&& (&std::get<bnf::non_terminal_node>(child) == std::get<bnf::non_terminal_node*>(last_visited)))
-					|| (std::holds_alternative<bnf::terminal_node>(child)
-						&& std::holds_alternative<bnf::terminal_node*>(last_visited)
-						&& (&std::get<bnf::terminal_node>(child) == std::get<bnf::terminal_node*>(last_visited))))
-					{
-						break;
-					}
-				}
-
-				// Case 1
-				// last_visited is not part of the curr_node children, so we push the leftmost child onto the stack
-				if (it == curr_node->children.end())
-				{
-					// Push left
-					auto next = curr_node->children.begin()->get();
-					if (std::holds_alternative<bnf::non_terminal_node>(*next))
-						s.push(&std::get<bnf::non_terminal_node>(*next));
-					else if (std::holds_alternative<bnf::terminal_node>(*next))
-						s.push(&std::get<bnf::terminal_node>(*next));
-				}
-				// Case 2 
-				// last_visited is the last of the curr_node children, so we have visited all children
-				// We construct an ebnf non_terminal from the already converted children that are on the converted stack
-				// They are transformed if they are a a result of a repetition/optional/group rule
-				else if (it == curr_node->children.end() - 1)
-				{
-					s.pop();
-
-					std::vector<std::unique_ptr<node>> children;
-					for (int i = curr_node->children.size(); i > 0; i--)
-					{
-						auto child = std::move(converted.at(converted.size() - i));
-
-						if (std::holds_alternative<non_terminal_node>(*child)
-							&& rule_inheritance.find(std::get<non_terminal_node>(*child).value) != rule_inheritance.end())
-						{
-							auto& nt_child = std::get<non_terminal_node>(*child);
-							auto& inheritance_rule = rule_inheritance.at(nt_child.value);
-
-							// Actual bnf to ebnf conversion happens here
-							// Repetitions '*' and optionals '[]' are lifted if they contain more than just an epsilon 
-							// Groups '()' always get lifted up
-							switch (inheritance_rule.second)
-							{
-							case child_type::REPETITION:
-							case child_type::OPTIONAL:
-								// If repeated 0 times, skip
-								if (nt_child.children.size() == 1
-									&& std::holds_alternative<terminal_node>(*nt_child.children.at(0))
-									&& (std::get<terminal_node>(*nt_child.children.at(0)).value == epsilon))
-								{
-									continue;
-								}
-								// Fallthrough
-							case child_type::GROUP:
-								children.insert(children.end(), 
-									std::make_move_iterator(nt_child.children.begin()),
-									std::make_move_iterator(nt_child.children.end()));
-							}
-						}
-						else
-						{
-							children.push_back(std::move(child));
-						}
-					}
-
-					converted.resize(converted.size() - curr_node->children.size());
-
-					converted.push_back(std::make_unique<node>(non_terminal_node(curr_node->value, std::move(children))));
-					last_visited = curr_node;
-				}
-				// Case 3 
-				// last_visited is an element of the curr_node children, but not the last
-				// Push its sibling onto the stack
-				// In the next iteration(s) this node is further processed
-				else
-				{
-					auto next = (it + 1)->get();
-					if (std::holds_alternative<bnf::non_terminal_node>(*next))
-						s.push(&std::get<bnf::non_terminal_node>(*next));
-					else if (std::holds_alternative<bnf::terminal_node>(*next))
-						s.push(&std::get<bnf::terminal_node>(*next));
-				}
-			}
-			// If we have a terminal node, we just put it onto the converted stack
-			else
-			{
-				last_visited = std::get<bnf::terminal_node*>(x);
-				s.pop();
-				converted.push_back(std::make_unique<node>(terminal_node(std::get<bnf::terminal_node*>(last_visited))));
-			}
-		}
-
-		return std::move(std::get<non_terminal_node>(*converted.back()));
-	}
-
 	// Rule
 
 	rule::rule(non_terminal lhs, const std::vector<std::variant<symbol, meta_char>>& rhs) : lhs(lhs), rhs(rhs) {}
@@ -306,27 +158,16 @@ namespace utils::ebnf
 		this->bnf_parser.generate(init);
 	}
 
-	std::variant<std::unique_ptr<node>, error> parser::parse(std::vector<bnf::terminal_node> input)
+	std::variant<bnf::tree, error> parser::parse(std::vector<bnf::terminal_node> input)
 	{
 		try {
-			auto ast_or_error = bnf_parser.parse(input);
+			auto bnf_results = bnf_parser.parse(input);
 
 			// Handle error of bnf parser
-			if (std::holds_alternative<bnf::error>(ast_or_error))
-				return error{ error_code::BNF_ERROR, std::get<bnf::error>(ast_or_error).message };
+			if (std::holds_alternative<bnf::error>(bnf_results))
+				return error{ error_code::BNF_ERROR, std::get<bnf::error>(bnf_results).message };
 
-			auto& extended_ast = std::get<std::unique_ptr<bnf::node>>(ast_or_error);
-
-			// Convert from bnf to ebnf
-			if (std::holds_alternative<bnf::terminal_node>(*extended_ast))
-				return std::make_unique<node>(terminal_node{ &std::get<bnf::terminal_node>(*extended_ast) });
-			else if (std::holds_alternative<bnf::non_terminal_node>(*extended_ast))
-			{
-				auto ebnf = bnf_to_ebnf(std::get<bnf::non_terminal_node>(*extended_ast), nt_child_parents);
-				return std::make_unique<node>(std::move(ebnf));
-			}
-			else
-				return error{ error_code::BNF_ERROR, "BNF parser returned empty value" };
+			return convert(std::move(std::get<bnf::tree>(bnf_results)));
 		}
 		catch (lr::conflict e) {
 			std::string error_message;
@@ -422,7 +263,6 @@ namespace utils::ebnf
 
 			return error{ error_code::BNF_ERROR, error_message };
 		}
-
 	}
 
 	parser& parser::new_rule(rule r)
@@ -451,5 +291,48 @@ namespace utils::ebnf
 		auto nt = bnf_parser.new_non_terminal();
 		nt_child_parents.insert({ nt, { parent, type } });
 		return nt;
+	}
+
+	bnf::tree parser::convert(bnf::tree in)
+	{
+		auto order = utils::algorithms::breadth_first(in);
+
+		// First calculate sizes and allocate proper sizes. 
+		std::vector<size_t> future_parents;
+		std::vector<bool> disappears;
+		future_parents.resize(order.size());
+		disappears.resize(order.size());
+		for (auto id : order)
+		{
+			bnf::node& n = in.get_node(id);
+
+			if (n.kind == bnf::node_type::NON_TERMINAL)
+			{
+				auto& children = in.get_children_of(id);
+
+				disappears[id] =
+					(nt_child_parents.find(in.get_non_terminal(n.value_id).first) != nt_child_parents.end());
+
+				for (auto child : children)
+				{
+					if (disappears[id]) future_parents[child] = future_parents[id];
+					else future_parents[child] = id;
+				}
+
+				children.clear();
+			}
+		}
+
+		for (auto id : order)
+		{
+			if (id == in.root()) continue;
+
+			bnf::node& n = in.get_node(id);
+
+			if (disappears[id]) in.free(id);
+			else in.get_children_of(future_parents[id]).push_back(id);
+		}
+
+		return in;
 	}
 }

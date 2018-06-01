@@ -12,7 +12,7 @@ int main(int argc, char** argv)
 {
 	auto mode = argc > 1 ? std::string(argv[1]) : "help";
 
-	auto possible_modes = { "test", "project", "help", "repl", "exit" };
+	auto possible_modes = { "test", "project", "help", "repl", "exit", "other" };
 
 	if (argc == 2 && (std::find(possible_modes.begin(), possible_modes.end(), mode) == possible_modes.end()))
 	{
@@ -155,6 +155,33 @@ int main(int argc, char** argv)
 			<< "\tStarts a REPL session\n"
 			<< std::endl;
 		std::cin.get();
+		return 0;
+	}
+	else if (mode == "other")
+	{
+		fe::pipeline p;
+
+		// Init parse table
+		p.parse({ });
+
+		std::string code = 
+R"c(module statements
+import [std std.io]
+
+let x : std.i32 = 1;
+)c";
+
+		for (int i = 0; i < 10000; i++)
+			code += "x = 2;\n";
+
+		auto now = std::chrono::steady_clock::now();
+		auto lex_output = p.lex(std::move(code));
+
+		p.parse(std::move(lex_output));
+		auto then = std::chrono::steady_clock::now();
+
+		auto time = std::chrono::duration<double, std::milli>(then - now).count();
+		std::cout << "Long parse: " << time << " ms" << "\n";
 		return 0;
 	}
 

@@ -51,27 +51,6 @@ namespace utils::ebnf
 		OPTIONAL
 	};
 
-	struct terminal_node
-	{
-		terminal_node(bnf::terminal_node* bnf_node);
-
-		std::string token;
-		terminal value;
-	};
-
-	struct non_terminal_node
-	{
-		non_terminal_node(non_terminal, std::vector<std::unique_ptr<std::variant<terminal_node, non_terminal_node>>>);
-
-		std::vector<std::unique_ptr<std::variant<terminal_node, non_terminal_node>>> children;
-		non_terminal value;
-	};
-
-	non_terminal_node bnf_to_ebnf(bnf::non_terminal_node& bnf_tree,
-			std::unordered_map<non_terminal, std::pair<non_terminal, child_type>>& rule_inheritance);
-
-	using node = std::variant<terminal_node, non_terminal_node>;
-
 	struct rule
 	{
 		const non_terminal lhs;
@@ -105,7 +84,7 @@ namespace utils::ebnf
 
 		void generate(non_terminal init);
 
-		std::variant<std::unique_ptr<node>, error> parse(std::vector<bnf::terminal_node> input);
+		std::variant<bnf::tree, error> parse(std::vector<bnf::terminal_node> input);
 
 		parser& new_rule(rule r);
 
@@ -115,5 +94,7 @@ namespace utils::ebnf
 
 	private:
 		non_terminal generate_child_non_terminal(non_terminal parent, child_type type);
+
+		bnf::tree convert(bnf::tree);
 	};
 }

@@ -11,7 +11,7 @@ namespace fe
 	class cst_to_ast_stage 
 	{
 	public:
-		std::variant<ext_ast::ast, cst_to_ast_error> convert(std::unique_ptr<utils::ebnfe::node> node) const
+		std::variant<ext_ast::ast, cst_to_ast_error> convert(utils::bnf::tree node) const
 		{
 			try
 			{
@@ -23,6 +23,6 @@ namespace fe
 			}
 		}
 
-		ext_ast::ast conv(std::unique_ptr<utils::ebnfe::node> node) const;
+		ext_ast::ast conv(utils::bnf::tree node) const;
 	};
 }

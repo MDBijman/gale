@@ -319,7 +319,7 @@ namespace utils::lr
 	public:
 		void generate(bnf::non_terminal start_symbol, std::multimap<bnf::non_terminal, std::vector<bnf::symbol>>& rules) override;
 
-		std::unique_ptr<bnf::node> parse(std::vector<bnf::terminal_node> input) override;
+		bnf::tree parse(std::vector<bnf::terminal_node> input) override;
 
 		ruleset rules;
 		std::unordered_set<item_set> item_sets;
@@ -338,13 +338,3 @@ namespace utils::lr
 		void generate_follow_sets();
 	};
 }
-//
-//namespace std
-//{
-//	template<> struct hash<utils::lr::parse_table::const_iterator>
-//	{
-//		std::size_t operator()(const utils::lr::parse_table::const_iterator& it) const
-//		{
-//		}
-//	};
-//}

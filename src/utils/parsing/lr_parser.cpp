@@ -157,9 +157,11 @@ namespace utils::lr
 		}
 	}
 
-	std::unique_ptr<bnf::node> parser::parse(std::vector<bnf::terminal_node> input)
+	bnf::tree parser::parse(std::vector<bnf::terminal_node> input)
 	{
-		input.push_back(bnf::terminal_node(-2, ""));
+		bnf::tree t;
+
+		input.push_back(bnf::terminal_node{ -2, "" });
 		auto it = input.begin();
 
 		std::size_t line = 1;
@@ -168,11 +170,11 @@ namespace utils::lr
 		std::stack<state> history;
 		history.push(first_item_set);
 
-		std::stack<std::unique_ptr<bnf::node>> result;
+		std::stack<bnf::node_id> result;
 
 		while (history.size() > 0)
 		{
-			while (it->value == bnf::new_line)
+			while (it->first == bnf::new_line)
 			{
 				line++; it++; line_offset = 0;
 			}
@@ -180,9 +182,9 @@ namespace utils::lr
 			auto current_state = history.top();
 
 			auto action = ([&]() {
-				if (it != input.end() && (table.find({ current_state, it->value }) != table.end()))
+				if (it != input.end() && (table.find({ current_state, it->first }) != table.end()))
 				{
-					return table.at({ current_state, it->value });
+					return table.at({ current_state, it->first });
 				}
 				else
 				{
@@ -191,14 +193,15 @@ namespace utils::lr
 						.append(" offset: ")
 						.append(std::to_string(line_offset))
 						.append(" token: ")
-						.append(it->token));
+						.append(it->second));
 				}
 			})();
 
 			if (std::holds_alternative<shift_action>(action))
 			{
 				history.push(std::get<shift_action>(action).new_state);
-				result.push(std::make_unique<bnf::node>(bnf::terminal_node(it->value, it->token)));
+
+				result.push(t.create_terminal(bnf::terminal_node(*it)));
 				it++;
 				line_offset++;
 			}
@@ -206,20 +209,20 @@ namespace utils::lr
 			{
 				auto reduce = std::get<reduce_action>(action);
 
-				std::vector<std::unique_ptr<bnf::node>> reduced_states;
+				auto id = t.create_non_terminal(bnf::non_terminal_node(reduce.rule->first, {}));
+				auto& new_node = t.get_node(id);
+				auto& data = t.get_non_terminal(new_node.value_id);
+				data.second.resize(reduce.rule->second.size());
 
-				reduced_states.resize(reduce.rule->second.size());
 				for (int i = 0; i < reduce.rule->second.size(); i++)
 				{
-					reduced_states.at(reduce.rule->second.size() - 1 - i) = std::move(result.top());
-
+					data.second.at(reduce.rule->second.size() - 1 - i) = result.top();
 					result.pop();
 					history.pop();
 				}
 
-				auto new_node = std::make_unique<bnf::node>(bnf::non_terminal_node(reduce.rule->first,
-					std::move(reduced_states)));
-				result.push(std::move(new_node));
+				result.push(id);
+				t.set_root(id);
 
 				auto next_state = table.at({ history.top(), reduce.rule->first });
 
@@ -229,7 +232,7 @@ namespace utils::lr
 			}
 			else if (std::holds_alternative<accept_action>(action))
 			{
-				return std::move(result.top());
+				return t;
 			}
 		}
 

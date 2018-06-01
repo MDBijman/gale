@@ -167,7 +167,7 @@ namespace fe::ext_ast
 			assert(parent.type_scope_id);
 			n.type_scope_id = ast.create_type_scope(*parent.type_scope_id);
 		}
-		// If we dont have a parent we already have a scope
+		// If we dont have a parent we already have a type scope.
 		else
 			assert(n.type_scope_id);
 

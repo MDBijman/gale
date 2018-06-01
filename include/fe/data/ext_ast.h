@@ -130,14 +130,9 @@ namespace fe::ext_ast
 		node_id root;
 
 	public:
-		ast(node_type t)
+		void set_root_id(node_id id)
 		{
-			root = nodes.create();
-			nodes.get_at(root) = node(root, t);
-			nodes.get_at(root).id = root;
-			nodes.get_at(root).data_index = create_node_data(t);
-			nodes.get_at(root).name_scope_id = create_name_scope();
-			nodes.get_at(root).type_scope_id = create_type_scope();
+			root = id;
 		}
 
 		// Root node
