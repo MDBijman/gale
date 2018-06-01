@@ -51,7 +51,7 @@ namespace fe::ext_ast
 			assert(parent.name_scope_id);
 			n.name_scope_id = ast.create_name_scope(*parent.name_scope_id);
 		}
-		// If we dont have a parent we already have a scope
+		// If we dont have a parent we already have a name scope.
 		else
 			assert(n.name_scope_id);
 

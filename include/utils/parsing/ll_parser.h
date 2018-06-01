@@ -38,7 +38,7 @@ namespace utils::ll
 
 		void generate(bnf::non_terminal start_symbol, std::multimap<bnf::non_terminal, std::vector<bnf::symbol>>& rules) override;
 
-		std::unique_ptr<bnf::node> parse(std::vector<bnf::terminal_node> input) override;
+		bnf::tree parse(std::vector<bnf::terminal_node> input) override;
 
 	private:
 		bnf::non_terminal start_symbol;

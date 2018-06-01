@@ -153,6 +153,7 @@
     <ClCompile Include="src\tests\utils\lr_tests.cpp" />
     <ClCompile Include="src\tests\utils\performance_tests.cpp" />
     <ClCompile Include="src\utils\parsing\bnf_grammar.cpp" />
+    <ClCompile Include="src\utils\parsing\ebnfe_parser.cpp" />
     <ClCompile Include="src\utils\parsing\ebnf_parser.cpp" />
     <ClCompile Include="src\utils\parsing\ll_parser.cpp" />
     <ClCompile Include="src\utils\parsing\lr_parser.cpp" />
@@ -187,6 +188,7 @@
     <ClInclude Include="include\fe\pipeline\resolution_stage.h" />
     <ClInclude Include="include\fe\pipeline\typechecker_stage.h" />
     <ClInclude Include="include\tests\test_utils.h" />
+    <ClInclude Include="include\utils\algorithms\tree_traversal.h" />
     <ClInclude Include="include\utils\lexing\lexer.h" />
     <ClInclude Include="include\utils\memory\data_store.h" />
     <ClInclude Include="include\utils\parsing\bnf_grammar.h" />

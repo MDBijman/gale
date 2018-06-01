@@ -11,7 +11,7 @@ namespace fe
 	public:
 		parsing_stage();
 
-		std::variant<std::unique_ptr<utils::ebnfe::node>, utils::ebnfe::error> parse(const std::vector<utils::bnf::terminal_node>& in) 
+		std::variant<utils::bnf::tree, utils::ebnfe::error> parse(const std::vector<utils::bnf::terminal_node>& in) 
 		{
 			parser.generate(fe::non_terminals::file);
 			return parser.parse(in);

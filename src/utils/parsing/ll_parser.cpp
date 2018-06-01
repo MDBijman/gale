@@ -5,12 +5,13 @@
 
 namespace utils::ll
 {
-	std::unique_ptr<bnf::node> parser::parse(std::vector<bnf::terminal_node> input)
+	bnf::tree parser::parse(std::vector<bnf::terminal_node> input)
 	{
+		bnf::tree t;
+
 		input.push_back({ bnf::end_of_input, "" });
-		std::stack<bnf::node*> stack;
-		auto root = std::make_unique<bnf::node>(bnf::non_terminal_node(start_symbol));
-		stack.push(root.get());
+		std::stack<bnf::node_id> stack;
+		stack.push(t.create_non_terminal(bnf::non_terminal_node(start_symbol, {})));
 
 		std::size_t distance = 0;
 		auto it = input.begin();
@@ -18,22 +19,22 @@ namespace utils::ll
 		{
 			if (it == input.end())
 				throw error{ error_code::UNEXPECTED_END_OF_INPUT, std::string("Encountered eoi token with non-empty stack") };
-
-			bnf::node* top = stack.top();
-
 			auto input_token = *it;
 
-			if (std::holds_alternative<bnf::terminal_node>(*top))
-			{
-				auto value = std::get<bnf::terminal_node>(*top).value;
+			bnf::node_id top = stack.top();
+			auto& node = t.get_node(top);
 
-				if (input_token.value == value)
+			if (node.kind == bnf::node_type::TERMINAL)
+			{
+				auto& data = t.get_terminal(node.value_id);
+
+				if (data.first == input_token.first)
 				{
-					std::get<bnf::terminal_node>(*top).token = input_token.token;
+					data.second = input_token.second;
 					it++;
 					stack.pop();
 				}
-				else if (value == bnf::epsilon)
+				else if (data.first == bnf::epsilon)
 				{
 					stack.pop();
 				}
@@ -42,21 +43,21 @@ namespace utils::ll
 					throw error{
 						error_code::TERMINAL_MISMATCH,
 						std::string("Got: ")
-						.append(std::to_string((int)input_token.value))
+						.append(std::to_string((int)input_token.first))
 						.append(" Expected: ")
-						.append(std::to_string((int)value))
+						.append(std::to_string((int)data.first))
 						.append(" at token index ")
 						.append(std::to_string(distance))
 					};
 				}
 
-				distance += input_token.token.size();
+				distance += input_token.second.size();
 			}
 			else
 			{
-				auto& nt = std::get<bnf::non_terminal_node>(*top);
+				auto& data = t.get_non_terminal(node.value_id);
 
-				auto rule_rhs = table.at({ nt.value, input_token.value })->second;
+				auto rule_rhs = table.at({ data.first, input_token.first })->second;
 
 				// Pop non terminal off the stack
 				stack.pop();
@@ -64,22 +65,24 @@ namespace utils::ll
 				// Push the symbols onto the stack
 				for (auto rule_it = rule_rhs.rbegin(); rule_it != rule_rhs.rend(); rule_it++)
 				{
-					std::unique_ptr<bnf::node, decltype(&bnf::destroy_node)> new_symbol = ([&]() {
-						if ((*rule_it).is_terminal())
-							return std::unique_ptr<bnf::node, decltype(&bnf::destroy_node)>(
-								new bnf::node(bnf::terminal_node(rule_it->get_terminal(), "")), &bnf::destroy_node);
-						else
-							return std::unique_ptr<bnf::node, decltype(&bnf::destroy_node)>(
-								new bnf::node(bnf::non_terminal_node(rule_it->get_non_terminal())), &bnf::destroy_node);
-					})();
+					if (rule_it->is_terminal())
+					{
+						auto new_t = t.create_terminal(bnf::terminal_node(rule_it->get_terminal(), ""));
+						stack.push(new_t);
+						data.second.insert(data.second.begin(), new_t);
+					}
+					else
+					{
+						auto new_nt = t.create_non_terminal(bnf::non_terminal_node(rule_it->get_non_terminal(), {}));
+						stack.push(new_nt);
+						data.second.insert(data.second.begin(), new_nt);
+					}
 
-					stack.push(new_symbol.get());
-					nt.children.insert(nt.children.begin(), std::move(new_symbol));
 				}
 			}
 		}
 
-		return root;
+		return t;
 	}
 
 	void parser::generate(bnf::non_terminal start_symbol, std::multimap<bnf::non_terminal, std::vector<bnf::symbol>>& rules)

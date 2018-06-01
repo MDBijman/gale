@@ -46,7 +46,7 @@ namespace utils::bnf
 			table_is_old = false;
 		}
 
-		std::variant<std::unique_ptr<node>, error> parse(std::vector<bnf::terminal_node> input)
+		std::variant<tree, error> parse(std::vector<bnf::terminal_node> input)
 		{
 			if (table_is_old)
 				throw std::runtime_error("Parser table is outdated");

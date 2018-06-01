@@ -1,5 +1,6 @@
 #pragma once
 #include "utils/lexing/lexer.h"
+#include "utils/memory/data_store.h"
 
 #include <memory>
 #include <vector>
@@ -95,40 +96,104 @@ namespace utils::bnf
 		std::variant<terminal, non_terminal> value;
 	};
 
-	struct terminal_node
-	{
-		terminal_node(terminal s, const std::string& t) : value(s), token(t) {}
-		terminal value;
-		std::string token;
-	};
-
-	struct non_terminal_node;
-	void destroy_node(std::variant<terminal_node, non_terminal_node>* n);
-	
-	struct non_terminal_node
-	{
-		non_terminal value;
-		std::vector<std::unique_ptr<std::variant<terminal_node, non_terminal_node>, decltype(&destroy_node)>> children;
-
-		non_terminal_node(non_terminal s, std::vector<std::unique_ptr<std::variant<terminal_node, non_terminal_node>>> c)
-			: value(s)
-		{
-			for (auto&& child : c)
-			{
-				children.push_back(std::unique_ptr<std::variant<terminal_node, non_terminal_node>,
-					decltype(&destroy_node)>(child.release(), &destroy_node));
-			}
-		}
-		non_terminal_node(non_terminal s) : value(s) {}
-	};
-
-
-	
-
-	using node = std::variant<terminal_node, non_terminal_node>;
 	using rule = std::pair<non_terminal, std::vector<symbol>>;
-
 	bool operator==(const rule& r1, const rule& r2);
+
+	enum class node_type
+	{
+		TERMINAL, NON_TERMINAL
+	};
+
+	struct node
+	{
+		node_type kind;
+		size_t value_id;
+	};
+
+	using node_id = size_t;
+
+	using terminal_node = std::pair<terminal, std::string>;
+	using non_terminal_node = std::pair<non_terminal, std::vector<size_t>>;
+
+	struct tree
+	{
+		using index = size_t;
+
+		memory::dynamic_store<node> nodes;
+		memory::dynamic_store<terminal_node> terminals;
+		memory::dynamic_store<non_terminal_node> non_terminals;
+		node_id root_id;
+
+		bool is_leaf(index i)
+		{
+			return nodes.get_at(i).kind == node_type::TERMINAL;
+		}
+
+		index root()
+		{
+			return root_id;
+		}
+
+		size_t size()
+		{
+			return nodes.get_data().size();
+		}
+
+		std::vector<index>& get_children_of(index i)
+		{
+			return non_terminals.get_at(nodes.get_at(i).value_id).second;
+		}
+
+		void set_root(node_id id)
+		{
+			root_id = id;
+		}
+
+		size_t create_terminal(terminal_node v)
+		{
+			auto new_node = nodes.create();
+			nodes.get_at(new_node).kind = node_type::TERMINAL;
+			auto t_id = terminals.create();
+			terminals.get_at(t_id) = v;
+			nodes.get_at(new_node).value_id = t_id;
+			return new_node;
+		}
+
+		size_t create_non_terminal(non_terminal_node v)
+		{
+			auto new_node = nodes.create();
+			nodes.get_at(new_node).kind = node_type::NON_TERMINAL;
+			auto t_id = non_terminals.create();
+			non_terminals.get_at(t_id) = v;
+			nodes.get_at(new_node).value_id = t_id;
+			return new_node;
+		}
+
+		node& get_node(size_t i)
+		{
+			return nodes.get_at(i);
+		}
+
+		terminal_node& get_terminal(size_t i)
+		{
+			return terminals.get_at(i);
+		}
+
+		non_terminal_node& get_non_terminal(size_t i)
+		{
+			return non_terminals.get_at(i);
+		}
+
+		void free(size_t i)
+		{
+			auto& node = nodes.get_at(i);
+			if (node.kind == node_type::TERMINAL)
+				terminals.free_at(node.value_id);
+			else
+				non_terminals.free_at(node.value_id);
+			nodes.free_at(i);
+		}
+	};
 }
 
 namespace std

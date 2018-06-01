@@ -1,6 +1,7 @@
 #include "fe/pipeline/cst_to_ast_stage.h"
 #include "utils/parsing/ebnfe_parser.h"
 #include "fe/language_definition.h"
+#include "utils/algorithms/tree_traversal.h"
 
 namespace fe
 {
@@ -63,98 +64,90 @@ namespace fe
 		throw std::runtime_error("Unknown terminal");
 	}
 
-	static node_id convert_node(utils::ebnfe::node& n, ext_ast::ast& ast)
+	ext_ast::ast cst_to_ast_stage::conv(utils::bnf::tree in) const
 	{
-		if (std::holds_alternative<utils::ebnfe::non_terminal_node>(n))
+		// Post order traversal of the bnf tree to construct cst.
+		using namespace utils;
+		auto order = algorithms::post_order(in);
+
+		ext_ast::ast new_tree;
+		std::vector<bnf::node_id> converted;
+
+		for(auto id : order)
 		{
-			auto nt = std::move(std::get<utils::ebnfe::non_terminal_node>(n));
+			auto& node = in.get_node(id);
 
-			// Create new node
-			auto nt_type = nt.value;
-			auto ast_node_type = nt_to_node_type(nt_type);
-			auto node_id = ast.create_node(ast_node_type);
-
-			// Convert children
-			for (auto&& node_child : nt.children)
+			if(node.kind == bnf::node_type::NON_TERMINAL)
 			{
-				auto new_node = convert_node(*node_child, ast);
-				ast.get_node(new_node).parent_id = node_id;
-				ast.get_node(node_id).children.push_back(new_node);
+				auto& data = in.get_non_terminal(node.value_id);
+
+				auto new_node = new_tree.create_node(nt_to_node_type(data.first));
+
+				std::vector<bnf::node_id> children;
+				for (int i = data.second.size(); i > 0; i--)
+				{
+					auto child = converted.at(converted.size() - i);
+					children.push_back(child);
+					new_tree.get_node(child).parent_id = new_node;
+				}
+
+				converted.resize(converted.size() - data.second.size());
+				converted.push_back(new_node);
+				new_tree.get_node(new_node).children = std::move(children);
+				new_tree.set_root_id(new_node);
 			}
-
-			return node_id;
-		}
-		else if (std::holds_alternative<utils::ebnfe::terminal_node>(n))
-		{
-			auto t = std::move(std::get<utils::ebnfe::terminal_node>(n));
-			auto t_type = t.value;
-			auto id = ast.create_node(t_to_node_type(t_type));
-			auto& node = ast.get_node(id);
-			auto data_id = node.data_index.value();
-
-			if (t_type == terminals::number)
-				ast.get_data<number>(data_id).value = std::stoll(t.token);
-
-			else if (t_type == terminals::word)
-				ast.get_data<string>(data_id).value = t.token.substr(1, t.token.size() - 2);
-
-			else if (t_type == terminals::true_keyword)
-				ast.get_data<boolean>(data_id).value = true;
-
-			else if (t_type == terminals::false_keyword)
-				ast.get_data<boolean>(data_id).value = false;
-
-			else if (t_type == terminals::identifier)
+			// If we have a terminal node, we put it onto the converted stack after creating the proper node
+			else
 			{
-				auto split_on = [](std::string identifier, char split_on) -> std::vector<std::string> {
-					std::vector<std::string> split_identifier;
+				auto& data = in.get_terminal(node.value_id);
+				auto id = new_tree.create_node(t_to_node_type(data.first));
+				auto& node = new_tree.get_node(id);
+				auto data_id = node.data_index.value();
 
-					std::string::iterator begin_word = identifier.begin();
-					for (auto it = identifier.begin(); it != identifier.end(); it++)
-					{
-						if (*it == split_on)
+				if (data.first == terminals::number)
+					new_tree.get_data<number>(data_id).value = std::stoll(data.second);
+
+				else if (data.first == terminals::word)
+					new_tree.get_data<string>(data_id).value = data.second.substr(1, data.second.size() - 2);
+
+				else if (data.first == terminals::true_keyword)
+					new_tree.get_data<boolean>(data_id).value = true;
+
+				else if (data.first == terminals::false_keyword)
+					new_tree.get_data<boolean>(data_id).value = false;
+
+				else if (data.first == terminals::identifier)
+				{
+					auto split_on = [](std::string identifier, char split_on) -> std::vector<std::string> {
+						std::vector<std::string> split_identifier;
+
+						std::string::iterator begin_word = identifier.begin();
+						for (auto it = identifier.begin(); it != identifier.end(); it++)
 						{
-							// Read infix
-							split_identifier.push_back(std::string(begin_word, it));
-							begin_word = it + 1;
-							continue;
+							if (*it == split_on)
+							{
+								// Read infix
+								split_identifier.push_back(std::string(begin_word, it));
+								begin_word = it + 1;
+								continue;
+							}
+							else
+							{
+								if (it == identifier.end() - 1)
+									split_identifier.push_back(std::string(begin_word, it + 1));
+							}
 						}
-						else
-						{
-							if (it == identifier.end() - 1)
-								split_identifier.push_back(std::string(begin_word, it + 1));
-						}
-					}
-					return split_identifier;
-				};
+						return split_identifier;
+					};
 
-				auto splitted = split_on(t.token, '.');
+					auto splitted = split_on(data.second, '.');
 
-				ast.get_data<ext_ast::identifier>(data_id).segments = splitted;
+					new_tree.get_data<ext_ast::identifier>(data_id).segments = splitted;
+				}
+
+				converted.push_back(id);
 			}
-
-			return id;
 		}
-		else
-		{
-			throw cst_to_ast_error{
-				std::string("Empty/invalid CST node")
-			};
-		}
-	}
-
-	ext_ast::ast cst_to_ast_stage::conv(std::unique_ptr<utils::ebnfe::node> node) const
-	{
-		auto& root = std::get<utils::ebnfe::non_terminal_node>(*node);
-		ext_ast::ast ast(nt_to_node_type(root.value));
-
-		for (decltype(auto) child : root.children)
-		{
-			auto new_node = convert_node(*child, ast);
-			ast.get_node(new_node).parent_id = ast.root_id();
-			ast.get_node(ast.root_id()).children.push_back(new_node);
-		}
-
-		return ast;
+		return new_tree;
 	}
 }

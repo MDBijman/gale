@@ -46,7 +46,7 @@ namespace fe
 			auto parse_output = std::move(parser.parse(tokens));
 			if (std::holds_alternative<utils::ebnfe::error>(parse_output))
 				throw std::get<utils::ebnfe::error>(parse_output);
-			auto& cst = std::get<std::unique_ptr<utils::ebnfe::node>>(parse_output);
+			auto& cst = std::get<utils::bnf::tree>(parse_output);
 
 			auto cst_to_ast_output = cst_to_ast_converter.convert(std::move(cst));
 			if (std::holds_alternative<cst_to_ast_error>(cst_to_ast_output))

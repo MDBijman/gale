@@ -36,31 +36,31 @@ TEST_CASE("an ebnfe parser should parse correctly given a set of rules", "[synta
 			{ id, "a" }, { plus, "+" }, { number, "5" }
 		});
 
-		auto& output = std::get<std::unique_ptr<utils::ebnfe::node>>(output_or_error);
+		auto& tree = std::get<bnf::tree>(output_or_error);
 
 		// Expression
-		auto& root = std::get<utils::ebnfe::non_terminal_node>(*output);
-		REQUIRE(root.value == Expression);
+		auto& root = tree.get_non_terminal(tree.get_node(0).value_id);
+		REQUIRE(root.first == Expression);
 
 		// id
 		{
-			auto& i = std::get<ebnfe::terminal_node>(*root.children.at(0).get());
-			REQUIRE(i.value == id);
-			REQUIRE(i.token == "a");
+			auto& i = tree.get_terminal(root.second[0]);
+			REQUIRE(i.first == id);
+			REQUIRE(i.second == "a");
 		}
 
 		// plus
 		{
-			auto& p = std::get<ebnfe::terminal_node>(*root.children.at(1).get());
-			REQUIRE(p.value == plus);
-			REQUIRE(p.token == "+");
+			auto& p = tree.get_terminal(root.second[1]);
+			REQUIRE(p.first == plus);
+			REQUIRE(p.second == "+");
 		}
 
 		// number
 		{
-			auto& num = std::get<ebnfe::terminal_node>(*root.children.at(2).get());
-			REQUIRE(num.value == number);
-			REQUIRE(num.token == "5");
+			auto& num = tree.get_terminal(root.second[2]);
+			REQUIRE(num.first == number);
+			REQUIRE(num.second == "5");
 		}
 	}
 
@@ -71,17 +71,17 @@ TEST_CASE("an ebnfe parser should parse correctly given a set of rules", "[synta
 			{ id, "a" }
 		});
 
-		auto& output = std::get<std::unique_ptr<utils::ebnfe::node>>(output_or_error);
+		auto& tree = std::get<bnf::tree>(output_or_error);
 
 		// Expression
-		auto& root = std::get<utils::ebnfe::non_terminal_node>(*output);
-		REQUIRE(root.value == Expression);
+		auto& root = tree.get_non_terminal(tree.get_node(0).value_id);
+		REQUIRE(root.first == Expression);
 
 		// id 
 		{
-			auto& i = std::get<ebnfe::terminal_node>(*root.children.at(0).get());
-			REQUIRE(i.value == id);
-			REQUIRE(i.token == "a");
+			auto& i = tree.get_terminal(root.second[0]);
+			REQUIRE(i.first == id);
+			REQUIRE(i.second == "a");
 		}
 	}
 }
@@ -120,5 +120,5 @@ TEST_CASE("ebnfe grammars should be correctly translated to bnf grammars", "[syn
 		if_kw, op, block, elseif_kw, op, block, elseif_kw, op, block, else_kw, block
 	}));
 
-	REQUIRE(std::holds_alternative<std::unique_ptr<utils::ebnfe::node>>(output_or_error));
+	REQUIRE(std::holds_alternative<utils::bnf::tree>(output_or_error));
 }

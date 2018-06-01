@@ -65,6 +65,9 @@ namespace fe
 		scope eval(ext_ast::ast& ast)
 		{
 			auto& root_node = ast.get_node(ast.root_id());
+			root_node.type_scope_id = ast.create_type_scope();
+			root_node.name_scope_id = ast.create_name_scope();
+
 			scope& core_module = modules.at(module_name{ "_core" });
 			{
 				// Name scope
