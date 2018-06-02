@@ -160,7 +160,8 @@ namespace utils::lr
 
 					if (next_expected.is_terminal())
 					{
-						add_item(lr::item{ new_rule, 0, next_expected.get_terminal() }, rules, first);
+						auto new_item = lr::item{ new_rule, 0, next_expected.get_terminal() };
+						add_item(std::move(new_item), rules, first);
 					}
 					else
 					{
@@ -172,7 +173,8 @@ namespace utils::lr
 							if (f == bnf::epsilon) successive_epsilons = true;
 							else
 							{
-								add_item(lr::item{ new_rule, 0, f.get_terminal() }, rules, first);
+								auto new_item = lr::item{ new_rule, 0, f.get_terminal() };
+								add_item(std::move(new_item), rules, first);
 							}
 						}
 					}

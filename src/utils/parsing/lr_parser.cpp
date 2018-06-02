@@ -160,6 +160,7 @@ namespace utils::lr
 	bnf::tree parser::parse(std::vector<bnf::terminal_node> input)
 	{
 		bnf::tree t;
+		
 
 		input.push_back(bnf::terminal_node{ -2, "" });
 		auto it = input.begin();
@@ -217,6 +218,7 @@ namespace utils::lr
 				for (int i = 0; i < reduce.rule->second.size(); i++)
 				{
 					data.second.at(reduce.rule->second.size() - 1 - i) = result.top();
+					t.get_node(result.top()).parent = id;
 					result.pop();
 					history.pop();
 				}

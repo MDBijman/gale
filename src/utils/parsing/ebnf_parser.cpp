@@ -308,7 +308,7 @@ namespace utils::ebnf
 
 			if (n.kind == bnf::node_type::NON_TERMINAL)
 			{
-				auto& children = in.get_children_of(id);
+				auto& children = in.children_of(id);
 
 				disappears[id] =
 					(nt_child_parents.find(in.get_non_terminal(n.value_id).first) != nt_child_parents.end());
@@ -330,7 +330,11 @@ namespace utils::ebnf
 			bnf::node& n = in.get_node(id);
 
 			if (disappears[id]) in.free(id);
-			else in.get_children_of(future_parents[id]).push_back(id);
+			else
+			{
+				in.children_of(future_parents[id]).push_back(id);
+				in.get_node(id).parent = future_parents[id];
+			}
 		}
 
 		return in;

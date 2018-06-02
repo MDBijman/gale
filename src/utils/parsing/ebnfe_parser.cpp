@@ -53,7 +53,7 @@ namespace utils::ebnfe
 
 			if (node.kind == bnf::node_type::NON_TERMINAL)
 			{
-				auto& children = in.get_children_of(id);
+				auto& children = in.children_of(id);
 
 				std::vector<bnf::node_id> new_children;
 				for (int i = children.size(); i > 0; i--)
@@ -68,6 +68,7 @@ namespace utils::ebnfe
 						if (it == transformation_rules.end())
 						{
 							new_children.push_back(child);
+							in.get_node(child).parent = id;
 							continue;
 						}
 						auto rule = it->second;
@@ -87,9 +88,11 @@ namespace utils::ebnfe
 								break;
 							}
 							new_children.push_back(child);
+							in.get_node(child).parent = id;
 							break;
 						case transformation_type::REPLACE_WITH_CHILDREN:
 							in.free(child);
+							for (auto child : child_data.second) in.get_node(child).parent = id;
 							std::move(child_data.second.begin(), child_data.second.end(), std::back_inserter(new_children));
 							break;
 						case transformation_type::REMOVE:
@@ -98,6 +101,7 @@ namespace utils::ebnfe
 						case transformation_type::KEEP:
 						default:
 							new_children.push_back(child);
+							in.get_node(child).parent = id;
 						}
 					}
 					else
@@ -108,6 +112,7 @@ namespace utils::ebnfe
 						if (it == transformation_rules.end())
 						{
 							new_children.push_back(child);
+							in.get_node(child).parent = id;
 							continue;
 						}
 
@@ -119,6 +124,7 @@ namespace utils::ebnfe
 						case transformation_type::KEEP:
 						default:
 							new_children.push_back(child);
+							in.get_node(child).parent = id;
 						}
 					}
 				}

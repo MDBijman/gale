@@ -104,13 +104,14 @@ namespace utils::bnf
 		TERMINAL, NON_TERMINAL
 	};
 
+	using node_id = size_t;
+
 	struct node
 	{
 		node_type kind;
+		node_id parent = -1;
 		size_t value_id;
 	};
-
-	using node_id = size_t;
 
 	using terminal_node = std::pair<terminal, std::string>;
 	using non_terminal_node = std::pair<non_terminal, std::vector<size_t>>;
@@ -129,19 +130,24 @@ namespace utils::bnf
 			return nodes.get_at(i).kind == node_type::TERMINAL;
 		}
 
-		index root()
+		index root() const
 		{
 			return root_id;
 		}
 
-		size_t size()
+		size_t size() 
 		{
 			return nodes.get_data().size();
 		}
 
-		std::vector<index>& get_children_of(index i)
+		std::vector<index>& children_of(index i)
 		{
 			return non_terminals.get_at(nodes.get_at(i).value_id).second;
+		}
+
+		index parent_of(index i)
+		{
+			return nodes.get_at(i).parent;
 		}
 
 		void set_root(node_id id)

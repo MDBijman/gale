@@ -171,7 +171,7 @@ import [std std.io]
 let x : std.i32 = 1;
 )c";
 
-		for (int i = 0; i < 10000; i++)
+		for (int i = 0; i < 100000; i++)
 			code += "x = 2;\n";
 
 		auto now = std::chrono::steady_clock::now();
