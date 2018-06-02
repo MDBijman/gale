@@ -1,8 +1,3 @@
 .vs/
-x64/
-*.user
 *.aps
 *.args.json
-Debug/
-Release/
-VTuneAnalysis/
