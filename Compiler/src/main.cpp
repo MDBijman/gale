@@ -82,10 +82,16 @@ int main(int argc, char** argv)
 				proj.add_module({ "std" }, type_scope);
 			}
 
-			for (auto& item : std::experimental::filesystem::recursive_directory_iterator(argv[2]))
+			auto project_path = std::filesystem::path(argv[2]);
+			std::cout << "Project folder: " << project_path << "\n";
+
+			auto directory_it = std::filesystem::recursive_directory_iterator(argv[2]);
+			for (auto& item : directory_it)
 			{
 				auto path = item.path();
 				if (path.filename().extension() != ".fe") continue;
+
+				std::cout << "\nInterpreting file " << path.filename() << "\n";
 
 				auto file_or_error = utils::files::read_file(path.string());
 				if (std::holds_alternative<std::exception>(file_or_error))
