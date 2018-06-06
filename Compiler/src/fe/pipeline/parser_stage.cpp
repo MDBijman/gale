@@ -1,8 +1,11 @@
 #include "fe/pipeline/parser_stage.h"
+#include "utils/parsing/recursive_descent_parser.h"
 
 namespace fe
 {
-	parsing_stage::parsing_stage()
+	// LR Parsing Strategy
+
+	lr_strategy::lr_strategy()
 	{
 		using namespace terminals;
 		using namespace non_terminals;
@@ -287,5 +290,27 @@ namespace fe
 			.new_transformation(and_keyword, transformation_type::REMOVE)
 			.new_transformation(or_keyword, transformation_type::REMOVE)
 			;
+	}
+
+	std::variant<utils::bnf::tree, utils::ebnfe::error> lr_strategy::parse(const std::vector<utils::bnf::terminal_node>& in)
+	{
+		parser.generate(fe::non_terminals::file);
+		return parser.parse(in);
+	}
+
+	// Recursive Descent Parsing Strategy
+
+	std::variant<utils::bnf::tree, utils::ebnfe::error> recursive_descent_strategy::parse(const std::vector<utils::bnf::terminal_node>& in)
+	{
+		// do recursive descent
+	}
+
+	// Parsing Stage
+
+	parsing_stage::parsing_stage(std::unique_ptr<parsing_strategy> imp) : strategy(std::move(imp)) {}
+
+	std::variant<utils::bnf::tree, utils::ebnfe::error> parsing_stage::parse(const std::vector<utils::bnf::terminal_node>& in)
+	{
+		return strategy->parse(in);
 	}
 }
