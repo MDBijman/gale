@@ -160,6 +160,7 @@
     <ClCompile Include="src\utils\parsing\ebnf_parser.cpp" />
     <ClCompile Include="src\utils\parsing\ll_parser.cpp" />
     <ClCompile Include="src\utils\parsing\lr_parser.cpp" />
+    <ClCompile Include="src\utils\parsing\recursive_descent_parser.cpp" />
     <ClCompile Include="src\utils\reading\reader.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -201,6 +202,7 @@
     <ClInclude Include="include\utils\parsing\lr_parser.h" />
     <ClInclude Include="include\utils\parsing\ll_parser.h" />
     <ClInclude Include="include\utils\parsing\parser.h" />
+    <ClInclude Include="include\utils\parsing\recursive_descent_parser.h" />
     <ClInclude Include="include\utils\reading\reader.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
