@@ -5,8 +5,6 @@ VisualStudioVersion = 15.0.26228.4
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Compiler", "Compiler\Compiler.vcxproj", "{A08F4F80-CD33-4855-9834-FCBD0D8DE5D3}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TableGeneration", "TableGeneration\TableGeneration.vcxproj", "{CACDFFEE-893E-4FCC-B95A-F36E28512864}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -23,14 +21,6 @@ Global
 		{A08F4F80-CD33-4855-9834-FCBD0D8DE5D3}.Release|x64.Build.0 = Release|x64
 		{A08F4F80-CD33-4855-9834-FCBD0D8DE5D3}.Release|x86.ActiveCfg = Release|Win32
 		{A08F4F80-CD33-4855-9834-FCBD0D8DE5D3}.Release|x86.Build.0 = Release|Win32
-		{CACDFFEE-893E-4FCC-B95A-F36E28512864}.Debug|x64.ActiveCfg = Debug|x64
-		{CACDFFEE-893E-4FCC-B95A-F36E28512864}.Debug|x64.Build.0 = Debug|x64
-		{CACDFFEE-893E-4FCC-B95A-F36E28512864}.Debug|x86.ActiveCfg = Debug|Win32
-		{CACDFFEE-893E-4FCC-B95A-F36E28512864}.Debug|x86.Build.0 = Debug|Win32
-		{CACDFFEE-893E-4FCC-B95A-F36E28512864}.Release|x64.ActiveCfg = Release|x64
-		{CACDFFEE-893E-4FCC-B95A-F36E28512864}.Release|x64.Build.0 = Release|x64
-		{CACDFFEE-893E-4FCC-B95A-F36E28512864}.Release|x86.ActiveCfg = Release|Win32
-		{CACDFFEE-893E-4FCC-B95A-F36E28512864}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
