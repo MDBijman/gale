@@ -23,7 +23,7 @@ namespace fe
 	public:
 		pipeline() :
 			lexer(lexing_stage{}),
-			parser(parsing_stage{ std::make_unique<lr_strategy>() }),
+			parser(parsing_stage{ std::make_unique<recursive_descent_strategy>() }),
 			lex_to_parse_converter(lexer_to_parser_stage{}),
 			cst_to_ast_converter(cst_to_ast_stage{})
 		{}

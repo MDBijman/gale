@@ -168,7 +168,7 @@ int main(int argc, char** argv)
 		fe::pipeline p;
 
 		// Init parse table
-		p.parse({ });
+		p.parse({ { utils::bnf::end_of_input, ""} });
 
 		std::string code = 
 R"c(module statements
@@ -180,14 +180,18 @@ let x : std.i32 = 1;
 		for (int i = 0; i < 100000; i++)
 			code += "x = 2;\n";
 
-		auto now = std::chrono::steady_clock::now();
-		auto lex_output = p.lex(std::move(code));
+		while (true)
+		{
+			auto now = std::chrono::steady_clock::now();
+			auto lex_output = p.lex(std::move(code));
 
-		p.parse(std::move(lex_output));
-		auto then = std::chrono::steady_clock::now();
+			p.parse(std::move(lex_output));
+			auto then = std::chrono::steady_clock::now();
 
-		auto time = std::chrono::duration<double, std::milli>(then - now).count();
-		std::cout << "Long parse: " << time << " ms" << "\n";
+			auto time = std::chrono::duration<double, std::milli>(then - now).count();
+			std::cout << "Long parse: " << time << " ms" << "\n";
+		}
+
 		return 0;
 	}
 
