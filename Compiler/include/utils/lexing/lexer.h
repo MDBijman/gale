@@ -223,13 +223,17 @@ namespace utils
 						if (*range.first == '\n')
 						{
 							line_count++;
-							result.push_back(token{ new_line, "" });
+							//result.push_back(token{ new_line, "" });
 							character_count = 0;
 						}
 
 						character_count++;
 						++range.first;
-						if (range.first == range.second) return result;
+						if (range.first == range.second)
+						{
+							result.push_back(token{ end_of_input, "" });
+							return result;
+						}
 					}
 
 					const lexer_range range_copy{ range };
@@ -258,7 +262,6 @@ namespace utils
 				}
 
 				result.push_back(token{ end_of_input, "" });
-
 				return result;
 			}
 
