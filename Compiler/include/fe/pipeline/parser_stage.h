@@ -24,6 +24,7 @@ namespace fe
 	class recursive_descent_strategy : public parsing_strategy
 	{
 	public:
+		recursive_descent_strategy();
 		virtual std::variant<utils::bnf::tree, utils::ebnfe::error> parse(const std::vector<utils::bnf::terminal_node>& in) override;
 	};
 	

@@ -300,9 +300,16 @@ namespace fe
 
 	// Recursive Descent Parsing Strategy
 
+	recursive_descent_strategy::recursive_descent_strategy()
+	{
+		recursive_descent::generate();
+	}
+
 	std::variant<utils::bnf::tree, utils::ebnfe::error> recursive_descent_strategy::parse(const std::vector<utils::bnf::terminal_node>& in)
 	{
-		// do recursive descent
+		auto res = recursive_descent::parse(in);
+		if (std::holds_alternative<utils::bnf::tree>(res)) return std::get<utils::bnf::tree>(res);
+		else return utils::ebnfe::error{utils::ebnfe::error_code::OTHER, std::get<recursive_descent::error>(res).message };
 	}
 
 	// Parsing Stage
