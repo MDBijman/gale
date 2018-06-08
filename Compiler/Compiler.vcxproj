@@ -23,6 +23,7 @@
     <ProjectGuid>{A08F4F80-CD33-4855-9834-FCBD0D8DE5D3}</ProjectGuid>
     <RootNamespace>Language</RootNamespace>
     <WindowsTargetPlatformVersion>10.0.15063.0</WindowsTargetPlatformVersion>
+    <ProjectName>Compiler</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -159,6 +160,7 @@
     <ClCompile Include="src\utils\parsing\ebnf_parser.cpp" />
     <ClCompile Include="src\utils\parsing\ll_parser.cpp" />
     <ClCompile Include="src\utils\parsing\lr_parser.cpp" />
+    <ClCompile Include="src\utils\parsing\recursive_descent_parser.cpp" />
     <ClCompile Include="src\utils\reading\reader.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -200,6 +202,7 @@
     <ClInclude Include="include\utils\parsing\lr_parser.h" />
     <ClInclude Include="include\utils\parsing\ll_parser.h" />
     <ClInclude Include="include\utils\parsing\parser.h" />
+    <ClInclude Include="include\utils\parsing\recursive_descent_parser.h" />
     <ClInclude Include="include\utils\reading\reader.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

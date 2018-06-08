@@ -82,10 +82,16 @@ int main(int argc, char** argv)
 				proj.add_module({ "std" }, type_scope);
 			}
 
-			for (auto& item : std::experimental::filesystem::recursive_directory_iterator(argv[2]))
+			auto project_path = std::filesystem::path(argv[2]);
+			std::cout << "Project folder: " << project_path << "\n";
+
+			auto directory_it = std::filesystem::recursive_directory_iterator(argv[2]);
+			for (auto& item : directory_it)
 			{
 				auto path = item.path();
 				if (path.filename().extension() != ".fe") continue;
+
+				std::cout << "\nInterpreting file " << path.filename() << "\n";
 
 				auto file_or_error = utils::files::read_file(path.string());
 				if (std::holds_alternative<std::exception>(file_or_error))
@@ -162,7 +168,7 @@ int main(int argc, char** argv)
 		fe::pipeline p;
 
 		// Init parse table
-		p.parse({ });
+		p.parse({ { utils::bnf::end_of_input, ""} });
 
 		std::string code = 
 R"c(module statements
@@ -174,14 +180,18 @@ let x : std.i32 = 1;
 		for (int i = 0; i < 100000; i++)
 			code += "x = 2;\n";
 
-		auto now = std::chrono::steady_clock::now();
-		auto lex_output = p.lex(std::move(code));
+		while (true)
+		{
+			auto now = std::chrono::steady_clock::now();
+			auto lex_output = p.lex(std::move(code));
 
-		p.parse(std::move(lex_output));
-		auto then = std::chrono::steady_clock::now();
+			p.parse(std::move(lex_output));
+			auto then = std::chrono::steady_clock::now();
 
-		auto time = std::chrono::duration<double, std::milli>(then - now).count();
-		std::cout << "Long parse: " << time << " ms" << "\n";
+			auto time = std::chrono::duration<double, std::milli>(then - now).count();
+			std::cout << "Long parse: " << time << " ms" << "\n";
+		}
+
 		return 0;
 	}
 
