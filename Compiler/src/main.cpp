@@ -103,7 +103,7 @@ int main(int argc, char** argv)
 				proj.add_module(std::move(code));
 			}
 		}
-		catch (const utils::lexing::error& e)
+		catch (const lexing::error& e)
 		{
 			std::cout << "Lexing error:\n" << e.message << "\n";
 		}
@@ -160,8 +160,6 @@ int main(int argc, char** argv)
 		fe::pipeline p;
 
 		// Init parse table
-		p.parse({ { utils::lexing::end_of_input, ""} });
-
 		std::string code = 
 R"c(module statements
 import [std std.io]
@@ -175,9 +173,7 @@ let x : std.i32 = 1;
 		while (true)
 		{
 			auto now = std::chrono::steady_clock::now();
-			auto lex_output = p.lex(code);
-
-			p.parse(std::move(lex_output));
+			p.parse(code);
 			auto then = std::chrono::steady_clock::now();
 
 			auto time = std::chrono::duration<double, std::milli>(then - now).count();

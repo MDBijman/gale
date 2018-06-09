@@ -249,5 +249,8 @@
     <ClInclude Include="include\utils\parsing\recursive_descent_parser.h">
       <Filter>Source Files\utils\parsing</Filter>
     </ClInclude>
+    <ClInclude Include="include\utils\memory\pipe.h">
+      <Filter>Source Files\utils\memory</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

@@ -73,7 +73,7 @@ namespace fe
 
 					proj.eval(code);
 				}
-				catch (const utils::lexing::error& e)
+				catch (const lexing::error& e)
 				{
 					std::cout << "Lexing error:\n" << e.message << "\n";
 				}

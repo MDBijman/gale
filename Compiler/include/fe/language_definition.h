@@ -5,7 +5,7 @@ namespace fe
 {
 	namespace tokens
 	{
-		extern utils::lexing::token_id
+		extern lexing::token_id
 			identifier, word, number, right_arrow,
 			left_bracket, right_bracket, left_angle_bracket, right_angle_bracket, 
 			semicolon, left_curly_bracket, right_curly_bracket, comma, left_square_bracket, right_square_bracket, 

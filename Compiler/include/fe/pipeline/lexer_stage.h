@@ -12,18 +12,18 @@ namespace fe
 		{
 		}
 
-		std::variant<std::vector<utils::lexing::token>, utils::lexing::error> lex(const std::string& in) const
+		std::optional<lexing::error> lex(const std::string& in, lexing::token_stream_writer writer) const
 		{
-			return lexer.parse(in);
+			return lexer.parse(in, writer);
 		}
 
-		static utils::lexing::rules ruleset()
+		static lexing::rules ruleset()
 		{
-			utils::lexing::rules lexing_rules;
+			lexing::rules lexing_rules;
 
 			using namespace fe::tokens;
-			right_arrow= lexing_rules.create_token("->");
-			fat_right_arrow= lexing_rules.create_token("=>");
+			right_arrow = lexing_rules.create_token("->");
+			fat_right_arrow = lexing_rules.create_token("=>");
 			left_bracket = lexing_rules.create_token("(");
 			right_bracket = lexing_rules.create_token(")");
 			left_curly_bracket = lexing_rules.create_token("{");
@@ -69,6 +69,6 @@ namespace fe
 		}
 
 	private:
-		utils::lexing::lexer lexer;
+		lexing::lexer lexer;
 	};
 }
