@@ -1,9 +1,11 @@
 #pragma once
-#include "bnf_grammar.h"
+#include "fe/data/ext_ast.h"
+#include "utils/lexing/lexer.h"
 
 namespace recursive_descent
 {
-	using tree = utils::bnf::tree;
+	using tree = fe::ext_ast::ast;
+	using non_terminal = uint64_t;
 
 	struct error
 	{
@@ -11,5 +13,5 @@ namespace recursive_descent
 	};
 
 	void generate();
-	std::variant<tree, error> parse(const std::vector<utils::bnf::terminal_node>& in);
+	std::variant<tree, error> parse(const std::vector<utils::lexing::token>& in);
 }

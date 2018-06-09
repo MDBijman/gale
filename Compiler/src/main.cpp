@@ -107,17 +107,9 @@ int main(int argc, char** argv)
 		{
 			std::cout << "Lexing error:\n" << e.message << "\n";
 		}
-		catch (const fe::lex_to_parse_error& e)
-		{
-			std::cout << "Lex to parse error:\n" << e.message << "\n";
-		}
-		catch (const utils::ebnfe::error& e)
+		catch (const fe::parse_error& e)
 		{
 			std::cout << "Parse error:\n" << e.message << "\n";
-		}
-		catch (const fe::cst_to_ast_error& e)
-		{
-			std::cout << "CST to AST conversion error:\n" << e.message << "\n";
 		}
 		catch (const fe::typecheck_error& e)
 		{
@@ -168,7 +160,7 @@ int main(int argc, char** argv)
 		fe::pipeline p;
 
 		// Init parse table
-		p.parse({ { utils::bnf::end_of_input, ""} });
+		p.parse({ { utils::lexing::end_of_input, ""} });
 
 		std::string code = 
 R"c(module statements
@@ -183,7 +175,7 @@ let x : std.i32 = 1;
 		while (true)
 		{
 			auto now = std::chrono::steady_clock::now();
-			auto lex_output = p.lex(std::move(code));
+			auto lex_output = p.lex(code);
 
 			p.parse(std::move(lex_output));
 			auto then = std::chrono::steady_clock::now();

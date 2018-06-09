@@ -42,7 +42,7 @@ namespace fe::ext_ast
 		this->types.clear();
 	}
 
-	void type_scope::add_module(const identifier& name, scope_index scope)
+	void type_scope::add_module(module_name name, scope_index scope)
 	{
 		this->modules.insert({ name, scope });
 	}
@@ -52,9 +52,9 @@ namespace fe::ext_ast
 		this->parent = other;
 	}
 
-	void type_scope::set_type(const name& n, types::unique_type t)
+	void type_scope::set_type(name n, types::unique_type t)
 	{
-		this->variables.insert({ n,std::move(t) });
+		this->variables.insert({ n, std::move(t) });
 	}
 
 	std::optional<type_scope::var_lookup> type_scope::resolve_variable(const identifier& id, get_scope_cb cb)
@@ -66,14 +66,13 @@ namespace fe::ext_ast
 
 		for (auto i = 0; i < id.segments.size() - 1; i++)
 		{
-			identifier module_id;
-			module_id.segments = std::vector<std::string>(id.segments.begin(), id.segments.begin() + i + 1);
+			auto module_name = std::vector<std::string_view>(id.segments.begin(), id.segments.begin() + i + 1);
 
-			auto pos = modules.find(module_id);
+			auto pos = modules.find(module_name);
 			if (pos == modules.end()) continue;
 
 			identifier new_id;
-			new_id.segments = std::vector<std::string>(id.segments.begin() + i + 1, id.segments.end());
+			new_id.segments = std::vector<std::string_view>(id.segments.begin() + i + 1, id.segments.end());
 
 			if (auto module_lookup = cb(pos->second)->resolve_variable(new_id, cb); module_lookup)
 				return module_lookup;
@@ -91,7 +90,7 @@ namespace fe::ext_ast
 		return std::nullopt;
 	}
 
-	void type_scope::define_type(const name& n, types::unique_type t)
+	void type_scope::define_type(name n, types::unique_type t)
 	{
 		assert(types.find(n) == types.end());
 		this->types.insert({ n, std::move(t) });
@@ -107,13 +106,12 @@ namespace fe::ext_ast
 		{
 			for (auto i = 1; i < id.segments.size(); i++)
 			{
-				identifier module_id;
-				module_id.segments = std::vector<std::string>(id.segments.begin(), id.segments.begin() + i);
+				auto module_name = std::vector<std::string_view>(id.segments.begin(), id.segments.begin() + i);
 
-				if (auto pos = modules.find(module_id); pos != modules.end())
+				if (auto pos = modules.find(module_name); pos != modules.end())
 				{
 					identifier new_id;
-					new_id.segments = std::vector<std::string>(id.segments.begin() + i, id.segments.end());
+					new_id.segments = std::vector<std::string_view>(id.segments.begin() + i, id.segments.end());
 
 					if (auto module_lookup = cb(pos->second)->resolve_type(new_id, cb); module_lookup)
 						return module_lookup;

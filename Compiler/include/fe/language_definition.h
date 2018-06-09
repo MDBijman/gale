@@ -1,23 +1,25 @@
 #pragma once
-#include "utils/parsing/ebnfe_parser.h"
+#include "utils/parsing/recursive_descent_parser.h"
 
 namespace fe
 {
 	namespace tokens
 	{
 		extern utils::lexing::token_id
-			equals_token, keyword_token, string_token, number_token,
-			lrb_token, rrb_token, right_arrow_token, semicolon_token,
-			lcb_token, rcb_token, comma_token, lsb_token, rsb_token, pipe_token,
-			plus_token, minus_token, mul_token, div_token, lab_token, rab_token,
-			colon_token, dot_token, equality_token, percentage_token, lteq_token, gteq_token,
-			fat_right_arrow_token, backslash_token, and_token, or_token
+			identifier, word, number, right_arrow,
+			left_bracket, right_bracket, left_angle_bracket, right_angle_bracket, 
+			semicolon, left_curly_bracket, right_curly_bracket, comma, left_square_bracket, right_square_bracket, 
+			vertical_line, plus, minus, mul, div, colon, dot, equals, percentage, lteq, gteq,
+			fat_right_arrow, backslash, and_keyword, or_keyword, two_equals,
+			type_keyword, match_keyword, module_keyword, public_keyword,
+			ref_keyword, let_keyword, import_keyword, while_keyword,
+			true_keyword, false_keyword, if_keyword, elseif_keyword, else_keyword
 			;
 	}
 
 	namespace non_terminals
 	{
-		extern utils::ebnfe::non_terminal
+		extern recursive_descent::non_terminal
 			file, statement, export_stmt, declaration, expression, value_tuple,
 			function, match, operation, term, addition, subtraction,
 			multiplication, division, brackets, array_index, index, module_imports,
@@ -29,23 +31,6 @@ namespace fe
 			assignment, greater_than, modulo, less_or_equal, comparison, greater_or_equal, less_than,
 			if_expr, stmt_semicln, block_elements, block_result, elseif_expr, else_expr,
 			logical, and_expr, or_expr
-			;
-	}
-
-	namespace terminals
-	{
-		extern utils::ebnfe::terminal
-			identifier, equals, left_bracket, right_bracket,
-			number, word, type_keyword, 
-			left_curly_bracket, right_curly_bracket, right_arrow, comma, 
-			left_square_bracket, right_square_bracket, match_keyword, 
-			vertical_line, module_keyword, public_keyword, ref_keyword, 
-			let_keyword, semicolon, colon, dot, plus, minus, 
-			mul, div, left_angle_bracket, right_angle_bracket,
-			import_keyword, fat_right_arrow,
-			while_keyword, two_equals, true_keyword,
-			false_keyword, percentage, lteq, gteq, if_keyword, backslash,
-			else_keyword, elseif_keyword, and_keyword, or_keyword
 			;
 	}
 }

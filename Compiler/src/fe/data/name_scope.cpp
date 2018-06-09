@@ -37,34 +37,34 @@ namespace fe::ext_ast
 		return 0;
 	}
 
-	void name_scope::add_module(const identifier& module_name, scope_index scope)
+	void name_scope::add_module(module_name module_name, scope_index scope)
 	{
 		this->modules.insert({ module_name, scope });
 	}
 
-	void name_scope::declare_variable(const name& id, node_id type_id)
+	void name_scope::declare_variable(name id, node_id type_id)
 	{
 		assert(opaque_variables.find(id) == opaque_variables.end());
 		assert(variables.find(id) == variables.end());
 		this->variables.insert({ id, { type_id, false } });
 	}
 
-	void name_scope::declare_variable(const name& id)
+	void name_scope::declare_variable(name id)
 	{
 		assert(opaque_variables.find(id) == opaque_variables.end());
 		assert(variables.find(id) == variables.end());
 		this->opaque_variables.insert({ id, false });
 	}
 
-	void name_scope::define_variable(const name& id)
+	void name_scope::define_variable(name id)
 	{
 		if (variables.find(id) != variables.end()) variables.at(id).second = true;
 		if (opaque_variables.find(id) != opaque_variables.end()) opaque_variables.at(id) = true;
 	}
 
-	std::optional<name_scope::var_lookup> name_scope::resolve_variable(const identifier& module, const name& var, get_scope_cb cb) const
+	std::optional<name_scope::var_lookup> name_scope::resolve_variable(module_name module, name var, get_scope_cb cb) const
 	{
-		if (module.segments.size() == 0) return this->resolve_variable(var, cb);
+		if (module.size() == 0) return this->resolve_variable(var, cb);
 
 		if (auto mod_pos = modules.find(module); mod_pos != modules.end())
 		{
@@ -83,7 +83,7 @@ namespace fe::ext_ast
 		return std::nullopt;
 	}
 
-	std::optional<name_scope::var_lookup> name_scope::resolve_variable(const name& var, get_scope_cb cb) const
+	std::optional<name_scope::var_lookup> name_scope::resolve_variable(name var, get_scope_cb cb) const
 	{
 		if (auto pos = variables.find(var); pos != variables.end())
 		{
@@ -105,14 +105,14 @@ namespace fe::ext_ast
 		return std::nullopt;
 	}
 
-	void name_scope::define_type(const name& n, node_id t)
+	void name_scope::define_type(name n, node_id t)
 	{
 		this->types.insert({ n, t });
 	}
 
-	std::optional<name_scope::type_lookup> name_scope::resolve_type(const identifier& module, const name& var, get_scope_cb cb) const
+	std::optional<name_scope::type_lookup> name_scope::resolve_type(module_name module, name var, get_scope_cb cb) const
 	{
-		if (module.segments.size() == 0) return this->resolve_type(var, cb);
+		if (module.size() == 0) return this->resolve_type(var, cb);
 
 		if (auto mod_pos = modules.find(module); mod_pos != modules.end())
 		{
@@ -129,7 +129,7 @@ namespace fe::ext_ast
 		return std::nullopt;
 	}
 
-	std::optional<name_scope::type_lookup> name_scope::resolve_type(const name& var, get_scope_cb cb) const
+	std::optional<name_scope::type_lookup> name_scope::resolve_type(name var, get_scope_cb cb) const
 	{
 		if (auto pos = types.find(var); pos != types.end())
 		{

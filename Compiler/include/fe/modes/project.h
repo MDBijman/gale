@@ -13,30 +13,14 @@
 #include <vector>
 #include <unordered_map>
 
-namespace fe
-{
-	using module_name = std::vector<std::string>;
-}
-
-namespace std
-{
-	template<> struct hash<fe::module_name>
-	{
-		size_t operator()(const fe::module_name& o) const
-		{
-			size_t h = 0;
-			for (const auto& name : o)
-				h ^= hash<string>()(name);
-			return h;
-		}
-	};
-}
 
 namespace fe
 {
 	class project
 	{
 	public:
+		using module_name = std::vector<std::string_view>;
+
 		project(fe::pipeline pipeline) : pl(std::move(pipeline)) {}
 
 		void add_module(const module_name& id, scope m)
@@ -74,13 +58,13 @@ namespace fe
 				auto core_name_scope = ast.create_name_scope();
 				ast.get_name_scope(core_name_scope).merge(core_module.name_env());
 				ast.get_name_scope(*root_node.name_scope_id)
-					.add_module(ext_ast::identifier("_core"), core_name_scope);
+					.add_module({ "_core" }, core_name_scope);
 
 				// Type scope
 				auto core_type_scope = ast.create_type_scope();
 				ast.get_type_scope(core_type_scope).merge(core_module.type_env());
 				ast.get_type_scope(*root_node.type_scope_id)
-					.add_module(ext_ast::identifier("_core"), core_type_scope);
+					.add_module({ "_core" }, core_type_scope);
 			}
 
 			// Add name and type scopes of imports
@@ -96,12 +80,12 @@ namespace fe
 					auto module_name_scope = ast.create_name_scope();
 					ast.get_name_scope(module_name_scope).merge(pos->second.name_env());
 					ast.get_name_scope(*root_node.name_scope_id)
-						.add_module(imp, module_name_scope);
+						.add_module(imp.segments, module_name_scope);
 
 					auto module_type_scope = ast.create_type_scope();
 					ast.get_type_scope(module_type_scope).merge(pos->second.type_env());
 					ast.get_type_scope(*root_node.type_scope_id)
-						.add_module(imp, module_type_scope);
+						.add_module(imp.segments, module_type_scope);
 				}
 			}
 

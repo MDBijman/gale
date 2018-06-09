@@ -115,6 +115,17 @@ namespace fe::ext_ast
 
 namespace fe::ext_ast
 {
+	struct ast_allocation_hints
+	{
+		size_t nodes;
+		size_t name_scopes;
+		size_t type_scopes;
+		size_t identifiers;
+		size_t booleans;
+		size_t strings;
+		size_t numbers;
+	};
+
 	class ast
 	{
 		memory::dynamic_store<node> nodes;
@@ -130,6 +141,18 @@ namespace fe::ext_ast
 		node_id root;
 
 	public:
+		ast() {}
+		ast(ast_allocation_hints h)
+		{
+			nodes.reserve(h.nodes);
+			name_scopes.reserve(h.name_scopes);
+			type_scopes.reserve(h.type_scopes);
+			identifiers.reserve(h.identifiers);
+			booleans.reserve(h.booleans);
+			strings.reserve(h.strings);
+			numbers.reserve(h.numbers);
+		}
+
 		void set_root_id(node_id id)
 		{
 			root = id;

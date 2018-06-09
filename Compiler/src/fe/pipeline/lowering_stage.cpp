@@ -195,11 +195,11 @@ namespace fe::ext_ast
 		assert(n.children.size() == 0);
 		auto& data = ast.get_data<identifier>(n.data_index.value());
 
-		auto modules = std::vector<std::string>(
+		auto modules = std::vector<std::string_view>(
 			data.segments.begin(),
 			data.segments.end() - 1 - data.offsets.size()
 			);
-		std::string name = *(data.segments.end() - 1 - data.offsets.size());
+		std::string_view name = *(data.segments.end() - 1 - data.offsets.size());
 		// If the scope distance is not defined then this id is the lhs of a declaration
 		auto scope_distance = data.scope_distance ? *data.scope_distance : 0;
 

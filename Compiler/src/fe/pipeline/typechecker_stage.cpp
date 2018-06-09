@@ -369,7 +369,7 @@ namespace fe::ext_ast
 		{
 			auto& data = ast.get_data<identifier>(*assignable.data_index);
 			// #todo with better constraint solving this will be cleaner
-			ast.get_type_scope(*assignable.type_scope_id).set_type(data, types::unique_type(t.copy()));
+			ast.get_type_scope(*assignable.type_scope_id).set_type(data.full, types::unique_type(t.copy()));
 		}
 		else if (assignable.kind == node_type::IDENTIFIER_TUPLE)
 		{
@@ -380,7 +380,7 @@ namespace fe::ext_ast
 			{
 				auto& data = ast.get_data<identifier>(*assignable.data_index);
 				// #todo with better constraint solving this will be cleaner
-				ast.get_type_scope(*assignable.type_scope_id).set_type(data, 
+				ast.get_type_scope(*assignable.type_scope_id).set_type(data.full, 
 					types::unique_type(tuple_t->product[i]->copy()));
 				i++;
 			}

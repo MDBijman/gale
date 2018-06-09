@@ -77,17 +77,9 @@ namespace fe
 				{
 					std::cout << "Lexing error:\n" << e.message << "\n";
 				}
-				catch (const fe::lex_to_parse_error& e)
-				{
-					std::cout << "Lex to parse error:\n" << e.message << "\n";
-				}
-				catch (const utils::ebnfe::error& e)
+				catch (const fe::parse_error& e)
 				{
 					std::cout << "Parse error:\n" << e.message << "\n";
-				}
-				catch (const fe::cst_to_ast_error& e)
-				{
-					std::cout << "CST to AST conversion error:\n" << e.message << "\n";
 				}
 				catch (const fe::typecheck_error& e)
 				{
