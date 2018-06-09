@@ -1,15 +1,11 @@
 #pragma once
 #include "fe/pipeline/lexer_stage.h"
-#include "fe/pipeline/lexer_to_parser_stage.h"
 #include "fe/pipeline/parser_stage.h"
-#include "fe/pipeline/cst_to_ast_stage.h"
 #include "fe/pipeline/resolution_stage.h"
 #include "fe/pipeline/typechecker_stage.h"
 #include "fe/pipeline/lowering_stage.h"
 #include "fe/pipeline/interpreting_stage.h"
 #include "fe/pipeline/error.h"
-
-#include "utils/parsing/bnf_grammar.h"
 
 #include <memory>
 #include <tuple>
@@ -23,36 +19,23 @@ namespace fe
 	public:
 		pipeline() :
 			lexer(lexing_stage{}),
-			parser(parsing_stage{ std::make_unique<recursive_descent_strategy>() }),
-			lex_to_parse_converter(lexer_to_parser_stage{}),
-			cst_to_ast_converter(cst_to_ast_stage{})
+			parser(parsing_stage{})
 		{}
 
-		std::vector<utils::bnf::terminal_node> lex(std::string&& code) const
+		std::vector<utils::lexing::token> lex(const std::string& code) const
 		{
-			auto lex_output = lexer.lex(std::move(code));
+			auto lex_output = lexer.lex(code);
 			if (std::holds_alternative<utils::lexing::error>(lex_output))
 				throw std::get<utils::lexing::error>(lex_output);
-			auto tokens = std::get<std::vector<utils::lexing::token>>(lex_output);
-
-			auto lex_to_parse_output = lex_to_parse_converter.convert(tokens);
-			if (std::holds_alternative<lex_to_parse_error>(lex_to_parse_output))
-				throw std::get<lex_to_parse_error>(lex_to_parse_output);
-			return std::get<std::vector<utils::bnf::terminal_node>>(lex_to_parse_output);
+			return std::get<std::vector<utils::lexing::token>>(lex_output);
 		}
 
-		ext_ast::ast parse(std::vector<utils::bnf::terminal_node>&& tokens) 
+		ext_ast::ast parse(std::vector<utils::lexing::token>&& tokens) 
 		{
 			auto parse_output = std::move(parser.parse(tokens));
-			if (std::holds_alternative<utils::ebnfe::error>(parse_output))
-				throw std::get<utils::ebnfe::error>(parse_output);
-			auto& cst = std::get<utils::bnf::tree>(parse_output);
-
-			auto cst_to_ast_output = cst_to_ast_converter.convert(std::move(cst));
-			if (std::holds_alternative<cst_to_ast_error>(cst_to_ast_output))
-				throw std::get<cst_to_ast_error>(cst_to_ast_output);
-
-			return std::move(std::get<ext_ast::ast>(cst_to_ast_output));
+			if (std::holds_alternative<fe::parse_error>(parse_output))
+				throw std::get<fe::parse_error>(parse_output);
+			return std::move(std::get<fe::ext_ast::ast>(parse_output));
 		}
 
 		void typecheck(ext_ast::ast& ast) const
@@ -80,7 +63,5 @@ namespace fe
 	private:
 		lexing_stage lexer;
 		parsing_stage parser;
-		lexer_to_parser_stage lex_to_parse_converter;
-		cst_to_ast_stage cst_to_ast_converter;
 	};
 }

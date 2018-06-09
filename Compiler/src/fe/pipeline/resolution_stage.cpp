@@ -94,8 +94,8 @@ namespace fe::ext_ast
 		if (assignable.kind == node_type::IDENTIFIER)
 		{
 			auto& data = ast.get_data<identifier>(*assignable.data_index);
-			ast.get_name_scope(*assignable.name_scope_id).declare_variable(data);
-			ast.get_name_scope(*assignable.name_scope_id).define_variable(data);
+			ast.get_name_scope(*assignable.name_scope_id).declare_variable(data.full);
+			ast.get_name_scope(*assignable.name_scope_id).define_variable(data.full);
 		}
 		else if (assignable.kind == node_type::IDENTIFIER_TUPLE)
 		{
@@ -171,7 +171,7 @@ namespace fe::ext_ast
 	}
 
 	// Helper
-	std::optional<std::vector<size_t>> resolve_field(node& type_node, ast& ast, const identifier& id)
+	std::optional<std::vector<size_t>> resolve_field(node& type_node, ast& ast, std::vector<name> id)
 	{
 		copy_parent_scope(type_node, ast);
 		assert(type_node.name_scope_id);
@@ -180,7 +180,8 @@ namespace fe::ext_ast
 		if (type_node.kind == node_type::IDENTIFIER)
 		{
 			auto& id_data = ast.get_data<identifier>(*type_node.data_index);
-			auto& res = scope.resolve_type(id_data.without_last_segment(), *id_data.segments.rbegin(), ast.name_scope_cb());
+			auto& res = scope.resolve_type({ id_data.segments.begin(), id_data.segments.end() - 1 }, 
+				*id_data.segments.rbegin(), ast.name_scope_cb());
 			assert(res);
 			auto& referenced_type_node = ast.get_node(res->type_node);
 			return resolve_field(referenced_type_node, ast, id);
@@ -211,12 +212,12 @@ namespace fe::ext_ast
 			assert(id_node.data_index);
 			auto& id_data = ast.get_data<identifier>(*id_node.data_index);
 			assert(id_data.segments.size() == 1);
-			if (id.segments[0] == id_data.segments[0])
+			if (id[0] == id_data.segments[0])
 			{
-				if (id.segments.size() > 1)
+				if (id.size() > 1)
 				{
 					auto& new_type_node = ast.get_node(type_node.children[1]);
-					return resolve_field(new_type_node, ast, id.without_first_segment());
+					return resolve_field(new_type_node, ast, { id.begin(), id.end() - 1 });
 				}
 				else
 				{
@@ -228,7 +229,7 @@ namespace fe::ext_ast
 		}
 		else if (type_node.kind == node_type::TYPE_ATOM)
 		{
-			assert(id.segments.size() > 0);
+			assert(id.size() > 0);
 			assert(type_node.children.size() == 1);
 			auto& id_node = ast.get_node(type_node.children[0]);
 			return resolve_field(id_node, ast, id);
@@ -249,7 +250,8 @@ namespace fe::ext_ast
 		if (type_node.kind == node_type::IDENTIFIER)
 		{
 			auto& id_data = ast.get_data<identifier>(*type_node.data_index);
-			auto& res = scope.resolve_type(id_data.without_last_segment(), *id_data.segments.rbegin(), ast.name_scope_cb());
+			auto& res = scope.resolve_type({ id_data.segments.begin(), id_data.segments.end() - 1 },
+				*id_data.segments.rbegin(), ast.name_scope_cb());
 			assert(res);
 			auto& referenced_type_node = ast.get_node(res->type_node);
 			return resolve_offsets(referenced_type_node, ast, offsets);
@@ -298,14 +300,14 @@ namespace fe::ext_ast
 		auto& id_data = ast.get_data<identifier>(*n.data_index);
 		for (auto i = 0; i < id_data.segments.size(); i++)
 		{
-			identifier module(std::vector<std::string>(id_data.segments.begin(), id_data.segments.begin() + i));
-			std::string name = *(id_data.segments.begin() + i);
-			identifier fields(std::vector<std::string>(id_data.segments.begin() + i + 1, id_data.segments.end()));
+			module_name module = { id_data.segments.begin(), id_data.segments.begin() + i };
+			name var_name = *(id_data.segments.begin() + i);
+			std::vector<name> fields = { id_data.segments.begin() + i + 1, id_data.segments.end() };
 
-			if (auto resolved_as_var = scope.resolve_variable(module, name, ast.name_scope_cb()); resolved_as_var)
+			if (auto resolved_as_var = scope.resolve_variable(module, var_name, ast.name_scope_cb()); resolved_as_var)
 			{
 				id_data.scope_distance = resolved_as_var->scope_distance;
-				if (fields.segments.size() > 0)
+				if (fields.size() > 0)
 				{
 					assert(resolved_as_var->type_node);
 					auto& type_node = ast.get_node(*resolved_as_var->type_node);
@@ -319,7 +321,7 @@ namespace fe::ext_ast
 				}
 				return;
 			}
-			else if (auto resolved_as_type = scope.resolve_type(module, name, ast.name_scope_cb()); resolved_as_type)
+			else if (auto resolved_as_type = scope.resolve_type(module, var_name, ast.name_scope_cb()); resolved_as_type)
 			{
 				id_data.scope_distance = resolved_as_type->scope_distance;
 				id_data.offsets = {};

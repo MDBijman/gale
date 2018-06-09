@@ -8,8 +8,6 @@
 
 namespace fe::ext_ast
 {
-	using name = std::string;
-
 	class name_scope
 	{
 		struct type_lookup
@@ -49,7 +47,7 @@ namespace fe::ext_ast
 		*/
 		std::unordered_map<name, node_id> types;
 
-		std::unordered_map<identifier, scope_index> modules;
+		std::unordered_map<module_name, scope_index> modules;
 
 		// Parent scope
 		std::optional<scope_index> parent;
@@ -69,32 +67,32 @@ namespace fe::ext_ast
 		/*
 		* Adds the scope to this module accessible through the module_name.
 		*/
-		void add_module(const identifier& module_name, scope_index scope);
+		void add_module(module_name, scope_index scope);
 
 		// Variable names
 
 		/*
-		* Declares the variable within this scope, with the node begin the type node of the variable. 
+		* Declares the variable within this scope, with the node begin the type node of the variable.
 		* The variable will not yet be resolvable.
 		*/
-		void declare_variable(const name& id, node_id node);
+		void declare_variable(name, node_id node);
 
 		/*
 		* Declares a variable with no accessible fields.
 		* The variable will not yet be resolvable.
 		*/
-		void declare_variable(const name&);
+		void declare_variable(name);
 
 		/*
 		* Defines the given name within this scope. After this, the variable will be resolvable.
 		*/
-		void define_variable(const name&);
+		void define_variable(name);
 
 		/*
 		* Returns the type name of the given reference.
 		*/
-		std::optional<var_lookup> resolve_variable(const identifier& module, const name& var, get_scope_cb) const;
-		std::optional<var_lookup> resolve_variable(const name&, get_scope_cb) const;
+		std::optional<var_lookup> resolve_variable(module_name, name var, get_scope_cb) const;
+		std::optional<var_lookup> resolve_variable(name, get_scope_cb) const;
 
 		// Type names
 
@@ -102,12 +100,12 @@ namespace fe::ext_ast
 		* Defines the given name within this scope as the type given, with the node being the type expression.
 		* After this, type references with the name will be resolvable.
 		*/
-		void define_type(const name& n, node_id t);
+		void define_type(name n, node_id t);
 
 		/*
 		* Returns the type data of the type with the given name if it exists.
 		*/
-		std::optional<type_lookup> resolve_type(const identifier& module, const name& var, get_scope_cb) const;
-		std::optional<type_lookup> resolve_type(const name&, get_scope_cb) const;
+		std::optional<type_lookup> resolve_type(module_name, name, get_scope_cb) const;
+		std::optional<type_lookup> resolve_type(name, get_scope_cb) const;
 	};
 }

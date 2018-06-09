@@ -139,7 +139,6 @@
     <ClCompile Include="src\fe\data\values.cpp" />
     <ClCompile Include="src\fe\data\value_scope.cpp" />
     <ClCompile Include="src\fe\language_definition.cpp" />
-    <ClCompile Include="src\fe\pipeline\cst_to_ast_stage.cpp" />
     <ClCompile Include="src\fe\pipeline\interpreting_stage.cpp" />
     <ClCompile Include="src\fe\pipeline\lowering_stage.cpp" />
     <ClCompile Include="src\fe\pipeline\parser_stage.cpp" />
@@ -152,14 +151,7 @@
     <ClCompile Include="src\tests\fe\name_resolution_tests.cpp" />
     <ClCompile Include="src\tests\fe\typechecking_tests.cpp" />
     <ClCompile Include="src\tests\fe\while_tests.cpp" />
-    <ClCompile Include="src\tests\utils\grammar_tests.cpp" />
-    <ClCompile Include="src\tests\utils\lr_tests.cpp" />
     <ClCompile Include="src\tests\utils\performance_tests.cpp" />
-    <ClCompile Include="src\utils\parsing\bnf_grammar.cpp" />
-    <ClCompile Include="src\utils\parsing\ebnfe_parser.cpp" />
-    <ClCompile Include="src\utils\parsing\ebnf_parser.cpp" />
-    <ClCompile Include="src\utils\parsing\ll_parser.cpp" />
-    <ClCompile Include="src\utils\parsing\lr_parser.cpp" />
     <ClCompile Include="src\utils\parsing\recursive_descent_parser.cpp" />
     <ClCompile Include="src\utils\reading\reader.cpp" />
   </ItemGroup>
@@ -181,11 +173,9 @@
     <ClInclude Include="include\fe\libraries\std\std_ui.h" />
     <ClInclude Include="include\fe\modes\project.h" />
     <ClInclude Include="include\fe\modes\repl.h" />
-    <ClInclude Include="include\fe\pipeline\cst_to_ast_stage.h" />
     <ClInclude Include="include\fe\pipeline\error.h" />
     <ClInclude Include="include\fe\pipeline\interpreting_stage.h" />
     <ClInclude Include="include\fe\pipeline\lexer_stage.h" />
-    <ClInclude Include="include\fe\pipeline\lexer_to_parser_stage.h" />
     <ClInclude Include="include\fe\pipeline\lowering_stage.h" />
     <ClInclude Include="include\fe\pipeline\parser_stage.h" />
     <ClInclude Include="include\fe\pipeline\pipeline.h" />
@@ -195,13 +185,6 @@
     <ClInclude Include="include\utils\algorithms\tree_traversal.h" />
     <ClInclude Include="include\utils\lexing\lexer.h" />
     <ClInclude Include="include\utils\memory\data_store.h" />
-    <ClInclude Include="include\utils\parsing\bnf_grammar.h" />
-    <ClInclude Include="include\utils\parsing\bnf_parser.h" />
-    <ClInclude Include="include\utils\parsing\ebnfe_parser.h" />
-    <ClInclude Include="include\utils\parsing\ebnf_parser.h" />
-    <ClInclude Include="include\utils\parsing\lr_parser.h" />
-    <ClInclude Include="include\utils\parsing\ll_parser.h" />
-    <ClInclude Include="include\utils\parsing\parser.h" />
     <ClInclude Include="include\utils\parsing\recursive_descent_parser.h" />
     <ClInclude Include="include\utils\reading\reader.h" />
   </ItemGroup>

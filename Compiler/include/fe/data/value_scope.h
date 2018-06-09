@@ -9,7 +9,7 @@ namespace fe
 {
 	class value_scope
 	{
-		std::unordered_map<std::string, values::unique_value> variables;
+		std::unordered_map<std::string_view, values::unique_value> variables;
 
 		std::unordered_map<core_ast::identifier, scope_index> modules;
 
@@ -32,8 +32,8 @@ namespace fe
 
 		std::optional<values::value*> valueof(const core_ast::identifier& name, size_t scope_depth, get_scope_cb);
 
-		void set_value(const std::string& name, values::unique_value value);
-		void set_value(const std::string& name, values::unique_value value, std::size_t depth, get_scope_cb);
+		void set_value(std::string_view name, values::unique_value value);
+		void set_value(std::string_view name, values::unique_value value, std::size_t depth, get_scope_cb);
 
 		std::string to_string();
 	};

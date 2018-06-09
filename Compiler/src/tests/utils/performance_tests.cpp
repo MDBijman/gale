@@ -3,7 +3,6 @@
 #include "fe/pipeline/parser_stage.h"
 #include "fe/language_definition.h"
 #include "fe/pipeline/pipeline.h"
-#include "utils/parsing/bnf_grammar.h"
 #include "utils/reading/reader.h"
 
 #include <chrono>

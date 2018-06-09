@@ -55,6 +55,12 @@ namespace memory
 	public:
 		using index = size_t;
 
+		void reserve(size_t count)
+		{
+			data.reserve(count);
+			occupieds.reserve(count);
+		}
+
 		index create()
 		{
 			if (is_full)

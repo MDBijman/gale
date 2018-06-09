@@ -150,8 +150,6 @@ namespace fe::ext_ast
 
 namespace fe::ext_ast
 {
-	using name = std::string;
-
 	class type_scope
 	{
 		struct var_lookup
@@ -172,7 +170,7 @@ namespace fe::ext_ast
 		// The defined types
 		std::unordered_map<name, types::unique_type> types;
 
-		std::unordered_map<identifier, scope_index> modules;
+		std::unordered_map<module_name, scope_index> modules;
 
 		// Parent scope
 		std::optional<scope_index> parent;
@@ -207,7 +205,7 @@ namespace fe::ext_ast
 
 		void clear();
 
-		void add_module(const identifier& module_name, scope_index scope);
+		void add_module(module_name module_name, scope_index scope);
 
 		void set_parent(scope_index other);
 
@@ -215,12 +213,12 @@ namespace fe::ext_ast
 
 		// Types of variables
 
-		void set_type(const name& n, types::unique_type t);
+		void set_type(name n, types::unique_type t);
 		std::optional<var_lookup> resolve_variable(const identifier& n, get_scope_cb);
 
 		// Defined types
 
-		void define_type(const name& n, types::unique_type t);
+		void define_type(name n, types::unique_type t);
 		std::optional<type_lookup> resolve_type(const identifier& n, get_scope_cb);
 	};
 }

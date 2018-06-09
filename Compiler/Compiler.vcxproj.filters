@@ -127,32 +127,14 @@
     <ClCompile Include="src\fe\pipeline\lowering_stage.cpp">
       <Filter>Source Files\fe\pipeline</Filter>
     </ClCompile>
-    <ClCompile Include="src\fe\pipeline\cst_to_ast_stage.cpp">
-      <Filter>Source Files\fe\pipeline</Filter>
-    </ClCompile>
     <ClCompile Include="src\fe\data\name_scope.cpp">
       <Filter>Source Files\fe\data</Filter>
     </ClCompile>
     <ClCompile Include="src\fe\data\type_scope.cpp">
       <Filter>Source Files\fe\data</Filter>
     </ClCompile>
-    <ClCompile Include="src\utils\parsing\bnf_grammar.cpp">
-      <Filter>Source Files\utils\parsing</Filter>
-    </ClCompile>
-    <ClCompile Include="src\utils\parsing\ll_parser.cpp">
-      <Filter>Source Files\utils\parsing</Filter>
-    </ClCompile>
-    <ClCompile Include="src\utils\parsing\lr_parser.cpp">
-      <Filter>Source Files\utils\parsing</Filter>
-    </ClCompile>
     <ClCompile Include="src\utils\reading\reader.cpp">
       <Filter>Source Files\utils\reading</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tests\utils\grammar_tests.cpp">
-      <Filter>Source Files\tests\utils</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tests\utils\lr_tests.cpp">
-      <Filter>Source Files\tests\utils</Filter>
     </ClCompile>
     <ClCompile Include="src\tests\utils\performance_tests.cpp">
       <Filter>Source Files\tests\utils</Filter>
@@ -166,14 +148,8 @@
     <ClCompile Include="src\fe\data\value_scope.cpp">
       <Filter>Source Files\fe\data</Filter>
     </ClCompile>
-    <ClCompile Include="src\utils\parsing\ebnf_parser.cpp">
-      <Filter>Source Files\utils\parsing</Filter>
-    </ClCompile>
     <ClCompile Include="src\tests\fe\typechecking_tests.cpp">
       <Filter>Source Files\tests\fe</Filter>
-    </ClCompile>
-    <ClCompile Include="src\utils\parsing\ebnfe_parser.cpp">
-      <Filter>Source Files\utils\parsing</Filter>
     </ClCompile>
     <ClCompile Include="src\utils\parsing\recursive_descent_parser.cpp">
       <Filter>Source Files\utils\parsing</Filter>
@@ -195,9 +171,6 @@
     <ClInclude Include="include\fe\modes\repl.h">
       <Filter>Source Files\fe\modes</Filter>
     </ClInclude>
-    <ClInclude Include="include\fe\pipeline\cst_to_ast_stage.h">
-      <Filter>Source Files\fe\pipeline</Filter>
-    </ClInclude>
     <ClInclude Include="include\fe\pipeline\error.h">
       <Filter>Source Files\fe\pipeline</Filter>
     </ClInclude>
@@ -205,9 +178,6 @@
       <Filter>Source Files\fe\pipeline</Filter>
     </ClInclude>
     <ClInclude Include="include\fe\pipeline\lexer_stage.h">
-      <Filter>Source Files\fe\pipeline</Filter>
-    </ClInclude>
-    <ClInclude Include="include\fe\pipeline\lexer_to_parser_stage.h">
       <Filter>Source Files\fe\pipeline</Filter>
     </ClInclude>
     <ClInclude Include="include\fe\pipeline\lowering_stage.h">
@@ -242,27 +212,6 @@
     </ClInclude>
     <ClInclude Include="include\utils\reading\reader.h">
       <Filter>Source Files\utils\reading</Filter>
-    </ClInclude>
-    <ClInclude Include="include\utils\parsing\bnf_grammar.h">
-      <Filter>Source Files\utils\parsing</Filter>
-    </ClInclude>
-    <ClInclude Include="include\utils\parsing\bnf_parser.h">
-      <Filter>Source Files\utils\parsing</Filter>
-    </ClInclude>
-    <ClInclude Include="include\utils\parsing\ebnf_parser.h">
-      <Filter>Source Files\utils\parsing</Filter>
-    </ClInclude>
-    <ClInclude Include="include\utils\parsing\ebnfe_parser.h">
-      <Filter>Source Files\utils\parsing</Filter>
-    </ClInclude>
-    <ClInclude Include="include\utils\parsing\ll_parser.h">
-      <Filter>Source Files\utils\parsing</Filter>
-    </ClInclude>
-    <ClInclude Include="include\utils\parsing\parser.h">
-      <Filter>Source Files\utils\parsing</Filter>
-    </ClInclude>
-    <ClInclude Include="include\utils\parsing\lr_parser.h">
-      <Filter>Source Files\utils\parsing</Filter>
     </ClInclude>
     <ClInclude Include="include\fe\pipeline\resolution_stage.h">
       <Filter>Source Files\fe\pipeline</Filter>

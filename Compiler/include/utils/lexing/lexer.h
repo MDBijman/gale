@@ -30,40 +30,13 @@ namespace utils
 		struct token
 		{
 			token_id value;
-			std::string text;
+			std::string_view text;
 		};
 
 		struct rules
 		{
 			token_id match(lexer_range& range) const
 			{
-				for (int i = 0; i < tokens.size(); i++)
-				{
-					auto& token = tokens.at(i);
-
-					auto token_it = token.begin();
-					auto text_it = range.first;
-					bool match = true;
-
-					while(match && !(text_it == range.second) && !(token_it == token.end()))
-					{
-						if (*token_it != *text_it)
-						{
-							match = false;
-							continue;
-						}
-
-						token_it++;
-						text_it++;
-					}
-
-					if (token_it == token.end())
-					{
-						range.first = text_it;
-						return token_ids.at(i);
-					}
-				}
-
 				// \".*?\"
 				if (match_strings)
 				{
@@ -94,16 +67,34 @@ namespace utils
 					}
 
 					if (*i == '-') i++;
-					if (!isdigit(*i) || (*i == '0')) goto match_keywords;
+					if (!isdigit(*i) || (*i == '0')) goto match_tokens;
 					while (i != range.second && isdigit(*i)) i++;
 
 					range.first = i;
 					return number_token;
 				}
 
-			match_keywords:
+			match_tokens:
+				for (int i = 0; i < tokens.size(); i++)
+				{
+					auto& token = tokens.at(i);
+
+					auto token_it = token.begin();
+					if (range.second - range.first < token.size()) continue;
+
+					auto text_it = range.first;
+
+					while (token_it != token.end())
+						if (*token_it++ != *text_it++) goto skip_token;
+
+					range.first = text_it;
+					return token_ids.at(i);
+
+				skip_token:;
+				}
+
 				// [a-zA-Z_][a-zA-Z0-9_.]*
-				if (match_keywords)
+				if (match_identifiers)
 				{
 					if (!isalpha(*range.first) && (*range.first != '_')) goto match_fail;
 					auto i = range.first + 1;
@@ -119,7 +110,7 @@ namespace utils
 					if (i != range.first)
 					{
 						range.first = i;
-						return keyword_token;
+						return identifier_token;
 					}
 				}
 
@@ -134,11 +125,11 @@ namespace utils
 				return token_generator++;
 			}
 
-			token_id create_keyword_token()
+			token_id create_identifier_token()
 			{
-				assert(!match_keywords);
-				match_keywords = true;
-				keyword_token = token_generator;
+				assert(!match_identifiers);
+				match_identifiers = true;
+				identifier_token = token_generator;
 				return token_generator++;
 			}
 
@@ -167,10 +158,10 @@ namespace utils
 
 				string_token = other.string_token;
 				number_token = other.number_token;
-				keyword_token = other.keyword_token;
+				identifier_token = other.identifier_token;
 				match_strings = other.match_strings;
 				match_numbers = other.match_numbers;
-				match_keywords = other.match_keywords;
+				match_identifiers = other.match_identifiers;
 				return *this;
 			}
 
@@ -178,10 +169,11 @@ namespace utils
 			token_id token_generator = 1;
 
 			// special tokens
-			token_id string_token, number_token, keyword_token;
-			bool match_strings = false, match_numbers = false, match_keywords = false;
+			token_id string_token, number_token, identifier_token;
+			bool match_strings = false, match_numbers = false, match_identifiers = false;
 
 			std::vector<std::string> tokens;
+			std::vector<std::string> keywords;
 			std::vector<token_id> token_ids;
 		};
 
@@ -223,7 +215,6 @@ namespace utils
 						if (*range.first == '\n')
 						{
 							line_count++;
-							//result.push_back(token{ new_line, "" });
 							character_count = 0;
 						}
 
@@ -258,7 +249,7 @@ namespace utils
 					character_count += static_cast<uint32_t>(token_size);
 
 					const std::string_view tokenized(&*range_copy.first, token_size);
-					result.push_back(token{ id, std::string(tokenized) });
+					result.push_back(token{ id, tokenized });
 				}
 
 				result.push_back(token{ end_of_input, "" });
