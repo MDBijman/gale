@@ -11,6 +11,7 @@
 #include <tuple>
 #include <variant>
 #include <vector>
+#include <thread>
 
 namespace fe
 {
@@ -22,17 +23,16 @@ namespace fe
 			parser(parsing_stage{})
 		{}
 
-		std::vector<utils::lexing::token> lex(const std::string& code) const
+		ext_ast::ast parse(const std::string& code) 
 		{
-			auto lex_output = lexer.lex(code);
-			if (std::holds_alternative<utils::lexing::error>(lex_output))
-				throw std::get<utils::lexing::error>(lex_output);
-			return std::get<std::vector<utils::lexing::token>>(lex_output);
-		}
+			memory::pipe<std::vector<lexing::token>> buffer;
 
-		ext_ast::ast parse(std::vector<utils::lexing::token>&& tokens) 
-		{
-			auto parse_output = std::move(parser.parse(tokens));
+			// Create lexer in another thread
+			std::thread lex_thread([&code, &buffer, this]() { lexer.lex(code, lexing::token_stream_writer(buffer)); });
+			// Run parser in this thread
+			auto parse_output = parser.parse(recursive_descent::token_stream_reader(buffer));
+			lex_thread.join();
+
 			if (std::holds_alternative<fe::parse_error>(parse_output))
 				throw std::get<fe::parse_error>(parse_output);
 			return std::move(std::get<fe::ext_ast::ast>(parse_output));

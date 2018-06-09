@@ -28,10 +28,9 @@ namespace fe
 			modules.insert({ id, m });
 		}
 
-		void add_module(std::string code)
+		void add_module(const std::string& code)
 		{
-			auto tokens = pl.lex(std::move(code));
-			auto ast = pl.parse(std::move(tokens));
+			auto ast = pl.parse(code);
 
 			auto module_scope = eval(ast);
 			auto& name = ast.get_module_name().value().segments;
@@ -39,10 +38,9 @@ namespace fe
 			add_module(name, module_scope);
 		}
 
-		scope eval(std::string code)
+		scope eval(const std::string& code)
 		{
-			auto tokens = pl.lex(std::move(code));
-			auto ast = pl.parse(std::move(tokens));
+			auto ast = pl.parse(code);
 			return eval(ast);
 		}
 

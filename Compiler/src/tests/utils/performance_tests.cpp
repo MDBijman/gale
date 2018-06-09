@@ -31,8 +31,7 @@ TEST_CASE("the entire language pipeline should be fast enough", "[performance]")
 		auto file_or_error = utils::files::read_file("snippets/tests/performance_empty.fe");
 		REQUIRE(!std::holds_alternative<std::exception>(file_or_error));
 		auto code = std::get<std::string>(file_or_error);
-		auto lex_output = p.lex(std::move(code));
-		p.parse(std::move(lex_output));
+		p.parse(code);
 		then = std::chrono::steady_clock::now();
 
 		time = std::chrono::duration<double, std::milli>(then - now).count();
@@ -55,9 +54,7 @@ let x : std.i32 = 1;
 			code += "x = 2;\n";
 
 		auto now = std::chrono::steady_clock::now();
-		auto lex_output = p.lex(std::move(code));
-
-		p.parse(std::move(lex_output));
+		p.parse(code);
 		auto then = std::chrono::steady_clock::now();
 
 		auto time = std::chrono::duration<double, std::milli>(then - now).count();

@@ -185,6 +185,7 @@
     <ClInclude Include="include\utils\algorithms\tree_traversal.h" />
     <ClInclude Include="include\utils\lexing\lexer.h" />
     <ClInclude Include="include\utils\memory\data_store.h" />
+    <ClInclude Include="include\utils\memory\pipe.h" />
     <ClInclude Include="include\utils\parsing\recursive_descent_parser.h" />
     <ClInclude Include="include\utils\reading\reader.h" />
   </ItemGroup>

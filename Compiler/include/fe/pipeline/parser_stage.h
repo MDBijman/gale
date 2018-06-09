@@ -2,6 +2,7 @@
 #include "fe/language_definition.h"
 #include "fe/data/ext_ast.h"
 #include "fe/pipeline/error.h"
+#include "utils/parsing/recursive_descent_parser.h"
 
 #include <memory>
 
@@ -11,6 +12,6 @@ namespace fe
 	{
 	public:
 		parsing_stage();
-		std::variant<ext_ast::ast, parse_error> parse(const std::vector<utils::lexing::token>& in);
+		std::variant<ext_ast::ast, parse_error> parse(recursive_descent::token_stream_reader in);
 	};
 }
