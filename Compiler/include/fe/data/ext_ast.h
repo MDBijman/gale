@@ -11,6 +11,7 @@
 #include "fe/data/type_scope.h"
 #include "fe/data/ast_data.h"
 #include "utils/memory/data_store.h"
+#include "utils/memory/small_vector.h"
 
 namespace fe::ext_ast
 {
@@ -111,12 +112,8 @@ namespace fe::ext_ast
 	};
 #pragma pack(pop)
 
-	constexpr auto x = sizeof(node);
-}
+	using node_children = memory::small_vector<node_id, 3>;
 
-
-namespace fe::ext_ast
-{
 	struct ast_allocation_hints
 	{
 		size_t nodes;
@@ -132,7 +129,7 @@ namespace fe::ext_ast
 	class ast
 	{
 		memory::dynamic_store<node> nodes;
-		memory::dynamic_store<std::vector<node_id>> children;
+		memory::dynamic_store<node_children> children;
 		memory::dynamic_store<name_scope> name_scopes;
 		memory::dynamic_store<type_scope> type_scopes;
 
@@ -169,19 +166,19 @@ namespace fe::ext_ast
 		}
 
 		// Nodes
-		std::vector<node_id>& get_children(children_id id)
+		node_children& get_children(children_id id)
 		{
 			assert(id != no_children);
 			return children.get_at(id);
 		}
 
-		std::vector<node_id>& children_of(node_id id)
+		node_children& children_of(node_id id)
 		{
 			assert(id != no_node);
 			return children_of(get_node(id));
 		}
 
-		std::vector<node_id>& children_of(node& n)
+		node_children& children_of(node& n)
 		{
 			return get_children(n.children_id);
 		}
@@ -217,7 +214,8 @@ namespace fe::ext_ast
 			if (!import_dec_id.has_value()) return std::nullopt;
 
 			std::vector<identifier> imports;
-			for (auto child : children_of(import_dec_id.value()))
+			auto& children = children_of(import_dec_id.value());
+			for (auto child : children)
 			{
 				auto& id_node = get_node(child);
 				imports.push_back(get_data<identifier>(id_node.data_index));

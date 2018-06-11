@@ -62,16 +62,16 @@ namespace recursive_descent
 			if (*it == split_on)
 			{
 				// Read infix
-				split_identifier.push_back(std::string_view(&*begin_word, 1));
+				split_identifier.push_back(std::string_view(&*begin_word, std::distance(begin_word, it)));
 				begin_word = it + 1;
 				continue;
 			}
-			else
+			else if(it == id.end())
 			{
-				if (it == id.end() - 1)
-					split_identifier.push_back(std::string_view(&*begin_word, std::distance(begin_word, it)));
+				split_identifier.push_back(std::string_view(&*begin_word, std::distance(begin_word, it)));
 			}
 		}
+		split_identifier.push_back(std::string_view(&*begin_word, std::distance(begin_word, id.end())));
 		return split_identifier;
 	};
 
@@ -276,9 +276,6 @@ namespace recursive_descent
 	{
 		std::vector<fe::node_id> res;
 
-		res.push_back(parse_statement(t, ts));
-		ts.consume(token_kind::SEMICOLON);
-
 		while (ts.peek().value != token_kind::RIGHT_CURLY_BRACKET)
 		{
 			// Either result expression or statement
@@ -414,7 +411,6 @@ namespace recursive_descent
 		link_child_parent(parse_block(t, ts), if_expr_id, t);
 		while (ts.peek().value == token_kind::ELSEIF_KEYWORD)
 		{
-			ts.consume(token_kind::ELSEIF_KEYWORD);
 			auto elseif = parse_elseif_expr(t, ts);
 			link_child_parent(elseif.first, if_expr_id, t);
 			link_child_parent(elseif.second, if_expr_id, t);
@@ -422,7 +418,6 @@ namespace recursive_descent
 
 		if (ts.peek().value == token_kind::ELSE_KEYWORD)
 		{
-			ts.consume(token_kind::ELSE_KEYWORD);
 			link_child_parent(parse_else_expr(t, ts), if_expr_id, t);
 		}
 

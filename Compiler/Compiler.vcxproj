@@ -130,6 +130,7 @@
     <None Include="snippets\euler\euler2.fe" />
     <None Include="snippets\euler\euler3.fe" />
     <None Include="snippets\syntax\statements.fe" />
+    <None Include="snippets\tests\fib.fe" />
     <None Include="snippets\tests\performance_empty.fe" />
   </ItemGroup>
   <ItemGroup>
@@ -152,6 +153,7 @@
     <ClCompile Include="src\tests\fe\typechecking_tests.cpp" />
     <ClCompile Include="src\tests\fe\while_tests.cpp" />
     <ClCompile Include="src\tests\utils\performance_tests.cpp" />
+    <ClCompile Include="src\utils\memory\small_vec_tests.cpp" />
     <ClCompile Include="src\utils\parsing\recursive_descent_parser.cpp" />
     <ClCompile Include="src\utils\reading\reader.cpp" />
   </ItemGroup>
@@ -186,6 +188,7 @@
     <ClInclude Include="include\utils\lexing\lexer.h" />
     <ClInclude Include="include\utils\memory\data_store.h" />
     <ClInclude Include="include\utils\memory\pipe.h" />
+    <ClInclude Include="include\utils\memory\small_vector.h" />
     <ClInclude Include="include\utils\parsing\recursive_descent_parser.h" />
     <ClInclude Include="include\utils\reading\reader.h" />
   </ItemGroup>
