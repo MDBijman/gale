@@ -181,7 +181,7 @@ namespace fe::ext_ast
 		}
 
 		types::unique_type t;
-		auto& last_node = ast.get_node(*children.rbegin());
+		auto& last_node = ast.get_node(children.back());
 		if (last_node.kind == node_type::BLOCK_RESULT)
 		{
 			// Block with return value

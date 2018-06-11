@@ -400,7 +400,6 @@ namespace fe::ext_ast
 		{
 			assert(lhs.data_index);
 			auto& lhs_id = ast.get_data<identifier>(lhs.data_index);
-			assert(lhs.name_scope_id);
 			auto& scope = ast.get_name_scope(lhs.name_scope_id);
 			scope.define_variable(lhs_id.segments[0]);
 		}

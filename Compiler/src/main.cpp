@@ -1,6 +1,7 @@
 #include "fe/pipeline/pipeline.h"
 #include "fe/modes/project.h"
 #include "fe/modes/repl.h"
+#include "utils/memory/small_vector.h"
 
 #define CATCH_CONFIG_RUNNER
 #include <catch2/catch.hpp>
@@ -161,12 +162,12 @@ int main(int argc, char** argv)
 		//fe::lexing_stage lexer;
 
 		// Init parse table
-		std::string code = 
-R"c(module statements
-import [std std.io]
+		std::string code =
+			R"c(module statements
+	import [std std.io]
 
-let x : std.i32 = 1;
-)c";
+	let x : std.i32 = 1;
+	)c";
 
 		for (int i = 0; i < 1000000; i++)
 			code += "x = 2;\n";
@@ -181,6 +182,7 @@ let x : std.i32 = 1;
 			std::cout << "Long parse: " << time << " ms" << "\n";
 		}
 
+		std::cin.get();
 		return 0;
 	}
 

@@ -1,0 +1,7 @@
+module fib
+import [std std.io]
+
+let fib: std.i64 -> std.i64 = \n => if (n <= 1) { 1 } else { (fib (n - 1)) + (fib (n - 2)) };
+
+std.io.print (fib 42);
+std.io.println "";

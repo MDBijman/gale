@@ -130,6 +130,7 @@ namespace lexing
 		case '-': // -> - number
 			advance(range);
 			if (*range.first >= '0' && *range.first <= '9') goto number;
+			else if (*range.first == '>') { advance(range); return token_kind::RIGHT_ARROW; }
 			else return token_kind::MINUS;
 		case '=': // => = ==
 			advance(range);
