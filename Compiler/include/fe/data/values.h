@@ -8,7 +8,7 @@
 // Forward declaration of core ast
 namespace fe
 {
-	using node_id = size_t;
+	using node_id = uint32_t;
 }
 
 namespace fe

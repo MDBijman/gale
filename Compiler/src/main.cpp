@@ -158,6 +158,7 @@ int main(int argc, char** argv)
 	else if (mode == "other")
 	{
 		fe::pipeline p;
+		//fe::lexing_stage lexer;
 
 		// Init parse table
 		std::string code = 
@@ -167,7 +168,7 @@ import [std std.io]
 let x : std.i32 = 1;
 )c";
 
-		for (int i = 0; i < 100000; i++)
+		for (int i = 0; i < 1000000; i++)
 			code += "x = 2;\n";
 
 		while (true)

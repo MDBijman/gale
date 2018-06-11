@@ -150,7 +150,15 @@ namespace fe
 		number_type type;
 	};
 
-	using scope_index = size_t;
-	using node_id = size_t;
-	using data_index = size_t;
+	using scope_index = uint32_t;
+	constexpr scope_index no_scope = std::numeric_limits<uint32_t>::max();
+
+	using node_id = uint32_t;
+	constexpr node_id no_node = std::numeric_limits<uint32_t>::max();
+
+	using data_index = uint32_t;
+	constexpr data_index no_data = std::numeric_limits<uint32_t>::max();
+
+	using children_id = uint32_t;
+	constexpr children_id no_children = std::numeric_limits<uint32_t>::max();
 }

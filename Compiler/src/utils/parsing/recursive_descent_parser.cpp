@@ -32,7 +32,7 @@ namespace recursive_descent
 		return temp;
 	}
 
-	void token_stream_reader::consume(lexing::token_id t)
+	void token_stream_reader::consume(lexing::token_kind t)
 	{
 		auto n = next();
 		assert(n.value == t);
@@ -48,12 +48,12 @@ namespace recursive_descent
 	void link_child_parent(fe::node_id child, fe::node_id parent, tree& t)
 	{
 		t.get_node(child).parent_id = parent;
-		t.get_node(parent).children.push_back(child);
+		t.children_of(parent).push_back(child);
 	}
 
 	// Parsing
 
-	using namespace fe::tokens;
+	using lexing::token_kind;
 	using namespace fe::non_terminals;
 
 	fe::node_id parse_expression(tree& t, token_stream_reader& ts);
@@ -62,12 +62,12 @@ namespace recursive_descent
 	fe::node_id parse_type_operation(tree& t, token_stream_reader& ts);
 
 
-	std::vector<std::string_view> split_on(std::string_view identifier, char split_on)
+	std::vector<std::string_view> split_on(std::string_view id, char split_on)
 	{
 		std::vector<std::string_view> split_identifier;
 
-		std::string_view::iterator begin_word = identifier.begin();
-		for (auto it = identifier.begin(); it != identifier.end(); it++)
+		std::string_view::iterator begin_word = id.begin();
+		for (auto it = id.begin(); it != id.end(); it++)
 		{
 			if (*it == split_on)
 			{
@@ -78,7 +78,7 @@ namespace recursive_descent
 			}
 			else
 			{
-				if (it == identifier.end() - 1)
+				if (it == id.end() - 1)
 					split_identifier.push_back(std::string_view(&*begin_word, std::distance(begin_word, it)));
 			}
 		}
@@ -88,11 +88,11 @@ namespace recursive_descent
 	fe::node_id parse_identifier(tree& t, token_stream_reader& ts)
 	{
 		auto next = ts.next();
-		assert(next.value == identifier);
+		assert(next.value == lexing::token_kind::IDENTIFIER);
 		auto id = t.create_node(fe::ext_ast::node_type::IDENTIFIER);
 
-		t.get_data<fe::ext_ast::identifier>(*t.get_node(id).data_index).segments = split_on(next.text, '.');
-		t.get_data<fe::ext_ast::identifier>(*t.get_node(id).data_index).full = next.text;
+		t.get_data<fe::ext_ast::identifier>(t.get_node(id).data_index).segments = split_on(next.text, '.');
+		t.get_data<fe::ext_ast::identifier>(t.get_node(id).data_index).full = next.text;
 		return id;
 	}
 
@@ -100,7 +100,7 @@ namespace recursive_descent
 	{
 		auto module_declaration_id = t.create_node(fe::ext_ast::node_type::MODULE_DECLARATION);
 
-		ts.consume(module_keyword);
+		ts.consume(token_kind::MODULE_KEYWORD);
 		link_child_parent(parse_identifier(t, ts), module_declaration_id, t);
 
 		return module_declaration_id;
@@ -110,11 +110,11 @@ namespace recursive_descent
 	{
 		auto module_imports_id = t.create_node(fe::ext_ast::node_type::IMPORT_DECLARATION);
 
-		ts.consume(import_keyword);
-		ts.consume(left_square_bracket);
-		while (ts.peek().value == identifier)
+		ts.consume(token_kind::IMPORT_KEYWORD);
+		ts.consume(token_kind::LEFT_SQUARE_BRACKET);
+		while (ts.peek().value == token_kind::IDENTIFIER)
 			link_child_parent(parse_identifier(t, ts), module_imports_id, t);
-		ts.consume(right_square_bracket);
+		ts.consume(token_kind::RIGHT_SQUARE_BRACKET);
 
 		return module_imports_id;
 	}
@@ -123,7 +123,7 @@ namespace recursive_descent
 	{
 		auto reference_type_id = t.create_node(fe::ext_ast::node_type::REFERENCE_TYPE);
 
-		ts.consume(ref_keyword);
+		ts.consume(token_kind::REF_KEYWORD);
 		link_child_parent(parse_type_operation(t, ts), reference_type_id, t);
 
 		return reference_type_id;
@@ -133,8 +133,8 @@ namespace recursive_descent
 	{
 		auto array_type_id = t.create_node(fe::ext_ast::node_type::ARRAY_TYPE);
 
-		ts.consume(left_square_bracket);
-		ts.consume(right_square_bracket);
+		ts.consume(token_kind::LEFT_SQUARE_BRACKET);
+		ts.consume(token_kind::RIGHT_SQUARE_BRACKET);
 		link_child_parent(parse_type_operation(t, ts), array_type_id, t);
 
 		return array_type_id;
@@ -144,14 +144,14 @@ namespace recursive_descent
 	{
 		auto type_tuple_id = t.create_node(fe::ext_ast::node_type::ARRAY_TYPE);
 
-		ts.consume(left_bracket);
+		ts.consume(token_kind::LEFT_BRACKET);
 		link_child_parent(parse_type_operation(t, ts), type_tuple_id, t);
-		while (ts.peek().value == comma)
+		while (ts.peek().value == token_kind::COMMA)
 		{
-			ts.consume(comma);
+			ts.consume(token_kind::COMMA);
 			link_child_parent(parse_type_operation(t, ts), type_tuple_id, t);
 		}
-		ts.consume(right_bracket);
+		ts.consume(token_kind::RIGHT_BRACKET);
 
 		return type_tuple_id;
 	}
@@ -160,31 +160,31 @@ namespace recursive_descent
 	{
 		auto next = ts.peek();
 
-		if (next.value == identifier)
+		if (next.value == token_kind::IDENTIFIER)
 		{
 			auto type_atom_id = t.create_node(fe::ext_ast::node_type::TYPE_ATOM);
 			link_child_parent(parse_identifier(t, ts), type_atom_id, t);
 			return type_atom_id;
 		}
-		else if (next.value == left_bracket) return parse_type_tuple(t, ts);
+		else if (next.value == token_kind::LEFT_BRACKET) return parse_type_tuple(t, ts);
 		else throw error{ "Expected identifier or left_bracket" };
 	}
 
 	fe::node_id parse_type_operation(tree& t, token_stream_reader& ts)
 	{
 		auto next = ts.peek();
-		if (next.value == ref_keyword)         return parse_reference_type(t, ts);
-		else if (next.value == left_square_bracket) return parse_array_type(t, ts);
+		if (next.value == token_kind::REF_KEYWORD)         return parse_reference_type(t, ts);
+		else if (next.value == token_kind::LEFT_SQUARE_BRACKET) return parse_array_type(t, ts);
 		else
 		{
 			auto expression = parse_type_expression(t, ts);
 			next = ts.peek();
-			if (next.value == right_arrow)
+			if (next.value == token_kind::RIGHT_ARROW)
 			{
 				auto function_type_id = t.create_node(fe::ext_ast::node_type::FUNCTION_TYPE);
 
 				link_child_parent(expression, function_type_id, t);
-				ts.consume(right_arrow);
+				ts.consume(token_kind::RIGHT_ARROW);
 				link_child_parent(parse_type_operation(t, ts), function_type_id, t);
 
 				return function_type_id;
@@ -198,7 +198,7 @@ namespace recursive_descent
 		auto record_element_id = t.create_node(fe::ext_ast::node_type::RECORD_ELEMENT);
 
 		link_child_parent(parse_identifier(t, ts), record_element_id, t);
-		ts.consume(colon);
+		ts.consume(token_kind::COLON);
 		link_child_parent(parse_type_operation(t, ts), record_element_id, t);
 
 		return record_element_id;
@@ -208,14 +208,14 @@ namespace recursive_descent
 	{
 		auto record_id = t.create_node(fe::ext_ast::node_type::RECORD);
 
-		ts.consume(left_bracket);
+		ts.consume(token_kind::LEFT_BRACKET);
 		link_child_parent(parse_record_element(t, ts), record_id, t);
-		while (ts.peek().value == comma)
+		while (ts.peek().value == token_kind::COMMA)
 		{
-			ts.consume(comma);
+			ts.consume(token_kind::COMMA);
 			link_child_parent(parse_record_element(t, ts), record_id, t);
 		}
-		ts.consume(left_bracket);
+		ts.consume(token_kind::LEFT_BRACKET);
 
 		return record_id;
 	}
@@ -224,7 +224,7 @@ namespace recursive_descent
 	{
 		auto type_definition_id = t.create_node(fe::ext_ast::node_type::TYPE_DEFINITION);
 
-		ts.consume(type_keyword);
+		ts.consume(token_kind::TYPE_KEYWORD);
 		link_child_parent(parse_identifier(t, ts), type_definition_id, t);
 		link_child_parent(parse_record(t, ts), type_definition_id, t);
 
@@ -235,16 +235,16 @@ namespace recursive_descent
 	{
 		auto identifier_tuple_id = t.create_node(fe::ext_ast::node_type::IDENTIFIER_TUPLE);
 
-		ts.consume(left_bracket);
+		ts.consume(token_kind::LEFT_BRACKET);
 		link_child_parent(parse_identifier(t, ts), identifier_tuple_id, t);
-		ts.consume(comma);
+		ts.consume(token_kind::COMMA);
 		link_child_parent(parse_identifier(t, ts), identifier_tuple_id, t);
-		while (ts.peek().value == comma)
+		while (ts.peek().value == token_kind::COMMA)
 		{
-			ts.consume(comma);
+			ts.consume(token_kind::COMMA);
 			link_child_parent(parse_identifier(t, ts), identifier_tuple_id, t);
 		}
-		ts.consume(right_bracket);
+		ts.consume(token_kind::RIGHT_BRACKET);
 
 		return identifier_tuple_id;
 	}
@@ -252,20 +252,20 @@ namespace recursive_descent
 	fe::node_id parse_assignable(tree& t, token_stream_reader& ts)
 	{
 		auto next = ts.peek();
-		if (next.value == identifier)   return parse_identifier(t, ts);
-		else if (next.value == left_bracket) return parse_identifier_tuple(t, ts);
-		else throw error{ "Expected identifier or left bracket" };
+		if (next.value == token_kind::IDENTIFIER)   return parse_identifier(t, ts);
+		else if (next.value == token_kind::LEFT_BRACKET) return parse_identifier_tuple(t, ts);
+		else throw error{ "Expected token_kind::IDENTIFIER or left bracket" };
 	}
 
 	fe::node_id parse_declaration(tree& t, token_stream_reader& ts)
 	{
 		auto declaration_id = t.create_node(fe::ext_ast::node_type::DECLARATION);
 
-		ts.consume(let_keyword);
+		ts.consume(token_kind::LET_KEYWORD);
 		link_child_parent(parse_assignable(t, ts), declaration_id, t);
-		ts.consume(colon);
+		ts.consume(token_kind::COLON);
 		link_child_parent(parse_type_operation(t, ts), declaration_id, t);
-		ts.consume(equals);
+		ts.consume(token_kind::EQUALS);
 		link_child_parent(parse_operation(t, ts), declaration_id, t);
 
 		return declaration_id;
@@ -276,7 +276,7 @@ namespace recursive_descent
 		auto assignment_id = t.create_node(fe::ext_ast::node_type::ASSIGNMENT);
 
 		link_child_parent(parse_identifier(t, ts), assignment_id, t);
-		ts.consume(equals);
+		ts.consume(token_kind::EQUALS);
 		link_child_parent(parse_operation(t, ts), assignment_id, t);
 
 		return assignment_id;
@@ -287,21 +287,21 @@ namespace recursive_descent
 		std::vector<fe::node_id> res;
 
 		res.push_back(parse_statement(t, ts));
-		ts.consume(semicolon);
+		ts.consume(token_kind::SEMICOLON);
 
-		while (ts.peek().value != right_curly_bracket)
+		while (ts.peek().value != token_kind::RIGHT_CURLY_BRACKET)
 		{
 			// Either result expression or statement
 			auto element_id = parse_statement(t, ts);
 			auto& element_node = t.get_node(element_id);
 
 			auto first_after_element = ts.peek();
-			if (first_after_element.value == semicolon)
+			if (first_after_element.value == token_kind::SEMICOLON)
 			{
 				res.push_back(element_id);
-				ts.consume(semicolon);
+				ts.consume(token_kind::SEMICOLON);
 			}
-			else if (first_after_element.value == right_curly_bracket)
+			else if (first_after_element.value == token_kind::RIGHT_CURLY_BRACKET)
 			{
 				if (element_node.kind == fe::ext_ast::node_type::TYPE_DEFINITION
 					|| element_node.kind == fe::ext_ast::node_type::DECLARATION
@@ -326,10 +326,10 @@ namespace recursive_descent
 	{
 		auto block_id = t.create_node(fe::ext_ast::node_type::BLOCK);
 
-		ts.consume(left_curly_bracket);
+		ts.consume(token_kind::LEFT_CURLY_BRACKET);
 		auto elements = parse_block_elements(t, ts);
 		for (auto element_id : elements) link_child_parent(element_id, block_id, t);
-		ts.consume(right_curly_bracket);
+		ts.consume(token_kind::RIGHT_CURLY_BRACKET);
 
 		return block_id;
 	}
@@ -338,10 +338,10 @@ namespace recursive_descent
 	{
 		auto while_id = t.create_node(fe::ext_ast::node_type::WHILE_LOOP);
 
-		ts.consume(while_keyword);
-		ts.consume(left_bracket);
+		ts.consume(token_kind::WHILE_KEYWORD);
+		ts.consume(token_kind::LEFT_BRACKET);
 		link_child_parent(parse_operation(t, ts), while_id, t);
-		ts.consume(right_bracket);
+		ts.consume(token_kind::RIGHT_BRACKET);
 		link_child_parent(parse_block(t, ts), while_id, t);
 
 		return while_id;
@@ -350,21 +350,21 @@ namespace recursive_descent
 	fe::node_id parse_word(tree& t, token_stream_reader& ts)
 	{
 		auto next = ts.next();
-		assert(next.value == word);
+		assert(next.value == token_kind::WORD);
 		auto id = t.create_node(fe::ext_ast::node_type::STRING);
-		t.get_data<fe::string>(*t.get_node(id).data_index).value = next.text.substr(1, next.text.size() - 2);
+		t.get_data<fe::string>(t.get_node(id).data_index).value = next.text.substr(1, next.text.size() - 2);
 		return id;
 	}
 
 	fe::node_id parse_array_value(tree& t, token_stream_reader& ts)
 	{
 		auto array_value_id = t.create_node(fe::ext_ast::node_type::ARRAY_VALUE);
-		ts.consume(left_square_bracket);
+		ts.consume(token_kind::LEFT_SQUARE_BRACKET);
 		link_child_parent(parse_operation(t, ts), array_value_id, t);
 
-		while (ts.peek().value == comma)
+		while (ts.peek().value == token_kind::COMMA)
 		{
-			ts.consume(comma);
+			ts.consume(token_kind::COMMA);
 			link_child_parent(parse_operation(t, ts), array_value_id, t);
 		}
 		return array_value_id;
@@ -373,43 +373,43 @@ namespace recursive_descent
 	fe::node_id parse_number(tree& t, token_stream_reader& ts)
 	{
 		auto next = ts.next();
-		assert(next.value == number);
+		assert(next.value == token_kind::NUMBER);
 		auto id = t.create_node(fe::ext_ast::node_type::NUMBER);
-		t.get_data<fe::number>(*t.get_node(id).data_index).value = std::strtoll(next.text.data(), nullptr, 10);
+		t.get_data<fe::number>(t.get_node(id).data_index).value = std::strtoll(next.text.data(), nullptr, 10);
 		return id;
 	}
 
 	fe::node_id parse_true(tree& t, token_stream_reader& ts)
 	{
 		auto next = ts.next();
-		assert(next.value == true_keyword);
+		assert(next.value == token_kind::TRUE_KEYWORD);
 		auto id = t.create_node(fe::ext_ast::node_type::BOOLEAN);
-		t.get_data<fe::boolean>(*t.get_node(id).data_index).value = true;
+		t.get_data<fe::boolean>(t.get_node(id).data_index).value = true;
 		return id;
 	}
 
 	fe::node_id parse_false(tree& t, token_stream_reader& ts)
 	{
 		auto next = ts.next();
-		assert(next.value == false_keyword);
+		assert(next.value == token_kind::FALSE_KEYWORD);
 		auto id = t.create_node(fe::ext_ast::node_type::BOOLEAN);
-		t.get_data<fe::boolean>(*t.get_node(id).data_index).value = false;
+		t.get_data<fe::boolean>(t.get_node(id).data_index).value = false;
 		return id;
 	}
 
 	std::pair<fe::node_id, fe::node_id> parse_elseif_expr(tree& t, token_stream_reader& ts)
 	{
-		ts.consume(elseif_keyword);
-		ts.consume(left_bracket);
+		ts.consume(token_kind::ELSEIF_KEYWORD);
+		ts.consume(token_kind::LEFT_BRACKET);
 		auto test_id = parse_operation(t, ts);
-		ts.consume(right_bracket);
+		ts.consume(token_kind::RIGHT_BRACKET);
 		auto body_id = parse_block(t, ts);
 		return std::make_pair(test_id, body_id);
 	}
 
 	fe::node_id parse_else_expr(tree& t, token_stream_reader& ts)
 	{
-		ts.consume(else_keyword);
+		ts.consume(token_kind::ELSE_KEYWORD);
 		return parse_block(t, ts);
 	}
 
@@ -417,22 +417,22 @@ namespace recursive_descent
 	{
 		auto if_expr_id = t.create_node(fe::ext_ast::node_type::IF_STATEMENT);
 
-		ts.consume(if_keyword);
-		ts.consume(left_bracket);
+		ts.consume(token_kind::IF_KEYWORD);
+		ts.consume(token_kind::LEFT_BRACKET);
 		link_child_parent(parse_operation(t, ts), if_expr_id, t);
-		ts.consume(right_bracket);
+		ts.consume(token_kind::RIGHT_BRACKET);
 		link_child_parent(parse_block(t, ts), if_expr_id, t);
-		while (ts.peek().value == elseif_keyword)
+		while (ts.peek().value == token_kind::ELSEIF_KEYWORD)
 		{
-			ts.consume(elseif_keyword);
+			ts.consume(token_kind::ELSEIF_KEYWORD);
 			auto elseif = parse_elseif_expr(t, ts);
 			link_child_parent(elseif.first, if_expr_id, t);
 			link_child_parent(elseif.second, if_expr_id, t);
 		}
 
-		if (ts.peek().value == else_keyword)
+		if (ts.peek().value == token_kind::ELSE_KEYWORD)
 		{
-			ts.consume(else_keyword);
+			ts.consume(token_kind::ELSE_KEYWORD);
 			link_child_parent(parse_else_expr(t, ts), if_expr_id, t);
 		}
 
@@ -443,9 +443,9 @@ namespace recursive_descent
 	{
 		auto function_id = t.create_node(fe::ext_ast::node_type::FUNCTION);
 
-		ts.consume(backslash);
+		ts.consume(token_kind::BACKSLASH);
 		link_child_parent(parse_assignable(t, ts), function_id, t);
-		ts.consume(fat_right_arrow);
+		ts.consume(token_kind::FAT_RIGHT_ARROW);
 		link_child_parent(parse_expression(t, ts), function_id, t);
 
 		return function_id;
@@ -454,66 +454,66 @@ namespace recursive_descent
 	fe::node_id parse_expression(tree& t, token_stream_reader& ts)
 	{
 		auto next = ts.peek().value;
-		if (next == word) return parse_word(t, ts);
-		else if (next == left_bracket)
+		if (next == token_kind::WORD) return parse_word(t, ts);
+		else if (next == token_kind::LEFT_BRACKET)
 		{
 			// () becomes empty value tuple
-			ts.consume(left_bracket);
-			if (ts.peek().value == right_bracket)
+			ts.consume(token_kind::LEFT_BRACKET);
+			if (ts.peek().value == token_kind::RIGHT_BRACKET)
 			{
-				ts.consume(right_bracket);
+				ts.consume(token_kind::RIGHT_BRACKET);
 				return t.create_node(fe::ext_ast::node_type::TUPLE);
 			}
 
 			auto op_id = parse_operation(t, ts);
 
 			// ( op ) becomes brackets, not a tuple
-			if (ts.peek().value == right_bracket)
+			if (ts.peek().value == token_kind::RIGHT_BRACKET)
 			{
-				ts.consume(right_bracket);
+				ts.consume(token_kind::RIGHT_BRACKET);
 				return op_id;
 			}
 
 			// ( op , op (, op)* ) becomes value tuple
 			auto tuple_id = t.create_node(fe::ext_ast::node_type::TUPLE);
-			while (ts.peek().value == comma)
+			while (ts.peek().value == token_kind::COMMA)
 			{
-				ts.consume(comma);
+				ts.consume(token_kind::COMMA);
 				link_child_parent(parse_operation(t, ts), tuple_id, t);
 			}
-			ts.consume(right_bracket);
+			ts.consume(token_kind::RIGHT_BRACKET);
 
 			return tuple_id;
 		}
-		else if (next == left_curly_bracket) return parse_block(t, ts);
-		else if (next == left_square_bracket) return parse_array_value(t, ts);
-		else if (next == number) return parse_number(t, ts);
-		else if (next == identifier) return parse_identifier(t, ts);
-		else if (next == true_keyword) return parse_true(t, ts);
-		else if (next == false_keyword) return parse_false(t, ts);
-		else if (next == if_keyword) return parse_if_expr(t, ts);
-		else if (next == backslash) return parse_function(t, ts);
+		else if (next == token_kind::LEFT_CURLY_BRACKET) return parse_block(t, ts);
+		else if (next == token_kind::LEFT_SQUARE_BRACKET) return parse_array_value(t, ts);
+		else if (next == token_kind::NUMBER) return parse_number(t, ts);
+		else if (next == token_kind::IDENTIFIER) return parse_identifier(t, ts);
+		else if (next == token_kind::TRUE_KEYWORD) return parse_true(t, ts);
+		else if (next == token_kind::FALSE_KEYWORD) return parse_false(t, ts);
+		else if (next == token_kind::IF_KEYWORD) return parse_if_expr(t, ts);
+		else if (next == token_kind::BACKSLASH) return parse_function(t, ts);
 		else throw error{ "Expression error" };
 	}
 
 	fe::node_id parse_function_call(tree& t, token_stream_reader& ts)
 	{
-		if (ts.peek().value != identifier)
+		if (ts.peek().value != token_kind::IDENTIFIER)
 			return parse_expression(t, ts);
 
 		auto identifier_id = parse_identifier(t, ts);
 
 		auto next = ts.peek().value;
-		if (next == word
-			|| next == left_bracket
-			|| next == left_curly_bracket
-			|| next == left_square_bracket
-			|| next == number
-			|| next == identifier
-			|| next == true_keyword
-			|| next == false_keyword
-			|| next == if_keyword
-			|| next == backslash)
+		if (next == token_kind::WORD
+			|| next == token_kind::LEFT_BRACKET
+			|| next == token_kind::LEFT_CURLY_BRACKET
+			|| next == token_kind::LEFT_SQUARE_BRACKET
+			|| next == token_kind::NUMBER
+			|| next == token_kind::IDENTIFIER
+			|| next == token_kind::TRUE_KEYWORD
+			|| next == token_kind::FALSE_KEYWORD
+			|| next == token_kind::IF_KEYWORD
+			|| next == token_kind::BACKSLASH)
 		{
 			auto function_call_id = t.create_node(fe::ext_ast::node_type::FUNCTION_CALL);
 
@@ -527,12 +527,12 @@ namespace recursive_descent
 
 	fe::node_id parse_reference(tree& t, token_stream_reader& ts)
 	{
-		if (ts.peek().value != ref_keyword)
+		if (ts.peek().value != token_kind::REF_KEYWORD)
 			return parse_function_call(t, ts);
 
 		auto reference_id = t.create_node(fe::ext_ast::node_type::REFERENCE);
 
-		ts.consume(ref_keyword);
+		ts.consume(token_kind::REF_KEYWORD);
 		link_child_parent(parse_reference(t, ts), reference_id, t);
 
 		return reference_id;
@@ -542,32 +542,32 @@ namespace recursive_descent
 	{
 		auto lhs_id = parse_reference(t, ts);
 
-		if (ts.peek().value == mul)
+		if (ts.peek().value == token_kind::MUL)
 		{
 			auto term_id = t.create_node(fe::ext_ast::node_type::MULTIPLICATION);
 
 			link_child_parent(lhs_id, term_id, t);
-			ts.consume(plus);
+			ts.consume(token_kind::MUL);
 			link_child_parent(parse_term(t, ts), term_id, t);
 
 			return term_id;
 		}
-		else if (ts.peek().value == fe::tokens::div)
+		else if (ts.peek().value == token_kind::DIV)
 		{
 			auto term_id = t.create_node(fe::ext_ast::node_type::DIVISION);
 
 			link_child_parent(lhs_id, term_id, t);
-			ts.consume(fe::tokens::div);
+			ts.consume(token_kind::DIV);
 			link_child_parent(parse_term(t, ts), term_id, t);
 
 			return term_id;
 		}
-		else if (ts.peek().value == percentage)
+		else if (ts.peek().value == token_kind::PERCENTAGE)
 		{
 			auto term_id = t.create_node(fe::ext_ast::node_type::MODULO);
 
 			link_child_parent(lhs_id, term_id, t);
-			ts.consume(percentage);
+			ts.consume(token_kind::PERCENTAGE);
 			link_child_parent(parse_term(t, ts), term_id, t);
 
 			return term_id;
@@ -580,22 +580,22 @@ namespace recursive_descent
 	{
 		auto lhs_id = parse_term(t, ts);
 
-		if (ts.peek().value == plus)
+		if (ts.peek().value == token_kind::PLUS)
 		{
 			auto arithmetic_id = t.create_node(fe::ext_ast::node_type::ADDITION);
 
 			link_child_parent(lhs_id, arithmetic_id, t);
-			ts.consume(plus);
+			ts.consume(token_kind::PLUS);
 			link_child_parent(parse_arithmetic(t, ts), arithmetic_id, t);
 
 			return arithmetic_id;
 		}
-		else if (ts.peek().value == minus)
+		else if (ts.peek().value == token_kind::MINUS)
 		{
 			auto arithmetic_id = t.create_node(fe::ext_ast::node_type::SUBTRACTION);
 
 			link_child_parent(lhs_id, arithmetic_id, t);
-			ts.consume(minus);
+			ts.consume(token_kind::MINUS);
 			link_child_parent(parse_arithmetic(t, ts), arithmetic_id, t);
 
 			return arithmetic_id;
@@ -608,52 +608,52 @@ namespace recursive_descent
 	{
 		auto lhs_id = parse_arithmetic(t, ts);
 
-		if (ts.peek().value == two_equals)
+		if (ts.peek().value == token_kind::TWO_EQUALS)
 		{
 			auto comparison_id = t.create_node(fe::ext_ast::node_type::EQUALITY);
 
 			link_child_parent(lhs_id, comparison_id, t);
-			ts.consume(two_equals);
+			ts.consume(token_kind::TWO_EQUALS);
 			link_child_parent(parse_comparison(t, ts), comparison_id, t);
 
 			return comparison_id;
 		}
-		else if (ts.peek().value == lteq)
+		else if (ts.peek().value == token_kind::LTEQ)
 		{
 			auto comparison_id = t.create_node(fe::ext_ast::node_type::LESS_OR_EQ);
 
 			link_child_parent(lhs_id, comparison_id, t);
-			ts.consume(lteq);
+			ts.consume(token_kind::LTEQ);
 			link_child_parent(parse_comparison(t, ts), comparison_id, t);
 
 			return comparison_id;
 		}
-		else if (ts.peek().value == left_angle_bracket)
+		else if (ts.peek().value == token_kind::LEFT_ANGLE_BRACKET)
 		{
 			auto comparison_id = t.create_node(fe::ext_ast::node_type::LESS_THAN);
 
 			link_child_parent(lhs_id, comparison_id, t);
-			ts.consume(left_angle_bracket);
+			ts.consume(token_kind::LEFT_ANGLE_BRACKET);
 			link_child_parent(parse_comparison(t, ts), comparison_id, t);
 
 			return comparison_id;
 		}
-		else if (ts.peek().value == gteq)
+		else if (ts.peek().value == token_kind::GTEQ)
 		{
 			auto comparison_id = t.create_node(fe::ext_ast::node_type::GREATER_OR_EQ);
 
 			link_child_parent(lhs_id, comparison_id, t);
-			ts.consume(gteq);
+			ts.consume(token_kind::GTEQ);
 			link_child_parent(parse_comparison(t, ts), comparison_id, t);
 
 			return comparison_id;
 		}
-		else if (ts.peek().value == right_angle_bracket)
+		else if (ts.peek().value == token_kind::RIGHT_ANGLE_BRACKET)
 		{
 			auto comparison_id = t.create_node(fe::ext_ast::node_type::GREATER_THAN);
 
 			link_child_parent(lhs_id, comparison_id, t);
-			ts.consume(right_angle_bracket);
+			ts.consume(token_kind::RIGHT_ANGLE_BRACKET);
 			link_child_parent(parse_comparison(t, ts), comparison_id, t);
 
 			return comparison_id;
@@ -666,22 +666,22 @@ namespace recursive_descent
 	{
 		auto lhs_id = parse_comparison(t, ts);
 
-		if (ts.peek().value == and_keyword)
+		if (ts.peek().value == token_kind::AND)
 		{
 			auto logical_id = t.create_node(fe::ext_ast::node_type::AND);
 
 			link_child_parent(lhs_id, logical_id, t);
-			ts.consume(and_keyword);
+			ts.consume(token_kind::AND);
 			link_child_parent(parse_logical(t, ts), logical_id, t);
 
 			return logical_id;
 		}
-		else if (ts.peek().value == or_keyword)
+		else if (ts.peek().value == token_kind::OR)
 		{
 			auto logical_id = t.create_node(fe::ext_ast::node_type::OR);
 
 			link_child_parent(lhs_id, logical_id, t);
-			ts.consume(or_keyword);
+			ts.consume(token_kind::OR);
 			link_child_parent(parse_logical(t, ts), logical_id, t);
 
 			return logical_id;
@@ -694,9 +694,9 @@ namespace recursive_descent
 	{
 		auto branch_id = t.create_node(fe::ext_ast::node_type::MATCH_BRANCH);
 
-		ts.consume(vertical_line);
+		ts.consume(token_kind::VERTICAL_LINE);
 		link_child_parent(parse_operation(t, ts), branch_id, t);
-		ts.consume(right_arrow);
+		ts.consume(token_kind::RIGHT_ARROW);
 		link_child_parent(parse_operation(t, ts), branch_id, t);
 
 		return branch_id;
@@ -705,19 +705,19 @@ namespace recursive_descent
 	fe::node_id parse_match(tree& t, token_stream_reader& ts)
 	{
 		auto logical_id = parse_logical(t, ts);
-		if (ts.peek().value != match_keyword)
+		if (ts.peek().value != token_kind::MATCH_KEYWORD)
 			return logical_id;
 
 		auto match_id = t.create_node(fe::ext_ast::node_type::MATCH);
 		link_child_parent(logical_id, match_id, t);
 
-		ts.consume(match_keyword);
-		ts.consume(left_curly_bracket);
-		while (ts.peek().value == vertical_line)
+		ts.consume(token_kind::MATCH_KEYWORD);
+		ts.consume(token_kind::LEFT_CURLY_BRACKET);
+		while (ts.peek().value == token_kind::VERTICAL_LINE)
 		{
 			link_child_parent(parse_match_branch(t, ts), match_id, t);
 		}
-		ts.consume(right_curly_bracket);
+		ts.consume(token_kind::RIGHT_CURLY_BRACKET);
 
 		return match_id;
 	}
@@ -730,18 +730,18 @@ namespace recursive_descent
 	fe::node_id parse_statement(tree& t, token_stream_reader& ts)
 	{
 		auto next = ts.peek();
-		if (next.value == type_keyword)       return parse_type_definition(t, ts);
-		else if (next.value == let_keyword)   return parse_declaration(t, ts);
-		else if (next.value == identifier
-			&& ts.peek(1).value == equals)  return parse_assignment(t, ts);
-		else if (next.value == while_keyword) return parse_while_loop(t, ts);
+		if (next.value == token_kind::TYPE_KEYWORD)       return parse_type_definition(t, ts);
+		else if (next.value == token_kind::LET_KEYWORD)   return parse_declaration(t, ts);
+		else if (next.value == token_kind::IDENTIFIER
+			&& ts.peek(1).value == token_kind::EQUALS)  return parse_assignment(t, ts);
+		else if (next.value == token_kind::WHILE_KEYWORD) return parse_while_loop(t, ts);
 		else    /* operation */                return parse_operation(t, ts);
 	}
 
 	fe::node_id parse_stmt_semicln(tree& t, token_stream_reader& ts)
 	{
 		auto stmt = parse_statement(t, ts);
-		ts.consume(semicolon);
+		ts.consume(token_kind::SEMICOLON);
 		return stmt;
 	}
 
@@ -750,14 +750,14 @@ namespace recursive_descent
 		auto file_node = t.create_node(fe::ext_ast::node_type::BLOCK);
 		t.set_root_id(file_node);
 
-		if (ts.peek().value == module_keyword) link_child_parent(parse_module_declaration(t, ts), file_node, t);
+		if (ts.peek().value == token_kind::MODULE_KEYWORD) link_child_parent(parse_module_declaration(t, ts), file_node, t);
 
-		if (ts.peek().value == import_keyword) link_child_parent(parse_module_imports(t, ts), file_node, t);
+		if (ts.peek().value == token_kind::IMPORT_KEYWORD) link_child_parent(parse_module_imports(t, ts), file_node, t);
 
-		while (ts.peek().value != lexing::end_of_input)
+		while (ts.peek().value != token_kind::END_OF_INPUT)
 			link_child_parent(parse_stmt_semicln(t, ts), file_node, t);
 
-		ts.consume(lexing::end_of_input);
+		ts.consume(token_kind::END_OF_INPUT);
 
 		return file_node;
 	}
@@ -823,7 +823,7 @@ namespace recursive_descent
 
 	std::variant<tree, error> parse(token_stream_reader in)
 	{
-		tree t(fe::ext_ast::ast_allocation_hints{300150,0,0,100000,0,0,100000});
+		tree t(fe::ext_ast::ast_allocation_hints{3000012,1000006,0,0,1000006,0,0,1000002});
 
 		try
 		{

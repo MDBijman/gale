@@ -55,13 +55,13 @@ namespace fe
 				// Name scope
 				auto core_name_scope = ast.create_name_scope();
 				ast.get_name_scope(core_name_scope).merge(core_module.name_env());
-				ast.get_name_scope(*root_node.name_scope_id)
+				ast.get_name_scope(root_node.name_scope_id)
 					.add_module({ "_core" }, core_name_scope);
 
 				// Type scope
 				auto core_type_scope = ast.create_type_scope();
 				ast.get_type_scope(core_type_scope).merge(core_module.type_env());
-				ast.get_type_scope(*root_node.type_scope_id)
+				ast.get_type_scope(root_node.type_scope_id)
 					.add_module({ "_core" }, core_type_scope);
 			}
 
@@ -77,12 +77,12 @@ namespace fe
 
 					auto module_name_scope = ast.create_name_scope();
 					ast.get_name_scope(module_name_scope).merge(pos->second.name_env());
-					ast.get_name_scope(*root_node.name_scope_id)
+					ast.get_name_scope(root_node.name_scope_id)
 						.add_module(imp.segments, module_name_scope);
 
 					auto module_type_scope = ast.create_type_scope();
 					ast.get_type_scope(module_type_scope).merge(pos->second.type_env());
-					ast.get_type_scope(*root_node.type_scope_id)
+					ast.get_type_scope(root_node.type_scope_id)
 						.add_module(imp.segments, module_type_scope);
 				}
 			}
@@ -124,8 +124,8 @@ namespace fe
 
 			return scope(
 				core_ast.get_value_scope(*core_root_node.value_scope_id),
-				ast.get_type_scope(*root_node.type_scope_id),
-				ast.get_name_scope(*root_node.name_scope_id)
+				ast.get_type_scope(root_node.type_scope_id),
+				ast.get_name_scope(root_node.name_scope_id)
 			);
 		}
 

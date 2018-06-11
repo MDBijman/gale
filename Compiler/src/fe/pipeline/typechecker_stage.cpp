@@ -10,23 +10,21 @@ namespace fe::ext_ast
 	// Helper
 	static void copy_parent_scope(node& n, ast& ast)
 	{
-		assert(n.parent_id);
-		auto& parent = ast.get_node(*n.parent_id);
-		assert(parent.type_scope_id);
-		n.type_scope_id = *parent.type_scope_id;
+		auto& parent = ast.get_node(n.parent_id);
+		assert(parent.type_scope_id != no_scope);
+		n.type_scope_id = parent.type_scope_id;
 	}
 
 	// Typeof
 	types::unique_type typeof_identifier(node& n, ast& ast, type_constraints tc)
 	{
 		assert(n.kind == node_type::IDENTIFIER);
-		assert(n.children.size() == 0);
+		auto& children = ast.children_of(n);
+		assert(children.size() == 0);
 		copy_parent_scope(n, ast);
 
-		assert(n.type_scope_id);
-		auto& scope = ast.get_type_scope(*n.type_scope_id);
-		assert(n.data_index);
-		auto& id = ast.get_data<identifier>(*n.data_index);
+		auto& scope = ast.get_type_scope(n.type_scope_id);
+		auto& id = ast.get_data<identifier>(n.data_index);
 		auto& res = scope.resolve_variable(id, ast.type_scope_cb());
 		assert(res);
 
@@ -40,11 +38,11 @@ namespace fe::ext_ast
 	types::unique_type typeof_number(node& n, ast& ast, type_constraints tc)
 	{
 		assert(n.kind == node_type::NUMBER);
-		assert(n.children.size() == 0);
+		auto& children = ast.children_of(n);
+		assert(children.size() == 0);
 		copy_parent_scope(n, ast);
 
-		assert(n.data_index);
-		auto& number_data = ast.get_data<number>(*n.data_index);
+		auto& number_data = ast.get_data<number>(n.data_index);
 
 		if (tc.satisfied_by(types::i32()))
 		{
@@ -89,7 +87,7 @@ namespace fe::ext_ast
 	types::unique_type typeof_boolean(node& n, ast& ast, type_constraints tc)
 	{
 		assert(n.kind == node_type::BOOLEAN);
-		assert(n.children.size() == 0);
+		assert(ast.children_of(n).size() == 0);
 
 		auto t = types::unique_type(new types::boolean());
 		if (!tc.satisfied_by(*t))
@@ -100,7 +98,7 @@ namespace fe::ext_ast
 	types::unique_type typeof_string(node& n, ast& ast, type_constraints tc)
 	{
 		assert(n.kind == node_type::STRING);
-		assert(n.children.size() == 0);
+		assert(ast.children_of(n).size() == 0);
 		copy_parent_scope(n, ast);
 
 		auto t = types::unique_type(new types::str());
@@ -118,7 +116,8 @@ namespace fe::ext_ast
 		auto res = types::unique_type(pt);
 
 		size_t index = 0;
-		for (auto child : n.children)
+		auto& children = ast.children_of(n);
+		for (auto child : children)
 		{
 			auto& child_node = ast.get_node(child);
 			auto sub_constraint = tc.element(index);
@@ -141,14 +140,15 @@ namespace fe::ext_ast
 	types::unique_type typeof_function_call(node& n, ast& ast, type_constraints tc)
 	{
 		assert(n.kind == node_type::FUNCTION_CALL);
-		assert(n.children.size() == 2);
+		auto& children = ast.children_of(n);
+		assert(children.size() == 2);
 		copy_parent_scope(n, ast);
 
-		auto& id_node = ast.get_node(n.children[0]);
+		auto& id_node = ast.get_node(children[0]);
 		auto res = typeof(id_node, ast);
 		auto function_type = dynamic_cast<types::function_type*>(res.get());
 
-		auto& arg_node = ast.get_node(n.children[1]);
+		auto& arg_node = ast.get_node(children[1]);
 		auto arg_type = typeof(arg_node, ast, type_constraints({ equality_constraint(*function_type->from) }));
 
 		if (!tc.satisfied_by(*function_type->to))
@@ -163,25 +163,25 @@ namespace fe::ext_ast
 		assert(n.kind == node_type::BLOCK);
 		if (n.parent_id)
 		{
-			auto& parent = ast.get_node(*n.parent_id);
-			assert(parent.type_scope_id);
-			n.type_scope_id = ast.create_type_scope(*parent.type_scope_id);
+			auto& parent = ast.get_node(n.parent_id);
+			n.type_scope_id = ast.create_type_scope(parent.type_scope_id);
 		}
 		// If we dont have a parent we already have a type scope.
 		else
-			assert(n.type_scope_id);
+			assert(n.type_scope_id != no_scope);
 
-		if (n.children.size() == 0) return types::unique_type(new types::voidt());
+		auto& children = ast.children_of(n);
+		if (children.size() == 0) return types::unique_type(new types::voidt());
 
 		// Typecheck all children except for the last one, which might be a return value
-		for (auto i = 0; i < n.children.size() - 1; i++)
+		for (auto i = 0; i < children.size() - 1; i++)
 		{
-			auto& elem_node = ast.get_node(n.children[i]);
+			auto& elem_node = ast.get_node(children[i]);
 			typecheck(elem_node, ast);
 		}
 
 		types::unique_type t;
-		auto& last_node = ast.get_node(*n.children.rbegin());
+		auto& last_node = ast.get_node(*children.rbegin());
 		if (last_node.kind == node_type::BLOCK_RESULT)
 		{
 			// Block with return value
@@ -204,9 +204,10 @@ namespace fe::ext_ast
 	types::unique_type typeof_block_result(node& n, ast& ast, type_constraints tc)
 	{
 		assert(n.kind == node_type::BLOCK_RESULT);
-		assert(n.children.size() == 1);
+		auto& children = ast.children_of(n);
+		assert(children.size() == 1);
 		copy_parent_scope(n, ast);
-		auto& child = ast.get_node(n.children[0]);
+		auto& child = ast.get_node(children[0]);
 		auto t = typeof(child, ast);
 		if (!tc.satisfied_by(*t))
 			throw typecheck_error{ "block result type " + t->operator std::string() 
@@ -217,14 +218,14 @@ namespace fe::ext_ast
 	types::unique_type typeof_type_atom(node& n, ast& ast, type_constraints tc)
 	{
 		assert(n.kind == node_type::TYPE_ATOM);
-		assert(n.children.size() == 1);
+		auto& children = ast.children_of(n);
+		assert(children.size() == 1);
 		copy_parent_scope(n, ast);
 
-		auto& id_node = ast.get_node(n.children[0]);
-		assert(id_node.data_index);
-		auto& id_data = ast.get_data<identifier>(*id_node.data_index);
+		auto& id_node = ast.get_node(children[0]);
+		auto& id_data = ast.get_data<identifier>(id_node.data_index);
 
-		auto& scope = ast.get_type_scope(*n.type_scope_id);
+		auto& scope = ast.get_type_scope(n.type_scope_id);
 		auto res = scope.resolve_type(id_data, ast.type_scope_cb());
 		assert(res);
 		auto t = types::unique_type(res->type.copy());
@@ -237,14 +238,14 @@ namespace fe::ext_ast
 	types::unique_type typeof_binary_op(node& n, ast& ast, type_constraints tc)
 	{
 		assert(ext_ast::is_binary_op(n.kind));
-		assert(n.children.size() == 2);
+		auto& children = ast.children_of(n);
+		assert(children.size() == 2);
 		copy_parent_scope(n, ast);
 
-		assert(n.data_index);
-		auto& type_signature = ast.get_data<string>(*n.data_index);
+		auto& type_signature = ast.get_data<string>(n.data_index);
 
-		auto& lhs_node = ast.get_node(n.children[0]);
-		auto& rhs_node = ast.get_node(n.children[1]);
+		auto& lhs_node = ast.get_node(children[0]);
+		auto& rhs_node = ast.get_node(children[1]);
 
 		auto lhs_type = typeof(lhs_node, ast);
 		auto rhs_type = typeof(rhs_node, ast, type_constraints({ equality_constraint(*lhs_type) }));
@@ -308,11 +309,12 @@ namespace fe::ext_ast
 	types::unique_type typeof_record_element(node& n, ast& ast, type_constraints tc)
 	{
 		assert(n.kind == node_type::RECORD_ELEMENT);
-		assert(n.children.size() == 2);
+		auto& children = ast.children_of(n);
+		assert(children.size() == 2);
 		copy_parent_scope(n, ast);
 
 
-		auto& type_atom_child = ast.get_node(n.children[1]);
+		auto& type_atom_child = ast.get_node(children[1]);
 		assert(type_atom_child.kind == node_type::TYPE_ATOM);
 		auto t = typeof(type_atom_child, ast);
 
@@ -329,7 +331,8 @@ namespace fe::ext_ast
 		copy_parent_scope(n, ast);
 
 		std::vector<types::unique_type> types;
-		for (auto child : n.children)
+		auto& children = ast.children_of(n);
+		for (auto child : children)
 		{
 			auto& child_node = ast.get_node(child);
 			assert(child_node.kind == node_type::RECORD_ELEMENT);
@@ -349,13 +352,14 @@ namespace fe::ext_ast
 	{
 		assert(n.kind == node_type::FUNCTION_TYPE);
 		copy_parent_scope(n, ast);
-		assert(n.children.size() == 2);
+		auto& children = ast.children_of(n);
+		assert(children.size() == 2);
 
-		auto& from_node = ast.get_node(n.children[0]);
+		auto& from_node = ast.get_node(children[0]);
 		auto& from_constraint = tc.element(0).value_or(type_constraints());
 		auto& from_type = typeof(from_node, ast, from_constraint);
 
-		auto& to_node = ast.get_node(n.children[1]);
+		auto& to_node = ast.get_node(children[1]);
 		auto& to_constraint = tc.element(1).value_or(type_constraints());
 		auto& to_type = typeof(to_node, ast, to_constraint);
 
@@ -367,20 +371,21 @@ namespace fe::ext_ast
 		copy_parent_scope(assignable, ast);
 		if (assignable.kind == node_type::IDENTIFIER)
 		{
-			auto& data = ast.get_data<identifier>(*assignable.data_index);
+			auto& data = ast.get_data<identifier>(assignable.data_index);
 			// #todo with better constraint solving this will be cleaner
-			ast.get_type_scope(*assignable.type_scope_id).set_type(data.full, types::unique_type(t.copy()));
+			ast.get_type_scope(assignable.type_scope_id).set_type(data.full, types::unique_type(t.copy()));
 		}
 		else if (assignable.kind == node_type::IDENTIFIER_TUPLE)
 		{
 			auto tuple_t = dynamic_cast<types::product_type*>(&t);
 
 			auto i = 0;
-			for (auto& child : assignable.children)
+			auto& children = ast.children_of(assignable);
+			for (auto& child : children)
 			{
-				auto& data = ast.get_data<identifier>(*assignable.data_index);
+				auto& data = ast.get_data<identifier>(assignable.data_index);
 				// #todo with better constraint solving this will be cleaner
-				ast.get_type_scope(*assignable.type_scope_id).set_type(data.full, 
+				ast.get_type_scope(assignable.type_scope_id).set_type(data.full, 
 					types::unique_type(tuple_t->product[i]->copy()));
 				i++;
 			}
@@ -390,21 +395,22 @@ namespace fe::ext_ast
 	types::unique_type typeof_function(node& n, ast& ast, type_constraints tc)
 	{
 		assert(n.kind == node_type::FUNCTION);
-		assert(n.children.size() == 2);
+		auto& children = ast.children_of(n);
+		assert(children.size() == 2);
 
-		auto& parent = ast.get_node(n.parent_id.value());
-		n.type_scope_id = ast.create_type_scope(*parent.type_scope_id);
+		auto& parent = ast.get_node(n.parent_id);
+		n.type_scope_id = ast.create_type_scope(parent.type_scope_id);
 
 		auto& constraint = std::get<equality_constraint>(tc.constraints[0]);
 		auto function_constraint = dynamic_cast<types::function_type*>(&constraint.to);
 
-		auto& assignable_node = ast.get_node(n.children.at(0));
+		auto& assignable_node = ast.get_node(children.at(0));
 		assert(assignable_node.kind == node_type::IDENTIFIER || assignable_node.kind == node_type::IDENTIFIER_TUPLE);
 
 		declare_assignable(assignable_node, ast, *function_constraint->from);
 
 		// Resolve body
-		auto to_type = typeof(ast.get_node(n.children[1]), ast);
+		auto to_type = typeof(ast.get_node(children[1]), ast);
 		auto func_type = 
 			types::unique_type(new types::function_type(types::unique_type(function_constraint->from->copy()), std::move(to_type)));
 
@@ -420,7 +426,8 @@ namespace fe::ext_ast
 		assert(n.kind == node_type::TYPE_TUPLE);
 		copy_parent_scope(n, ast);
 		std::vector<types::unique_type> types;
-		for (auto& child : n.children)
+		auto& children = ast.children_of(n);
+		for (auto& child : children)
 		{
 			types.push_back(typeof(ast.get_node(child), ast, tc));
 		}
@@ -430,14 +437,15 @@ namespace fe::ext_ast
 	types::unique_type typeof_match_branch(node& n, ast& ast, type_constraints tc)
 	{
 		assert(n.kind == node_type::MATCH_BRANCH);
-		assert(n.children.size() == 2);
+		auto& children = ast.children_of(n);
+		assert(children.size() == 2);
 		copy_parent_scope(n, ast);
 
-		auto& test_node = ast.get_node(n.children[0]);
+		auto& test_node = ast.get_node(children[0]);
 		auto required_test_type = types::boolean();
 		auto test_type = typeof(test_node, ast, type_constraints({ equality_constraint(required_test_type) }));
 
-		auto& code_node = ast.get_node(n.children[1]);
+		auto& code_node = ast.get_node(children[1]);
 		auto code_type = typeof(code_node, ast);
 		if (!tc.satisfied_by(*code_type))
 			throw typecheck_error{ "match branch type " + code_type->operator std::string()
@@ -449,19 +457,20 @@ namespace fe::ext_ast
 	{
 		assert(n.kind == node_type::MATCH);
 		copy_parent_scope(n, ast);
+		auto& children = ast.children_of(n);
 
-		if (n.children.size() <= 1) throw typecheck_error{ "Match must contain at least one branch" };
+		if (children.size() <= 1) throw typecheck_error{ "Match must contain at least one branch" };
 
-		auto& first_branch = ast.get_node(n.children[1]);
+		auto& first_branch = ast.get_node(children[1]);
 		types::unique_type first_type = typeof(first_branch, ast);
 
 		if (!tc.satisfied_by(*first_type))
 			throw typecheck_error{ "Match expression type " + first_type->operator std::string()
 				+ " does not satisfy constraints " + tc.operator std::string() };
 
-		for (auto i = 2; i < n.children.size(); i++)
+		for (auto i = 2; i < children.size(); i++)
 		{
-			auto& branch_node = ast.get_node(n.children[i]);
+			auto& branch_node = ast.get_node(children[i]);
 			auto branch_type = typeof(branch_node, ast, type_constraints({ equality_constraint(*first_type) }));
 		}
 		return first_type;
@@ -472,15 +481,16 @@ namespace fe::ext_ast
 	void typecheck_function_call(node& n, ast& ast)
 	{
 		assert(n.kind == node_type::FUNCTION_CALL);
-		assert(n.children.size() == 2);
+		auto& children = ast.children_of(n);
+		assert(children.size() == 2);
 		copy_parent_scope(n, ast);
 
-		auto& id_node = ast.get_node(n.children[0]);
+		auto& id_node = ast.get_node(children[0]);
 		auto res = typeof(id_node, ast);
 		auto function_type = dynamic_cast<types::function_type*>(res.get());
 		auto& from_type = *function_type->from;
 
-		auto& param_node = ast.get_node(n.children[1]);
+		auto& param_node = ast.get_node(children[1]);
 		auto param_type = typeof(param_node, ast);
 		// #todo replace with throws
 		assert(from_type == &*param_type);
@@ -493,20 +503,20 @@ namespace fe::ext_ast
 		assert(n.kind == node_type::BLOCK);
 		if (n.parent_id)
 		{
-			auto& parent = ast.get_node(*n.parent_id);
-			assert(parent.type_scope_id);
-			n.type_scope_id = ast.create_type_scope(*parent.type_scope_id);
+			auto& parent = ast.get_node(n.parent_id);
+			n.type_scope_id = ast.create_type_scope(parent.type_scope_id);
 		}
 		else
-			assert(n.type_scope_id);
+			assert(n.type_scope_id != no_scope);
 
-		for (auto element : n.children)
+		auto& children = ast.children_of(n);
+		for (auto element : children)
 		{
 			auto& elem_node = ast.get_node(element);
 			typecheck(elem_node, ast);
 		}
 
-		if (n.children.size() > 0)
+		if (children.size() > 0)
 		{
 			// #todo set this type to the last child type if it is an expression, otherwise void
 		}
@@ -515,17 +525,17 @@ namespace fe::ext_ast
 	void declare_record_element(node& n, ast& ast)
 	{
 		assert(n.kind == node_type::RECORD_ELEMENT);
-		assert(n.children.size() == 2);
+		auto& children = ast.children_of(n);
+		assert(children.size() == 2);
 		copy_parent_scope(n, ast);
 
-		auto& type_node = ast.get_node(n.children[0]);
+		auto& type_node = ast.get_node(children[0]);
 		auto atom_type = typeof(type_node, ast);
 
-		auto& id_node = ast.get_node(n.children[1]);
-		assert(id_node.data_index);
-		auto& id_data = ast.get_data<identifier>(*id_node.data_index);
+		auto& id_node = ast.get_node(children[1]);
+		auto& id_data = ast.get_data<identifier>(id_node.data_index);
 
-		auto& scope = ast.get_type_scope(*n.type_scope_id);
+		auto& scope = ast.get_type_scope(n.type_scope_id);
 		scope.set_type(id_data.segments[0], std::move(atom_type));
 	}
 
@@ -534,7 +544,8 @@ namespace fe::ext_ast
 		assert(n.kind == node_type::RECORD);
 		copy_parent_scope(n, ast);
 
-		for (auto child : n.children)
+		auto& children = ast.children_of(n);
+		for (auto child : children)
 		{
 			auto& child_node = ast.get_node(child);
 			declare_record_element(child_node, ast);
@@ -544,18 +555,18 @@ namespace fe::ext_ast
 	void typecheck_type_definition(node& n, ast& ast)
 	{
 		assert(n.kind == node_type::TYPE_DEFINITION);
-		assert(n.children.size() == 2);
+		auto& children = ast.children_of(n);
+		assert(children.size() == 2);
 		copy_parent_scope(n, ast);
 
-		auto& id_node = ast.get_node(n.children[0]);
-		assert(id_node.data_index);
-		auto& id_data = ast.get_data<identifier>(*id_node.data_index);
+		auto& id_node = ast.get_node(children[0]);
+		auto& id_data = ast.get_data<identifier>(id_node.data_index);
 		assert(id_data.segments.size() == 1);
 
-		auto& type_node = ast.get_node(n.children[1]);
+		auto& type_node = ast.get_node(children[1]);
 		auto rhs = typeof(type_node, ast);
 
-		auto& scope = ast.get_type_scope(*n.type_scope_id);
+		auto& scope = ast.get_type_scope(n.type_scope_id);
 		scope.define_type(id_data.segments[0], types::unique_type(rhs->copy()));
 
 		auto function_type = types::unique_type(new types::function_type(
@@ -593,31 +604,32 @@ namespace fe::ext_ast
 	{
 		assert(n.kind == node_type::DECLARATION);
 		// id type value
-		assert(n.children.size() == 3);
+		auto& children = ast.children_of(n);
+		assert(children.size() == 3);
 		copy_parent_scope(n, ast);
 
-		auto& type_node = ast.get_node(n.children[1]);
+		auto& type_node = ast.get_node(children[1]);
 		auto& type = typeof(type_node, ast);
 
-		auto& val_node = ast.get_node(n.children[2]);
+		auto& val_node = ast.get_node(children[2]);
 		auto val_type = typeof(val_node, ast, type_constraints({ equality_constraint(*type) }));
 
-		auto& scope = ast.get_type_scope(*n.type_scope_id);
-		auto& lhs_node = ast.get_node(n.children[0]);
+		auto& scope = ast.get_type_scope(n.type_scope_id);
+		auto& lhs_node = ast.get_node(children[0]);
 		if (lhs_node.kind == node_type::IDENTIFIER)
 		{
-			assert(lhs_node.data_index);
-			auto& id_data = ast.get_data<identifier>(*lhs_node.data_index);
+			auto& id_data = ast.get_data<identifier>(lhs_node.data_index);
 			assert(id_data.segments.size() == 1);
 			scope.set_type(id_data.segments[0], std::move(val_type));
 		}
 		else if (lhs_node.kind == node_type::IDENTIFIER_TUPLE)
 		{
 			size_t i = 0;
-			for (auto child : lhs_node.children)
+			auto& lhs_children = ast.children_of(lhs_node);
+			for (auto child : lhs_children)
 			{
 				auto& child_node = ast.get_node(child);
-				auto& child_id = ast.get_data<identifier>(*child_node.data_index);
+				auto& child_id = ast.get_data<identifier>(child_node.data_index);
 
 				auto res = resolve_offsets(*val_type, ast, std::vector<size_t>{ i });
 				assert(res);
@@ -634,20 +646,20 @@ namespace fe::ext_ast
 	void typecheck_assignment(node& n, ast& ast)
 	{
 		assert(n.kind == node_type::ASSIGNMENT);
+		auto& children = ast.children_of(n);
 		// id value
-		assert(n.children.size() == 2);
+		assert(children.size() == 2);
 		copy_parent_scope(n, ast);
 
-		auto& scope = ast.get_type_scope(*n.type_scope_id);
+		auto& scope = ast.get_type_scope(n.type_scope_id);
 
-		auto& id_node = ast.get_node(n.children[0]);
-		assert(id_node.data_index);
-		auto& id_data = ast.get_data<identifier>(*id_node.data_index);
+		auto& id_node = ast.get_node(children[0]);
+		auto& id_data = ast.get_data<identifier>(id_node.data_index);
 		auto res = scope.resolve_variable(id_data, ast.type_scope_cb());
 		assert(res);
 		auto& id_type = res->type;
 
-		auto& value_node = ast.get_node(n.children[1]);
+		auto& value_node = ast.get_node(children[1]);
 		auto value_type = typeof(value_node, ast, type_constraints({ equality_constraint(id_type) }));
 
 		assert(id_type == &*value_type);
@@ -656,9 +668,10 @@ namespace fe::ext_ast
 	void typecheck_reference(node& n, ast& ast)
 	{
 		assert(n.kind == node_type::REFERENCE);
-		assert(n.children.size() == 1);
+		auto& children = ast.children_of(n);
+		assert(children.size() == 1);
 
-		auto& child_node = ast.get_node(n.children[0]);
+		auto& child_node = ast.get_node(children[0]);
 		typecheck(child_node, ast);
 		// #todo set this type to reference type
 	}
@@ -666,9 +679,10 @@ namespace fe::ext_ast
 	void typecheck_array_value(node& n, ast& ast)
 	{
 		assert(n.kind == node_type::ARRAY_VALUE);
-		if (n.children.size() > 0)
+		auto& children = ast.children_of(n);
+		if (children.size() > 0)
 		{
-			for (auto child : n.children)
+			for (auto child : children)
 			{
 				auto& child_node = ast.get_node(child);
 				typecheck(child_node, ast);
@@ -685,15 +699,16 @@ namespace fe::ext_ast
 	{
 		assert(n.kind == node_type::WHILE_LOOP);
 		// test body
-		assert(n.children.size() == 2);
+		auto& children = ast.children_of(n);
+		assert(children.size() == 2);
 		copy_parent_scope(n, ast);
 
-		auto& test_node = ast.get_node(n.children[0]);
+		auto& test_node = ast.get_node(children[0]);
 		auto type = typeof(test_node, ast);
 
 		assert(*type == &types::boolean());
 
-		auto& body_node = ast.get_node(n.children[1]);
+		auto& body_node = ast.get_node(children[1]);
 		typecheck(body_node, ast);
 	}
 
@@ -701,25 +716,26 @@ namespace fe::ext_ast
 	{
 		assert(n.kind == node_type::IF_STATEMENT);
 		// test body
-		assert(n.children.size() >= 2);
+		auto& children = ast.children_of(n);
+		assert(children.size() >= 2);
 		copy_parent_scope(n, ast);
 
-		auto& if_test_type = typeof(ast.get_node(n.children[0]), ast);
-		auto& if_block_type = typeof(ast.get_node(n.children[1]), ast);
+		auto& if_test_type = typeof(ast.get_node(children[0]), ast);
+		auto& if_block_type = typeof(ast.get_node(children[1]), ast);
 
-		bool contains_else = n.children.size() % 2 == 1 ? true : false;
-		size_t size_excluding_else = n.children.size() - (n.children.size() % 2);
+		bool contains_else = children.size() % 2 == 1 ? true : false;
+		size_t size_excluding_else = children.size() - (children.size() % 2);
 		for (int i = 2; i < size_excluding_else; i += 2)
 		{
-			auto& test_type = typeof(ast.get_node(n.children[i]), ast);
-			auto& block_type = typeof(ast.get_node(n.children[i + 1]), ast);
+			auto& test_type = typeof(ast.get_node(children[i]), ast);
+			auto& block_type = typeof(ast.get_node(children[i + 1]), ast);
 			assert(*test_type == &types::boolean());
 			assert(*block_type == &*if_block_type);
 		}
 
 		if (contains_else)
 		{
-			auto& else_block_type = typeof(ast.get_node(n.children.back()), ast);
+			auto& else_block_type = typeof(ast.get_node(children.back()), ast);
 			assert(*else_block_type == &*if_block_type);
 		}
 	}
@@ -749,22 +765,22 @@ namespace fe::ext_ast
 	{
 		switch (n.kind)
 		{
-		case node_type::IDENTIFIER:        return typeof_identifier(n, ast, tc);
-		case node_type::NUMBER:            return typeof_number(n, ast, tc);
-		case node_type::BOOLEAN:           return typeof_boolean(n, ast, tc);
-		case node_type::STRING:            return typeof_string(n, ast, tc);
-		case node_type::TUPLE:             return typeof_tuple(n, ast, tc);
-		case node_type::FUNCTION_CALL:     return typeof_function_call(n, ast, tc);
-		case node_type::BLOCK:             return typeof_block(n, ast, tc);
-		case node_type::BLOCK_RESULT:      return typeof_block_result(n, ast, tc);
-		case node_type::TYPE_ATOM:         return typeof_type_atom(n, ast, tc);
-		case node_type::RECORD_ELEMENT:    return typeof_record_element(n, ast, tc);
-		case node_type::RECORD:            return typeof_record(n, ast, tc);
-		case node_type::FUNCTION_TYPE:     return typeof_function_type(n, ast, tc);
-		case node_type::FUNCTION:          return typeof_function(n, ast, tc);
-		case node_type::TYPE_TUPLE:        return typeof_type_tuple(n, ast, tc);
-		case node_type::MATCH_BRANCH:      return typeof_match_branch(n, ast, tc);
-		case node_type::MATCH:             return typeof_match(n, ast, tc);
+		case node_type::IDENTIFIER:      return typeof_identifier(n, ast, tc);
+		case node_type::NUMBER:          return typeof_number(n, ast, tc);
+		case node_type::BOOLEAN:         return typeof_boolean(n, ast, tc);
+		case node_type::STRING:          return typeof_string(n, ast, tc);
+		case node_type::TUPLE:           return typeof_tuple(n, ast, tc);
+		case node_type::FUNCTION_CALL:   return typeof_function_call(n, ast, tc);
+		case node_type::BLOCK:           return typeof_block(n, ast, tc);
+		case node_type::BLOCK_RESULT:    return typeof_block_result(n, ast, tc);
+		case node_type::TYPE_ATOM:       return typeof_type_atom(n, ast, tc);
+		case node_type::RECORD_ELEMENT:  return typeof_record_element(n, ast, tc);
+		case node_type::RECORD:          return typeof_record(n, ast, tc);
+		case node_type::FUNCTION_TYPE:   return typeof_function_type(n, ast, tc);
+		case node_type::FUNCTION:        return typeof_function(n, ast, tc);
+		case node_type::TYPE_TUPLE:      return typeof_type_tuple(n, ast, tc);
+		case node_type::MATCH_BRANCH:    return typeof_match_branch(n, ast, tc);
+		case node_type::MATCH:           return typeof_match(n, ast, tc);
 		default:
 			if (ext_ast::is_binary_op(n.kind)) return typeof_binary_op(n, ast, tc);
 
