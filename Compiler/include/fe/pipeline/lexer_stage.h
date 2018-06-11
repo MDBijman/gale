@@ -8,9 +8,9 @@ namespace fe
 	class lexing_stage 
 	{
 	public:
-		std::optional<lexing::error> lex(const std::string& in, lexing::token_stream_writer writer) const
+		std::variant<lexing::error, std::vector<lexing::token>> lex(const std::string& in) const
 		{
-			return lexer.parse(in, writer);
+			return lexer.parse(in);
 		}
 
 	private:

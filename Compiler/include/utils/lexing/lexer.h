@@ -233,9 +233,11 @@ namespace lexing
 	{
 	public:
 		// Takes a string (e.g. file contents) and returns a token vector or an error code
-		std::optional<error> parse(const std::string& input_string, token_stream_writer writer) const
+		std::variant<error, std::vector<lexing::token>> parse(const std::string& input_string) const
 		{
 			lexer_range range{ input_string.begin(), input_string.end() };
+			std::vector<lexing::token> result;
+			result.reserve(input_string.size());
 
 			// Offset into program from beginning for error reporting
 			uint32_t line_count = 1;
@@ -255,9 +257,8 @@ namespace lexing
 					++range.first;
 					if (range.first == range.second)
 					{
-						writer.write(token{ token_kind::END_OF_INPUT, "" });
-						writer.flush();
-						return std::nullopt;
+						result.push_back(token{ token_kind::END_OF_INPUT, "" });
+						return result;
 					}
 				}
 
@@ -283,12 +284,11 @@ namespace lexing
 				character_count += static_cast<uint32_t>(token_size);
 
 				const std::string_view tokenized(&*before_match, token_size);
-				writer.write(token{ id, tokenized });
+				result.push_back(token{ id,tokenized });
 			}
 
-			writer.write(token{ token_kind::END_OF_INPUT, "" });
-			writer.flush();
-			return std::nullopt;
+			result.push_back(token{ token_kind::END_OF_INPUT, "" });
+			return result;
 		}
 	};
 }

@@ -8,7 +8,7 @@ namespace fe
 		recursive_descent::generate();
 	}
 
-	std::variant<ext_ast::ast, parse_error> parsing_stage::parse(recursive_descent::token_stream_reader in)
+	std::variant<ext_ast::ast, parse_error> parsing_stage::parse(std::vector<lexing::token>& in)
 	{
 		auto res = recursive_descent::parse(in);
 		if (std::holds_alternative<ext_ast::ast>(res)) return std::move(std::get<ext_ast::ast>(res));

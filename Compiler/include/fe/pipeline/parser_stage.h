@@ -12,6 +12,6 @@ namespace fe
 	{
 	public:
 		parsing_stage();
-		std::variant<ext_ast::ast, parse_error> parse(recursive_descent::token_stream_reader in);
+		std::variant<ext_ast::ast, parse_error> parse(std::vector<lexing::token>& in);
 	};
 }

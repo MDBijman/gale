@@ -25,13 +25,14 @@ namespace fe
 
 		ext_ast::ast parse(const std::string& code) 
 		{
-			memory::pipe<std::vector<lexing::token>> buffer;
+			//memory::pipe<std::vector<lexing::token>> buffer;
 
 			// Create lexer in another thread
-			std::thread lex_thread([&code, &buffer, this]() { lexer.lex(code, lexing::token_stream_writer(buffer)); });
+			//std::thread lex_thread([&code, &buffer, this]() { lexer.lex(code, lexing::token_stream_writer(buffer)); });
+			auto res = lexer.lex(code);
 			// Run parser in this thread
-			auto parse_output = parser.parse(recursive_descent::token_stream_reader(buffer));
-			lex_thread.join();
+			auto parse_output = parser.parse(std::get<std::vector<lexing::token>>(res));
+			//lex_thread.join();
 
 			if (std::holds_alternative<fe::parse_error>(parse_output))
 				throw std::get<fe::parse_error>(parse_output);
