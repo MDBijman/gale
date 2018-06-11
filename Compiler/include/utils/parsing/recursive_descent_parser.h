@@ -7,12 +7,10 @@ namespace recursive_descent
 {
 	class token_stream_reader
 	{
-		memory::pipe<std::vector<lexing::token>>& in;
-		std::vector<lexing::token> curr;
-		void wait_for_pipe();
-
+		std::vector<lexing::token>& in;
+		std::vector<lexing::token>::iterator curr;
 	public:
-		token_stream_reader(memory::pipe<std::vector<lexing::token>>& in);
+		token_stream_reader(std::vector<lexing::token>& in);
 
 		const lexing::token& peek(int n = 0);
 
@@ -32,5 +30,5 @@ namespace recursive_descent
 	};
 
 	void generate();
-	std::variant<tree, error> parse(token_stream_reader in);
+	std::variant<tree, error> parse(std::vector<lexing::token>& in);
 }

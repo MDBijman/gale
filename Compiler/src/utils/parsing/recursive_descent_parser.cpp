@@ -8,28 +8,18 @@ namespace recursive_descent
 {
 	// Token Stream Reader
 
-	void token_stream_reader::wait_for_pipe()
-	{
-		auto temp = std::move(curr);
-		curr = in.receive();
-		std::reverse(curr.begin(), curr.end());
-		for (auto&& elem : temp) curr.push_back(elem);
-	}
-
-	token_stream_reader::token_stream_reader(memory::pipe<std::vector<lexing::token>>& in) : in(in) {}
+	token_stream_reader::token_stream_reader(std::vector<lexing::token>& in) : in(in), curr(in.begin()) {}
 
 	const lexing::token& token_stream_reader::peek(int n)
 	{
-		if (curr.size() <= n) wait_for_pipe();
-		return *(curr.rbegin() + n);
+		assert(curr + n != in.end());
+		return *(curr + n);
 	}
 
 	lexing::token token_stream_reader::next()
 	{
-		if (curr.size() == 0) wait_for_pipe();
-		auto temp = std::move(curr.back());
-		curr.pop_back();
-		return temp;
+		assert(curr != in.end());
+		return *curr++;
 	}
 
 	void token_stream_reader::consume(lexing::token_kind t)
@@ -40,7 +30,7 @@ namespace recursive_descent
 
 	bool token_stream_reader::has_next()
 	{
-		return curr.size() > 0;
+		return curr != in.end();
 	}
 
 	// Utility
@@ -821,13 +811,13 @@ namespace recursive_descent
 		or_expr = last_non_terminal++;
 	}
 
-	std::variant<tree, error> parse(token_stream_reader in)
+	std::variant<tree, error> parse(std::vector<lexing::token>& in)
 	{
 		tree t(fe::ext_ast::ast_allocation_hints{3000012,1000006,0,0,1000006,0,0,1000002});
 
 		try
 		{
-			parse_file(t, in);
+			parse_file(t, token_stream_reader(in));
 			return t;
 		}
 		catch (error e)
