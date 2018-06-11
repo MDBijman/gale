@@ -2,20 +2,6 @@
 
 namespace fe
 {
-	namespace tokens
-	{
-		lexing::token_id
-			identifier, word, number, right_arrow,
-			left_bracket, right_bracket, left_angle_bracket, right_angle_bracket, 
-			semicolon, left_curly_bracket, right_curly_bracket, comma, left_square_bracket, right_square_bracket, 
-			vertical_line, plus, minus, mul, div, colon, dot, equals, percentage, lteq, gteq,
-			fat_right_arrow, backslash, and_keyword, or_keyword, two_equals,
-			type_keyword, match_keyword, module_keyword, public_keyword,
-			ref_keyword, let_keyword, import_keyword, while_keyword,
-			true_keyword, false_keyword, if_keyword, elseif_keyword, else_keyword
-			;
-	}
-
 	namespace non_terminals
 	{
 		recursive_descent::non_terminal

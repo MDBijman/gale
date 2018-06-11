@@ -14,7 +14,7 @@
 
 namespace fe::ext_ast
 {
-	enum class node_type
+	enum class node_type : unsigned char
 	{
 		ASSIGNMENT,
 		TUPLE,
@@ -88,28 +88,30 @@ namespace fe::ext_ast
 			|| kind == node_type::OR);
 	}
 
-	struct node
+	constexpr bool is_terminal_node(node_type kind)
 	{
-		node() {}
-		node(node_id id, node_type t) :
-			id(id), kind(t) {}
-		node(node_id id, node_type t, data_index i) :
-			id(id), kind(t), data_index(i) {}
-		node(node_id id, node_type t, data_index i, std::vector<node_id> children) :
-			id(id), kind(t), data_index(i), children(children) {}
-		node(node_id id, node_type t, std::vector<node_id> children) :
-			id(id), kind(t), children(children) {}
+		return (kind == node_type::IDENTIFIER
+			|| kind == node_type::STRING
+			|| kind == node_type::BOOLEAN
+			|| kind == node_type::NUMBER);
+	}
 
+#pragma pack(push, 1)
+	struct node 
+	{
 		node_type kind;
 		node_id id;
-		std::vector<node_id> children;
-		std::optional<node_id> parent_id;
+		node_id children_id;
+		node_id parent_id;
 
-		std::optional<types::unique_type> type;
-		std::optional<data_index> data_index;
-		std::optional<scope_index> name_scope_id;
-		std::optional<scope_index> type_scope_id;
+		data_index data_index;
+		scope_index name_scope_id;
+		// #performance we can use a single scope id instead of 2 saving 4 bytes per node
+		scope_index type_scope_id;
 	};
+#pragma pack(pop)
+
+	constexpr auto x = sizeof(node);
 }
 
 
@@ -118,6 +120,7 @@ namespace fe::ext_ast
 	struct ast_allocation_hints
 	{
 		size_t nodes;
+		size_t children;
 		size_t name_scopes;
 		size_t type_scopes;
 		size_t identifiers;
@@ -129,6 +132,7 @@ namespace fe::ext_ast
 	class ast
 	{
 		memory::dynamic_store<node> nodes;
+		memory::dynamic_store<std::vector<node_id>> children;
 		memory::dynamic_store<name_scope> name_scopes;
 		memory::dynamic_store<type_scope> type_scopes;
 
@@ -165,17 +169,37 @@ namespace fe::ext_ast
 		}
 
 		// Nodes
+		std::vector<node_id>& get_children(children_id id)
+		{
+			assert(id != no_children);
+			return children.get_at(id);
+		}
+
+		std::vector<node_id>& children_of(node_id id)
+		{
+			assert(id != no_node);
+			return children_of(get_node(id));
+		}
+
+		std::vector<node_id>& children_of(node& n)
+		{
+			return get_children(n.children_id);
+		}
+
 		node_id create_node(node_type t)
 		{
 			auto new_node = nodes.create();
-			get_node(new_node).id = new_node;
-			get_node(new_node).kind = t;
-			get_node(new_node).data_index = create_node_data(t);
+			auto& node = get_node(new_node);
+			node.id = new_node;
+			node.kind = t;
+			node.data_index = create_node_data(t);
+			node.children_id = is_terminal_node(t) ? no_children : children.create();
 			return new_node;
 		}
 
 		node& get_node(node_id id)
 		{
+			assert(id != no_node);
 			return nodes.get_at(id);
 		}
 
@@ -183,22 +207,20 @@ namespace fe::ext_ast
 		{
 			auto module_dec_id = find_node(node_type::MODULE_DECLARATION);
 			if (!module_dec_id.has_value()) return std::nullopt;
-			auto& module_dec_node = get_node(module_dec_id.value());
-			auto& id_node = get_node(module_dec_node.children[0]);
-			return get_data<identifier>(id_node.data_index.value());
+			auto& id_node = get_node(children_of(module_dec_id.value())[0]);
+			return get_data<identifier>(id_node.data_index);
 		}
 
 		std::optional<std::vector<identifier>> get_imports()
 		{
 			auto import_dec_id = find_node(node_type::IMPORT_DECLARATION);
 			if (!import_dec_id.has_value()) return std::nullopt;
-			auto& module_dec_node = get_node(import_dec_id.value());
 
 			std::vector<identifier> imports;
-			for (auto child : module_dec_node.children)
+			for (auto child : children_of(import_dec_id.value()))
 			{
 				auto& id_node = get_node(child);
-				imports.push_back(get_data<identifier>(id_node.data_index.value()));
+				imports.push_back(get_data<identifier>(id_node.data_index));
 			}
 			return imports;
 		}
@@ -211,6 +233,7 @@ namespace fe::ext_ast
 
 		scope_index create_name_scope(scope_index parent)
 		{
+			assert(parent != no_scope);
 			auto new_scope = name_scopes.create();
 			name_scopes.get_at(new_scope).set_parent(parent);
 			return new_scope;
@@ -218,6 +241,7 @@ namespace fe::ext_ast
 
 		name_scope& get_name_scope(scope_index id)
 		{
+			assert(id != no_scope);
 			return name_scopes.get_at(id);
 		}
 
@@ -233,6 +257,7 @@ namespace fe::ext_ast
 
 		scope_index create_type_scope(scope_index parent)
 		{
+			assert(parent != no_scope);
 			auto new_scope = type_scopes.create();
 			type_scopes.get_at(new_scope).set_parent(parent);
 			return new_scope;
@@ -240,6 +265,7 @@ namespace fe::ext_ast
 
 		type_scope& get_type_scope(scope_index id)
 		{
+			assert(id != no_scope);
 			return type_scopes.get_at(id);
 		}
 
@@ -251,13 +277,13 @@ namespace fe::ext_ast
 		// Node data 
 		template<class DataType>
 		DataType& get_data(data_index i);
-		template<> identifier& get_data<identifier>(data_index i) { return identifiers.get_at(i); }
-		template<> boolean&    get_data<boolean>(data_index i) { return booleans.get_at(i); }
-		template<> string&     get_data<string>(data_index i) { return strings.get_at(i); }
-		template<> number&     get_data<number>(data_index i) { return numbers.get_at(i); }
+		template<> identifier& get_data<identifier>(data_index i) { assert(i != no_data); return identifiers.get_at(i); }
+		template<> boolean&    get_data<boolean>(data_index i) { assert(i != no_data); return booleans.get_at(i); }
+		template<> string&     get_data<string>(data_index i) { assert(i != no_data); return strings.get_at(i); }
+		template<> number&     get_data<number>(data_index i) { assert(i != no_data); return numbers.get_at(i); }
 
 	private:
-		std::optional<data_index> create_node_data(node_type t)
+		data_index create_node_data(node_type t)
 		{
 			switch (t)
 			{
@@ -267,7 +293,7 @@ namespace fe::ext_ast
 			case node_type::BOOLEAN:    return booleans.create();
 			default:
 				if (is_binary_op(t)) return strings.create();
-				return std::nullopt;
+				return no_data;
 			}
 		}
 

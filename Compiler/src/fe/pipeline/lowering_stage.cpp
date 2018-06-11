@@ -7,11 +7,12 @@ namespace fe::ext_ast
 	core_ast::node_id lower_assignment(node& n, ast& ext_ast, core_ast::ast& new_ast)
 	{
 		assert(n.kind == node_type::ASSIGNMENT);
-		assert(n.children.size() == 2);
+		auto& children = ext_ast.children_of(n);
+		assert(children.size() == 2);
 
-		auto& id_node = ext_ast.get_node(n.children[0]);
+		auto& id_node = ext_ast.get_node(children[0]);
 		auto lhs = lower(id_node, ext_ast, new_ast);
-		auto& value_node = ext_ast.get_node(n.children[1]);
+		auto& value_node = ext_ast.get_node(children[1]);
 		auto rhs = lower(value_node, ext_ast, new_ast);
 
 		auto set = new_ast.create_node(core_ast::node_type::SET);
@@ -25,9 +26,10 @@ namespace fe::ext_ast
 	core_ast::node_id lower_tuple(node& n, ast& ast, core_ast::ast& new_ast)
 	{
 		assert(n.kind == node_type::TUPLE);
+		auto& children = ast.children_of(n);
 		auto tuple = new_ast.create_node(core_ast::node_type::TUPLE);
 
-		for (auto child : n.children)
+		for (auto child : children)
 		{
 			auto new_child = lower(ast.get_node(child), ast, new_ast);
 			new_ast.get_node(new_child).parent_id = tuple;
@@ -42,7 +44,8 @@ namespace fe::ext_ast
 		assert(n.kind == node_type::BLOCK);
 		auto block = new_ast.create_node(core_ast::node_type::BLOCK);
 
-		for (auto child : n.children)
+		auto& children = ast.children_of(n);
+		for (auto child : children)
 		{
 			auto new_child = lower(ast.get_node(child), ast, new_ast);
 			new_ast.get_node(block).children.push_back(new_child);
@@ -54,19 +57,22 @@ namespace fe::ext_ast
 	core_ast::node_id lower_block_result(node& n, ast& ast, core_ast::ast& new_ast)
 	{
 		assert(n.kind == node_type::BLOCK_RESULT);
-		assert(n.children.size() == 1);
-		auto& child = ast.get_node(n.children[0]);
+		auto& children = ast.children_of(n);
+		assert(children.size() == 1);
+		auto& child = ast.get_node(children[0]);
 		return lower(child, ast, new_ast);
 	}
 
 	core_ast::node_id lower_function(node& n, ast& ast, core_ast::ast& new_ast)
 	{
 		assert(n.kind == node_type::FUNCTION);
-		assert(n.children.size() == 2);
+		auto& children = ast.children_of(n);
+		assert(children.size() == 2);
 		auto function_id = new_ast.create_node(core_ast::node_type::FUNCTION);
 
 		// Parameters
-		auto& param_node = ast.get_node(n.children[0]);
+		auto& param_node = ast.get_node(children[0]);
+		auto& param_children = ast.children_of(param_node);
 		if (param_node.kind == node_type::IDENTIFIER)
 		{
 			auto param_id = lower(param_node, ast, new_ast);
@@ -80,11 +86,12 @@ namespace fe::ext_ast
 			new_ast.get_node(function_id).children.push_back(param_id);
 			new_param_node.parent_id = function_id;
 
-			for (auto child : param_node.children)
+			for (auto child : param_children)
 			{
 				auto& child_node = ast.get_node(child);
+				auto& param_child_children = ast.children_of(child_node);
 				assert(child_node.kind == node_type::RECORD_ELEMENT);
-				auto& child_id_node = ast.get_node(child_node.children[1]);
+				auto& child_id_node = ast.get_node(param_child_children[1]);
 				assert(child_id_node.kind == node_type::IDENTIFIER);
 
 				auto child_id = lower(child_node, ast, new_ast);
@@ -95,7 +102,7 @@ namespace fe::ext_ast
 		else throw std::runtime_error("Error: parameter node type incorrect");
 
 		// Body
-		auto& body_node = ast.get_node(n.children[1]);
+		auto& body_node = ast.get_node(children[1]);
 		auto new_body = lower(body_node, ast, new_ast);
 		new_ast.get_node(new_body).parent_id = function_id;
 		new_ast.get_node(function_id).children.push_back(new_body);
@@ -106,13 +113,14 @@ namespace fe::ext_ast
 	core_ast::node_id lower_while_loop(node& n, ast& ast, core_ast::ast& new_ast)
 	{
 		assert(n.kind == node_type::WHILE_LOOP);
-		assert(n.children.size() == 2);
+		auto& children = ast.children_of(n);
+		assert(children.size() == 2);
 		auto new_while = new_ast.create_node(core_ast::node_type::WHILE_LOOP);
 		
-		auto test_id = lower(ast.get_node(n.children[0]), ast, new_ast);
+		auto test_id = lower(ast.get_node(children[0]), ast, new_ast);
 		new_ast.get_node(test_id).parent_id = new_while;
 
-		auto body_id = lower(ast.get_node(n.children[1]), ast, new_ast);
+		auto body_id = lower(ast.get_node(children[1]), ast, new_ast);
 		new_ast.get_node(body_id).parent_id = new_while;
 
 		auto& while_node = new_ast.get_node(new_while);
@@ -125,17 +133,18 @@ namespace fe::ext_ast
 	core_ast::node_id lower_if_statement(node& n, ast& ast, core_ast::ast& new_ast)
 	{
 		assert(n.kind == node_type::IF_STATEMENT);
-		assert(n.children.size() >= 2);
+		auto& children = ast.children_of(n);
+		assert(children.size() >= 2);
 		auto branch = new_ast.create_node(core_ast::node_type::BRANCH);
 
-		bool contains_else = n.children.size() % 2 == 1 ? true : false;
-		size_t size_excluding_else = n.children.size() - (n.children.size() % 2);
+		bool contains_else = children.size() % 2 == 1 ? true : false;
+		size_t size_excluding_else = children.size() - (children.size() % 2);
 		for (int i = 0; i < size_excluding_else; i += 2)
 		{
-			auto test_id = lower(ast.get_node(n.children[i]), ast, new_ast);
+			auto test_id = lower(ast.get_node(children[i]), ast, new_ast);
 			new_ast.get_node(test_id).parent_id = branch;
 
-			auto body_id = lower(ast.get_node(n.children[i + 1]), ast, new_ast);
+			auto body_id = lower(ast.get_node(children[i + 1]), ast, new_ast);
 			new_ast.get_node(body_id).parent_id = branch;
 
 			auto& branch_node = new_ast.get_node(branch);
@@ -152,7 +161,7 @@ namespace fe::ext_ast
 			new_ast.get_data<boolean>(*tautology_node.data_index).value = true;
 			tautology_node.parent_id = branch;
 
-			auto body_id = lower(ast.get_node(n.children.back()), ast, new_ast);
+			auto body_id = lower(ast.get_node(children.back()), ast, new_ast);
 			new_ast.get_node(body_id).parent_id = branch;
 
 			auto& branch_node = new_ast.get_node(branch);
@@ -166,19 +175,20 @@ namespace fe::ext_ast
 	core_ast::node_id lower_match(node& n, ast& ast, core_ast::ast& new_ast)
 	{
 		assert(n.kind == node_type::MATCH);
-
+		auto& children = ast.children_of(n);
 		auto branch = new_ast.create_node(core_ast::node_type::BRANCH);
 
-		for (auto i = 1; i < n.children.size(); i++)
+		for (auto i = 1; i < children.size(); i++)
 		{
-			auto& child_node = ast.get_node(n.children[i]);
+			auto& child_node = ast.get_node(children[i]);
 			assert(child_node.kind == node_type::MATCH_BRANCH);
-			assert(child_node.children.size() == 2);
+			assert(children.size() == 2);
 
-			auto test = lower(ast.get_node(child_node.children[0]), ast, new_ast);
+			auto& child_children = ast.children_of(child_node);
+			auto test = lower(ast.get_node(child_children[0]), ast, new_ast);
 			new_ast.get_node(test).parent_id = branch;
 
-			auto body = lower(ast.get_node(child_node.children[1]), ast, new_ast);
+			auto body = lower(ast.get_node(child_children[1]), ast, new_ast);
 			new_ast.get_node(body).parent_id = branch;
 
 			auto& branch_node = new_ast.get_node(branch);
@@ -192,8 +202,8 @@ namespace fe::ext_ast
 	core_ast::node_id lower_id(node& n, ast& ast, core_ast::ast& new_ast)
 	{
 		assert(n.kind == node_type::IDENTIFIER);
-		assert(n.children.size() == 0);
-		auto& data = ast.get_data<identifier>(n.data_index.value());
+		assert(ast.children_of(n).size() == 0);
+		auto& data = ast.get_data<identifier>(n.data_index);
 
 		auto modules = std::vector<std::string_view>(
 			data.segments.begin(),
@@ -213,8 +223,8 @@ namespace fe::ext_ast
 	core_ast::node_id lower_string(node& n, ast& ast, core_ast::ast& new_ast)
 	{
 		assert(n.kind == node_type::STRING);
-		assert(n.children.size() == 0);
-		auto& str_data = ast.get_data<string>(n.data_index.value());
+		assert(ast.children_of(n).size() == 0);
+		auto& str_data = ast.get_data<string>(n.data_index);
 
 		auto str = new_ast.create_node(core_ast::node_type::STRING);
 		auto& str_node = new_ast.get_node(str);
@@ -226,8 +236,8 @@ namespace fe::ext_ast
 	core_ast::node_id lower_boolean(node& n, ast& ast, core_ast::ast& new_ast)
 	{
 		assert(n.kind == node_type::BOOLEAN);
-		assert(n.children.size() == 0);
-		auto& bool_data = ast.get_data<boolean>(n.data_index.value());
+		assert(ast.children_of(n).size() == 0);
+		auto& bool_data = ast.get_data<boolean>(n.data_index);
 
 		auto bool_id = new_ast.create_node(core_ast::node_type::BOOLEAN);
 		auto& bool_node = new_ast.get_node(bool_id);
@@ -239,8 +249,8 @@ namespace fe::ext_ast
 	core_ast::node_id lower_number(node& n, ast& ast, core_ast::ast& new_ast)
 	{
 		assert(n.kind == node_type::NUMBER);
-		assert(n.children.size() == 0);
-		auto& num_data = ast.get_data<number>(n.data_index.value());
+		assert(ast.children_of(n).size() == 0);
+		auto& num_data = ast.get_data<number>(n.data_index);
 
 		auto num_id = new_ast.create_node(core_ast::node_type::NUMBER);
 		auto& num_node = new_ast.get_node(num_id);
@@ -252,15 +262,16 @@ namespace fe::ext_ast
 	core_ast::node_id lower_function_call(node& n, ast& ast, core_ast::ast& new_ast)
 	{
 		assert(n.kind == node_type::FUNCTION_CALL);
-		assert(n.children.size() == 2);
+		auto& children = ast.children_of(n);
+		assert(children.size() == 2);
 
 		auto fun_id = new_ast.create_node(core_ast::node_type::FUNCTION_CALL);
 
-		auto id_id = lower(ast.get_node(n.children[0]), ast, new_ast);
+		auto id_id = lower(ast.get_node(children[0]), ast, new_ast);
 		auto& id_node = new_ast.get_node(id_id);
 		id_node.parent_id = fun_id;
 
-		auto param_id = lower(ast.get_node(n.children[1]), ast, new_ast);
+		auto param_id = lower(ast.get_node(children[1]), ast, new_ast);
 		auto& param_node = new_ast.get_node(param_id);
 		param_node.parent_id = fun_id;
 
@@ -274,7 +285,7 @@ namespace fe::ext_ast
 	core_ast::node_id lower_module_declaration(node& n, ast& ast, core_ast::ast& new_ast)
 	{
 		assert(n.kind == node_type::MODULE_DECLARATION);
-		assert(n.children.size() == 1);
+		assert(ast.children_of(n).size() == 1);
 		return new_ast.create_node(core_ast::node_type::NOP);
 	}
 
@@ -293,11 +304,12 @@ namespace fe::ext_ast
 	core_ast::node_id lower_declaration(node& n, ast& ast, core_ast::ast& new_ast)
 	{
 		assert(n.kind == node_type::DECLARATION);
-		assert(n.children.size() == 3);
+		auto& children = ast.children_of(n);
+		assert(children.size() == 3);
 
 		auto dec = new_ast.create_node(core_ast::node_type::SET);
 
-		auto& lhs_node = ast.get_node(n.children[0]);
+		auto& lhs_node = ast.get_node(children[0]);
 		if (lhs_node.kind == node_type::IDENTIFIER)
 		{
 			auto lhs = lower(lhs_node, ast, new_ast);
@@ -309,7 +321,8 @@ namespace fe::ext_ast
 			auto lhs = new_ast.create_node(core_ast::node_type::IDENTIFIER_TUPLE);
 			new_ast.get_node(lhs).parent_id = dec;
 
-			for (auto child : lhs_node.children)
+			auto& children = ast.children_of(lhs_node);
+			for (auto child : children)
 			{
 				auto new_child_id = lower(ast.get_node(child), ast, new_ast);
 				auto& new_child_node = new_ast.get_node(new_child_id);
@@ -320,7 +333,7 @@ namespace fe::ext_ast
 			new_ast.get_node(dec).children.push_back(lhs);
 		}
 
-		auto rhs = lower(ast.get_node(n.children[2]), ast, new_ast);
+		auto rhs = lower(ast.get_node(children[2]), ast, new_ast);
 		new_ast.get_node(rhs).parent_id = dec;
 		new_ast.get_node(dec).children.push_back(rhs);
 
@@ -336,11 +349,12 @@ namespace fe::ext_ast
 	core_ast::node_id lower_type_definition(node& n, ast& ast, core_ast::ast& new_ast)
 	{
 		assert(n.kind == node_type::TYPE_DEFINITION);
-		assert(n.children.size() == 2);
+		auto& children = ast.children_of(n);
+		assert(children.size() == 2);
 
 		auto set = new_ast.create_node(core_ast::node_type::SET);
 
-		auto lhs = lower(ast.get_node(n.children[0]), ast, new_ast);
+		auto lhs = lower(ast.get_node(children[0]), ast, new_ast);
 		auto& lhs_node = new_ast.get_node(lhs);
 		assert(lhs_node.kind == core_ast::node_type::IDENTIFIER);
 		lhs_node.parent_id = set;
@@ -377,9 +391,10 @@ namespace fe::ext_ast
 	core_ast::node_id lower_reference(node& n, ast& ast, core_ast::ast& new_ast)
 	{
 		assert(n.kind == node_type::REFERENCE);
-		assert(n.children.size() == 1);
+		auto& children = ast.children_of(n);
+		assert(children.size() == 1);
 		auto ref = new_ast.create_node(core_ast::node_type::REFERENCE);
-		auto child = lower(ast.get_node(n.children[0]), ast, new_ast);
+		auto child = lower(ast.get_node(children[0]), ast, new_ast);
 		new_ast.get_node(child).parent_id = ref;
 		new_ast.get_node(ref).children.push_back(ref);
 		return ref;
@@ -388,10 +403,11 @@ namespace fe::ext_ast
 	core_ast::node_id lower_array_value(node& n, ast& ast, core_ast::ast& new_ast)
 	{
 		assert(n.kind == node_type::ARRAY_VALUE);
-		assert(!n.data_index.has_value());
+		assert(n.data_index == no_data);
 		auto arr = new_ast.create_node(core_ast::node_type::TUPLE);
 
-		for (auto child : n.children)
+		auto& children = ast.children_of(n);
+		for (auto child : children)
 		{
 			auto new_child = lower(ast.get_node(child), ast, new_ast);
 			new_ast.get_node(new_child).parent_id = arr;
@@ -404,8 +420,9 @@ namespace fe::ext_ast
 	core_ast::node_id lower_binary_op(node& n, ast& ast, core_ast::ast& new_ast)
 	{
 		assert(ext_ast::is_binary_op(n.kind));
-		assert(n.children.size() == 2);
-		assert(n.data_index);
+		auto& children = ast.children_of(n);
+		assert(children.size() == 2);
+		assert(n.data_index != no_data);
 
 		/*
 			Logical operators require special semantics due to short circuiting, so we create explicit branches
@@ -429,9 +446,9 @@ namespace fe::ext_ast
 				auto fun_name = new_ast.create_node(core_ast::node_type::IDENTIFIER, first_test);
 				new_ast.get_data<core_ast::identifier>(*new_ast.get_node(fun_name).data_index) = core_ast::identifier(
 					{ "_core" }, "not std.bool -> std.bool",
-					ast.get_name_scope(*n.name_scope_id).depth(ast.name_scope_cb()), {});
+					ast.get_name_scope(n.name_scope_id).depth(ast.name_scope_cb()), {});
 
-				auto fun_arg = lower(ast.get_node(n.children[0]), ast, new_ast);
+				auto fun_arg = lower(ast.get_node(children[0]), ast, new_ast);
 				new_ast.get_node(fun_arg).parent_id = first_test;
 
 				new_ast.get_node(first_test).children.push_back(fun_name);
@@ -440,7 +457,7 @@ namespace fe::ext_ast
 			auto first_body = new_ast.create_node(core_ast::node_type::BOOLEAN, branch);
 			new_ast.get_data<boolean>(*new_ast.get_node(first_body).data_index).value = false;
 
-			auto second_test = lower(ast.get_node(n.children[1]), ast, new_ast);
+			auto second_test = lower(ast.get_node(children[1]), ast, new_ast);
 			new_ast.get_node(second_test).parent_id = branch;
 			auto second_body = new_ast.create_node(core_ast::node_type::BOOLEAN, branch);
 			new_ast.get_data<boolean>(*new_ast.get_node(second_body).data_index).value = true;
@@ -462,12 +479,12 @@ namespace fe::ext_ast
 		{
 			auto branch = new_ast.create_node(core_ast::node_type::BRANCH);
 
-			auto first_test = lower(ast.get_node(n.children[0]), ast, new_ast);
+			auto first_test = lower(ast.get_node(children[0]), ast, new_ast);
 			new_ast.get_node(first_test).parent_id = branch;
 			auto first_body = new_ast.create_node(core_ast::node_type::BOOLEAN, branch);
 			new_ast.get_data<boolean>(*new_ast.get_node(first_body).data_index).value = true;
 
-			auto second_test = lower(ast.get_node(n.children[1]), ast, new_ast);
+			auto second_test = lower(ast.get_node(children[1]), ast, new_ast);
 			new_ast.get_node(second_test).parent_id = branch;
 			auto second_body = new_ast.create_node(core_ast::node_type::BOOLEAN, branch);
 			new_ast.get_data<boolean>(*new_ast.get_node(second_body).data_index).value = true;
@@ -492,17 +509,17 @@ namespace fe::ext_ast
 			auto fun_name_id = new_ast.create_node(core_ast::node_type::IDENTIFIER);
 			auto& name_data = new_ast.get_data<core_ast::identifier>(*new_ast.get_node(fun_name_id).data_index);
 			name_data.modules = { "_core" };
-			name_data.variable_name = ast.get_data<string>(*n.data_index).value;
+			name_data.variable_name = ast.get_data<string>(n.data_index).value;
 			name_data.offsets = {};
-			assert(n.name_scope_id);
-			name_data.scope_distance = ast.get_name_scope(*n.name_scope_id).depth(ast.name_scope_cb());
+			assert(n.name_scope_id != no_scope);
+			name_data.scope_distance = ast.get_name_scope(n.name_scope_id).depth(ast.name_scope_cb());
 
 			new_ast.get_node(fun_call).children.push_back(fun_name_id);
 			new_ast.get_node(fun_name_id).parent_id = fun_call;
 
 			auto param_tuple = new_ast.create_node(core_ast::node_type::TUPLE);
 
-			for (auto child : n.children)
+			for (auto child : children)
 			{
 				auto new_child_id = lower(ast.get_node(child), ast, new_ast);
 				auto& new_child_node = new_ast.get_node(new_child_id);
@@ -556,11 +573,12 @@ namespace fe::ext_ast
 	{
 		auto& root = ast.get_node(ast.root_id());
 		assert(root.kind == node_type::BLOCK);
+		auto& children = ast.children_of(root);
 
 		core_ast::ast new_ast(core_ast::node_type::BLOCK);
 		auto block = new_ast.root_id();
 
-		for (auto child : root.children)
+		for (auto child : children)
 		{
 			auto new_child = lower(ast.get_node(child), ast, new_ast);
 			new_ast.get_node(block).children.push_back(new_child);

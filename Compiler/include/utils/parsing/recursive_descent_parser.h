@@ -18,7 +18,7 @@ namespace recursive_descent
 
 		lexing::token next();
 
-		void consume(lexing::token_id t);
+		void consume(lexing::token_kind t);
 
 		bool has_next();
 	};
