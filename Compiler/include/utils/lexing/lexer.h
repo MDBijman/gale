@@ -246,7 +246,7 @@ namespace lexing
 
 			while (range.first != range.second)
 			{
-				while ((*range.first == ' ') || (*range.first == '\n') || (*range.first == '\t'))
+				while ((*range.first == ' ') || (*range.first == '\n') || (*range.first == '\t') || (*range.first == '\r'))
 				{
 					if (*range.first == '\n')
 					{
