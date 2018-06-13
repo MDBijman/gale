@@ -1,0 +1,36 @@
+module euler3
+import [std std.io]
+
+std.io.println "";
+std.io.println "Euler 3";
+let before: std.i64 = std.io.time ();
+
+let is_prime: std.i64 -> std.bool = \n => {
+	let x : std.i64 = 2;
+
+	let res : std.bool = true;
+	while (x < n / 2) {
+		if (n % x == 0) { res = false; };
+		x = x + 1;
+	};
+	res
+};
+
+let number: std.i64 = 103195; 
+let curr: std.i64 = number / 2;
+
+std.io.print "Factoring: ";
+std.io.println std.to_string number;
+
+while (curr > 1) {
+	if (number % curr == 0 && is_prime curr) {
+		std.io.print "Prime Factor: ";
+		std.io.println std.to_string curr;
+	};
+
+	curr = curr - 1;
+};
+
+let after: std.i64 = std.io.time ();
+std.io.print std.to_string ((std.to_f32 (after - before)) / (std.to_f32 1000000));
+std.io.println " ms";
