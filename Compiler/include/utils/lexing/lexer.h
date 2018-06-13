@@ -246,7 +246,7 @@ namespace lexing
 
 			while (range.first != range.second)
 			{
-				while (isspace(*range.first))
+				while ((*range.first == ' ') || (*range.first == '\n') || (*range.first == '\t'))
 				{
 					if (*range.first == '\n')
 					{
@@ -254,7 +254,7 @@ namespace lexing
 						character_count = 0;
 					}
 
-					character_count++;
+					++character_count;
 					++range.first;
 					if (range.first == range.second)
 					{
