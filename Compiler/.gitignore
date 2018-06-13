@@ -1,0 +1,5 @@
+Debug/
+Release/
+VTuneAnalysis/
+*.user
+x64/
