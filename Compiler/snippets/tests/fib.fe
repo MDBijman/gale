@@ -1,7 +1,49 @@
 module fib
 import [std std.io]
 
-let fib: std.i64 -> std.i64 = \n => if (n <= 1) { 1 } else { (fib (n - 1)) + (fib (n - 2)) };
+let fib: std.i64 -> std.i64 = \n => if (n <= 2) { 1 } else { (fib (n - 1)) + (fib (n - 2)) };
 
-std.io.print (fib 42);
-std.io.println "";
+std.io.println std.to_string (fib 1);
+std.io.println std.to_string (fib 2);
+std.io.println std.to_string (fib 3);
+std.io.println std.to_string (fib 4);
+std.io.println std.to_string (fib 5);
+std.io.println std.to_string (fib 6);
+std.io.println std.to_string (fib 7);
+std.io.println std.to_string (fib 8);
+std.io.println std.to_string (fib 9);
+std.io.println std.to_string (fib 10);
+std.io.println std.to_string (fib 11);
+std.io.println std.to_string (fib 12);
+std.io.println std.to_string (fib 13);
+std.io.println std.to_string (fib 14);
+std.io.println std.to_string (fib 15);
+std.io.println std.to_string (fib 16);
+std.io.println std.to_string (fib 17);
+std.io.println std.to_string (fib 18);
+std.io.println std.to_string (fib 19);
+std.io.println std.to_string (fib 20);
+std.io.println std.to_string (fib 21);
+std.io.println std.to_string (fib 22);
+std.io.println std.to_string (fib 23);
+std.io.println std.to_string (fib 24);
+std.io.println std.to_string (fib 25);
+std.io.println std.to_string (fib 26);
+std.io.println std.to_string (fib 27);
+std.io.println std.to_string (fib 28);
+std.io.println std.to_string (fib 29);
+std.io.println "fib 30";
+std.io.println std.to_string (fib 30);
+std.io.println std.to_string (fib 31);
+std.io.println std.to_string (fib 32);
+std.io.println std.to_string (fib 33);
+std.io.println std.to_string (fib 34);
+std.io.println "fib 35";
+std.io.println std.to_string (fib 35);
+std.io.println std.to_string (fib 36);
+std.io.println std.to_string (fib 37);
+std.io.println std.to_string (fib 38);
+std.io.println std.to_string (fib 39);
+std.io.println std.to_string (fib 40);
+std.io.println std.to_string (fib 41);
+std.io.println std.to_string (fib 42);

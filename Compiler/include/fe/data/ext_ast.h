@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <array>
 
+#include "fe/data/constants_store.h"
 #include "fe/data/name_scope.h"
 #include "fe/data/type_scope.h"
 #include "fe/data/ast_data.h"
@@ -132,12 +133,9 @@ namespace fe::ext_ast
 		memory::dynamic_store<node_children> children;
 		memory::dynamic_store<name_scope> name_scopes;
 		memory::dynamic_store<type_scope> type_scopes;
-
-		// Storage of node data
 		memory::dynamic_store<identifier> identifiers;
-		memory::dynamic_store<boolean> booleans;
-		memory::dynamic_store<string> strings;
-		memory::dynamic_store<number> numbers;
+
+		constants_store constants;
 
 		node_id root;
 
@@ -148,10 +146,11 @@ namespace fe::ext_ast
 			nodes.reserve(h.nodes);
 			name_scopes.reserve(h.name_scopes);
 			type_scopes.reserve(h.type_scopes);
-			identifiers.reserve(h.identifiers);
-			booleans.reserve(h.booleans);
-			strings.reserve(h.strings);
-			numbers.reserve(h.numbers);
+
+			constants.identifiers.reserve(h.identifiers);
+			constants.booleans.reserve(h.booleans);
+			constants.strings.reserve(h.strings);
+			constants.numbers.reserve(h.numbers);
 		}
 
 		void set_root_id(node_id id)
@@ -273,12 +272,17 @@ namespace fe::ext_ast
 		}
 
 		// Node data 
+		constants_store& get_constants()
+		{
+			return this->constants;
+		}
+
 		template<class DataType>
 		DataType& get_data(data_index i);
 		template<> identifier& get_data<identifier>(data_index i) { assert(i != no_data); return identifiers.get_at(i); }
-		template<> boolean&    get_data<boolean>(data_index i) { assert(i != no_data); return booleans.get_at(i); }
-		template<> string&     get_data<string>(data_index i) { assert(i != no_data); return strings.get_at(i); }
-		template<> number&     get_data<number>(data_index i) { assert(i != no_data); return numbers.get_at(i); }
+		template<> boolean&    get_data<boolean>(data_index i) { assert(i != no_data); return constants.get<boolean>(i); }
+		template<> string&     get_data<string>(data_index i) { assert(i != no_data); return constants.get<string>(i); }
+		template<> number&     get_data<number>(data_index i) { assert(i != no_data); return constants.get<number>(i); }
 
 	private:
 		data_index create_node_data(node_type t)
@@ -286,11 +290,11 @@ namespace fe::ext_ast
 			switch (t)
 			{
 			case node_type::IDENTIFIER: return identifiers.create();
-			case node_type::NUMBER:     return numbers.create();
-			case node_type::STRING:     return strings.create();
-			case node_type::BOOLEAN:    return booleans.create();
+			case node_type::NUMBER:     return constants.create<number>();
+			case node_type::STRING:     return constants.create<string>();
+			case node_type::BOOLEAN:    return constants.create<boolean>();
 			default:
-				if (is_binary_op(t)) return strings.create();
+				if (is_binary_op(t)) return constants.create<string>();
 				return no_data;
 			}
 		}

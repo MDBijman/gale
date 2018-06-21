@@ -61,11 +61,11 @@ namespace memory
 			occupieds.reserve(count);
 		}
 
-		index create()
+		template<typename... Ts> index create(Ts... args)
 		{
 			if (is_full)
 			{
-				data.push_back(T());
+				data.push_back(T(std::forward<Ts>(args)...));
 				occupieds.push_back(1);
 				return data.size() - 1;
 			}

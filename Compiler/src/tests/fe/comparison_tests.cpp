@@ -5,8 +5,7 @@
 #include "fe/modes/project.h"
 
 #include "fe/libraries/core/core_operations.h"
-#include "fe/libraries/std/std_input.h"
-#include "fe/libraries/std/std_output.h"
+#include "fe/libraries/std/std_io.h"
 #include "fe/libraries/std/std_types.h"
 
 
@@ -14,24 +13,11 @@ TEST_CASE("comparison operators", "[operators]")
 {
 	fe::project p{ fe::pipeline() };
 	// core
-	{
-		auto core_scope = fe::core::operations::load();
-		p.add_module({ "_core" }, core_scope);
-	}
-
+	p.add_module(fe::core::operations::load());
 	// std io
-	{
-		auto i = fe::stdlib::input::load();
-		auto o = fe::stdlib::output::load();
-		i.merge(std::move(o));
-		p.add_module({ "std", "io" }, i);
-	}
-
+	p.add_module(fe::stdlib::io::load());
 	// std types
-	{
-		auto type_scope = fe::stdlib::typedefs::load();
-		p.add_module({ "std" }, type_scope);
-	}
+	p.add_module(fe::stdlib::typedefs::load());
 
 	std::string code = R"code(
 import [std std.io]
