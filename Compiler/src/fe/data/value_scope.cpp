@@ -1,56 +1,47 @@
 #include "fe/data/value_scope.h"
 #include "fe/data/values.h"
 
-namespace fe
+namespace fe::core_ast
 {
 	value_scope::value_scope() {}
-	value_scope::value_scope(const value_scope& other) : parent(other.parent), modules(other.modules)
+	value_scope::value_scope(const value_scope& other) : parent(other.parent)
 	{
-		for (const auto& elem : other.variables)
-			this->variables.insert({ elem.first, values::unique_value(elem.second->copy()) });
+		for (const auto& pair : other.variables)
+			this->variables.emplace(pair.first, values::unique_value(pair.second->copy()));
 	}
 	value_scope::value_scope(value_scope&& other) : 
-		parent(other.parent), modules(std::move(other.modules)), variables(std::move(other.variables)) {}
+		parent(other.parent), variables(std::move(other.variables)) {}
+
+	value_scope& value_scope::operator=(const value_scope& other)
+	{
+		this->variables.clear();
+		for (const auto& pair : other.variables)
+			this->variables.emplace(pair.first, values::unique_value(pair.second->copy()));
+
+		this->parent = other.parent;
+		return *this;
+	}
+
+	value_scope& value_scope::operator=(value_scope&& other)
+	{
+		this->variables = std::move(other.variables);
+		this->parent = other.parent;
+		return *this;
+	}
 
 	void value_scope::clear()
 	{
 		this->variables.clear();
-		this->modules.clear();
-	}
-
-	void value_scope::add_module(const core_ast::identifier& id, scope_index o)
-	{
-		this->modules.insert({ id, o });
-	}
-
-	void value_scope::set_parent(scope_index parent)
-	{
-		this->parent = parent;
 	}
 
 	void value_scope::merge(const value_scope& other)
 	{
-		for (const auto& elem : other.variables)
-			this->variables.insert({ elem.first, values::unique_value(elem.second->copy()) });
+		for (const auto& pair : other.variables)
+			this->variables.emplace(pair.first, values::unique_value(pair.second->copy()));
 	}
 
-	std::optional<values::value*> value_scope::valueof(const core_ast::identifier& name, size_t scope_depth, get_scope_cb cb)
+	std::optional<values::value*> value_scope::valueof(const core_ast::identifier& name)
 	{
-		// Check parent scope
-		if (scope_depth > 0)
-		{
-			return parent ? cb(*parent)->valueof(name, scope_depth - 1, cb) : std::nullopt;
-		}
-
-		// Check modules
-		if (name.modules.size() > 0)
-		{
-			std::vector<std::string_view> modules(name.modules.begin(), name.modules.end() - 1);
-			auto& module = this->modules.at(core_ast::identifier(modules, name.modules.back(), 0, {}));
-			return cb(module)->valueof(core_ast::identifier(name.variable_name), 0, cb);
-		}
-
-		// Check this scope
 		if (auto loc = variables.find(name.variable_name); loc != variables.end())
 		{
 			values::value* value = loc->second.get();
@@ -66,21 +57,9 @@ namespace fe
 		return std::nullopt;
 	}
 
-	void value_scope::set_value(std::string_view name, values::unique_value value)
+	void value_scope::set_value(std::string name, values::unique_value value)
 	{
 		this->variables.insert({ name, std::move(value) });
-	}
-
-	void value_scope::set_value(std::string_view name, values::unique_value value, std::size_t depth, get_scope_cb cb)
-	{
-		if (depth > 0)
-		{
-			cb(*parent)->set_value(name, std::move(value), depth - 1, cb);
-		}
-		else
-		{
-			this->variables.insert_or_assign(name, std::move(value));
-		}
 	}
 
 	std::string value_scope::to_string()

@@ -207,12 +207,6 @@
     <ClInclude Include="include\fe\libraries\std\std_types.h">
       <Filter>Source Files\fe\libraries\std</Filter>
     </ClInclude>
-    <ClInclude Include="include\fe\libraries\std\std_output.h">
-      <Filter>Source Files\fe\libraries\std</Filter>
-    </ClInclude>
-    <ClInclude Include="include\fe\libraries\std\std_input.h">
-      <Filter>Source Files\fe\libraries\std</Filter>
-    </ClInclude>
     <ClInclude Include="include\fe\libraries\core\core_operations.h">
       <Filter>Source Files\fe\libraries\core</Filter>
     </ClInclude>
@@ -232,9 +226,6 @@
       <Filter>Source Files\fe\data</Filter>
     </ClInclude>
     <ClInclude Include="include\fe\data\name_scope.h">
-      <Filter>Source Files\fe\data</Filter>
-    </ClInclude>
-    <ClInclude Include="include\fe\data\scope.h">
       <Filter>Source Files\fe\data</Filter>
     </ClInclude>
     <ClInclude Include="include\fe\data\ext_ast.h">
@@ -263,6 +254,15 @@
     </ClInclude>
     <ClInclude Include="include\utils\memory\small_vector.h">
       <Filter>Source Files\utils\memory</Filter>
+    </ClInclude>
+    <ClInclude Include="include\fe\data\constants_store.h">
+      <Filter>Source Files\fe\data</Filter>
+    </ClInclude>
+    <ClInclude Include="include\fe\data\module.h">
+      <Filter>Source Files\fe\data</Filter>
+    </ClInclude>
+    <ClInclude Include="include\fe\libraries\std\std_io.h">
+      <Filter>Source Files\fe\libraries\std</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

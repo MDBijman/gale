@@ -58,30 +58,13 @@ int main(int argc, char** argv)
 
 			fe::project proj(std::move(pipeline));
 			// core
-			{
-				auto core_scope = fe::core::operations::load();
-				proj.add_module({ "_core" }, core_scope);
-			}
-
+			proj.add_module(fe::core::operations::load());
 			// std io
-			{
-				auto i = fe::stdlib::input::load();
-				auto o = fe::stdlib::output::load();
-				i.merge(std::move(o));
-				proj.add_module({ "std", "io" }, i);
-			}
-
+			proj.add_module(fe::stdlib::io::load());
 			// std ui
-			{
-				auto ui_scope = fe::stdlib::ui::load();
-				proj.add_module({ "std", "ui" }, ui_scope);
-			}
-
+			proj.add_module(fe::stdlib::ui::load());
 			// std types
-			{
-				auto type_scope = fe::stdlib::typedefs::load();
-				proj.add_module({ "std" }, type_scope);
-			}
+			proj.add_module(fe::stdlib::typedefs::load());
 
 			auto project_path = std::filesystem::path(argv[2]);
 			std::cout << "Project folder: " << project_path << "\n";
@@ -101,7 +84,7 @@ int main(int argc, char** argv)
 					continue;
 				}
 				auto& code = std::get<std::string>(file_or_error);
-				proj.add_module(std::move(code));
+				proj.add_module(proj.eval(code));
 			}
 		}
 		catch (const lexing::error& e)

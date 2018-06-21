@@ -52,26 +52,26 @@ namespace recursive_descent
 	fe::node_id parse_type_operation(tree& t, token_stream_reader& ts);
 
 
-	std::vector<std::string_view> split_on(std::string_view id, char split_on)
+	std::vector<std::string> split_on(std::string id, char split_on)
 	{
-		std::vector<std::string_view> split_identifier;
+		std::vector<std::string> split_identifier;
 
-		std::string_view::iterator begin_word = id.begin();
+		std::string::iterator begin_word = id.begin();
 		for (auto it = id.begin(); it != id.end(); it++)
 		{
 			if (*it == split_on)
 			{
 				// Read infix
-				split_identifier.push_back(std::string_view(&*begin_word, std::distance(begin_word, it)));
+				split_identifier.push_back(std::string(&*begin_word, std::distance(begin_word, it)));
 				begin_word = it + 1;
 				continue;
 			}
 			else if(it == id.end())
 			{
-				split_identifier.push_back(std::string_view(&*begin_word, std::distance(begin_word, it)));
+				split_identifier.push_back(std::string(&*begin_word, std::distance(begin_word, it)));
 			}
 		}
-		split_identifier.push_back(std::string_view(&*begin_word, std::distance(begin_word, id.end())));
+		split_identifier.push_back(std::string(&*begin_word, std::distance(begin_word, id.end())));
 		return split_identifier;
 	};
 
@@ -81,7 +81,7 @@ namespace recursive_descent
 		assert(next.value == lexing::token_kind::IDENTIFIER);
 		auto id = t.create_node(fe::ext_ast::node_type::IDENTIFIER);
 
-		t.get_data<fe::ext_ast::identifier>(t.get_node(id).data_index).segments = split_on(next.text, '.');
+		t.get_data<fe::ext_ast::identifier>(t.get_node(id).data_index).segments = split_on(std::string(next.text), '.');
 		t.get_data<fe::ext_ast::identifier>(t.get_node(id).data_index).full = next.text;
 		return id;
 	}

@@ -66,13 +66,13 @@ namespace fe::ext_ast
 
 		for (auto i = 0; i < id.segments.size() - 1; i++)
 		{
-			auto module_name = std::vector<std::string_view>(id.segments.begin(), id.segments.begin() + i + 1);
+			auto module_name = std::vector<std::string>(id.segments.begin(), id.segments.begin() + i + 1);
 
 			auto pos = modules.find(module_name);
 			if (pos == modules.end()) continue;
 
 			identifier new_id;
-			new_id.segments = std::vector<std::string_view>(id.segments.begin() + i + 1, id.segments.end());
+			new_id.segments = std::vector<std::string>(id.segments.begin() + i + 1, id.segments.end());
 
 			if (auto module_lookup = cb(pos->second)->resolve_variable(new_id, cb); module_lookup)
 				return module_lookup;
@@ -106,12 +106,12 @@ namespace fe::ext_ast
 		{
 			for (auto i = 1; i < id.segments.size(); i++)
 			{
-				auto module_name = std::vector<std::string_view>(id.segments.begin(), id.segments.begin() + i);
+				auto module_name = std::vector<std::string>(id.segments.begin(), id.segments.begin() + i);
 
 				if (auto pos = modules.find(module_name); pos != modules.end())
 				{
 					identifier new_id;
-					new_id.segments = std::vector<std::string_view>(id.segments.begin() + i, id.segments.end());
+					new_id.segments = std::vector<std::string>(id.segments.begin() + i, id.segments.end());
 
 					if (auto module_lookup = cb(pos->second)->resolve_type(new_id, cb); module_lookup)
 						return module_lookup;

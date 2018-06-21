@@ -1,6 +1,6 @@
 #pragma once
 #include "fe/language_definition.h"
-#include "fe/libraries/std/std_input.h"
+#include "fe/libraries/std/std_io.h"
 #include "fe/libraries/std/std_ui.h"
 #include "fe/libraries/core/core_operations.h"
 #include "utils/reading/reader.h"
@@ -19,30 +19,13 @@ namespace fe
 		void run()
 		{
 			// core
-			{
-				auto core_scope = fe::core::operations::load();
-				proj.add_module({ "_core" }, core_scope);
-			}
-
+			proj.add_module(fe::core::operations::load());
 			// std io
-			{
-				auto io_scope = fe::stdlib::input::load();
-				auto o_scope = fe::stdlib::output::load();
-				io_scope.merge(o_scope);
-				proj.add_module({ "std", "io" }, io_scope);
-			}
-
+			proj.add_module(fe::stdlib::io::load());
 			// std ui
-			{
-				auto ui_scope = fe::stdlib::ui::load();
-				proj.add_module({ "std", "ui" }, ui_scope);
-			}
-
+			proj.add_module(fe::stdlib::ui::load());
 			// std types
-			{
-				auto type_scope = fe::stdlib::typedefs::load();
-				proj.add_module({ "std" }, type_scope);
-			}
+			proj.add_module(fe::stdlib::typedefs::load());
 
 			while (1) {
 				try {

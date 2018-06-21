@@ -158,10 +158,11 @@
     <ClCompile Include="src\utils\reading\reader.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\fe\data\constants_store.h" />
     <ClInclude Include="include\fe\data\core_ast.h" />
     <ClInclude Include="include\fe\data\ext_ast.h" />
     <ClInclude Include="include\fe\data\ast_data.h" />
-    <ClInclude Include="include\fe\data\scope.h" />
+    <ClInclude Include="include\fe\data\module.h" />
     <ClInclude Include="include\fe\data\types.h" />
     <ClInclude Include="include\fe\data\name_scope.h" />
     <ClInclude Include="include\fe\data\type_scope.h" />
@@ -169,8 +170,7 @@
     <ClInclude Include="include\fe\data\value_scope.h" />
     <ClInclude Include="include\fe\language_definition.h" />
     <ClInclude Include="include\fe\libraries\core\core_operations.h" />
-    <ClInclude Include="include\fe\libraries\std\std_input.h" />
-    <ClInclude Include="include\fe\libraries\std\std_output.h" />
+    <ClInclude Include="include\fe\libraries\std\std_io.h" />
     <ClInclude Include="include\fe\libraries\std\std_types.h" />
     <ClInclude Include="include\fe\libraries\std\std_ui.h" />
     <ClInclude Include="include\fe\modes\project.h" />
