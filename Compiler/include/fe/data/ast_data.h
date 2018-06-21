@@ -7,9 +7,8 @@ namespace fe::types { struct type; }
 
 namespace fe::ext_ast
 {
-
-	using name = std::string_view;
-	using module_name = std::vector<std::string_view>;
+	using name = std::string;
+	using module_name = std::vector<std::string>;
 
 	struct identifier
 	{
@@ -23,7 +22,7 @@ namespace fe::ext_ast
 			auto begin = offsets.size() == 0 ? offsets.begin() : offsets.begin() + 1;
 			return identifier{
 				full,
-				std::vector<std::string_view>(segments.begin() + 1, segments.end()),
+				std::vector<std::string>(segments.begin() + 1, segments.end()),
 				scope_distance,
 				std::vector<size_t>(begin, offsets.end()),
 			};
@@ -34,10 +33,17 @@ namespace fe::ext_ast
 			auto end = offsets.size() == 0 ? offsets.end() : offsets.end() - 1;
 			return identifier{
 				full,
-				std::vector<std::string_view>(segments.begin(), segments.end() - 1),
+				std::vector<std::string>(segments.begin(), segments.end() - 1),
 				scope_distance,
 				std::vector<size_t>(offsets.begin(), end)
 			};
+		}
+
+		std::vector<std::string> copy_name() const
+		{
+			std::vector<std::string> out;
+			for (auto seg : segments) out.push_back(std::string(seg));
+			return out;
 		}
 
 		operator std::string() const
@@ -60,7 +66,7 @@ namespace std
 		{
 			size_t h = 0;
 			for (const auto& s : n)
-				h ^= hash<string_view>()(s);
+				h ^= hash<string>()(s);
 			return h;
 		}
 	};
@@ -71,7 +77,7 @@ namespace std
 		{
 			size_t h = 0;
 			for (const auto& s : o.segments)
-				h ^= hash<string_view>()(s);
+				h ^= hash<string>()(s);
 			if (o.scope_distance)
 				h ^= hash<size_t>()(o.scope_distance.value());
 			for (const auto& s : o.offsets)
@@ -86,12 +92,14 @@ namespace fe::core_ast
 	struct identifier
 	{
 		identifier() : scope_distance(0) {}
-		identifier(std::string_view name) : variable_name(name), scope_distance(0) {}
-		identifier(std::vector<std::string_view> modules, std::string_view name, size_t sd, std::vector<size_t> offsets) :
+		identifier(std::string name) : variable_name(name), scope_distance(0) {}
+		identifier(std::vector<std::string> modules, std::string name, size_t sd, std::vector<size_t> offsets) :
 			modules(modules), variable_name(name), scope_distance(sd), offsets(offsets) {}
+		identifier(const identifier& o) : modules(o.modules), variable_name(o.variable_name), 
+			scope_distance(o.scope_distance), offsets(o.offsets) {}
 
-		std::vector<std::string_view>   modules;
-		std::string_view                variable_name;
+		std::vector<std::string>   modules;
+		std::string                variable_name;
 		std::size_t                     scope_distance;
 		std::vector<size_t>             offsets;
 
@@ -132,6 +140,11 @@ namespace std
 
 namespace fe
 {
+	struct plain_identifier
+	{
+		std::string full;
+	};
+
 	struct boolean
 	{
 		bool value;

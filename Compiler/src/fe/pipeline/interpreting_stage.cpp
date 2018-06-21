@@ -66,8 +66,7 @@ namespace fe::core_ast
 		assert(n.data_index);
 		copy_parent_scope(n, ast);
 		auto& data = ast.get_data<identifier>(*n.data_index);
-		auto& scope = ast.get_value_scope(*n.value_scope_id);
-		auto& val = scope.valueof(data, data.scope_distance, ast.value_scope_cb());
+		auto val = ast.get_runtime_context().get_value(*n.value_scope_id, data);
 		assert(val);
 
 		return values::unique_value((*val)->copy());
@@ -81,8 +80,7 @@ namespace fe::core_ast
 		{
 			assert(lhs.data_index);
 			auto& data = ast.get_data<identifier>(*lhs.data_index);
-			auto& scope = ast.get_value_scope(*lhs.value_scope_id);
-			scope.set_value(data.variable_name, std::move(v), data.scope_distance, ast.value_scope_cb());
+			ast.get_runtime_context().set_value(*lhs.value_scope_id, data, std::move(v));
 		}
 		else if (lhs.kind == node_type::IDENTIFIER_TUPLE)
 		{
@@ -134,13 +132,13 @@ namespace fe::core_ast
 		assert(n.kind == node_type::TUPLE);
 		copy_parent_scope(n, ast);
 
-		std::unique_ptr<values::tuple> val(new values::tuple());
+		auto val = new values::tuple();
 		for (auto child_id : n.children)
 		{
 			auto& child = ast.get_node(child_id);
 			val->val.push_back(std::move(interpret(child, ast)));
 		}
-		return values::unique_value(val.release());
+		return values::unique_value(std::move(val));
 	}
 
 	values::unique_value interpret_block(node& n, ast& ast)
@@ -149,7 +147,7 @@ namespace fe::core_ast
 		if (n.parent_id)
 		{
 			if (n.value_scope_id)
-				ast.get_value_scope(*n.value_scope_id).clear();
+				ast.get_runtime_context().get_scope(*n.value_scope_id).clear();
 			else
 			{
 				auto& parent = ast.get_node(*n.parent_id);
@@ -185,20 +183,27 @@ namespace fe::core_ast
 		assert(id_node.data_index);
 		auto& id_data = ast.get_data<identifier>(*id_node.data_index);
 		std::optional<values::value*> id_val = ast
-			.get_value_scope(*n.value_scope_id)
-			.valueof(id_data, id_data.scope_distance, ast.value_scope_cb());
+			.get_runtime_context()
+			.get_value(*n.value_scope_id, id_data);
 		assert(id_val);
 
 		// Call function
 		if (values::function* func = dynamic_cast<values::function*>(*id_val))
 		{
 			auto& func_node = ast.get_node(func->func);
-			ast.get_value_scope(*func_node.value_scope_id).clear();
+
+			// Copy the scope of the function and restore it after the call
+			value_scope& func_scope = ast.get_runtime_context().get_scope(*func_node.value_scope_id);
+			value_scope scope_copy = func_scope;
+			func_scope.clear();
 
 			auto& params_node = ast.get_node(func_node.children[0]);
 			set_lhs(params_node, std::move(arg), ast);
 
-			return interpret(ast.get_node(func_node.children[1]), ast);
+			auto res = interpret(ast.get_node(func_node.children[1]), ast);
+
+			ast.get_runtime_context().get_scope(*func_node.value_scope_id) = std::move(scope_copy);
+			return res;
 		}
 		else if (values::native_function* func = dynamic_cast<values::native_function*>(*id_val))
 		{

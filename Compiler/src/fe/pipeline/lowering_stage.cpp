@@ -4,6 +4,14 @@
 
 namespace fe::ext_ast
 {
+	// Helper
+
+	static bool has_children(node& n, ast& ast)
+	{
+		if (n.children_id == no_children) return false;
+		return ast.get_children(n.children_id).size() > 0;
+	}
+
 	core_ast::node_id lower_assignment(node& n, ast& ext_ast, core_ast::ast& new_ast)
 	{
 		assert(n.kind == node_type::ASSIGNMENT);
@@ -72,7 +80,6 @@ namespace fe::ext_ast
 
 		// Parameters
 		auto& param_node = ast.get_node(children[0]);
-		auto& param_children = ast.children_of(param_node);
 		if (param_node.kind == node_type::IDENTIFIER)
 		{
 			auto param_id = lower(param_node, ast, new_ast);
@@ -86,6 +93,7 @@ namespace fe::ext_ast
 			new_ast.get_node(function_id).children.push_back(param_id);
 			new_param_node.parent_id = function_id;
 
+			auto& param_children = ast.children_of(param_node);
 			for (auto child : param_children)
 			{
 				auto& child_node = ast.get_node(child);
@@ -202,14 +210,14 @@ namespace fe::ext_ast
 	core_ast::node_id lower_id(node& n, ast& ast, core_ast::ast& new_ast)
 	{
 		assert(n.kind == node_type::IDENTIFIER);
-		assert(ast.children_of(n).size() == 0);
+		assert(!has_children(n, ast));
 		auto& data = ast.get_data<identifier>(n.data_index);
 
-		auto modules = std::vector<std::string_view>(
+		auto modules = std::vector<std::string>(
 			data.segments.begin(),
 			data.segments.end() - 1 - data.offsets.size()
 			);
-		std::string_view name = *(data.segments.end() - 1 - data.offsets.size());
+		std::string name = *(data.segments.end() - 1 - data.offsets.size());
 		// If the scope distance is not defined then this id is the lhs of a declaration
 		auto scope_distance = data.scope_distance ? *data.scope_distance : 0;
 
@@ -223,7 +231,7 @@ namespace fe::ext_ast
 	core_ast::node_id lower_string(node& n, ast& ast, core_ast::ast& new_ast)
 	{
 		assert(n.kind == node_type::STRING);
-		assert(ast.children_of(n).size() == 0);
+		assert(!has_children(n, ast));
 		auto& str_data = ast.get_data<string>(n.data_index);
 
 		auto str = new_ast.create_node(core_ast::node_type::STRING);
@@ -236,7 +244,7 @@ namespace fe::ext_ast
 	core_ast::node_id lower_boolean(node& n, ast& ast, core_ast::ast& new_ast)
 	{
 		assert(n.kind == node_type::BOOLEAN);
-		assert(ast.children_of(n).size() == 0);
+		assert(!has_children(n, ast));
 		auto& bool_data = ast.get_data<boolean>(n.data_index);
 
 		auto bool_id = new_ast.create_node(core_ast::node_type::BOOLEAN);
@@ -249,7 +257,7 @@ namespace fe::ext_ast
 	core_ast::node_id lower_number(node& n, ast& ast, core_ast::ast& new_ast)
 	{
 		assert(n.kind == node_type::NUMBER);
-		assert(ast.children_of(n).size() == 0);
+		assert(!has_children(n, ast));
 		auto& num_data = ast.get_data<number>(n.data_index);
 
 		auto num_id = new_ast.create_node(core_ast::node_type::NUMBER);

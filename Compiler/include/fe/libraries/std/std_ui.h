@@ -1,7 +1,7 @@
 #pragma once
 #include "fe/data/values.h"
 #include "fe/data/types.h"
-#include "fe/data/scope.h"
+#include "fe/data/module.h"
 #include <Windows.h>
 
 namespace fe::stdlib::ui
@@ -22,11 +22,12 @@ namespace fe::stdlib::ui
 		return 0;
 	};
 
-	static scope load()
+	static module load()
 	{
-		ext_ast::name_scope se{};
-		ext_ast::type_scope te{};
-		value_scope re{};
+		ext_ast::name_scope se;
+		ext_ast::type_scope te;
+		core_ast::value_scope re;
+		constants_store constants;
 
 		// Create Window
 		{
@@ -34,10 +35,12 @@ namespace fe::stdlib::ui
 			using namespace types;
 			function_type create_window_type{ types::str(), types::any() };
 
-			se.declare_variable("create_window");
-			se.define_variable("create_window");
-			te.set_type("create_window", unique_type(create_window_type.copy()));
-			re.set_value("create_window", unique_value(new native_function([](unique_value t) -> unique_value {
+			auto& create_window_ref = constants.get<plain_identifier>(constants.create<plain_identifier>());
+			create_window_ref.full = "create_window";
+			se.declare_variable(create_window_ref.full);
+			se.define_variable(create_window_ref.full);
+			te.set_type(create_window_ref.full, unique_type(create_window_type.copy()));
+			re.set_value(create_window_ref.full, unique_value(new native_function([](unique_value t) -> unique_value {
 				auto name = dynamic_cast<values::str*>(t.get())->val;
 
 				WNDCLASSEX wc;
@@ -101,10 +104,12 @@ namespace fe::stdlib::ui
 		{
 			using namespace values;
 			using namespace types;
-			se.declare_variable("poll");
-			se.define_variable("poll");
-			te.set_type("poll", unique_type(new function_type(types::any(), types::voidt())));
-			re.set_value("poll", unique_value(new native_function([](unique_value from) -> unique_value {
+			auto& poll_ref = constants.get<plain_identifier>(constants.create<plain_identifier>());
+			poll_ref.full = "poll";
+			se.declare_variable(poll_ref.full);
+			se.define_variable(poll_ref.full);
+			te.set_type(poll_ref.full, unique_type(new function_type(types::any(), types::voidt())));
+			re.set_value(poll_ref.full, unique_value(new native_function([](unique_value from) -> unique_value {
 				HWND window = dynamic_cast<custom_value<HWND>*>(from.get())->val;
 
 				MSG Msg;
@@ -117,6 +122,12 @@ namespace fe::stdlib::ui
 			})));
 		}
 
-		return scope(re, te, se);
+		return module{
+			{"std","ui"},
+			std::move(re),
+			std::move(te),
+			std::move(se),
+			std::move(constants)
+		};
 	}
 }
