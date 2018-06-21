@@ -14,18 +14,8 @@
 TEST_CASE("inference of literals", "[literals]")
 {
 	fe::project p{ fe::pipeline() };
-
-	// core
-	{
-		auto core_scope = fe::core::operations::load();
-		p.add_module({ "_core" }, core_scope);
-	}
-
-	// std types
-	{
-		auto type_scope = fe::stdlib::typedefs::load();
-		p.add_module({ "std" }, type_scope);
-	}
+	p.add_module(fe::core::operations::load());
+	p.add_module(fe::stdlib::typedefs::load());
 
 	auto code =
 		R"code(

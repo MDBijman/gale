@@ -7,6 +7,7 @@
 #include "fe/data/values.h"
 #include "fe/data/value_scope.h"
 #include "fe/data/ast_data.h"
+#include "fe/data/constants_store.h"
 #include "utils/memory/data_store.h"
 
 namespace fe::core_ast
@@ -50,13 +51,10 @@ namespace fe::core_ast
 	class ast
 	{
 		memory::dynamic_store<node> nodes;
-		memory::dynamic_store<value_scope> value_scopes;
+		memory::dynamic_store<core_ast::identifier> identifiers;
 
-		// Storage of node data
-		memory::dynamic_store<identifier> identifiers;
-		memory::dynamic_store<boolean> booleans;
-		memory::dynamic_store<string> strings;
-		memory::dynamic_store<number> numbers;
+		constants_store constants;
+		stack value_scopes;
 
 		node_id root;
 
@@ -107,27 +105,22 @@ namespace fe::core_ast
 		scope_index create_value_scope(scope_index parent)
 		{
 			auto new_scope = value_scopes.create();
-			value_scopes.get_at(new_scope).set_parent(parent);
+			value_scopes.get_at(new_scope).parent = parent;
 			return new_scope;
 		}
 
-		value_scope& get_value_scope(scope_index id)
+		stack& get_runtime_context()
 		{
-			return value_scopes.get_at(id);
-		}
-
-		value_scope::get_scope_cb value_scope_cb()
-		{
-			return [&](scope_index i) { return &value_scopes.get_at(i); };
+			return value_scopes;
 		}
 
 		// Node data 
 		template<class DataType>
 		DataType& get_data(data_index i);
 		template<> identifier& get_data<identifier>(data_index i) { return identifiers.get_at(i); }
-		template<> boolean&    get_data<boolean>(data_index i) { return booleans.get_at(i); }
-		template<> string&     get_data<string>(data_index i) { return strings.get_at(i); }
-		template<> number&     get_data<number>(data_index i) { return numbers.get_at(i); }
+		template<> boolean& get_data<boolean>(data_index i) { return constants.get<boolean>(i); }
+		template<> string& get_data<string>(data_index i) { return constants.get<string>(i); }
+		template<> number& get_data<number>(data_index i) { return constants.get<number>(i); }
 
 	private:
 		std::optional<data_index> create_node_data(node_type t)
@@ -135,10 +128,10 @@ namespace fe::core_ast
 			switch (t)
 			{
 			case node_type::IDENTIFIER: return identifiers.create();
-			case node_type::NUMBER:     return numbers.create();
-			case node_type::STRING:     return strings.create();
-			case node_type::BOOLEAN:    return booleans.create();
-			default:                    return std::nullopt;
+			case node_type::NUMBER: return constants.create<number>();
+			case node_type::STRING: return constants.create<string>();
+			case node_type::BOOLEAN: return constants.create<boolean>();
+			default: return std::nullopt;
 			}
 		}
 	};
