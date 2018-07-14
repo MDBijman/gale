@@ -268,6 +268,88 @@ namespace fe::core_ast
 		return values::unique_value(new values::void_value());
 	}
 
+	template<typename T>
+	values::unique_value op(node_type n, T t1, T t2)
+	{
+		switch (n)
+		{
+		case node_type::ADD: return values::unique_value(new T(t1 + t2)); break;
+		case node_type::SUB: return values::unique_value(new T(t1 - t2)); break;
+		case node_type::MUL: return values::unique_value(new T(t1 * t2)); break;
+		case node_type::DIV: return values::unique_value(new T(t1 / t2)); break;
+		case node_type::MOD:
+			if constexpr(std::is_same<T, values::i32>::value || std::is_same<T, values::i64>::value
+				|| std::is_same<T, values::ui32>::value || std::is_same<T, values::ui64>::value)
+				return values::unique_value(new T(t1 % t2));
+			else
+				throw interp_error{ "Error: mod on invalid values" }
+			break;
+		case node_type::EQ:  return values::unique_value(new values::boolean(t1 == t2)); break;
+		case node_type::GEQ: return values::unique_value(new values::boolean(t1 >= t2)); break;
+		case node_type::GT:  return values::unique_value(new values::boolean(t1 > t2));  break;
+		case node_type::LEQ: return values::unique_value(new values::boolean(t1 <= t2)); break;
+		case node_type::LT:  return values::unique_value(new values::boolean(t1 < t2));  break;
+		case node_type::AND: return values::unique_value(new values::boolean(t1 && t2)); break;
+		case node_type::OR:  return values::unique_value(new values::boolean(t1 || t2)); break;
+		default: throw lower_error{ "Unknown binary op" };
+		}
+	}
+
+	values::unique_value interpret_bin_op(node& n, ast& ast)
+	{
+		assert(is_binary_op(n.kind));
+		assert(n.children.size() == 2);
+		copy_parent_scope(n, ast);
+
+		auto lhs_val = interpret(ast.get_node(n.children[0]), ast);
+		auto rhs_val = interpret(ast.get_node(n.children[1]), ast);
+
+		if (auto x = dynamic_cast<values::i64*>(lhs_val.get()))
+		{
+			if (auto y = dynamic_cast<values::i64*>(rhs_val.get()))
+				return op<values::i64>(n.kind, *x, *y);
+			else if (auto y = dynamic_cast<values::i32*>(rhs_val.get()))
+				return op<values::i64>(n.kind, *x, values::i64(y->val));
+		}
+		else if (auto x = dynamic_cast<values::i32*>(lhs_val.get()))
+		{
+			if (auto y = dynamic_cast<values::i32*>(rhs_val.get()))
+				return op<values::i32>(n.kind, *x, *y);
+			else if (auto y = dynamic_cast<values::i64*>(rhs_val.get()))
+				return op<values::i64>(n.kind, values::i64(x->val), *y);
+		}
+		else if (auto x = dynamic_cast<values::ui64*>(lhs_val.get()))
+		{
+			if (auto y = dynamic_cast<values::ui64*>(rhs_val.get()))
+				return op<values::ui64>(n.kind, *x, *y);
+			else if (auto y = dynamic_cast<values::ui32*>(rhs_val.get()))
+				return op<values::ui64>(n.kind, *x, values::ui64(y->val));
+		}
+		else if (auto x = dynamic_cast<values::ui32*>(lhs_val.get()))
+		{
+			if (auto y = dynamic_cast<values::ui32*>(rhs_val.get()))
+				return op<values::ui32>(n.kind, *x, *y);
+			else if (auto y = dynamic_cast<values::ui64*>(rhs_val.get()))
+				return op<values::ui64>(n.kind, values::ui64(x->val), *y);
+		}
+		else if (auto x = dynamic_cast<values::f32*>(lhs_val.get()))
+		{
+			if (auto y = dynamic_cast<values::f32*>(rhs_val.get()))
+				return op<values::f32>(n.kind, *x, *y);
+			else if (auto y = dynamic_cast<values::f64*>(rhs_val.get()))
+				return op<values::f64>(n.kind, values::f64(x->val), *y);
+		}
+		else if (auto x = dynamic_cast<values::f64*>(lhs_val.get()))
+		{
+			if (auto y = dynamic_cast<values::f64*>(rhs_val.get()))
+				return op<values::f64>(n.kind, *x, *y);
+			else if (auto y = dynamic_cast<values::f32*>(rhs_val.get()))
+				return op<values::f64>(n.kind, *x, values::f64(y->val));
+		}
+		else throw interp_error{ "Invalid op" };
+
+	}
+
 	values::unique_value interpret(node& n, ast& ast)
 	{
 		switch (n.kind)
@@ -286,6 +368,7 @@ namespace fe::core_ast
 		case node_type::REFERENCE:     return interpret_reference(n, ast);
 		case node_type::WHILE_LOOP:    return interpret_while_loop(n, ast);
 		default:
+			if (is_binary_op(n.kind)) return interpret_bin_op(n, ast);
 			throw std::runtime_error("Error: unknown node type");
 		}
 	}

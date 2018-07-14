@@ -24,7 +24,7 @@ namespace fe
 			modules.insert({ m.name, m });
 		}
 
-		module eval(const std::string& code)
+		vm::machine_state eval(const std::string& code)
 		{
 			auto e_ast = pl.parse(code);
 
@@ -98,15 +98,9 @@ namespace fe
 			}
 
 			// Stage 3: interpret
-			pl.interp(c_ast);
-
-			return module{
-				e_ast.get_module_name().value_or(ext_ast::identifier()).copy_name(),
-				c_ast.get_runtime_context().get_scope(*core_root_node.value_scope_id),
-				e_ast.get_type_scope(root_node.type_scope_id),
-				e_ast.get_name_scope(root_node.name_scope_id),
-				e_ast.get_constants()
-			};
+			auto bytecode = pl.generate(c_ast);
+			bytecode.print();
+			return pl.run(bytecode);
 		}
 
 	private:
