@@ -5,6 +5,8 @@
 #include "fe/pipeline/typechecker_stage.h"
 #include "fe/pipeline/lowering_stage.h"
 #include "fe/pipeline/interpreting_stage.h"
+#include "fe/pipeline/bytecode_gen_stage.h"
+#include "fe/pipeline/vm_stage.h"
 #include "fe/pipeline/error.h"
 
 #include <memory>
@@ -44,6 +46,16 @@ namespace fe
 		core_ast::ast lower(ext_ast::ast& ast) const
 		{
 			return ext_ast::lower(ast);
+		}
+
+		vm::program generate(core_ast::ast& ast) const
+		{
+			return vm::generate_bytecode(ast);
+		}
+
+		vm::machine_state run(vm::program& p) const
+		{
+			return vm::interpret(p);
 		}
 
 		values::unique_value interp(core_ast::ast& n) const

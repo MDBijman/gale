@@ -70,69 +70,14 @@ namespace fe::core::operations
 
 		{
 			auto from = types::product_type();
-			from.product.emplace_back(types::make_unique(types::i64()));
-			from.product.emplace_back(types::make_unique(types::i64()));
-
-			add_bin_op<values::i64, std::equal_to<values::i64>, values::boolean>(constants, re, te, se, "eq", from, types::boolean());
-			add_bin_op<values::i64, std::less<values::i64>, values::boolean>(constants, re, te, se, "lt", from, types::boolean());
-			add_bin_op<values::i64, std::less_equal<values::i64>, values::boolean>(constants, re, te, se, "lte", from, types::boolean());
-			add_bin_op<values::i64, std::greater<values::i64>, values::boolean>(constants, re, te, se, "gt", from, types::boolean());
-			add_bin_op<values::i64, std::greater_equal<values::i64>, values::boolean>(constants, re, te, se, "gte", from, types::boolean());
-
-			add_bin_op<values::i64, std::minus<values::i64>, values::i64>(constants, re, te, se, "sub", from, types::i64());
-			add_bin_op<values::i64, std::plus<values::i64>, values::i64>(constants, re, te, se, "add", from, types::i64());
-			add_bin_op<values::i64, std::multiplies<values::i64>, values::i64>(constants, re, te, se, "mul", from, types::i64());
-			add_bin_op<values::i64, std::divides<values::i64>, values::i64>(constants, re, te, se, "div", from, types::i64());
-			add_bin_op<values::i64, std::modulus<values::i64>, values::i64>(constants, re, te, se, "mod", from, types::i64());
-		}
-
-		{
-			auto from = types::product_type();
 			from.product.emplace_back(types::make_unique(types::array_type(types::i32())));
 			from.product.emplace_back(types::make_unique(types::i32()));
 			add_bin_op<values::tuple, values::i32, get_op<values::i32>, values::i32>(constants, re, te, se, "get", from, types::i32());
 		}
-
-		{
-			auto from = types::product_type();
-			from.product.emplace_back(types::make_unique(types::i32()));
-			from.product.emplace_back(types::make_unique(types::i32()));
-
-			add_bin_op<values::i32, std::equal_to<values::i32>, values::boolean>(constants, re, te, se, "eq", from, types::boolean());
-			add_bin_op<values::i32, std::less<values::i32>, values::boolean>(constants, re, te, se, "lt", from, types::boolean());
-			add_bin_op<values::i32, std::less_equal<values::i32>, values::boolean>(constants, re, te, se, "lte", from, types::boolean());
-			add_bin_op<values::i32, std::greater<values::i32>, values::boolean>(constants, re, te, se, "gt", from, types::boolean());
-			add_bin_op<values::i32, std::greater_equal<values::i32>, values::boolean>(constants, re, te, se, "gte", from, types::boolean());
-
-			add_bin_op<values::i32, std::minus<values::i32>, values::i32>(constants, re, te, se, "sub", from, types::i32());
-			add_bin_op<values::i32, std::plus<values::i32>, values::i32>(constants, re, te, se, "add", from, types::i32());
-			add_bin_op<values::i32, std::multiplies<values::i32>, values::i32>(constants, re, te, se, "mul", from, types::i32());
-			add_bin_op<values::i32, std::divides<values::i32>, values::i32>(constants, re, te, se, "div", from, types::i32());
-			add_bin_op<values::i32, std::modulus<values::i32>, values::i32>(constants, re, te, se, "mod", from, types::i32());
-		}
-
-		{
-			auto from = types::product_type();
-			from.product.emplace_back(types::make_unique(types::f32()));
-			from.product.emplace_back(types::make_unique(types::f32()));
-
-			add_bin_op<values::f32, std::equal_to<values::f32>, values::boolean>(constants, re, te, se, "eq", from, types::boolean());
-			add_bin_op<values::f32, std::less<values::f32>, values::boolean>(constants, re, te, se, "lt", from, types::boolean());
-			add_bin_op<values::f32, std::less_equal<values::f32>, values::boolean>(constants, re, te, se, "lte", from, types::boolean());
-			add_bin_op<values::f32, std::greater<values::f32>, values::boolean>(constants, re, te, se, "gt", from, types::boolean());
-			add_bin_op<values::f32, std::greater_equal<values::f32>, values::boolean>(constants, re, te, se, "gte", from, types::boolean());
-
-			add_bin_op<values::f32, std::minus<values::f32>, values::f32>(constants, re, te, se, "sub", from, types::f32());
-			add_bin_op<values::f32, std::plus<values::f32>, values::f32>(constants, re, te, se, "add", from, types::f32());
-			add_bin_op<values::f32, std::multiplies<values::f32>, values::f32>(constants, re, te, se, "mul", from, types::f32());
-			add_bin_op<values::f32, std::divides<values::f32>, values::f32>(constants, re, te, se, "div", from, types::f32());
-		}
-
 		{
 			auto from = types::boolean();
 			add_un_op<values::boolean, std::logical_not<values::boolean>, values::boolean>(constants, re, te, se, "not", from, types::boolean());
 		}
-
 
 		return module{
 			{"_core"},

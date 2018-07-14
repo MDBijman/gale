@@ -46,6 +46,7 @@ namespace fe
 			virtual ~type() = 0 {};
 			virtual operator std::string() const = 0;
 			virtual type* copy() const = 0;
+			virtual size_t calculate_size() const = 0;
 			virtual bool operator==(type* other) const = 0;
 		};
 
@@ -88,6 +89,26 @@ namespace fe
 			throw std::runtime_error("Unknown atom type");
 		};
 
+		constexpr size_t atom_type_size(atom_type lit)
+		{
+			switch (lit)
+			{
+			case atom_type::I32:       return 4;  break;
+			case atom_type::I64:       return 8;  break;
+			case atom_type::UI32:      return 4;  break;
+			case atom_type::UI64:      return 8;  break;
+			case atom_type::F32:       return 4;  break;
+			case atom_type::F64:       return 8;  break;
+			case atom_type::STRING:    return 8;  break;
+			case atom_type::BOOL:      return 1;  break;
+			case atom_type::UNSET:     return -1; break;
+			case atom_type::ANY:       return -1; break;
+			case atom_type::VOID:      return 0;  break;
+			}
+			assert(!"Unknown atom type");
+			throw std::runtime_error("Unknown atom type");
+		}
+
 		template<atom_type Type>
 		struct atom : public type, private detail::comparable<atom<Type>, type>, private detail::copyable<atom<Type>, type>
 		{
@@ -108,6 +129,7 @@ namespace fe
 
 			bool operator==(type* other) const override { return comparable::operator==(other); }
 			type* copy() const override { return copyable::copy(*this); }
+			size_t calculate_size() const override { return atom_type_size(Type); }
 		};
 
 		using i32        = atom<atom_type::I32>;
@@ -140,6 +162,16 @@ namespace fe
 			operator std::string() const override;
 			bool operator==(type* other) const override { return comparable::operator==(other); }
 			type* copy() const override { return copyable::copy(*this); }
+			size_t calculate_size() const override
+			{ 
+				size_t max = 0;
+				for (auto& t : sum)
+				{
+					size_t s = t->calculate_size();
+					max = s > max ? s : max;
+				}
+				return max;
+			}
 
 			std::vector<unique_type> sum;
 		};
@@ -161,6 +193,10 @@ namespace fe
 			operator std::string() const override;
 			bool operator==(type* other) const override { return comparable::operator==(other); }
 			type* copy() const override { return copyable::copy(*this); }
+			size_t calculate_size() const override
+			{
+				return 4;
+			}
 
 			unique_type element_type;
 		};
@@ -182,6 +218,10 @@ namespace fe
 			operator std::string() const override;
 			bool operator==(type* other) const override { return comparable::operator==(other); }
 			type* copy() const override { return copyable::copy(*this); }
+			size_t calculate_size() const override
+			{
+				return 4;
+			}
 
 			unique_type referred_type;
 		};
@@ -202,6 +242,12 @@ namespace fe
 			operator std::string() const override;
 			bool operator==(type* other) const override { return comparable::operator==(other); }
 			type* copy() const override { return copyable::copy(*this); }
+			size_t calculate_size() const override
+			{
+				size_t sum = 0;
+				for (auto& t : product) sum += t->calculate_size();
+				return sum;
+			}
 
 			std::vector<unique_type> product;
 		};
@@ -222,6 +268,10 @@ namespace fe
 			operator std::string() const override;
 			bool operator==(type* other) const override { return comparable::operator==(other); }
 			type* copy() const override { return copyable::copy(*this); }
+			size_t calculate_size() const override
+			{
+				return to->calculate_size();
+			}
 
 			unique_type from, to;
 		};

@@ -84,7 +84,7 @@ int main(int argc, char** argv)
 					continue;
 				}
 				auto& code = std::get<std::string>(file_or_error);
-				proj.add_module(proj.eval(code));
+				//proj.add_module(proj.eval(code));
 			}
 		}
 		catch (const lexing::error& e)

@@ -35,22 +35,21 @@ let x: Pair = Pair (1, Nested (3, 4));
 	}
 }
 
-
-TEST_CASE("declaration with tuple type", "[typechecking]")
-{
-	fe::project p{ fe::pipeline() };
-	p.add_module(fe::core::operations::load());
-	p.add_module(fe::stdlib::io::load());
-	p.add_module(fe::stdlib::typedefs::load());
-
-	std::string code = R"code(
-import [std std.io]
-let x : (std.i32, std.i32) = (1, 2);
-)code";
-
-	auto res = testing::test_scope(p.eval(std::move(code)));
-	std::vector<fe::values::unique_value> x_components;
-	x_components.push_back(fe::values::unique_value(new fe::values::i32(1)));
-	x_components.push_back(fe::values::unique_value(new fe::values::i32(2)));
-	REQUIRE(res.value_equals("x", fe::values::tuple(std::move(x_components))));
-}
+//TEST_CASE("declaration with tuple type", "[typechecking]")
+//{
+//	fe::project p{ fe::pipeline() };
+//	p.add_module(fe::core::operations::load());
+//	p.add_module(fe::stdlib::io::load());
+//	p.add_module(fe::stdlib::typedefs::load());
+//
+//	std::string code = R"code(
+//import [std std.io]
+//let x : (std.i32, std.i32) = (1, 2);
+//)code";
+//
+//	auto res = testing::test_scope(p.eval(std::move(code)));
+//	std::vector<fe::values::unique_value> x_components;
+//	x_components.push_back(fe::values::unique_value(new fe::values::i32(1)));
+//	x_components.push_back(fe::values::unique_value(new fe::values::i32(2)));
+//	REQUIRE(res.value_equals("x", fe::values::tuple(std::move(x_components))));
+//}

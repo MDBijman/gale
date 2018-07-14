@@ -27,8 +27,30 @@ namespace fe::core_ast
 		FUNCTION_CALL,
 		BRANCH,
 		REFERENCE,
-		WHILE_LOOP
+		WHILE_LOOP,
+		// logic ops
+		LT, GT, LEQ, GEQ, EQ, NEQ, AND, OR,
+		// arithmetic ops
+		ADD, SUB, MUL, DIV, MOD
 	};
+
+
+	constexpr bool is_binary_op(node_type kind)
+	{
+		return (kind == node_type::LT
+			|| kind == node_type::GT
+			|| kind == node_type::LEQ
+			|| kind == node_type::GEQ
+			|| kind == node_type::EQ
+			|| kind == node_type::NEQ
+			|| kind == node_type::AND
+			|| kind == node_type::OR
+			|| kind == node_type::ADD
+			|| kind == node_type::SUB
+			|| kind == node_type::MUL
+			|| kind == node_type::DIV
+			|| kind == node_type::MOD);
+	}
 
 	using data_index = size_t;
 	using scope_index = size_t;
@@ -43,7 +65,7 @@ namespace fe::core_ast
 		node_id id;
 		std::vector<node_id> children;
 		std::optional<node_id> parent_id;
-
+		std::optional<size_t> size;
 		std::optional<data_index> data_index;
 		std::optional<scope_index> value_scope_id;
 	};
@@ -63,6 +85,7 @@ namespace fe::core_ast
 		{
 			root = nodes.create();
 			nodes.get_at(root) = node(t);
+			nodes.get_at(root).id = root;
 			nodes.get_at(root).data_index = create_node_data(t);
 			nodes.get_at(root).value_scope_id = create_value_scope();
 		}
@@ -89,7 +112,24 @@ namespace fe::core_ast
 			get_node(new_node).kind = t;
 			get_node(new_node).data_index = create_node_data(t);
 			get_node(new_node).parent_id = parent;
+			get_node(parent).children.push_back(new_node);
 			return new_node;
+		}
+
+		node& parent_of(node_id id)
+		{
+			return nodes.get_at(*nodes.get_at(id).parent_id);
+		}
+
+		std::vector<node_id>& children_of(node_id id)
+		{
+			return nodes.get_at(id).children;
+		}
+
+		void link_child_parent(node_id child, node_id parent)
+		{
+			children_of(parent).push_back(child);
+			get_node(child).parent_id = parent;
 		}
 
 		node& get_node(node_id id)
