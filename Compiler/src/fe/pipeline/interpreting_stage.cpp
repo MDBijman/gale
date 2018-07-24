@@ -72,38 +72,10 @@ namespace fe::core_ast
 		return values::unique_value((*val)->copy());
 	}
 
-	void set_lhs(node& lhs, values::unique_value v, ast& ast)
-	{
-		copy_parent_scope(lhs, ast);
 
-		if (lhs.kind == node_type::IDENTIFIER)
-		{
-			assert(lhs.data_index);
-			auto& data = ast.get_data<identifier>(*lhs.data_index);
-			ast.get_runtime_context().set_value(*lhs.value_scope_id, data, std::move(v));
-		}
-		else if (lhs.kind == node_type::IDENTIFIER_TUPLE)
-		{
-			if (auto pv = dynamic_cast<values::tuple*>(v.get()))
-			{
-				assert(lhs.children.size() == pv->val.size());
-				for(int i = 0; i < lhs.children.size(); i++)
-				{
-					auto& child = ast.get_node(lhs.children[i]);
-					auto& value = pv->val[i];
-					set_lhs(child, std::move(value), ast);
-				}
-			}
-			else
-			{
-				throw std::runtime_error("Error: cannot assign non-tuple to identifier tuple");
-			}
-		}
-	}
-
-	values::unique_value interpret_set(node& n, ast& ast)
+	values::unique_value interpret_write(node& n, ast& ast)
 	{
-		assert(n.kind == node_type::SET);
+		assert(n.kind == node_type::WRITE);
 		assert(n.children.size() == 2);
 		copy_parent_scope(n, ast);
 
@@ -111,7 +83,11 @@ namespace fe::core_ast
 		auto& val = interpret(rhs, ast);
 
 		auto& lhs = ast.get_node(n.children[0]);
-		set_lhs(lhs, std::move(val), ast);
+
+		copy_parent_scope(lhs, ast);
+		assert(lhs.data_index);
+		auto& data = ast.get_data<identifier>(*lhs.data_index);
+		ast.get_runtime_context().set_value(*lhs.value_scope_id, data, std::move(val));
 
 		return values::unique_value(new values::void_value());
 	}
@@ -198,7 +174,11 @@ namespace fe::core_ast
 			func_scope.clear();
 
 			auto& params_node = ast.get_node(func_node.children[0]);
-			set_lhs(params_node, std::move(arg), ast);
+
+			copy_parent_scope(params_node, ast);
+			assert(params_node.data_index);
+			auto& data = ast.get_data<identifier>(*params_node.data_index);
+			ast.get_runtime_context().set_value(*params_node.value_scope_id, data, std::move(arg));
 
 			auto res = interpret(ast.get_node(func_node.children[1]), ast);
 
@@ -228,7 +208,7 @@ namespace fe::core_ast
 
 			auto test_val = interpret(test_node, ast);
 			values::boolean* b = dynamic_cast<values::boolean*>(test_val.get());
-			if (!b) 
+			if (!b)
 				throw std::runtime_error("Error: if test must be of boolean value");
 
 			if (b->val)
@@ -277,7 +257,7 @@ namespace fe::core_ast
 		case node_type::STRING:        return interpret_string(n, ast);
 		case node_type::BOOLEAN:       return interpret_boolean(n, ast);
 		case node_type::IDENTIFIER:    return interpret_identifier(n, ast);
-		case node_type::SET:           return interpret_set(n, ast);
+		case node_type::WRITE:         return interpret_write(n, ast);
 		case node_type::FUNCTION:      return interpret_function(n, ast);
 		case node_type::TUPLE:         return interpret_tuple(n, ast);
 		case node_type::BLOCK:         return interpret_block(n, ast);

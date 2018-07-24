@@ -16,6 +16,7 @@ namespace fe::ext_ast
 		module_name segments;
 		std::optional<std::size_t> scope_distance;
 		std::vector<size_t> offsets;
+		uint32_t unique_id = 0;
 
 		identifier without_first_segment() const
 		{
@@ -91,32 +92,25 @@ namespace fe::core_ast
 {
 	struct identifier
 	{
-		identifier() : scope_distance(0) {}
-		identifier(std::string name) : variable_name(name), scope_distance(0) {}
-		identifier(std::vector<std::string> modules, std::string name, size_t sd, std::vector<size_t> offsets) :
-			modules(modules), variable_name(name), scope_distance(sd), offsets(offsets) {}
-		identifier(const identifier& o) : modules(o.modules), variable_name(o.variable_name), 
-			scope_distance(o.scope_distance), offsets(o.offsets) {}
+		identifier(uint32_t id) : unique_id(id) {}
 
-		std::vector<std::string>   modules;
-		std::string                variable_name;
-		std::size_t                     scope_distance;
-		std::vector<size_t>             offsets;
+		std::vector<std::string> modules;
+		uint32_t unique_id;
+		std::size_t scope_distance;
 
 		operator std::string() const
 		{
 			std::string o;
 			for (int i = 0; i < modules.size(); i++)
 				o += std::string(modules.at(i)) + ".";
-			o += variable_name;
+			o += std::to_string(unique_id);
 			return o;
 		}
 	};
 
 	inline bool operator==(const identifier& a, const identifier& b)
 	{
-		return (a.modules == b.modules) && (a.variable_name == b.variable_name)
-			&& (a.scope_distance == b.scope_distance) && (a.offsets == b.offsets);
+		return (a.modules == b.modules) && (a.unique_id == b.unique_id) && (a.scope_distance == b.scope_distance);
 	}
 }
 
@@ -129,10 +123,8 @@ namespace std
 			size_t h = 0;
 			for (const auto& s : o.modules)
 				h ^= hash<string_view>()(s);
-			h ^= hash<string_view>()(o.variable_name);
+			h ^= hash<uint32_t>()(o.unique_id);
 			h ^= hash<size_t>()(o.scope_distance);
-			for (const auto& s : o.offsets)
-				h ^= hash<size_t>()(s);
 			return h;
 		}
 	};
