@@ -224,7 +224,7 @@ namespace fe::ext_ast
 
 		auto id = new_ast.create_node(core_ast::node_type::IDENTIFIER);
 		auto& id_node = new_ast.get_node(id);
-		new_ast.get_data<core_ast::identifier>(*id_node.data_index) = core_ast::identifier(modules, name, scope_distance, data.offsets);
+		new_ast.get_data<core_ast::identifier>(*id_node.data_index) = core_ast::identifier(modules, data.unique_id);
 
 		return id;
 	}
@@ -381,7 +381,7 @@ namespace fe::ext_ast
 			auto param = new_ast.create_node(core_ast::node_type::IDENTIFIER);
 			auto& param_node = new_ast.get_node(param);
 			auto& param_data = new_ast.get_data<core_ast::identifier>(*param_node.data_index);
-			param_data.variable_name = "_arg0";
+			param_data.unique_id = 1;
 			param_node.parent_id = fn_rhs;
 
 			// Push twice, for parameter and body
@@ -454,9 +454,8 @@ namespace fe::ext_ast
 			auto first_test = new_ast.create_node(core_ast::node_type::FUNCTION_CALL, branch);
 			{
 				auto fun_name = new_ast.create_node(core_ast::node_type::IDENTIFIER, first_test);
-				new_ast.get_data<core_ast::identifier>(*new_ast.get_node(fun_name).data_index) = core_ast::identifier(
-					{ "_core" }, "not std.bool -> std.bool",
-					ast.get_name_scope(n.name_scope_id).depth(ast.name_scope_cb()), {});
+				auto not_id = ast.get_name_scope(n.name_scope_id).resolve_variable({"_core"}, "not std.bool -> std.bool", ast.name_scope_cb())->unique_id;
+				new_ast.get_data<core_ast::identifier>(*new_ast.get_node(fun_name).data_index) = core_ast::identifier("_core", not_id);
 
 				auto fun_arg = lower(ast.get_node(children[0]), ast, new_ast);
 				new_ast.get_node(fun_arg).parent_id = first_test;
@@ -518,11 +517,8 @@ namespace fe::ext_ast
 
 			auto fun_name_id = new_ast.create_node(core_ast::node_type::IDENTIFIER);
 			auto& name_data = new_ast.get_data<core_ast::identifier>(*new_ast.get_node(fun_name_id).data_index);
-			name_data.modules = { "_core" };
-			name_data.variable_name = ast.get_data<string>(n.data_index).value;
-			name_data.offsets = {};
-			assert(n.name_scope_id != no_scope);
-			name_data.scope_distance = ast.get_name_scope(n.name_scope_id).depth(ast.name_scope_cb());
+			auto op_id = ast.get_name_scope(n.name_scope_id).resolve_variable(ast.get_data<string>(n.data_index).value, ast.name_scope_cb())->unique_id;
+			new_ast.get_data<core_ast::identifier>(*new_ast.get_node(fun_name_id).data_index) = core_ast::identifier("_core", op_id);
 
 			new_ast.get_node(fun_call).children.push_back(fun_name_id);
 			new_ast.get_node(fun_name_id).parent_id = fun_call;

@@ -103,29 +103,17 @@
     <ClCompile Include="src\fe\data\types.cpp">
       <Filter>Source Files\fe\data</Filter>
     </ClCompile>
-    <ClCompile Include="src\fe\data\values.cpp">
-      <Filter>Source Files\fe\data</Filter>
-    </ClCompile>
     <ClCompile Include="src\fe\pipeline\resolution_stage.cpp">
       <Filter>Source Files\fe\pipeline</Filter>
     </ClCompile>
     <ClCompile Include="src\fe\pipeline\typechecker_stage.cpp">
       <Filter>Source Files\fe\pipeline</Filter>
     </ClCompile>
-    <ClCompile Include="src\tests\fe\destructuring_tests.cpp">
-      <Filter>Source Files\tests\fe</Filter>
-    </ClCompile>
     <ClCompile Include="src\tests\fe\name_resolution_tests.cpp">
       <Filter>Source Files\tests\fe</Filter>
     </ClCompile>
     <ClCompile Include="src\fe\language_definition.cpp">
       <Filter>Source Files\fe</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tests\fe\while_tests.cpp">
-      <Filter>Source Files\tests\fe</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tests\fe\comparison_tests.cpp">
-      <Filter>Source Files\tests\fe</Filter>
     </ClCompile>
     <ClCompile Include="src\fe\pipeline\parser_stage.cpp">
       <Filter>Source Files\fe\pipeline</Filter>
@@ -145,15 +133,6 @@
     <ClCompile Include="src\tests\utils\performance_tests.cpp">
       <Filter>Source Files\tests\utils</Filter>
     </ClCompile>
-    <ClCompile Include="src\tests\fe\literal_inference_tests.cpp">
-      <Filter>Source Files\tests\fe</Filter>
-    </ClCompile>
-    <ClCompile Include="src\fe\pipeline\interpreting_stage.cpp">
-      <Filter>Source Files\fe\pipeline</Filter>
-    </ClCompile>
-    <ClCompile Include="src\fe\data\value_scope.cpp">
-      <Filter>Source Files\fe\data</Filter>
-    </ClCompile>
     <ClCompile Include="src\tests\fe\typechecking_tests.cpp">
       <Filter>Source Files\tests\fe</Filter>
     </ClCompile>
@@ -171,9 +150,6 @@
     <ClInclude Include="include\fe\data\types.h">
       <Filter>Source Files\fe\data</Filter>
     </ClInclude>
-    <ClInclude Include="include\fe\data\values.h">
-      <Filter>Source Files\fe\data</Filter>
-    </ClInclude>
     <ClInclude Include="include\fe\modes\project.h">
       <Filter>Source Files\fe\modes</Filter>
     </ClInclude>
@@ -181,9 +157,6 @@
       <Filter>Source Files\fe\modes</Filter>
     </ClInclude>
     <ClInclude Include="include\fe\pipeline\error.h">
-      <Filter>Source Files\fe\pipeline</Filter>
-    </ClInclude>
-    <ClInclude Include="include\fe\pipeline\interpreting_stage.h">
       <Filter>Source Files\fe\pipeline</Filter>
     </ClInclude>
     <ClInclude Include="include\fe\pipeline\lexer_stage.h">
@@ -236,9 +209,6 @@
     </ClInclude>
     <ClInclude Include="include\utils\memory\data_store.h">
       <Filter>Source Files\utils\memory</Filter>
-    </ClInclude>
-    <ClInclude Include="include\fe\data\value_scope.h">
-      <Filter>Source Files\fe\data</Filter>
     </ClInclude>
     <ClInclude Include="include\fe\data\ast_data.h">
       <Filter>Source Files\fe\data</Filter>

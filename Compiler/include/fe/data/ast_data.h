@@ -92,11 +92,13 @@ namespace fe::core_ast
 {
 	struct identifier
 	{
+		identifier() : unique_id(0) {}
 		identifier(uint32_t id) : unique_id(id) {}
+		identifier(std::string module, uint32_t id) : modules({ module }), unique_id(id) {}
+		identifier(std::vector<std::string> ms, uint32_t id) : modules(ms), unique_id(id) {}
 
 		std::vector<std::string> modules;
 		uint32_t unique_id;
-		std::size_t scope_distance;
 
 		operator std::string() const
 		{
@@ -110,7 +112,7 @@ namespace fe::core_ast
 
 	inline bool operator==(const identifier& a, const identifier& b)
 	{
-		return (a.modules == b.modules) && (a.unique_id == b.unique_id) && (a.scope_distance == b.scope_distance);
+		return (a.modules == b.modules) && (a.unique_id == b.unique_id);
 	}
 }
 
@@ -124,7 +126,6 @@ namespace std
 			for (const auto& s : o.modules)
 				h ^= hash<string_view>()(s);
 			h ^= hash<uint32_t>()(o.unique_id);
-			h ^= hash<size_t>()(o.scope_distance);
 			return h;
 		}
 	};

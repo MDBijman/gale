@@ -59,11 +59,10 @@ namespace fe::ext_ast
 
 		// Parent scope
 		std::optional<scope_index> parent;
+
 		// The id counter is used to generate unique ids for identifiers
 		// Only the root name scope should generate these ids to avoid collisions
 		uint32_t id_counter = 0;
-
-		uint32_t generate_unique_id(get_scope_cb);
 
 	public:
 
@@ -75,6 +74,8 @@ namespace fe::ext_ast
 		void set_parent(scope_index other);
 
 		size_t depth(get_scope_cb);
+
+		uint32_t generate_unique_id(get_scope_cb);
 
 		/*
 		* Adds the scope to this module accessible through the module_name.

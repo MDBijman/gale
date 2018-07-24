@@ -4,7 +4,6 @@
 #include "fe/pipeline/resolution_stage.h"
 #include "fe/pipeline/typechecker_stage.h"
 #include "fe/pipeline/lowering_stage.h"
-#include "fe/pipeline/interpreting_stage.h"
 #include "fe/pipeline/error.h"
 
 #include <memory>
@@ -44,15 +43,6 @@ namespace fe
 		core_ast::ast lower(ext_ast::ast& ast) const
 		{
 			return ext_ast::lower(ast);
-		}
-
-		values::unique_value interp(core_ast::ast& n) const
-		{
-			auto res = core_ast::interpret(n);
-			if (std::holds_alternative<interp_error>(res))
-				throw std::get<interp_error>(res);
-
-			return std::move(std::get<values::unique_value>(res));
 		}
 
 	private:

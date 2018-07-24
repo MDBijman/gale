@@ -289,12 +289,12 @@ namespace fe::ext_ast
 		{
 			switch (t)
 			{
-			case node_type::IDENTIFIER: return identifiers.create();
-			case node_type::NUMBER:     return constants.create<number>();
-			case node_type::STRING:     return constants.create<string>();
-			case node_type::BOOLEAN:    return constants.create<boolean>();
+			case node_type::IDENTIFIER: return static_cast<size_t>(identifiers.create());
+			case node_type::NUMBER:     return static_cast<size_t>(constants.create<number>());
+			case node_type::STRING:     return static_cast<size_t>(constants.create<string>());
+			case node_type::BOOLEAN:    return static_cast<size_t>(constants.create<boolean>());
 			default:
-				if (is_binary_op(t)) return constants.create<string>();
+				if (is_binary_op(t)) return static_cast<size_t>(constants.create<string>());
 				return no_data;
 			}
 		}
