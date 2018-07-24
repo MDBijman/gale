@@ -54,7 +54,7 @@ namespace fe
 						code = std::get<std::string>(file_or_error);
 					}
 
-					proj.eval(code);
+					proj.compile(code);
 				}
 				catch (const lexing::error& e)
 				{

@@ -4,8 +4,6 @@
 #include <variant>
 
 #include "fe/data/types.h"
-#include "fe/data/values.h"
-#include "fe/data/value_scope.h"
 #include "fe/data/ast_data.h"
 #include "fe/data/constants_store.h"
 #include "utils/memory/data_store.h"
@@ -56,9 +54,7 @@ namespace fe::core_ast
 	{
 		memory::dynamic_store<node> nodes;
 		memory::dynamic_store<core_ast::identifier> identifiers;
-
 		constants_store constants;
-		stack value_scopes;
 
 		node_id root;
 
@@ -68,7 +64,6 @@ namespace fe::core_ast
 			root = nodes.create();
 			nodes.get_at(root) = node(t);
 			nodes.get_at(root).data_index = create_node_data(t);
-			nodes.get_at(root).value_scope_id = create_value_scope();
 		}
 
 		node_id root_id()
@@ -99,23 +94,6 @@ namespace fe::core_ast
 		node& get_node(node_id id)
 		{
 			return nodes.get_at(id);
-		}
-
-		scope_index create_value_scope()
-		{
-			return value_scopes.create();
-		}
-
-		scope_index create_value_scope(scope_index parent)
-		{
-			auto new_scope = value_scopes.create();
-			value_scopes.get_at(new_scope).parent = parent;
-			return new_scope;
-		}
-
-		stack& get_runtime_context()
-		{
-			return value_scopes;
 		}
 
 		// Node data 

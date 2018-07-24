@@ -3,6 +3,7 @@
 #include <optional>
 #include <queue>
 #include <array>
+#include <thread>
 
 namespace memory
 {
@@ -19,7 +20,7 @@ namespace memory
 		{
 			wait_on_receive();
 			{
-				std::scoped_lock sl(lock);
+				std::scoped_lock<std::mutex> sl(lock);
 				this->t = t;
 				full = true;
 			}
@@ -31,7 +32,7 @@ namespace memory
 			wait_on_send();
 			T temp;
 			{
-				std::scoped_lock sl(lock);
+				std::scoped_lock<std::mutex> sl(lock);
 				temp = std::move(t);
 				full = false;
 			}
@@ -41,14 +42,14 @@ namespace memory
 
 		void wait_on_receive()
 		{
-			std::unique_lock ul(lock);
+			std::unique_lock<std::mutex> ul(lock);
 			if (!full) return;
 			cv.wait(ul, [this] { return !full; });
 		}
 
 		void wait_on_send()
 		{
-			std::unique_lock ul(lock);
+			std::unique_lock<std::mutex> ul(lock);
 			if (full) return;
 			cv.wait(ul, [this] { return full; });
 		}

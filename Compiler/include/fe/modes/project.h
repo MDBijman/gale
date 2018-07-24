@@ -24,7 +24,7 @@ namespace fe
 			modules.insert({ m.name, m });
 		}
 
-		module eval(const std::string& code)
+		module compile(const std::string& code)
 		{
 			auto e_ast = pl.parse(code);
 
@@ -72,37 +72,8 @@ namespace fe
 			// Stage 1: typecheck
 			pl.typecheck(e_ast);
 
-			// Stage 2: lower (desugar)
-			auto c_ast = pl.lower(e_ast);
-			auto& core_root_node = c_ast.get_node(c_ast.root_id());
-
-			// Value scope
-			{
-				auto core_value_scope = c_ast.create_value_scope();
-				c_ast.get_runtime_context().get_scope(core_value_scope).merge(core_module.values);
-				c_ast.get_runtime_context().add_module({ "_core" }, core_value_scope);
-			}
-
-			// Add value scopes of imports
-			if (imports)
-			{
-				for (const ext_ast::identifier& imp : *imports)
-				{
-					auto pos = modules.find(imp.copy_name());
-					assert(pos != modules.end());
-
-					auto module_value_scope = c_ast.create_value_scope();
-					c_ast.get_runtime_context().get_scope(module_value_scope).merge(pos->second.values);
-					c_ast.get_runtime_context().add_module(imp.segments, module_value_scope);
-				}
-			}
-
-			// Stage 3: interpret
-			pl.interp(c_ast);
-
 			return module{
 				e_ast.get_module_name().value_or(ext_ast::identifier()).copy_name(),
-				c_ast.get_runtime_context().get_scope(*core_root_node.value_scope_id),
 				e_ast.get_type_scope(root_node.type_scope_id),
 				e_ast.get_name_scope(root_node.name_scope_id),
 				e_ast.get_constants()

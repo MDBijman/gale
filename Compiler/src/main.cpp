@@ -66,10 +66,10 @@ int main(int argc, char** argv)
 			// std types
 			proj.add_module(fe::stdlib::typedefs::load());
 
-			auto project_path = std::filesystem::path(argv[2]);
+			auto project_path = std::experimental::filesystem::path(argv[2]);
 			std::cout << "Project folder: " << project_path << "\n";
 
-			auto directory_it = std::filesystem::recursive_directory_iterator(argv[2]);
+			auto directory_it = std::experimental::filesystem::recursive_directory_iterator(argv[2]);
 			for (auto& item : directory_it)
 			{
 				auto path = item.path();
@@ -84,7 +84,7 @@ int main(int argc, char** argv)
 					continue;
 				}
 				auto& code = std::get<std::string>(file_or_error);
-				proj.add_module(proj.eval(code));
+				proj.add_module(proj.compile(code));
 			}
 		}
 		catch (const lexing::error& e)
