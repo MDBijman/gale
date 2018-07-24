@@ -15,18 +15,22 @@ namespace fe::core_ast
 	enum class node_type
 	{
 		NOP,
+
 		NUMBER,
 		STRING,
 		BOOLEAN,
-		IDENTIFIER,
-		IDENTIFIER_TUPLE,
-		SET,
-		FUNCTION,
 		TUPLE,
-		BLOCK,
-		FUNCTION_CALL,
-		BRANCH,
 		REFERENCE,
+
+		IDENTIFIER,
+		WRITE,
+		READ,
+
+		FUNCTION,
+		FUNCTION_CALL,
+
+		BLOCK,
+		BRANCH,
 		WHILE_LOOP
 	};
 

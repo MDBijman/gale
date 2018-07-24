@@ -10,6 +10,7 @@ namespace fe::ext_ast
 {
 	class name_scope
 	{
+	public:
 		struct type_lookup
 		{
 			std::size_t scope_distance;
@@ -20,8 +21,12 @@ namespace fe::ext_ast
 		{
 			std::size_t scope_distance;
 			std::optional<node_id> type_node;
+			uint32_t unique_id;
 		};
 
+		using get_scope_cb = std::function<name_scope*(scope_index)>;
+
+	private:
 		/*
 		* The identifiers in a scope are all named variables that can be referenced from within that scope.
 		* The name of the type is also stored, for resolving nested field references later.
@@ -29,6 +34,9 @@ namespace fe::ext_ast
 		std::unordered_map<name, std::pair<node_id, bool>> variables;
 
 		std::unordered_map<name, bool> opaque_variables;
+
+		// Unique ids of variable names
+		std::unordered_map<name, uint32_t> variable_ids;
 
 		/*
 		* The nested types in a scope include all type declarations that contain a named variable within it
@@ -51,9 +59,13 @@ namespace fe::ext_ast
 
 		// Parent scope
 		std::optional<scope_index> parent;
+		// The id counter is used to generate unique ids for identifiers
+		// Only the root name scope should generate these ids to avoid collisions
+		uint32_t id_counter = 0;
+
+		uint32_t generate_unique_id(get_scope_cb);
 
 	public:
-		using get_scope_cb = std::function<name_scope*(scope_index)>;
 
 		/*
 		* Adds all variables, types, and modules to this scope.

@@ -3,6 +3,12 @@
 
 namespace fe::ext_ast
 {
+	uint32_t name_scope::generate_unique_id(get_scope_cb cb)
+	{
+		if (parent) return cb(*parent)->generate_unique_id(cb);
+		else return id_counter++;
+	}
+
 	void name_scope::merge(name_scope other)
 	{
 		for (auto&& pair : other.variables)
@@ -13,6 +19,11 @@ namespace fe::ext_ast
 		for (auto&& pair : other.opaque_variables)
 		{
 			this->opaque_variables.insert(std::move(pair));
+		}
+
+		for (auto&& id : other.variable_ids)
+		{
+			this->variable_ids.insert({ id.first, id_counter++ });
 		}
 
 		for (auto&& pair : other.types)
@@ -47,6 +58,7 @@ namespace fe::ext_ast
 		assert(opaque_variables.find(id) == opaque_variables.end());
 		assert(variables.find(id) == variables.end());
 		this->variables.insert({ id, { type_id, false } });
+		this->variable_ids.insert({ id, id_counter++ });
 	}
 
 	void name_scope::declare_variable(name id)
@@ -54,12 +66,13 @@ namespace fe::ext_ast
 		assert(opaque_variables.find(id) == opaque_variables.end());
 		assert(variables.find(id) == variables.end());
 		this->opaque_variables.insert({ id, false });
+		this->variable_ids.insert({ id, id_counter++ });
 	}
 
 	void name_scope::define_variable(name id)
 	{
 		if (variables.find(id) != variables.end()) variables.at(id).second = true;
-		if (opaque_variables.find(id) != opaque_variables.end()) opaque_variables.at(id) = true;
+		else if (opaque_variables.find(id) != opaque_variables.end()) opaque_variables.at(id) = true;
 	}
 
 	std::optional<name_scope::var_lookup> name_scope::resolve_variable(module_name module, name var, get_scope_cb cb) const
@@ -87,11 +100,11 @@ namespace fe::ext_ast
 	{
 		if (auto pos = variables.find(var); pos != variables.end())
 		{
-			return var_lookup{ 0, pos->second.first };
+			return var_lookup{ 0, pos->second.first, variable_ids.find(var)->second };
 		}
 		else if (auto pos = opaque_variables.find(var); pos != opaque_variables.end())
 		{
-			return var_lookup{ 0, std::nullopt };
+			return var_lookup{ 0, std::nullopt, variable_ids.find(var)->second };
 		}
 		else if (parent)
 		{

@@ -23,7 +23,7 @@ namespace fe::ext_ast
 		auto& value_node = ext_ast.get_node(children[1]);
 		auto rhs = lower(value_node, ext_ast, new_ast);
 
-		auto set = new_ast.create_node(core_ast::node_type::SET);
+		auto set = new_ast.create_node(core_ast::node_type::WRITE);
 		new_ast.get_node(set).children.push_back(lhs);
 		new_ast.get_node(set).children.push_back(rhs);
 		new_ast.get_node(lhs).parent_id = set;
@@ -88,7 +88,8 @@ namespace fe::ext_ast
 		}
 		else if (param_node.kind == node_type::IDENTIFIER_TUPLE)
 		{
-			auto param_id = new_ast.create_node(core_ast::node_type::IDENTIFIER_TUPLE);
+			// #todo generate set each identifier of the tuple to value of the rhs
+			/*auto param_id = new_ast.create_node(core_ast::node_type::IDENTIFIER_TUPLE);
 			auto& new_param_node = new_ast.get_node(param_id);
 			new_ast.get_node(function_id).children.push_back(param_id);
 			new_param_node.parent_id = function_id;
@@ -105,7 +106,7 @@ namespace fe::ext_ast
 				auto child_id = lower(child_node, ast, new_ast);
 				new_ast.get_node(child_id).parent_id = param_id;
 				new_param_node.children.push_back(child_id);
-			}
+			}*/
 		}
 		else throw std::runtime_error("Error: parameter node type incorrect");
 
@@ -315,7 +316,7 @@ namespace fe::ext_ast
 		auto& children = ast.children_of(n);
 		assert(children.size() == 3);
 
-		auto dec = new_ast.create_node(core_ast::node_type::SET);
+		auto dec = new_ast.create_node(core_ast::node_type::WRITE);
 
 		auto& lhs_node = ast.get_node(children[0]);
 		if (lhs_node.kind == node_type::IDENTIFIER)
@@ -326,19 +327,20 @@ namespace fe::ext_ast
 		}
 		else if (lhs_node.kind == node_type::IDENTIFIER_TUPLE)
 		{
-			auto lhs = new_ast.create_node(core_ast::node_type::IDENTIFIER_TUPLE);
-			new_ast.get_node(lhs).parent_id = dec;
+			// #todo generate set each identifier of the tuple to value of the rhs
+			//auto lhs = new_ast.create_node(core_ast::node_type::IDENTIFIER_TUPLE);
+			//new_ast.get_node(lhs).parent_id = dec;
 
-			auto& children = ast.children_of(lhs_node);
-			for (auto child : children)
-			{
-				auto new_child_id = lower(ast.get_node(child), ast, new_ast);
-				auto& new_child_node = new_ast.get_node(new_child_id);
-				new_child_node.parent_id = lhs;
-				new_ast.get_node(lhs).children.push_back(new_child_id);
-			}
+			//auto& children = ast.children_of(lhs_node);
+			//for (auto child : children)
+			//{
+			//	auto new_child_id = lower(ast.get_node(child), ast, new_ast);
+			//	auto& new_child_node = new_ast.get_node(new_child_id);
+			//	new_child_node.parent_id = lhs;
+			//	new_ast.get_node(lhs).children.push_back(new_child_id);
+			//}
 
-			new_ast.get_node(dec).children.push_back(lhs);
+			//new_ast.get_node(dec).children.push_back(lhs);
 		}
 
 		auto rhs = lower(ast.get_node(children[2]), ast, new_ast);
@@ -360,7 +362,7 @@ namespace fe::ext_ast
 		auto& children = ast.children_of(n);
 		assert(children.size() == 2);
 
-		auto set = new_ast.create_node(core_ast::node_type::SET);
+		auto set = new_ast.create_node(core_ast::node_type::WRITE);
 
 		auto lhs = lower(ast.get_node(children[0]), ast, new_ast);
 		auto& lhs_node = new_ast.get_node(lhs);
