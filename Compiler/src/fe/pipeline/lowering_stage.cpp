@@ -88,6 +88,7 @@ namespace fe::ext_ast
 		}
 		else if (param_node.kind == node_type::IDENTIFIER_TUPLE)
 		{
+			assert(!"nyi");
 			// #todo generate set each identifier of the tuple to value of the rhs
 			/*auto param_id = new_ast.create_node(core_ast::node_type::IDENTIFIER_TUPLE);
 			auto& new_param_node = new_ast.get_node(param_id);
@@ -327,6 +328,7 @@ namespace fe::ext_ast
 		}
 		else if (lhs_node.kind == node_type::IDENTIFIER_TUPLE)
 		{
+			assert(!"identifier tuple lowering nyi");
 			// #todo generate set each identifier of the tuple to value of the rhs
 			//auto lhs = new_ast.create_node(core_ast::node_type::IDENTIFIER_TUPLE);
 			//new_ast.get_node(lhs).parent_id = dec;

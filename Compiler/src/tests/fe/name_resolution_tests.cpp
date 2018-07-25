@@ -22,7 +22,7 @@ TEST_CASE("resolving nested names", "[name_resolution]")
 	std::string code = R"code(
 import [std std.io]
 
-type Nested = (x: std.i64 , y: std.i64);
+type Nested = (x: std.i64, y: std.i64);
 type Pair = (a: std.i32, m: Nested);
 
 let x: Pair = Pair (1, Nested (3, 4));

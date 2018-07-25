@@ -180,7 +180,6 @@ namespace fe::ext_ast
 	std::optional<std::vector<size_t>> resolve_field(node& type_node, ast& ast, std::vector<name> id)
 	{
 		copy_parent_scope(type_node, ast);
-		auto& children = ast.children_of(type_node);
 		auto& scope = ast.get_name_scope(type_node.name_scope_id);
 
 		if (type_node.kind == node_type::IDENTIFIER)
@@ -194,6 +193,7 @@ namespace fe::ext_ast
 		}
 		else if (type_node.kind == node_type::RECORD)
 		{
+			auto& children = ast.children_of(type_node);
 			size_t index = 0;
 			for (auto child : children)
 			{
@@ -213,6 +213,7 @@ namespace fe::ext_ast
 		}
 		else if (type_node.kind == node_type::RECORD_ELEMENT)
 		{
+			auto& children = ast.children_of(type_node);
 			assert(children.size() == 2);
 			auto& id_node = ast.get_node(children[0]);
 			auto& id_data = ast.get_data<identifier>(id_node.data_index);
@@ -222,7 +223,7 @@ namespace fe::ext_ast
 				if (id.size() > 1)
 				{
 					auto& new_type_node = ast.get_node(children[1]);
-					return resolve_field(new_type_node, ast, { id.begin(), id.end() - 1 });
+					return resolve_field(new_type_node, ast, { id.begin() + 1, id.end() });
 				}
 				else
 				{
@@ -234,6 +235,7 @@ namespace fe::ext_ast
 		}
 		else if (type_node.kind == node_type::TYPE_ATOM)
 		{
+			auto& children = ast.children_of(type_node);
 			assert(id.size() > 0);
 			assert(children.size() == 1);
 			auto& id_node = ast.get_node(children[0]);
@@ -316,7 +318,8 @@ namespace fe::ext_ast
 					assert(resolved_as_var->type_node);
 					auto& type_node = ast.get_node(*resolved_as_var->type_node);
 					auto offsets = resolve_field(type_node, ast, fields);
-					if (!offsets) throw resolution_error{ "Variable does not contain such field" };
+					if (!offsets)
+						throw resolution_error{ "Variable does not contain such field" };
 					id_data.offsets = *offsets;
 				}
 				else
