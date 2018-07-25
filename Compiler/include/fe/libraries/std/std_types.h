@@ -44,7 +44,7 @@ namespace fe::stdlib::typedefs
 
 			auto& to_string_name = constants.get<plain_identifier>(constants.create<plain_identifier>());
 			to_string_name.full = "to_string";
-			s.declare_variable(to_string_name.full);
+			s.declare_variable(to_string_name.full, 0);
 			s.define_variable(to_string_name.full);
 			t.set_type(to_string_name.full,
 				unique_type(new function_type(unique_type(new any()), unique_type(new types::str()))));
@@ -53,7 +53,7 @@ namespace fe::stdlib::typedefs
 		{
 			auto& to_f32_name = constants.get<plain_identifier>(constants.create<plain_identifier>());
 			to_f32_name.full = "to_f32";
-			s.declare_variable(to_f32_name.full);
+			s.declare_variable(to_f32_name.full, 0);
 			s.define_variable(to_f32_name.full);
 			t.set_type(to_f32_name.full, types::unique_type(new types::function_type(
 				types::unique_type(new types::i64()), types::unique_type(new types::f32))));

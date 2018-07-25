@@ -4,6 +4,8 @@
 
 namespace fe::ext_ast
 {
+	struct lowering_context;
+	struct lowering_result;
 	core_ast::ast lower(ast& ast);
-	core_ast::node_id lower(node& n, ast& ast, core_ast::ast& new_ast);
+	lowering_result lower(node& n, ast& ast, core_ast::ast& new_ast, lowering_context&);
 }

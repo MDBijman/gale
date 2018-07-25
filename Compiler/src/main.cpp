@@ -139,35 +139,6 @@ int main(int argc, char** argv)
 		std::cin.get();
 		return 0;
 	}
-	else if (mode == "other")
-	{
-		fe::pipeline p;
-		//fe::lexing_stage lexer;
-
-		// Init parse table
-		std::string code =
-			R"c(module statements
-	import [std std.io]
-
-	let x : std.i32 = 1;
-	)c";
-
-		for (int i = 0; i < 1000000; i++)
-			code += "x = 2;\n";
-
-		while (true)
-		{
-			auto now = std::chrono::steady_clock::now();
-			p.parse(code);
-			auto then = std::chrono::steady_clock::now();
-
-			auto time = std::chrono::duration<double, std::milli>(then - now).count();
-			std::cout << "Long parse: " << time << " ms" << "\n";
-		}
-
-		std::cin.get();
-		return 0;
-	}
 
 	std::cin.get();
 	return 0;

@@ -257,7 +257,7 @@ namespace fe::ext_ast
 			assert(parent != no_scope);
 			auto new_scope = type_scopes.create();
 			type_scopes.get_at(new_scope).set_parent(parent);
-			return new_scope;
+			return static_cast<uint32_t>(new_scope);
 		}
 
 		type_scope& get_type_scope(scope_index id)

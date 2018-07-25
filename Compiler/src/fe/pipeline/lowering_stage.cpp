@@ -6,72 +6,120 @@ namespace fe::ext_ast
 {
 	// Helper
 
+	struct lowering_result
+	{
+		size_t allocated_stack_space;
+		core_ast::node_id id;
+	};
+
+	struct lowering_context
+	{
+		using register_index = uint32_t;
+		register_index next_register = 1;
+
+		register_index alloc_register() { return next_register++; }
+	};
+
 	static bool has_children(node& n, ast& ast)
 	{
 		if (n.children_id == no_children) return false;
 		return ast.get_children(n.children_id).size() > 0;
 	}
 
-	core_ast::node_id lower_assignment(node& n, ast& ext_ast, core_ast::ast& new_ast)
+	static void link_child_parent(core_ast::node_id child, core_ast::node_id parent, core_ast::ast& new_ast)
+	{
+		new_ast.get_node(child).parent_id = parent;
+		new_ast.get_node(parent).children.push_back(child);
+	}
+
+	lowering_result lower_assignment(node& n, ast& ext_ast, core_ast::ast& new_ast, lowering_context& context)
 	{
 		assert(n.kind == node_type::ASSIGNMENT);
 		auto& children = ext_ast.children_of(n);
 		assert(children.size() == 2);
 
-		auto& id_node = ext_ast.get_node(children[0]);
-		auto lhs = lower(id_node, ext_ast, new_ast);
-		auto& value_node = ext_ast.get_node(children[1]);
-		auto rhs = lower(value_node, ext_ast, new_ast);
+		// a eval rhs -> result on stack
+		// b get location of var
+		// c move result on stack to var location
+		// d dealloc from stack
 
-		auto set = new_ast.create_node(core_ast::node_type::WRITE);
-		new_ast.get_node(set).children.push_back(lhs);
-		new_ast.get_node(set).children.push_back(rhs);
-		new_ast.get_node(lhs).parent_id = set;
-		new_ast.get_node(rhs).parent_id = set;
-		return set;
+		auto block = new_ast.create_node(core_ast::node_type::BLOCK);
+
+		// a
+		auto& value_node = ext_ast.get_node(children[1]);
+		auto rhs = lower(value_node, ext_ast, new_ast, context);
+		link_child_parent(rhs.id, block, new_ast);
+
+		// b
+		auto& id_node = ext_ast.get_node(children[0]);
+		assert(id_node.kind == ext_ast::node_type::IDENTIFIER);
+		auto reg_index = ext_ast.get_data<ext_ast::identifier>(id_node.data_index).index_in_function;
+
+		// c
+		auto move = new_ast.create_node(core_ast::node_type::MOVE);
+		auto& mv_data = new_ast.get_data<core_ast::move_data>(*new_ast.get_node(move).data_index);
+		mv_data.from_t = core_ast::move_data::location_type::STACK;
+		mv_data.to_t = core_ast::move_data::location_type::REG_DEREF;
+		mv_data.from = -static_cast<int64_t>(rhs.allocated_stack_space);
+		mv_data.to = reg_index;
+		link_child_parent(move, block, new_ast);
+
+		// d
+		auto dealloc = new_ast.create_node(core_ast::node_type::SDEALLOC);
+		link_child_parent(dealloc, block, new_ast);
+		// #todo set size
+
+		return {0, block};
 	}
 
-	core_ast::node_id lower_tuple(node& n, ast& ast, core_ast::ast& new_ast)
+	lowering_result lower_tuple(node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
 	{
 		assert(n.kind == node_type::TUPLE);
 		auto& children = ast.children_of(n);
 		auto tuple = new_ast.create_node(core_ast::node_type::TUPLE);
 
+		size_t stack_size = 0;
 		for (auto child : children)
 		{
-			auto new_child = lower(ast.get_node(child), ast, new_ast);
-			new_ast.get_node(new_child).parent_id = tuple;
-			new_ast.get_node(tuple).children.push_back(new_child);
+			auto res = lower(ast.get_node(child), ast, new_ast, context);
+			link_child_parent(res.id, tuple, new_ast);
+			stack_size = res.allocated_stack_space;
 		}
 
-		return tuple;
+		return { tuple, stack_size };
 	}
 
-	core_ast::node_id lower_block(node& n, ast& ast, core_ast::ast& new_ast)
+	lowering_result lower_block(node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
 	{
 		assert(n.kind == node_type::BLOCK);
 		auto block = new_ast.create_node(core_ast::node_type::BLOCK);
-
 		auto& children = ast.children_of(n);
+
+		lowering_context nested_context = context;
+
 		for (auto child : children)
 		{
-			auto new_child = lower(ast.get_node(child), ast, new_ast);
-			new_ast.get_node(block).children.push_back(new_child);
-			new_ast.get_node(new_child).parent_id = block;
+			auto res = lower(ast.get_node(child), ast, new_ast, nested_context);
+			link_child_parent(res.id, block, new_ast);
+
+			auto dealloc = new_ast.create_node(core_ast::node_type::SDEALLOC);
+			link_child_parent(dealloc, block, new_ast);
+			// #todo dealloc size
 		}
-		return block;
+
+		return { 0, block };
 	}
 
-	core_ast::node_id lower_block_result(node& n, ast& ast, core_ast::ast& new_ast)
+	lowering_result lower_block_result(node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
 	{
 		assert(n.kind == node_type::BLOCK_RESULT);
 		auto& children = ast.children_of(n);
 		assert(children.size() == 1);
 		auto& child = ast.get_node(children[0]);
-		return lower(child, ast, new_ast);
+		return lower(child, ast, new_ast, context);
 	}
 
-	core_ast::node_id lower_function(node& n, ast& ast, core_ast::ast& new_ast)
+	lowering_result lower_function(node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
 	{
 		assert(n.kind == node_type::FUNCTION);
 		auto& children = ast.children_of(n);
@@ -82,84 +130,57 @@ namespace fe::ext_ast
 		auto& param_node = ast.get_node(children[0]);
 		if (param_node.kind == node_type::IDENTIFIER)
 		{
-			auto param_id = lower(param_node, ast, new_ast);
-			new_ast.get_node(param_id).parent_id = function_id;
-			new_ast.get_node(function_id).children.push_back(param_id);
+			ast.get_data<ext_ast::identifier>(param_node.data_index).index_in_function = context.alloc_register();
+			// #todo put stack offset in register
 		}
 		else if (param_node.kind == node_type::IDENTIFIER_TUPLE)
 		{
 			assert(!"nyi");
 			// #todo generate set each identifier of the tuple to value of the rhs
-			/*auto param_id = new_ast.create_node(core_ast::node_type::IDENTIFIER_TUPLE);
-			auto& new_param_node = new_ast.get_node(param_id);
-			new_ast.get_node(function_id).children.push_back(param_id);
-			new_param_node.parent_id = function_id;
-
-			auto& param_children = ast.children_of(param_node);
-			for (auto child : param_children)
-			{
-				auto& child_node = ast.get_node(child);
-				auto& param_child_children = ast.children_of(child_node);
-				assert(child_node.kind == node_type::RECORD_ELEMENT);
-				auto& child_id_node = ast.get_node(param_child_children[1]);
-				assert(child_id_node.kind == node_type::IDENTIFIER);
-
-				auto child_id = lower(child_node, ast, new_ast);
-				new_ast.get_node(child_id).parent_id = param_id;
-				new_param_node.children.push_back(child_id);
-			}*/
 		}
 		else throw std::runtime_error("Error: parameter node type incorrect");
 
 		// Body
 		auto& body_node = ast.get_node(children[1]);
-		auto new_body = lower(body_node, ast, new_ast);
-		new_ast.get_node(new_body).parent_id = function_id;
-		new_ast.get_node(function_id).children.push_back(new_body);
+		auto new_body = lower(body_node, ast, new_ast, context);
+		link_child_parent(new_body.id, function_id, new_ast);
 
-		return function_id;
+		// #todo functions should be root-scope only
+		return { 0, function_id };
 	}
 
-	core_ast::node_id lower_while_loop(node& n, ast& ast, core_ast::ast& new_ast)
+	lowering_result lower_while_loop(node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
 	{
 		assert(n.kind == node_type::WHILE_LOOP);
 		auto& children = ast.children_of(n);
 		assert(children.size() == 2);
 		auto new_while = new_ast.create_node(core_ast::node_type::WHILE_LOOP);
 		
-		auto test_id = lower(ast.get_node(children[0]), ast, new_ast);
-		new_ast.get_node(test_id).parent_id = new_while;
+		auto test = lower(ast.get_node(children[0]), ast, new_ast, context);
+		link_child_parent(test.id, new_while, new_ast);
 
-		auto body_id = lower(ast.get_node(children[1]), ast, new_ast);
-		new_ast.get_node(body_id).parent_id = new_while;
+		auto body = lower(ast.get_node(children[1]), ast, new_ast, context);
+		link_child_parent(body.id, new_while, new_ast);
 
-		auto& while_node = new_ast.get_node(new_while);
-		while_node.children.push_back(test_id);
-		while_node.children.push_back(body_id);
-
-		return new_while;
+		return { 0, new_while };
 	}
 
-	core_ast::node_id lower_if_statement(node& n, ast& ast, core_ast::ast& new_ast)
+	lowering_result lower_if_statement(node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
 	{
 		assert(n.kind == node_type::IF_STATEMENT);
 		auto& children = ast.children_of(n);
 		assert(children.size() >= 2);
 		auto branch = new_ast.create_node(core_ast::node_type::BRANCH);
 
-		bool contains_else = children.size() % 2 == 1 ? true : false;
+		bool contains_else = children.size() % 2 == 1;
 		size_t size_excluding_else = children.size() - (children.size() % 2);
 		for (int i = 0; i < size_excluding_else; i += 2)
 		{
-			auto test_id = lower(ast.get_node(children[i]), ast, new_ast);
-			new_ast.get_node(test_id).parent_id = branch;
+			auto test_id = lower(ast.get_node(children[i]), ast, new_ast, context);
+			link_child_parent(test_id.id, branch, new_ast);
 
-			auto body_id = lower(ast.get_node(children[i + 1]), ast, new_ast);
-			new_ast.get_node(body_id).parent_id = branch;
-
-			auto& branch_node = new_ast.get_node(branch);
-			branch_node.children.push_back(test_id);
-			branch_node.children.push_back(body_id);
+			auto body_id = lower(ast.get_node(children[i + 1]), ast, new_ast, context);
+			link_child_parent(body_id.id, branch, new_ast);
 		}
 
 		if (contains_else)
@@ -169,20 +190,16 @@ namespace fe::ext_ast
 			auto& tautology_node = new_ast.get_node(tautology);
 			assert(tautology_node.data_index);
 			new_ast.get_data<boolean>(*tautology_node.data_index).value = true;
-			tautology_node.parent_id = branch;
+			link_child_parent(tautology_node.id, branch, new_ast);
 
-			auto body_id = lower(ast.get_node(children.back()), ast, new_ast);
-			new_ast.get_node(body_id).parent_id = branch;
-
-			auto& branch_node = new_ast.get_node(branch);
-			branch_node.children.push_back(tautology);
-			branch_node.children.push_back(body_id);
+			auto body_id = lower(ast.get_node(children.back()), ast, new_ast, context);
+			link_child_parent(body_id.id, branch, new_ast);
 		}
 
-		return branch;
+		return { 0, branch };
 	}
 
-	core_ast::node_id lower_match(node& n, ast& ast, core_ast::ast& new_ast)
+	lowering_result lower_match(node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
 	{
 		assert(n.kind == node_type::MATCH);
 		auto& children = ast.children_of(n);
@@ -195,55 +212,47 @@ namespace fe::ext_ast
 			assert(children.size() == 2);
 
 			auto& child_children = ast.children_of(child_node);
-			auto test = lower(ast.get_node(child_children[0]), ast, new_ast);
-			new_ast.get_node(test).parent_id = branch;
+			auto test = lower(ast.get_node(child_children[0]), ast, new_ast, context);
+			link_child_parent(test.id, branch, new_ast);
 
-			auto body = lower(ast.get_node(child_children[1]), ast, new_ast);
-			new_ast.get_node(body).parent_id = branch;
-
-			auto& branch_node = new_ast.get_node(branch);
-			branch_node.children.push_back(test);
-			branch_node.children.push_back(body);
+			auto body = lower(ast.get_node(child_children[1]), ast, new_ast, context);
+			link_child_parent(body.id, branch, new_ast);
 		}
 
-		return branch;
+		return { 0, branch };
 	}
 
-	core_ast::node_id lower_id(node& n, ast& ast, core_ast::ast& new_ast)
+	lowering_result lower_id(node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
 	{
 		assert(n.kind == node_type::IDENTIFIER);
 		assert(!has_children(n, ast));
 		auto& data = ast.get_data<identifier>(n.data_index);
 
-		auto modules = std::vector<std::string>(
-			data.segments.begin(),
-			data.segments.end() - 1 - data.offsets.size()
-			);
-		std::string name = *(data.segments.end() - 1 - data.offsets.size());
-		// If the scope distance is not defined then this id is the lhs of a declaration
-		auto scope_distance = data.scope_distance ? *data.scope_distance : 0;
-
-		auto id = new_ast.create_node(core_ast::node_type::IDENTIFIER);
-		auto& id_node = new_ast.get_node(id);
-		new_ast.get_data<core_ast::identifier>(*id_node.data_index) = core_ast::identifier(modules, data.unique_id);
-
-		return id;
+		auto block = new_ast.create_node(core_ast::node_type::BLOCK);
+		auto alloc = new_ast.create_node(core_ast::node_type::SALLOC);
+		link_child_parent(alloc, block, new_ast);
+		// #todo alloc size of variable
+		auto read = new_ast.create_node(core_ast::node_type::MOVE);
+		link_child_parent(read, block, new_ast);
+		// #todo move from stack to top of stack
+		return { /* #todo sizeof var */ 0, block };
 	}
 
-	core_ast::node_id lower_string(node& n, ast& ast, core_ast::ast& new_ast)
+	lowering_result lower_string(node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
 	{
 		assert(n.kind == node_type::STRING);
 		assert(!has_children(n, ast));
 		auto& str_data = ast.get_data<string>(n.data_index);
 
+		// #todo do something?
 		auto str = new_ast.create_node(core_ast::node_type::STRING);
 		auto& str_node = new_ast.get_node(str);
 		new_ast.get_data<string>(*str_node.data_index) = str_data;
 
-		return str;
+		return { /* #todo sizeof str*/ 0, str };
 	}
 
-	core_ast::node_id lower_boolean(node& n, ast& ast, core_ast::ast& new_ast)
+	lowering_result lower_boolean(node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
 	{
 		assert(n.kind == node_type::BOOLEAN);
 		assert(!has_children(n, ast));
@@ -253,10 +262,10 @@ namespace fe::ext_ast
 		auto& bool_node = new_ast.get_node(bool_id);
 		new_ast.get_data<boolean>(*bool_node.data_index) = bool_data;
 
-		return bool_id;
+		return { 1, bool_id };
 	}
 
-	core_ast::node_id lower_number(node& n, ast& ast, core_ast::ast& new_ast)
+	lowering_result lower_number(node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
 	{
 		assert(n.kind == node_type::NUMBER);
 		assert(!has_children(n, ast));
@@ -266,10 +275,13 @@ namespace fe::ext_ast
 		auto& num_node = new_ast.get_node(num_id);
 		new_ast.get_data<number>(*num_node.data_index) = num_data;
 
-		return num_id;
+		if (num_data.type == number_type::I32 || num_data.type == number_type::UI32)
+			return { 4, num_id };
+		else if (num_data.type == number_type::I64 || num_data.type == number_type::UI64)
+			return { 8, num_id };
 	}
 
-	core_ast::node_id lower_function_call(node& n, ast& ast, core_ast::ast& new_ast)
+	lowering_result lower_function_call(node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
 	{
 		assert(n.kind == node_type::FUNCTION_CALL);
 		auto& children = ast.children_of(n);
@@ -277,299 +289,155 @@ namespace fe::ext_ast
 
 		auto fun_id = new_ast.create_node(core_ast::node_type::FUNCTION_CALL);
 
-		auto id_id = lower(ast.get_node(children[0]), ast, new_ast);
-		auto& id_node = new_ast.get_node(id_id);
-		id_node.parent_id = fun_id;
+		auto id = lower(ast.get_node(children[0]), ast, new_ast, context);
+		auto& id_node = new_ast.get_node(id.id);
+		link_child_parent(id.id, fun_id, new_ast);
 
-		auto param_id = lower(ast.get_node(children[1]), ast, new_ast);
-		auto& param_node = new_ast.get_node(param_id);
-		param_node.parent_id = fun_id;
+		auto param = lower(ast.get_node(children[1]), ast, new_ast, context);
+		auto& param_node = new_ast.get_node(param.id);
+		link_child_parent(param.id, fun_id, new_ast);
 
-		auto& fun_node = new_ast.get_node(fun_id);
-		fun_node.children.push_back(id_id);
-		fun_node.children.push_back(param_id);
-
-		return fun_id;
+		return {  fun_id };
 	}
 
-	core_ast::node_id lower_module_declaration(node& n, ast& ast, core_ast::ast& new_ast)
+	lowering_result lower_module_declaration(node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
 	{
 		assert(n.kind == node_type::MODULE_DECLARATION);
 		assert(ast.children_of(n).size() == 1);
-		return new_ast.create_node(core_ast::node_type::NOP);
+		return { 0, new_ast.create_node(core_ast::node_type::NOP) };
 	}
 
-	core_ast::node_id lower_import_declaration(node& n, ast& ast, core_ast::ast& new_ast)
+	lowering_result lower_import_declaration(node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
 	{
 		assert(n.kind == node_type::IMPORT_DECLARATION);
-		return new_ast.create_node(core_ast::node_type::NOP);
+		return { 0, new_ast.create_node(core_ast::node_type::NOP) };
 	}
 
-	core_ast::node_id lower_export_stmt(node& n, ast& ast, core_ast::ast& new_ast)
+	lowering_result lower_export_stmt(node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
 	{
 		assert(n.kind == node_type::EXPORT_STMT);
-		return new_ast.create_node(core_ast::node_type::NOP);
+		return { 0,new_ast.create_node(core_ast::node_type::NOP) };
 	}
 
-	core_ast::node_id lower_declaration(node& n, ast& ast, core_ast::ast& new_ast)
+	lowering_result lower_declaration(node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
 	{
 		assert(n.kind == node_type::DECLARATION);
 		auto& children = ast.children_of(n);
 		assert(children.size() == 3);
 
-		auto dec = new_ast.create_node(core_ast::node_type::WRITE);
+		auto dec = new_ast.create_node(core_ast::node_type::MOVE);
 
 		auto& lhs_node = ast.get_node(children[0]);
 		if (lhs_node.kind == node_type::IDENTIFIER)
 		{
-			auto lhs = lower(lhs_node, ast, new_ast);
-			new_ast.get_node(lhs).parent_id = dec;
-			new_ast.get_node(dec).children.push_back(lhs);
+			ast.get_data<ext_ast::identifier>(lhs_node.data_index).index_in_function = context.alloc_register();
+			// #todo put stack offset in register
 		}
 		else if (lhs_node.kind == node_type::IDENTIFIER_TUPLE)
 		{
 			assert(!"identifier tuple lowering nyi");
-			// #todo generate set each identifier of the tuple to value of the rhs
-			//auto lhs = new_ast.create_node(core_ast::node_type::IDENTIFIER_TUPLE);
-			//new_ast.get_node(lhs).parent_id = dec;
-
-			//auto& children = ast.children_of(lhs_node);
-			//for (auto child : children)
-			//{
-			//	auto new_child_id = lower(ast.get_node(child), ast, new_ast);
-			//	auto& new_child_node = new_ast.get_node(new_child_id);
-			//	new_child_node.parent_id = lhs;
-			//	new_ast.get_node(lhs).children.push_back(new_child_id);
-			//}
-
-			//new_ast.get_node(dec).children.push_back(lhs);
 		}
 
-		auto rhs = lower(ast.get_node(children[2]), ast, new_ast);
-		new_ast.get_node(rhs).parent_id = dec;
-		new_ast.get_node(dec).children.push_back(rhs);
+		auto rhs = lower(ast.get_node(children[2]), ast, new_ast, context);
+		link_child_parent(rhs.id, dec, new_ast);
 
-		return dec;
+		return { 0, dec };
 	}
 
-	core_ast::node_id lower_record(node& n, ast& ast, core_ast::ast& new_ast)
+	lowering_result lower_record(node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
 	{
 		assert(n.kind == node_type::RECORD);
-		return new_ast.create_node(core_ast::node_type::NOP);
+		return { 0, new_ast.create_node(core_ast::node_type::NOP) };
 	}
 
-	core_ast::node_id lower_type_definition(node& n, ast& ast, core_ast::ast& new_ast)
+	lowering_result lower_type_definition(node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
 	{
 		assert(n.kind == node_type::TYPE_DEFINITION);
 		auto& children = ast.children_of(n);
 		assert(children.size() == 2);
 
-		auto set = new_ast.create_node(core_ast::node_type::WRITE);
+		auto fn = new_ast.create_node(core_ast::node_type::FUNCTION);
+		// #todo set function properties
 
-		auto lhs = lower(ast.get_node(children[0]), ast, new_ast);
-		auto& lhs_node = new_ast.get_node(lhs);
-		assert(lhs_node.kind == core_ast::node_type::IDENTIFIER);
-		lhs_node.parent_id = set;
+		auto ret = new_ast.create_node(core_ast::node_type::RET);
+		link_child_parent(ret, fn, new_ast);
 
-		auto fn_rhs = new_ast.create_node(core_ast::node_type::FUNCTION);
-		auto& fn_node = new_ast.get_node(fn_rhs);
-		fn_node.parent_id = set;
-
-		auto& set_node = new_ast.get_node(set);
-		set_node.children.push_back(lhs);
-		set_node.children.push_back(fn_rhs);
-
-		{
-			auto param = new_ast.create_node(core_ast::node_type::IDENTIFIER);
-			auto& param_node = new_ast.get_node(param);
-			auto& param_data = new_ast.get_data<core_ast::identifier>(*param_node.data_index);
-			param_data.unique_id = 1;
-			param_node.parent_id = fn_rhs;
-
-			// Push twice, for parameter and body
-			new_ast.get_node(fn_rhs).children.push_back(param);
-			new_ast.get_node(fn_rhs).children.push_back(param);
-		}
-
-		return set;
+		return { 0, fn };
 	}
 
-	core_ast::node_id lower_type_atom(node& n, ast& ast, core_ast::ast& new_ast)
+	lowering_result lower_type_atom(node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
 	{
 		assert(n.kind == node_type::TYPE_ATOM);
-		return new_ast.create_node(core_ast::node_type::NOP);
+		return { 0, new_ast.create_node(core_ast::node_type::NOP) };
 	}
 
-	core_ast::node_id lower_reference(node& n, ast& ast, core_ast::ast& new_ast)
+	lowering_result lower_reference(node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
 	{
 		assert(n.kind == node_type::REFERENCE);
 		auto& children = ast.children_of(n);
 		assert(children.size() == 1);
-		auto ref = new_ast.create_node(core_ast::node_type::REFERENCE);
-		auto child = lower(ast.get_node(children[0]), ast, new_ast);
-		new_ast.get_node(child).parent_id = ref;
-		new_ast.get_node(ref).children.push_back(ref);
-		return ref;
+		assert(!"nyi");
+		return { 0, 0 };
 	}
 
-	core_ast::node_id lower_array_value(node& n, ast& ast, core_ast::ast& new_ast)
+	lowering_result lower_array_value(node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
 	{
 		assert(n.kind == node_type::ARRAY_VALUE);
 		assert(n.data_index == no_data);
-		auto arr = new_ast.create_node(core_ast::node_type::TUPLE);
 
+		auto arr = new_ast.create_node(core_ast::node_type::TUPLE);
 		auto& children = ast.children_of(n);
+		size_t size_sum = 0;
 		for (auto child : children)
 		{
-			auto new_child = lower(ast.get_node(child), ast, new_ast);
-			new_ast.get_node(new_child).parent_id = arr;
-			new_ast.get_node(arr).children.push_back(new_child);
+			auto new_child = lower(ast.get_node(child), ast, new_ast, context);
+			link_child_parent(new_child.id, arr, new_ast);
+			size_sum += new_child.allocated_stack_space;
 		}
 
-		return arr;
+		return { size_sum, arr };
 	}
 
-	core_ast::node_id lower_binary_op(node& n, ast& ast, core_ast::ast& new_ast)
+	lowering_result lower_binary_op(node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
 	{
 		assert(ext_ast::is_binary_op(n.kind));
 		auto& children = ast.children_of(n);
 		assert(children.size() == 2);
 		assert(n.data_index != no_data);
 
-		/*
-			Logical operators require special semantics due to short circuiting, so we create explicit branches
-			that implement this.
+		assert(!"nyi");
 
-			'x && y' becomes 'if (!x) { false } elseif (y) { true } else { false }'
-			'x || y' becomes 'if (x) { true } elseif (y) { true } else { false }'
-
-			Other operators are lowered into a function call to the corresponding _core function.
-
-			For performance reasons it might make sense to create 'native' core nodes for all/some operations.
-
-			MB 30-5-2018
-		*/
-
-		if (n.kind == node_type::AND)
-		{
-			auto branch = new_ast.create_node(core_ast::node_type::BRANCH);
-			auto first_test = new_ast.create_node(core_ast::node_type::FUNCTION_CALL, branch);
-			{
-				auto fun_name = new_ast.create_node(core_ast::node_type::IDENTIFIER, first_test);
-				auto not_id = ast.get_name_scope(n.name_scope_id).resolve_variable({"_core"}, "not std.bool -> std.bool", ast.name_scope_cb())->unique_id;
-				new_ast.get_data<core_ast::identifier>(*new_ast.get_node(fun_name).data_index) = core_ast::identifier("_core", not_id);
-
-				auto fun_arg = lower(ast.get_node(children[0]), ast, new_ast);
-				new_ast.get_node(fun_arg).parent_id = first_test;
-
-				new_ast.get_node(first_test).children.push_back(fun_name);
-				new_ast.get_node(first_test).children.push_back(fun_arg);
-			}
-			auto first_body = new_ast.create_node(core_ast::node_type::BOOLEAN, branch);
-			new_ast.get_data<boolean>(*new_ast.get_node(first_body).data_index).value = false;
-
-			auto second_test = lower(ast.get_node(children[1]), ast, new_ast);
-			new_ast.get_node(second_test).parent_id = branch;
-			auto second_body = new_ast.create_node(core_ast::node_type::BOOLEAN, branch);
-			new_ast.get_data<boolean>(*new_ast.get_node(second_body).data_index).value = true;
-
-			auto else_test = new_ast.create_node(core_ast::node_type::BOOLEAN, branch);
-			new_ast.get_data<boolean>(*new_ast.get_node(else_test).data_index).value = true;
-			auto else_body = new_ast.create_node(core_ast::node_type::BOOLEAN, branch);
-			new_ast.get_data<boolean>(*new_ast.get_node(else_body).data_index).value = false;
-
-			new_ast.get_node(branch).children.push_back(first_test);
-			new_ast.get_node(branch).children.push_back(first_body);
-			new_ast.get_node(branch).children.push_back(second_test);
-			new_ast.get_node(branch).children.push_back(second_body);
-			new_ast.get_node(branch).children.push_back(else_test);
-			new_ast.get_node(branch).children.push_back(else_body);
-			return branch;
-		}
-		else if (n.kind == node_type::OR)
-		{
-			auto branch = new_ast.create_node(core_ast::node_type::BRANCH);
-
-			auto first_test = lower(ast.get_node(children[0]), ast, new_ast);
-			new_ast.get_node(first_test).parent_id = branch;
-			auto first_body = new_ast.create_node(core_ast::node_type::BOOLEAN, branch);
-			new_ast.get_data<boolean>(*new_ast.get_node(first_body).data_index).value = true;
-
-			auto second_test = lower(ast.get_node(children[1]), ast, new_ast);
-			new_ast.get_node(second_test).parent_id = branch;
-			auto second_body = new_ast.create_node(core_ast::node_type::BOOLEAN, branch);
-			new_ast.get_data<boolean>(*new_ast.get_node(second_body).data_index).value = true;
-
-			auto else_test = new_ast.create_node(core_ast::node_type::BOOLEAN, branch);
-			new_ast.get_data<boolean>(*new_ast.get_node(else_test).data_index).value = true;
-			auto else_body = new_ast.create_node(core_ast::node_type::BOOLEAN, branch);
-			new_ast.get_data<boolean>(*new_ast.get_node(else_body).data_index).value = false;
-
-			new_ast.get_node(branch).children.push_back(first_test);
-			new_ast.get_node(branch).children.push_back(first_body);
-			new_ast.get_node(branch).children.push_back(second_test);
-			new_ast.get_node(branch).children.push_back(second_body);
-			new_ast.get_node(branch).children.push_back(else_test);
-			new_ast.get_node(branch).children.push_back(else_body);
-			return branch;
-		}
-		else
-		{
-			auto fun_call = new_ast.create_node(core_ast::node_type::FUNCTION_CALL);
-
-			auto fun_name_id = new_ast.create_node(core_ast::node_type::IDENTIFIER);
-			auto& name_data = new_ast.get_data<core_ast::identifier>(*new_ast.get_node(fun_name_id).data_index);
-			auto op_id = ast.get_name_scope(n.name_scope_id).resolve_variable(ast.get_data<string>(n.data_index).value, ast.name_scope_cb())->unique_id;
-			new_ast.get_data<core_ast::identifier>(*new_ast.get_node(fun_name_id).data_index) = core_ast::identifier("_core", op_id);
-
-			new_ast.get_node(fun_call).children.push_back(fun_name_id);
-			new_ast.get_node(fun_name_id).parent_id = fun_call;
-
-			auto param_tuple = new_ast.create_node(core_ast::node_type::TUPLE);
-
-			for (auto child : children)
-			{
-				auto new_child_id = lower(ast.get_node(child), ast, new_ast);
-				auto& new_child_node = new_ast.get_node(new_child_id);
-				new_child_node.parent_id = param_tuple;
-				new_ast.get_node(param_tuple).children.push_back(new_child_id);
-			}
-
-			new_ast.get_node(fun_call).children.push_back(param_tuple);
-			new_ast.get_node(param_tuple).parent_id = fun_call;
-
-			return fun_call;
-		}
+		return { 0, 0 };
 	}
 
-	core_ast::node_id lower(node& n, ast& ast, core_ast::ast& new_ast)
+	lowering_result lower(node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
 	{
 		switch (n.kind)
 		{
-		case node_type::ASSIGNMENT:         return lower_assignment(n, ast, new_ast);           break;
-		case node_type::TUPLE:              return lower_tuple(n, ast, new_ast);                break;
-		case node_type::BLOCK:              return lower_block(n, ast, new_ast);                break;
-		case node_type::BLOCK_RESULT:       return lower_block_result(n, ast, new_ast);         break;
-		case node_type::FUNCTION:           return lower_function(n, ast, new_ast);             break;
-		case node_type::WHILE_LOOP:         return lower_while_loop(n, ast, new_ast);           break;
-		case node_type::IF_STATEMENT:       return lower_if_statement(n, ast, new_ast);         break;
-		case node_type::MATCH:              return lower_match(n, ast, new_ast);                break;
-		case node_type::IDENTIFIER:         return lower_id(n, ast, new_ast);                   break;
-		case node_type::STRING:             return lower_string(n, ast, new_ast);               break;
-		case node_type::BOOLEAN:            return lower_boolean(n, ast, new_ast);              break;
-		case node_type::NUMBER:             return lower_number(n, ast, new_ast);               break;
-		case node_type::FUNCTION_CALL:      return lower_function_call(n, ast, new_ast);        break;
-		case node_type::MODULE_DECLARATION: return lower_module_declaration(n, ast, new_ast);   break;
-		case node_type::IMPORT_DECLARATION: return lower_import_declaration(n, ast, new_ast);   break;
-		case node_type::EXPORT_STMT:        return lower_export_stmt(n, ast, new_ast);          break;
-		case node_type::DECLARATION:        return lower_declaration(n, ast, new_ast);          break;
-		case node_type::RECORD:             return lower_record(n, ast, new_ast);               break;
-		case node_type::TYPE_DEFINITION:    return lower_type_definition(n, ast, new_ast);      break;
-		case node_type::TYPE_ATOM:          return lower_type_atom(n, ast, new_ast);            break;
-		case node_type::REFERENCE:          return lower_reference(n, ast, new_ast);            break;
-		case node_type::ARRAY_VALUE:        return lower_array_value(n, ast, new_ast);          break;
+		case node_type::ASSIGNMENT:         return lower_assignment(n, ast, new_ast, context);           break;
+		case node_type::TUPLE:              return lower_tuple(n, ast, new_ast, context);                break;
+		case node_type::BLOCK:              return lower_block(n, ast, new_ast, context);                break;
+		case node_type::BLOCK_RESULT:       return lower_block_result(n, ast, new_ast, context);         break;
+		case node_type::FUNCTION:           return lower_function(n, ast, new_ast, context);             break;
+		case node_type::WHILE_LOOP:         return lower_while_loop(n, ast, new_ast, context);           break;
+		case node_type::IF_STATEMENT:       return lower_if_statement(n, ast, new_ast, context);         break;
+		case node_type::MATCH:              return lower_match(n, ast, new_ast, context);                break;
+		case node_type::IDENTIFIER:         return lower_id(n, ast, new_ast, context);                   break;
+		case node_type::STRING:             return lower_string(n, ast, new_ast, context);               break;
+		case node_type::BOOLEAN:            return lower_boolean(n, ast, new_ast, context);              break;
+		case node_type::NUMBER:             return lower_number(n, ast, new_ast, context);               break;
+		case node_type::FUNCTION_CALL:      return lower_function_call(n, ast, new_ast, context);        break;
+		case node_type::MODULE_DECLARATION: return lower_module_declaration(n, ast, new_ast, context);   break;
+		case node_type::IMPORT_DECLARATION: return lower_import_declaration(n, ast, new_ast, context);   break;
+		case node_type::EXPORT_STMT:        return lower_export_stmt(n, ast, new_ast, context);          break;
+		case node_type::DECLARATION:        return lower_declaration(n, ast, new_ast, context);          break;
+		case node_type::RECORD:             return lower_record(n, ast, new_ast, context);               break;
+		case node_type::TYPE_DEFINITION:    return lower_type_definition(n, ast, new_ast, context);      break;
+		case node_type::TYPE_ATOM:          return lower_type_atom(n, ast, new_ast, context);            break;
+		case node_type::REFERENCE:          return lower_reference(n, ast, new_ast, context);            break;
+		case node_type::ARRAY_VALUE:        return lower_array_value(n, ast, new_ast, context);          break;
 		default:
-			if (ext_ast::is_binary_op(n.kind)) return lower_binary_op(n, ast, new_ast);
+			if (ext_ast::is_binary_op(n.kind)) return lower_binary_op(n, ast, new_ast, context);
 
 			assert(!"Node type not lowerable");
 			throw std::runtime_error("Fatal Error - Node type not lowerable");
@@ -583,14 +451,14 @@ namespace fe::ext_ast
 		assert(root.kind == node_type::BLOCK);
 		auto& children = ast.children_of(root);
 
+		lowering_context context;
 		core_ast::ast new_ast(core_ast::node_type::BLOCK);
 		auto block = new_ast.root_id();
 
 		for (auto child : children)
 		{
-			auto new_child = lower(ast.get_node(child), ast, new_ast);
-			new_ast.get_node(block).children.push_back(new_child);
-			new_ast.get_node(new_child).parent_id = block;
+			auto new_child = lower(ast.get_node(child), ast, new_ast, context);
+			link_child_parent(new_child.id, block, new_ast);
 		}
 
 		return new_ast;
