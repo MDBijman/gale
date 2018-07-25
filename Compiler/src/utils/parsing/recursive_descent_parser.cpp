@@ -219,7 +219,7 @@ namespace recursive_descent
 		ts.consume(token_kind::EQUALS);
 		link_child_parent(parse_record(t, ts), type_definition_id, t);
 
-		return type_definition;
+		return type_definition_id;
 	}
 
 	fe::node_id parse_identifier_tuple(tree& t, token_stream_reader& ts)
@@ -462,6 +462,7 @@ namespace recursive_descent
 
 			// ( op , op (, op)* ) becomes value tuple
 			auto tuple_id = t.create_node(fe::ext_ast::node_type::TUPLE);
+			link_child_parent(op_id, tuple_id, t);
 			while (ts.peek().value == token_kind::COMMA)
 			{
 				ts.consume(token_kind::COMMA);
