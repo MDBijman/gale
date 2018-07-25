@@ -6,3 +6,4 @@ type Pair = (a: std.i32, m: Nested );
 
 let x: Pair = Pair (1, Nested (3, 4));
 let z: std.i64 = x.m.x;
+

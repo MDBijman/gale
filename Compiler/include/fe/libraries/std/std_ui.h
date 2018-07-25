@@ -18,7 +18,7 @@ namespace fe::stdlib::ui
 
 			auto& create_window_ref = constants.get<plain_identifier>(constants.create<plain_identifier>());
 			create_window_ref.full = "create_window";
-			se.declare_variable(create_window_ref.full);
+			se.declare_variable(create_window_ref.full, 0);
 			se.define_variable(create_window_ref.full);
 			te.set_type(create_window_ref.full, unique_type(create_window_type.copy()));
 		}
@@ -28,7 +28,7 @@ namespace fe::stdlib::ui
 			using namespace types;
 			auto& poll_ref = constants.get<plain_identifier>(constants.create<plain_identifier>());
 			poll_ref.full = "poll";
-			se.declare_variable(poll_ref.full);
+			se.declare_variable(poll_ref.full, 0);
 			se.define_variable(poll_ref.full);
 			te.set_type(poll_ref.full, unique_type(new function_type(types::any(), types::voidt())));
 		}

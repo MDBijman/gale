@@ -8,7 +8,7 @@ namespace fe::core::operations
 	{
 		auto& ref = cs.get<plain_identifier>(cs.create<plain_identifier>());
 		ref.full = op_name + " " + from.operator std::string() + " -> " + to.operator std::string();
-		se.declare_variable(ref.full);
+		se.declare_variable(ref.full, 0);
 		se.define_variable(ref.full);
 		te.set_type(ref.full, types::make_unique(types::function_type(from, to)));
 	}
@@ -18,7 +18,7 @@ namespace fe::core::operations
 	{
 		auto& ref = cs.get<plain_identifier>(cs.create<plain_identifier>());
 		ref.full = op_name + " " + from.operator std::string() + " -> " + to.operator std::string();
-		se.declare_variable(ref.full);
+		se.declare_variable(ref.full, 0);
 		se.define_variable(ref.full);
 		te.set_type(ref.full, types::make_unique(types::function_type(from, to)));
 	}

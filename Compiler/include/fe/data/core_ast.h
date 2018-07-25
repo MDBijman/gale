@@ -18,18 +18,22 @@ namespace fe::core_ast
 		STRING,
 		BOOLEAN,
 		TUPLE,
-		REFERENCE,
+		ARRAY,
 
-		IDENTIFIER,
-		WRITE,
-		READ,
+		SALLOC,
+		SDEALLOC,
+		MOVE,
 
 		FUNCTION,
 		FUNCTION_CALL,
+		RET,
 
 		BLOCK,
 		BRANCH,
-		WHILE_LOOP
+		WHILE_LOOP,
+
+		BIN_OP,
+		UN_OP
 	};
 
 	using data_index = size_t;
@@ -48,12 +52,39 @@ namespace fe::core_ast
 
 		std::optional<data_index> data_index;
 		std::optional<scope_index> value_scope_id;
+
+		operator std::string() const
+		{
+			std::string s;
+			switch (kind)
+			{
+			case node_type::NOP:s += "NOP"; break;
+			case node_type::NUMBER:s += "NUMBER"; break;
+			case node_type::STRING:s += "STRING"; break;
+			case node_type::BOOLEAN:s += "BOOLEAN"; break;
+			case node_type::TUPLE:s += "TUPLE"; break;
+			case node_type::ARRAY:s += "ARRAY"; break;
+			case node_type::SALLOC:s += "SALLOC"; break;
+			case node_type::SDEALLOC:s += "SDEALLOC"; break;
+			case node_type::MOVE:s += "MOVE"; break;
+			case node_type::FUNCTION:s += "FUNCTION"; break;
+			case node_type::FUNCTION_CALL:s += "FUNCTION_CALL"; break;
+			case node_type::RET:s += "RET"; break;
+			case node_type::BLOCK:s += "BLOCK"; break;
+			case node_type::BRANCH:s += "BRANCH"; break;
+			case node_type::WHILE_LOOP:s += "WHILE_LOOP"; break;
+			case node_type::BIN_OP:s += "BIN_OP"; break;
+			case node_type::UN_OP:s += "UN_OP"; break;
+			}
+			return s;
+		}
 	};
 
 	class ast
 	{
 		memory::dynamic_store<node> nodes;
-		memory::dynamic_store<core_ast::identifier> identifiers;
+		memory::dynamic_store<move_data> move_data_store;
+		memory::dynamic_store<function_data> function_data_store;
 		constants_store constants;
 
 		node_id root;
@@ -99,22 +130,25 @@ namespace fe::core_ast
 		// Node data 
 		template<class DataType>
 		DataType& get_data(data_index i);
-		template<> identifier& get_data<identifier>(data_index i) { return identifiers.get_at(i); }
 		template<> boolean& get_data<boolean>(data_index i) { return constants.get<boolean>(i); }
 		template<> string& get_data<string>(data_index i) { return constants.get<string>(i); }
 		template<> number& get_data<number>(data_index i) { return constants.get<number>(i); }
+		template<> move_data& get_data<move_data>(data_index i) { return move_data_store.get_at(i); }
+		template<> function_data& get_data<function_data>(data_index i) { return function_data_store.get_at(i); }
 
 	private:
 		std::optional<data_index> create_node_data(node_type t)
 		{
 			switch (t)
 			{
-			case node_type::IDENTIFIER: return identifiers.create();
 			case node_type::NUMBER: return constants.create<number>();
 			case node_type::STRING: return constants.create<string>();
 			case node_type::BOOLEAN: return constants.create<boolean>();
+			case node_type::MOVE: return move_data_store.create();
+			case node_type::FUNCTION: return function_data_store.create();
 			default: return std::nullopt;
 			}
 		}
 	};
+
 }
