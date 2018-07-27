@@ -175,15 +175,11 @@ namespace fe::vm
 				state.chunk_id = state.registers[qb[1].val];
 				state.instruction_ptr = state.registers[qb[2].val];
 				break;
-			case op_kind::RET_UI8_UI8: {
+			case op_kind::RET_UI8: {
 				auto to_pop = qb[1].val;
-				auto return_size = qb[2].val;
 
-				auto after_ip = state.stack[state.stack_ptr - 1 - return_size];
-				auto after_c = state.stack[state.stack_ptr - 2 - return_size];
-
-				for (int i = 0; i < return_size; i++)
-					state.stack[state.stack_ptr - 2 - to_pop - return_size + i] = state.stack[state.stack_ptr - return_size + i];
+				auto after_ip = state.stack[state.stack_ptr - 1 - to_pop];
+				auto after_c = state.stack[state.stack_ptr - 2 - to_pop];
 
 				state.instruction_ptr = after_ip;
 				state.chunk_id = after_c;

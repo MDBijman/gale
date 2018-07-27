@@ -4,7 +4,6 @@
 #include "fe/pipeline/resolution_stage.h"
 #include "fe/pipeline/typechecker_stage.h"
 #include "fe/pipeline/lowering_stage.h"
-#include "fe/pipeline/interpreting_stage.h"
 #include "fe/pipeline/bytecode_gen_stage.h"
 #include "fe/pipeline/vm_stage.h"
 #include "fe/pipeline/error.h"
@@ -56,15 +55,6 @@ namespace fe
 		vm::machine_state run(vm::program& p) const
 		{
 			return vm::interpret(p);
-		}
-
-		values::unique_value interp(core_ast::ast& n) const
-		{
-			auto res = core_ast::interpret(n);
-			if (std::holds_alternative<interp_error>(res))
-				throw std::get<interp_error>(res);
-
-			return std::move(std::get<values::unique_value>(res));
 		}
 
 	private:

@@ -4,8 +4,6 @@
 #include <variant>
 
 #include "fe/data/types.h"
-#include "fe/data/values.h"
-#include "fe/data/value_scope.h"
 #include "fe/data/ast_data.h"
 #include "fe/data/constants_store.h"
 #include "utils/memory/data_store.h"
@@ -15,23 +13,30 @@ namespace fe::core_ast
 	enum class node_type
 	{
 		NOP,
+
 		NUMBER,
 		STRING,
 		BOOLEAN,
-		IDENTIFIER,
-		IDENTIFIER_TUPLE,
-		SET,
-		FUNCTION,
 		TUPLE,
-		BLOCK,
+		ARRAY,
+
+		SALLOC,
+		SDEALLOC,
+		MOVE,
+
+		FUNCTION,
 		FUNCTION_CALL,
-		BRANCH,
+		RET,
+
+		BLOCK,
+		LABEL,
+		JMP, JNZ,
 		REFERENCE,
-		WHILE_LOOP,
+
 		// logic ops
 		LT, GT, LEQ, GEQ, EQ, NEQ, AND, OR,
 		// arithmetic ops
-		ADD, SUB, MUL, DIV, MOD
+		ADD, SUB, MUL, DIV, MOD, NEG
 	};
 
 
@@ -73,10 +78,12 @@ namespace fe::core_ast
 	class ast
 	{
 		memory::dynamic_store<node> nodes;
-		memory::dynamic_store<core_ast::identifier> identifiers;
-
+		memory::dynamic_store<move_data> move_data_store;
+		memory::dynamic_store<function_data> function_data_store;
+		memory::dynamic_store<function_call_data> function_call_data_store;
+		memory::dynamic_store<label> label_store;
+		memory::dynamic_store<size> size_store;
 		constants_store constants;
-		stack value_scopes;
 
 		node_id root;
 
@@ -87,7 +94,6 @@ namespace fe::core_ast
 			nodes.get_at(root) = node(t);
 			nodes.get_at(root).id = root;
 			nodes.get_at(root).data_index = create_node_data(t);
-			nodes.get_at(root).value_scope_id = create_value_scope();
 		}
 
 		node_id root_id()
@@ -137,42 +143,39 @@ namespace fe::core_ast
 			return nodes.get_at(id);
 		}
 
-		scope_index create_value_scope()
-		{
-			return value_scopes.create();
-		}
-
-		scope_index create_value_scope(scope_index parent)
-		{
-			auto new_scope = value_scopes.create();
-			value_scopes.get_at(new_scope).parent = parent;
-			return new_scope;
-		}
-
-		stack& get_runtime_context()
-		{
-			return value_scopes;
-		}
-
 		// Node data 
 		template<class DataType>
 		DataType& get_data(data_index i);
-		template<> identifier& get_data<identifier>(data_index i) { return identifiers.get_at(i); }
 		template<> boolean& get_data<boolean>(data_index i) { return constants.get<boolean>(i); }
 		template<> string& get_data<string>(data_index i) { return constants.get<string>(i); }
 		template<> number& get_data<number>(data_index i) { return constants.get<number>(i); }
+		template<> move_data& get_data<move_data>(data_index i) { return move_data_store.get_at(i); }
+		template<> function_data& get_data<function_data>(data_index i) { return function_data_store.get_at(i); }
+		template<> function_call_data& get_data<function_call_data>(data_index i) { return function_call_data_store.get_at(i); }
+		template<> label& get_data<label>(data_index i) { return label_store.get_at(i); }
+		template<> size& get_data<size>(data_index i) { return size_store.get_at(i); }
 
 	private:
 		std::optional<data_index> create_node_data(node_type t)
 		{
 			switch (t)
 			{
-			case node_type::IDENTIFIER: return identifiers.create();
 			case node_type::NUMBER: return constants.create<number>();
 			case node_type::STRING: return constants.create<string>();
 			case node_type::BOOLEAN: return constants.create<boolean>();
+			case node_type::MOVE: return move_data_store.create();
+			case node_type::FUNCTION: return function_data_store.create();
+			case node_type::FUNCTION_CALL: return function_call_data_store.create();
+			case node_type::JMP:
+			case node_type::JNZ:
+				return label_store.create();
+			case node_type::SDEALLOC: 
+			case node_type::SALLOC: 
+			case node_type::RET:
+				return size_store.create();
 			default: return std::nullopt;
 			}
 		}
 	};
+
 }

@@ -138,11 +138,8 @@
     <ClCompile Include="src\fe\data\name_scope.cpp" />
     <ClCompile Include="src\fe\data\types.cpp" />
     <ClCompile Include="src\fe\data\type_scope.cpp" />
-    <ClCompile Include="src\fe\data\values.cpp" />
-    <ClCompile Include="src\fe\data\value_scope.cpp" />
     <ClCompile Include="src\fe\language_definition.cpp" />
     <ClCompile Include="src\fe\pipeline\bytecode_gen_stage.cpp" />
-    <ClCompile Include="src\fe\pipeline\interpreting_stage.cpp" />
     <ClCompile Include="src\fe\pipeline\lowering_stage.cpp" />
     <ClCompile Include="src\fe\pipeline\parser_stage.cpp" />
     <ClCompile Include="src\fe\pipeline\resolution_stage.cpp" />
@@ -155,7 +152,6 @@
     <ClCompile Include="src\tests\fe\literal_inference_tests.cpp" />
     <ClCompile Include="src\tests\fe\name_resolution_tests.cpp" />
     <ClCompile Include="src\tests\fe\typechecking_tests.cpp" />
-    <ClCompile Include="src\tests\fe\while_tests.cpp" />
     <ClCompile Include="src\tests\utils\performance_tests.cpp" />
     <ClCompile Include="src\utils\memory\small_vec_tests.cpp" />
     <ClCompile Include="src\utils\parsing\recursive_descent_parser.cpp" />
@@ -171,10 +167,7 @@
     <ClInclude Include="include\fe\data\types.h" />
     <ClInclude Include="include\fe\data\name_scope.h" />
     <ClInclude Include="include\fe\data\type_scope.h" />
-    <ClInclude Include="include\fe\data\values.h" />
-    <ClInclude Include="include\fe\data\value_scope.h" />
     <ClInclude Include="include\fe\language_definition.h" />
-    <ClInclude Include="include\fe\libraries\core\core_operations.h" />
     <ClInclude Include="include\fe\libraries\std\std_io.h" />
     <ClInclude Include="include\fe\libraries\std\std_types.h" />
     <ClInclude Include="include\fe\libraries\std\std_ui.h" />
@@ -182,7 +175,6 @@
     <ClInclude Include="include\fe\modes\repl.h" />
     <ClInclude Include="include\fe\pipeline\bytecode_gen_stage.h" />
     <ClInclude Include="include\fe\pipeline\error.h" />
-    <ClInclude Include="include\fe\pipeline\interpreting_stage.h" />
     <ClInclude Include="include\fe\pipeline\lexer_stage.h" />
     <ClInclude Include="include\fe\pipeline\lowering_stage.h" />
     <ClInclude Include="include\fe\pipeline\parser_stage.h" />

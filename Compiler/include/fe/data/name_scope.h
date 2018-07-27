@@ -10,25 +10,26 @@ namespace fe::ext_ast
 {
 	class name_scope
 	{
+	public:
 		struct type_lookup
 		{
 			std::size_t scope_distance;
-			node_id type_node;
+			node_id declaration_node;
 		};
 
 		struct var_lookup
 		{
 			std::size_t scope_distance;
-			std::optional<node_id> type_node;
+			node_id declaration_node;
 		};
 
+		using get_scope_cb = std::function<name_scope*(scope_index)>;
+
+	private:
 		/*
 		* The identifiers in a scope are all named variables that can be referenced from within that scope.
-		* The name of the type is also stored, for resolving nested field references later.
 		*/
 		std::unordered_map<name, std::pair<node_id, bool>> variables;
-
-		std::unordered_map<name, bool> opaque_variables;
 
 		/*
 		* The nested types in a scope include all type declarations that contain a named variable within it
@@ -53,7 +54,6 @@ namespace fe::ext_ast
 		std::optional<scope_index> parent;
 
 	public:
-		using get_scope_cb = std::function<name_scope*(scope_index)>;
 
 		/*
 		* Adds all variables, types, and modules to this scope.
@@ -72,20 +72,9 @@ namespace fe::ext_ast
 		// Variable names
 
 		/*
-		* Declares the variable within this scope, with the node begin the type node of the variable.
-		* The variable will not yet be resolvable.
+		* Declares the variable within this scope, with the given id as the node id of the declaration.
 		*/
-		void declare_variable(name, node_id node);
-
-		/*
-		* Declares a variable with no accessible fields.
-		* The variable will not yet be resolvable.
-		*/
-		void declare_variable(name);
-
-		/*
-		* Defines the given name within this scope. After this, the variable will be resolvable.
-		*/
+		void declare_variable(name, node_id id);
 		void define_variable(name);
 
 		/*

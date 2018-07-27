@@ -10,11 +10,6 @@ namespace fe::ext_ast
 			this->variables.insert(std::move(pair));
 		}
 
-		for (auto&& pair : other.opaque_variables)
-		{
-			this->opaque_variables.insert(std::move(pair));
-		}
-
 		for (auto&& pair : other.types)
 		{
 			this->types.insert(std::move(pair));
@@ -42,24 +37,16 @@ namespace fe::ext_ast
 		this->modules.insert({ module_name, scope });
 	}
 
-	void name_scope::declare_variable(name id, node_id type_id)
+	void name_scope::declare_variable(name id, node_id node_id)
 	{
-		assert(opaque_variables.find(id) == opaque_variables.end());
 		assert(variables.find(id) == variables.end());
-		this->variables.insert({ id, { type_id, false } });
-	}
-
-	void name_scope::declare_variable(name id)
-	{
-		assert(opaque_variables.find(id) == opaque_variables.end());
-		assert(variables.find(id) == variables.end());
-		this->opaque_variables.insert({ id, false });
+		this->variables.insert({ id, { node_id, false } });
 	}
 
 	void name_scope::define_variable(name id)
 	{
-		if (variables.find(id) != variables.end()) variables.at(id).second = true;
-		if (opaque_variables.find(id) != opaque_variables.end()) opaque_variables.at(id) = true;
+		assert(variables.find(id) != variables.end());
+		variables.find(id)->second.second = true;
 	}
 
 	std::optional<name_scope::var_lookup> name_scope::resolve_variable(module_name module, name var, get_scope_cb cb) const
@@ -88,10 +75,6 @@ namespace fe::ext_ast
 		if (auto pos = variables.find(var); pos != variables.end())
 		{
 			return var_lookup{ 0, pos->second.first };
-		}
-		else if (auto pos = opaque_variables.find(var); pos != opaque_variables.end())
-		{
-			return var_lookup{ 0, std::nullopt };
 		}
 		else if (parent)
 		{

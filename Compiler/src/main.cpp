@@ -57,8 +57,6 @@ int main(int argc, char** argv)
 			}
 
 			fe::project proj(std::move(pipeline));
-			// core
-			proj.add_module(fe::core::operations::load());
 			// std io
 			proj.add_module(fe::stdlib::io::load());
 			// std ui
@@ -66,10 +64,10 @@ int main(int argc, char** argv)
 			// std types
 			proj.add_module(fe::stdlib::typedefs::load());
 
-			auto project_path = std::filesystem::path(argv[2]);
+			auto project_path = std::experimental::filesystem::path(argv[2]);
 			std::cout << "Project folder: " << project_path << "\n";
 
-			auto directory_it = std::filesystem::recursive_directory_iterator(argv[2]);
+			auto directory_it = std::experimental::filesystem::recursive_directory_iterator(argv[2]);
 			for (auto& item : directory_it)
 			{
 				auto path = item.path();
@@ -84,7 +82,9 @@ int main(int argc, char** argv)
 					continue;
 				}
 				auto& code = std::get<std::string>(file_or_error);
+
 				//proj.add_module(proj.eval(code));
+				proj.eval(code);
 			}
 		}
 		catch (const lexing::error& e)
@@ -136,35 +136,6 @@ int main(int argc, char** argv)
 			<< "{language} repl\n"
 			<< "\tStarts a REPL session\n"
 			<< std::endl;
-		std::cin.get();
-		return 0;
-	}
-	else if (mode == "other")
-	{
-		fe::pipeline p;
-		//fe::lexing_stage lexer;
-
-		// Init parse table
-		std::string code =
-			R"c(module statements
-	import [std std.io]
-
-	let x : std.i32 = 1;
-	)c";
-
-		for (int i = 0; i < 1000000; i++)
-			code += "x = 2;\n";
-
-		while (true)
-		{
-			auto now = std::chrono::steady_clock::now();
-			p.parse(code);
-			auto then = std::chrono::steady_clock::now();
-
-			auto time = std::chrono::duration<double, std::milli>(then - now).count();
-			std::cout << "Long parse: " << time << " ms" << "\n";
-		}
-
 		std::cin.get();
 		return 0;
 	}

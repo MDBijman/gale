@@ -8,14 +8,12 @@
 #include "fe/pipeline/pipeline.h"
 
 // libs
-#include "fe/libraries/core/core_operations.h"
 #include "fe/libraries/std/std_io.h"
 #include "fe/libraries/std/std_types.h"
 
 TEST_CASE("faulty code typechecking", "[typechecking]")
 {
 	fe::project p{ fe::pipeline() };
-	p.add_module(fe::core::operations::load());
 	p.add_module(fe::stdlib::io::load());
 	p.add_module(fe::stdlib::typedefs::load());
 
@@ -30,7 +28,7 @@ let x: Pair = Pair (1, Nested (3, 4));
 	SECTION("wrong product type")
 	{
 		auto new_code = code + "let o: Pair = x.m;";
-
+		p.eval(new_code);
 		REQUIRE_THROWS_AS(p.eval(std::move(new_code)), fe::typecheck_error);
 	}
 }
@@ -53,3 +51,4 @@ let x: Pair = Pair (1, Nested (3, 4));
 //	x_components.push_back(fe::values::unique_value(new fe::values::i32(2)));
 //	REQUIRE(res.value_equals("x", fe::values::tuple(std::move(x_components))));
 //}
+
