@@ -4,15 +4,12 @@
 #include "tests/test_utils.h"
 #include "fe/modes/project.h"
 
-#include "fe/libraries/core/core_operations.h"
 #include "fe/libraries/std/std_io.h"
 #include "fe/libraries/std/std_types.h"
 
 //TEST_CASE("comparison operators", "[operators]")
 //{
 //	fe::project p{ fe::pipeline() };
-//	// core
-//	p.add_module(fe::core::operations::load());
 //	// std io
 //	p.add_module(fe::stdlib::io::load());
 //	// std types

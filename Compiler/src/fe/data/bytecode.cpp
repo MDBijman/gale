@@ -137,9 +137,9 @@ namespace fe::vm
 	{
 		return triple_byte{ op_to_byte(op_kind::CALL_REG_REG), chunk.val, ip.val };
 	}
-	triple_byte make_ret(byte a, byte b)
+	double_byte make_ret(byte a)
 	{
-		return triple_byte{ op_to_byte(op_kind::RET_UI8_UI8), a.val, b.val };
+		return double_byte{ op_to_byte(op_kind::RET_UI8), a.val };
 	}
 	double_byte make_jmp(reg dest)
 	{
@@ -276,7 +276,7 @@ namespace fe::vm
 			case op_kind::JNZ_REG_REG: ip += 3; out += "jnz\n"; break;
 			case op_kind::JZ_REG_REG: ip += 3; out += "jz\n"; break;
 			case op_kind::CALL_REG_REG: ip += 3; out += "call\n"; break;
-			case op_kind::RET_UI8_UI8: ip += 3; out += "ret\n"; break;
+			case op_kind::RET_UI8: ip += 3; out += "ret\n"; break;
 			case op_kind::NOP: ip += 1; out += "nop\n"; break;
 			case op_kind::LBL: ip += 1; out += "lbl\n"; break;
 			default:

@@ -5,6 +5,44 @@
 
 namespace fe::types { struct type; }
 
+namespace fe
+{
+	struct plain_identifier
+	{
+		std::string full;
+	};
+
+	struct boolean
+	{
+		bool value;
+	};
+
+	struct string
+	{
+		std::string value;
+	};
+
+	enum class number_type { UI32, I32, UI64, I64 };
+
+	struct number
+	{
+		long long int value;
+		number_type type;
+	};
+
+	using scope_index = uint32_t;
+	constexpr scope_index no_scope = std::numeric_limits<uint32_t>::max();
+
+	using node_id = uint32_t;
+	constexpr node_id no_node = std::numeric_limits<uint32_t>::max();
+
+	using data_index = uint32_t;
+	constexpr data_index no_data = std::numeric_limits<uint32_t>::max();
+
+	using children_id = uint32_t;
+	constexpr children_id no_children = std::numeric_limits<uint32_t>::max();
+}
+
 namespace fe::ext_ast
 {
 	using name = std::string;
@@ -16,6 +54,12 @@ namespace fe::ext_ast
 		module_name segments;
 		std::optional<std::size_t> scope_distance;
 		std::vector<size_t> offsets;
+
+		node_id type_node = no_node;
+
+		// The index in function of an identifier is equal to the index of the register that is used to store the address
+		// The address of the nth declared variable in a function is stored in the nth register
+		uint32_t index_in_function = 0;
 
 		identifier without_first_segment() const
 		{
@@ -89,89 +133,35 @@ namespace std
 
 namespace fe::core_ast
 {
-	struct identifier
+	struct label
 	{
-		identifier() : scope_distance(0) {}
-		identifier(std::string name) : variable_name(name), scope_distance(0) {}
-		identifier(std::vector<std::string> modules, std::string name, size_t sd, std::vector<size_t> offsets) :
-			modules(modules), variable_name(name), scope_distance(sd), offsets(offsets) {}
-		identifier(const identifier& o) : modules(o.modules), variable_name(o.variable_name), 
-			scope_distance(o.scope_distance), offsets(o.offsets) {}
-
-		std::vector<std::string>   modules;
-		std::string                variable_name;
-		std::size_t                     scope_distance;
-		std::vector<size_t>             offsets;
-
-		operator std::string() const
-		{
-			std::string o;
-			for (int i = 0; i < modules.size(); i++)
-				o += std::string(modules.at(i)) + ".";
-			o += variable_name;
-			return o;
-		}
+		uint32_t id;
 	};
 
-	inline bool operator==(const identifier& a, const identifier& b)
+	struct size
 	{
-		return (a.modules == b.modules) && (a.variable_name == b.variable_name)
-			&& (a.scope_distance == b.scope_distance) && (a.offsets == b.offsets);
-	}
-}
-
-namespace std
-{
-	template<> struct hash<fe::core_ast::identifier>
-	{
-		size_t operator()(const fe::core_ast::identifier& o) const
-		{
-			size_t h = 0;
-			for (const auto& s : o.modules)
-				h ^= hash<string_view>()(s);
-			h ^= hash<string_view>()(o.variable_name);
-			h ^= hash<size_t>()(o.scope_distance);
-			for (const auto& s : o.offsets)
-				h ^= hash<size_t>()(s);
-			return h;
-		}
-	};
-}
-
-namespace fe
-{
-	struct plain_identifier
-	{
-		std::string full;
+		size_t val;
 	};
 
-	struct boolean
+	struct move_data
 	{
-		bool value;
+		move_data() {}
+		enum class location_type { REG, STACK, REG_DEREF };
+		location_type from_t, to_t;
+		int64_t from, to;
+		uint32_t size;
 	};
 
-	struct string
+	struct function_data
 	{
-		std::string value;
+		function_data() {}
+		std::string name;
+		size_t in_size, out_size;
 	};
 
-	enum class number_type { UI32, I32, UI64, I64 };
-
-	struct number
+	struct function_call_data
 	{
-		long long int value;
-		number_type type;
+		function_call_data() {}
+		std::string name;
 	};
-
-	using scope_index = uint32_t;
-	constexpr scope_index no_scope = std::numeric_limits<uint32_t>::max();
-
-	using node_id = uint32_t;
-	constexpr node_id no_node = std::numeric_limits<uint32_t>::max();
-
-	using data_index = uint32_t;
-	constexpr data_index no_data = std::numeric_limits<uint32_t>::max();
-
-	using children_id = uint32_t;
-	constexpr children_id no_children = std::numeric_limits<uint32_t>::max();
 }

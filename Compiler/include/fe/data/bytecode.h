@@ -72,7 +72,7 @@ namespace fe::vm
 		// push bp, push ip, bp <- reg[b0], ip <- reg[b1]
 		CALL_REG_REG,
 		// reg[x] <- pop, ip <- reg[x]
-		RET_UI8_UI8,
+		RET_UI8,
 	};
 
 	uint8_t op_to_byte(op_kind);
@@ -136,7 +136,7 @@ namespace fe::vm
 	double_byte make_pop32(reg dest);
 	double_byte make_pop64(reg dest);
 	triple_byte make_call(reg chunk, reg ip);
-	triple_byte make_ret(byte a, byte b);
+	double_byte make_ret(byte a);
 	double_byte make_jmp(reg dest);
 
 	// far_lbl is used to refer to an instruction and the chunk it is a part of

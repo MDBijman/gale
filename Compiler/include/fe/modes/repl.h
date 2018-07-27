@@ -2,7 +2,6 @@
 #include "fe/language_definition.h"
 #include "fe/libraries/std/std_io.h"
 #include "fe/libraries/std/std_ui.h"
-#include "fe/libraries/core/core_operations.h"
 #include "utils/reading/reader.h"
 #include "project.h"
 
@@ -18,8 +17,6 @@ namespace fe
 
 		void run()
 		{
-			// core
-			proj.add_module(fe::core::operations::load());
 			// std io
 			proj.add_module(fe::stdlib::io::load());
 			// std ui
