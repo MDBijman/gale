@@ -22,7 +22,7 @@ namespace fe
 		std::string value;
 	};
 
-	enum class number_type { UI32, I32, UI64, I64 };
+	enum class number_type { UI8, I8, UI16, I16, UI32, I32, UI64, I64 };
 
 	struct number
 	{
@@ -59,7 +59,7 @@ namespace fe::ext_ast
 
 		// The index in function of an identifier is equal to the index of the register that is used to store the address
 		// The address of the nth declared variable in a function is stored in the nth register
-		uint32_t index_in_function = 0;
+		uint32_t index_in_function = static_cast<uint32_t>(-1);
 
 		identifier without_first_segment() const
 		{
@@ -80,6 +80,16 @@ namespace fe::ext_ast
 				std::vector<std::string>(segments.begin(), segments.end() - 1),
 				scope_distance,
 				std::vector<size_t>(offsets.begin(), end)
+			};
+		}
+
+		identifier root_identifier() const
+		{
+			return identifier{
+				segments[0],
+				{ segments[0] },
+				scope_distance,
+				{}
 			};
 		}
 
@@ -138,17 +148,77 @@ namespace fe::core_ast
 		uint32_t id;
 	};
 
+	inline bool operator==(const label& l, const label& r)
+	{
+		return l.id == r.id;
+	}
+
 	struct size
 	{
 		size_t val;
 	};
 
+	struct return_data
+	{
+		size_t in_size, out_size;
+	};
+
 	struct move_data
 	{
 		move_data() {}
-		enum class location_type { REG, STACK, REG_DEREF };
-		location_type from_t, to_t;
+		enum class dst_type
+		{
+			// register
+			REG,
+			// stack pointer register
+			SP,
+			// instruction pointer register
+			IP,
+			// result register
+			RES,
+			// stack
+			STACK,
+			// register containing location
+			LOC,
+			// register containing location in 32 msbits and offset in 32 lsbits
+			LOC_WITH_OFFSET
+		};
+		enum class src_type
+		{
+			// register
+			REG,
+			// stack pointer register
+			SP,
+			// instruction pointer register
+			IP,
+			// result register
+			RES,
+			// stack 
+			STACK,
+			// register containing location 
+			LOC,
+			// register containing location in 32 msbits and offset in 32 lsbits
+			LOC_WITH_OFFSET,
+			// literal value
+			LIT
+		};
+		dst_type to_t;
+		src_type from_t;
+
+		/*
+		* Contains the value indicating the src/dest value.
+		* If the type is REG, contains the register id.
+		* If the type is STACK, contains the offset from SP.
+		* If the type is LOC, contains the register id of the register containing the location.
+		* If the type is LIT, contains the literal value.
+		* If the type is LOC_WITH_OFFSET, contains the loc in the 32 msbits, and the offset in32 lsbits
+		* Otherwise this value is unused.
+		*/
 		int64_t from, to;
+
+		/*
+		* The size of the move to be performed, in bytes.
+		*/
 		uint32_t size;
 	};
 
@@ -157,11 +227,23 @@ namespace fe::core_ast
 		function_data() {}
 		std::string name;
 		size_t in_size, out_size;
+		uint32_t label;
 	};
 
 	struct function_call_data
 	{
 		function_call_data() {}
 		std::string name;
+	};
+}
+
+namespace std
+{
+	template<> struct hash<fe::core_ast::label>
+	{
+		size_t operator()(const fe::core_ast::label& o) const
+		{
+			return std::hash<uint32_t>()(o.id);
+		}
 	};
 }

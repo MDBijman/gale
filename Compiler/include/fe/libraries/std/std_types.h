@@ -12,20 +12,40 @@ namespace fe::stdlib::typedefs
 
 		{
 			using namespace types;
+			auto& i8_name = constants.get<plain_identifier>(constants.create<plain_identifier>());
+			i8_name.full = "i8";
+			s.define_type(i8_name.full, {});
+			t.define_type(i8_name.full, unique_type(new types::i8()));
+
+			auto& ui8_name = constants.get<plain_identifier>(constants.create<plain_identifier>());
+			ui8_name.full = "ui8";
+			s.define_type(ui8_name.full, {});
+			t.define_type(ui8_name.full, unique_type(new types::ui8()));
+
+			auto& i16_name = constants.get<plain_identifier>(constants.create<plain_identifier>());
+			i16_name.full = "i16";
+			s.define_type(i16_name.full, {});
+			t.define_type(i16_name.full, unique_type(new types::i16()));
+
+			auto& ui16_name = constants.get<plain_identifier>(constants.create<plain_identifier>());
+			ui16_name.full = "ui16";
+			s.define_type(ui16_name.full, {});
+			t.define_type(ui16_name.full, unique_type(new types::ui16()));
+
 			auto& i32_name = constants.get<plain_identifier>(constants.create<plain_identifier>());
 			i32_name.full = "i32";
 			s.define_type(i32_name.full, {});
 			t.define_type(i32_name.full, unique_type(new types::i32()));
 
-			auto& i64_name = constants.get<plain_identifier>(constants.create<plain_identifier>());
-			i64_name.full = "i64";
-			s.define_type(i64_name.full, {});
-			t.define_type(i64_name.full, unique_type(new types::i64()));
-
 			auto& ui32_name = constants.get<plain_identifier>(constants.create<plain_identifier>());
 			ui32_name.full = "ui32";
 			s.define_type(ui32_name.full, {});
 			t.define_type(ui32_name.full, unique_type(new types::ui32()));
+
+			auto& i64_name = constants.get<plain_identifier>(constants.create<plain_identifier>());
+			i64_name.full = "i64";
+			s.define_type(i64_name.full, {});
+			t.define_type(i64_name.full, unique_type(new types::i64()));
 
 			auto& ui64_name = constants.get<plain_identifier>(constants.create<plain_identifier>());
 			ui64_name.full = "ui64";

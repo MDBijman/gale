@@ -15,8 +15,10 @@ namespace fe::vm
 
 		// reg[b0] <- reg[b1] + reg[b2]
 		ADD_REG_REG_REG,
+		ADD_REG_REG_UI8,
 		// reg[b0] <- reg[b1] - reg[b2]
 		SUB_REG_REG_REG,
+		SUB_REG_REG_UI8,
 		// reg[b0] <- reg[b1] * reg[b2]
 		MUL_REG_REG_REG,
 		// reg[b0] <- reg[b1] / reg[b2]
@@ -38,6 +40,7 @@ namespace fe::vm
 		NEQ_REG_REG_REG,
 		// if reg[b1] != 0 && reg[b2] != 0 { reg[b0] <- 1 } else { reg[b0] <- 0 }
 		AND_REG_REG_REG,
+		AND_REG_REG_UI8,
 		// if reg[b1] != 0 || reg[b2] != 0 { reg[b0] <- 1 } else { reg[b0] <- 0 }
 		OR_REG_REG_REG,
 
@@ -45,14 +48,34 @@ namespace fe::vm
 		* Control
 		*/
 
-		// reg[b0] <- *reg[b1]
-		LOAD64_REG_REG,
 		// reg[b0] <- sp
-		LOAD_SP_REG,
+		MV_REG_SP,
+		// reg[b0] <- ip
+		MV_REG_IP,
 		// reg[b0] <- b1
 		MV_REG_UI8,
-		// nop, use to jump
-		LBL,
+		MV_REG_UI16,
+		MV_REG_UI32,
+		MV_REG_UI64,
+		MV_REG_I8,
+		MV_REG_I16,
+		MV_REG_I32,
+		MV_REG_I64,
+		// reg[b0] <- reg[b1]
+		MV8_REG_REG,
+		MV16_REG_REG,
+		MV32_REG_REG,
+		MV64_REG_REG,
+		// stack[reg[b0]] <- reg[b1]
+		MV8_LOC_REG,
+		MV16_LOC_REG,
+		MV32_LOC_REG,
+		MV64_LOC_REG,
+		// reg[b0] <- stack[reg[b1]]
+		MV8_REG_LOC,
+		MV16_REG_LOC,
+		MV32_REG_LOC,
+		MV64_REG_LOC,
 		// stack[esp] <- reg[b0], esp++
 		PUSH8_REG,
 		PUSH16_REG,
@@ -63,20 +86,27 @@ namespace fe::vm
 		POP16_REG,
 		POP32_REG,
 		POP64_REG,
-		// ip <- reg[b0]
-		JMP_REG,
-		// if reg[b0] != 0 { ip <- reg[b1] } else { ip++ }
-		JNZ_REG_REG,
-		// if reg[b0] == 0 { ip <- reg[b1] } else { ip++ }
-		JZ_REG_REG,
-		// push bp, push ip, bp <- reg[b0], ip <- reg[b1]
-		CALL_REG_REG,
+		// jump relative: ip += b0
+		JMPR_I32,
+		// jump relative not zero: if reg[b0] != 0 { ip += b1 } else { ip++ }
+		JRNZ_REG_I32,
+		// jump relative zero: if reg[b0] == 0 { ip += b1 } else { ip++ }
+		JRZ_REG_I32,
+		// push bp, push ip, ip <- reg[b1]
+		CALL_UI64,
 		// reg[x] <- pop, ip <- reg[x]
 		RET_UI8,
+
+		// temporary label with id
+		LBL_UI32,
+		ERR = 255
 	};
 
 	uint8_t op_to_byte(op_kind);
 	op_kind byte_to_op(uint8_t);
+
+	std::string op_to_string(op_kind);
+	uint8_t op_size(op_kind);
 
 	struct byte
 	{
@@ -97,47 +127,85 @@ namespace fe::vm
 	};
 	inline bool operator==(const reg& a, const reg& b) { return a.val == b.val; }
 
-	// Single byte
-	using single_byte = std::array<byte, 1>;
-	// Two bytes
-	using double_byte = std::array<byte, 2>;
-	// Three bytes
-	using triple_byte = std::array<byte, 3>;
-	// Four bytes
-	using quad_byte = std::array<byte, 4>;
+	template<int C>
+	using bytes = std::array<byte, C>;
 
-	using any_byte = std::variant<single_byte, double_byte, triple_byte, quad_byte>;
+	bytes<8> make_i64(int64_t);
+	int64_t read_i64(bytes<8>);
+	bytes<8> make_ui64(uint64_t);
+	uint64_t read_ui64(bytes<8>);
+
+	bytes<4> make_i32(int32_t);
+	int32_t read_i32(bytes<4>);
+	bytes<4> make_ui32(uint32_t);
+	uint32_t read_ui32(bytes<4>);
+
+	bytes<2> make_ui16(uint16_t);
+	uint16_t read_ui16(bytes<2>);
+	bytes<2> make_i16(int16_t);
+	int16_t read_i16(bytes<2>);
+
+	bytes<1> make_ui8(uint8_t);
+	uint8_t read_ui8(bytes<1>);
+	bytes<1> make_i8(int8_t);
+	int8_t read_i8(bytes<1>);
 
 	// Operator construction methods
-	single_byte make_nop();
-	quad_byte make_add(reg dest, reg a, reg b);
-	quad_byte make_sub(reg dest, reg a, reg b);
-	quad_byte make_mul(reg dest, reg a, reg b);
-	quad_byte make_div(reg dest, reg a, reg b);
-	quad_byte make_mod(reg dest, reg a, reg b);
-	quad_byte make_and(reg dest, reg a, reg b);
-	quad_byte make_or(reg dest, reg a, reg b);
-	quad_byte make_gt(reg dest, reg a, reg b);
-	quad_byte make_gte(reg dest, reg a, reg b);
-	quad_byte make_eq(reg dest, reg a, reg b);
-	quad_byte make_neq(reg dest, reg a, reg b);
-	triple_byte make_jz(reg a, reg ip);
-	triple_byte make_load64(reg dest, reg src);
-	double_byte make_load_sp(reg dest);
-	triple_byte make_mv(reg dest, byte a);
-	double_byte make_push(uint8_t bytes, reg src);
-	double_byte make_push8(reg src);
-	double_byte make_push16(reg src);
-	double_byte make_push32(reg src);
-	double_byte make_push64(reg src);
-	double_byte make_pop(uint8_t bytes, reg src);
-	double_byte make_pop8(reg dest);
-	double_byte make_pop16(reg dest);
-	double_byte make_pop32(reg dest);
-	double_byte make_pop64(reg dest);
-	triple_byte make_call(reg chunk, reg ip);
-	double_byte make_ret(byte a);
-	double_byte make_jmp(reg dest);
+	bytes<1> make_nop();
+	bytes<4> make_add(reg dest, reg a, reg b);
+	bytes<4> make_add(reg dest, reg a, byte b);
+	bytes<4> make_sub(reg dest, reg a, reg b);
+	bytes<4> make_sub(reg dest, reg a, byte b);
+	bytes<4> make_mul(reg dest, reg a, reg b);
+	bytes<4> make_div(reg dest, reg a, reg b);
+	bytes<4> make_mod(reg dest, reg a, reg b);
+	bytes<4> make_and(reg dest, reg a, reg b);
+	bytes<4> make_and(reg dest, reg a, byte b);
+	bytes<4> make_or(reg dest, reg a, reg b);
+	bytes<4> make_gt(reg dest, reg a, reg b);
+	bytes<4> make_gte(reg dest, reg a, reg b);
+	bytes<4> make_eq(reg dest, reg a, reg b);
+	bytes<4> make_neq(reg dest, reg a, reg b);
+	bytes<2> make_mv_sp(reg dest);
+	bytes<3> make_mv_reg_ui8(reg dest, uint8_t a);
+	bytes<4> make_mv_reg_ui16(reg dest, uint16_t a);
+	bytes<6> make_mv_reg_ui32(reg dest, uint32_t a);
+	bytes<10> make_mv_reg_ui64(reg dest, uint64_t a);
+	bytes<3> make_mv_reg_i8(reg dest, int8_t a);
+	bytes<4> make_mv_reg_i16(reg dest, int16_t a);
+	bytes<6> make_mv_reg_i32(reg dest, int32_t a);
+	bytes<10> make_mv_reg_i64(reg dest, int64_t a);
+	bytes<3> make_mv_reg_reg(uint8_t bytes, reg dest, reg a);
+	bytes<3> make_mv8_reg_reg(reg dest, reg src);
+	bytes<3> make_mv16_reg_reg(reg dest, reg src);
+	bytes<3> make_mv32_reg_reg(reg dest, reg src);
+	bytes<3> make_mv64_reg_reg(reg dest, reg src);
+	bytes<3> make_mv_reg_loc(uint8_t bytes, reg dest, reg src);
+	bytes<3> make_mv8_reg_loc(reg dest, reg src);
+	bytes<3> make_mv16_reg_loc(reg dest, reg src);
+	bytes<3> make_mv32_reg_loc(reg dest, reg src);
+	bytes<3> make_mv64_reg_loc(reg dest, reg src);
+	bytes<3> make_mv_loc_reg(uint8_t bytes, reg dest, reg src);
+	bytes<3> make_mv8_loc_reg(reg dest, reg src);
+	bytes<3> make_mv16_loc_reg(reg dest, reg src);
+	bytes<3> make_mv32_loc_reg(reg dest, reg src);
+	bytes<3> make_mv64_loc_reg(reg dest, reg src);
+	bytes<2> make_push(uint8_t bytes, reg src);
+	bytes<2> make_push8(reg src);
+	bytes<2> make_push16(reg src);
+	bytes<2> make_push32(reg src);
+	bytes<2> make_push64(reg src);
+	bytes<2> make_pop(uint8_t bytes, reg src);
+	bytes<2> make_pop8(reg dest);
+	bytes<2> make_pop16(reg dest);
+	bytes<2> make_pop32(reg dest);
+	bytes<2> make_pop64(reg dest);
+	bytes<9> make_call_ui64(uint64_t ip);
+	bytes<2> make_ret(byte a);
+	bytes<5> make_jmpr_i32(int32_t offset);
+	bytes<6> make_jrnz_i32(reg a, int32_t offset);
+	bytes<6> make_jrz_i32(reg a, int32_t offset);
+	bytes<5> make_lbl(uint32_t id);
 
 	// far_lbl is used to refer to an instruction and the chunk it is a part of
 
@@ -147,6 +215,10 @@ namespace fe::vm
 		far_lbl(uint64_t chunk, uint64_t ip) : chunk_id(chunk), ip(ip) {}
 		uint64_t chunk_id; 
 		uint64_t ip;
+		uint64_t make_ip()
+		{
+			return (chunk_id << 32) | ip;
+		}
 	};
 
 	// near_lbl is used to refer to an instruction within a chunk of bytecode
@@ -165,21 +237,44 @@ namespace fe::vm
 
 	public:
 		// Adds the bytes to the end of this bytecode, returning the address of the first byte
-		near_lbl add_instruction(any_byte);
+		template<int C> std::pair<near_lbl, uint32_t> add_instruction(bytes<C> in)
+		{
+			near_lbl l(instructions.size());
+			for (int i = 0; i < C; i++) instructions.push_back(in[i]);
+			return std::make_pair(l, in.size());
+		}
 		
 		// Adds the vector of bytes to the end of this bytecode, returning the address of the first byte
-		near_lbl add_instructions(std::vector<any_byte>);
+		template<int... Cs> std::pair<near_lbl, uint32_t> add_instructions(bytes<Cs>... in)
+		{
+			near_lbl l(instructions.size());
+			(add_instruction(in), ...);
+			return std::make_pair(l, (Cs + ... + 0));
+		}
 		
-		// Returns the four bytes starting at the given address
-		quad_byte get_instruction(near_lbl) const;
+		// Returns the C bytes starting at the given address, padded with op_kind::ERR bytes
+		template<int C> bytes<C> get_instruction(near_lbl l) const
+		{
+			bytes<C> res;
+			for (int i = 0; i < C; i++) res[i] = i + l.ip < instructions.size() ? instructions[l.ip + i] : op_to_byte(op_kind::ERR);
+			return res;
+		}
 
 		// Sets the instruction at the given address to the new bytes 
-		void set_instruction(near_lbl, any_byte);
+		template<int C> void set_instruction(near_lbl l, bytes<C> b)
+		{
+			for (int i = 0; i < C; i++) instructions[l.ip + i] = b[i];
+		}
 		
 		// Returns true if the given address maps to an instruction
 		bool has_instruction(near_lbl) const;
 
 		operator std::string() const;
+
+		std::vector<byte>& data()
+		{
+			return this->instructions;
+		}
 	};
 
 	class program
@@ -189,8 +284,16 @@ namespace fe::vm
 	public:
 		uint8_t add_chunk(bytecode);
 		bytecode& get_chunk(uint8_t);
-		size_t nr_of_chunks();
-		quad_byte get_instruction(far_lbl);
+		size_t chunk_count();
+		template<int C> bytes<C> get_instruction(far_lbl l)
+		{
+			return chunks.at(l.chunk_id).get_instruction<C>(l.ip);
+		}
+
+		void insert_padding(far_lbl loc, uint8_t size)
+		{
+			chunks.at(loc.chunk_id).data().insert(chunks.at(loc.chunk_id).data().begin() + loc.ip, size, byte(0));
+		}
 
 		void print();
 	};

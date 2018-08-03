@@ -48,6 +48,38 @@ namespace fe::ext_ast
 
 		auto& number_data = ast.get_data<number>(n.data_index);
 
+		if (tc.satisfied_by(types::i8()))
+		{
+			assert(number_data.value > std::numeric_limits<int8_t>::min());
+			assert(number_data.value < std::numeric_limits<int8_t>::max());
+			number_data.type = number_type::I8;
+			return types::unique_type(new types::i8());
+		}
+
+		if (tc.satisfied_by(types::ui8()))
+		{
+			assert(number_data.value > std::numeric_limits<uint8_t>::min());
+			assert(number_data.value < std::numeric_limits<uint8_t>::max());
+			number_data.type = number_type::UI8;
+			return types::unique_type(new types::ui8());
+		}
+
+		if (tc.satisfied_by(types::i16()))
+		{
+			assert(number_data.value > std::numeric_limits<int16_t>::min());
+			assert(number_data.value < std::numeric_limits<int16_t>::max());
+			number_data.type = number_type::I16;
+			return types::unique_type(new types::i16());
+		}
+
+		if (tc.satisfied_by(types::ui16()))
+		{
+			assert(number_data.value > std::numeric_limits<uint16_t>::min());
+			assert(number_data.value < std::numeric_limits<uint16_t>::max());
+			number_data.type = number_type::UI16;
+			return types::unique_type(new types::ui16());
+		}
+
 		if (tc.satisfied_by(types::i32()))
 		{
 			assert(number_data.value > std::numeric_limits<int32_t>::min());

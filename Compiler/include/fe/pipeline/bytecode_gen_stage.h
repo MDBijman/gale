@@ -18,7 +18,7 @@ namespace fe::vm
 		std::vector<reg> in_use;
 		reg next_allocation = 0;
 
-		std::unordered_map<std::string, far_lbl> functions;
+		std::unordered_map<std::string, core_ast::label> functions;
 
 	public:
 		std::vector<reg> clear_registers();
@@ -27,16 +27,17 @@ namespace fe::vm
 		void link_node_chunk(core_ast::node_id, uint8_t);
 		uint8_t chunk_of(core_ast::node_id);
 
-		void add_function_loc(std::string name, far_lbl l);
-		far_lbl function_loc(std::string name);
+		void register_function(std::string name, core_ast::label l);
+		core_ast::label label_of_function(std::string name);
 	};
 
 	struct code_gen_result
 	{
 		code_gen_result();
-		code_gen_result(uint8_t res_size, far_lbl code_loc);
-		uint8_t result_size;
+		code_gen_result(int64_t res_size, far_lbl code_loc, uint32_t code_size);
+		int64_t result_size;
 		far_lbl code_location;
+		uint32_t code_size;
 	};
 
 	class program;
