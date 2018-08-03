@@ -4,12 +4,15 @@
 namespace fe::vm
 {
 	constexpr size_t stack_size = 8192;
+	constexpr size_t register_count = 64;
+	constexpr uint8_t
+		ip_reg = register_count - 1,
+		sp_reg = register_count - 2,
+		fp_reg = register_count - 3,
+		ret_reg = register_count - 4;
 	struct machine_state
 	{
-		uint64_t stack_ptr = 0;
-		uint64_t instruction_ptr = 0;
-		uint64_t chunk_id = 0;
-
+		machine_state() : stack(), registers() {}
 		uint8_t stack[stack_size];
 		int64_t registers[64];
 

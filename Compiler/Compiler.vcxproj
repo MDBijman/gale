@@ -146,6 +146,7 @@
     <ClCompile Include="src\fe\pipeline\typechecker_stage.cpp" />
     <ClCompile Include="src\fe\pipeline\vm_stage.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\tests\fe\bytecode_gen_tests.cpp" />
     <ClCompile Include="src\tests\fe\bytecode_tests.cpp" />
     <ClCompile Include="src\tests\fe\comparison_tests.cpp" />
     <ClCompile Include="src\tests\fe\destructuring_tests.cpp" />

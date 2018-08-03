@@ -25,7 +25,26 @@ let a: std.i64 = fib 3;
 	p.add_module(fe::stdlib::ui::load());
 	// std types
 	p.add_module(fe::stdlib::typedefs::load());
-	auto mod = p.eval(code);
+	//auto mod = p.eval(code);
+}
+
+TEST_CASE("function", "[bytecode]")
+{
+	using namespace fe::vm;
+	auto code = R"delim(
+		module test
+import [std]
+
+let test: std.i64 -> std.i64 = \n => n;
+let a: std.i64 = test 3;
+		)delim";
+
+	fe::project p{ fe::pipeline() };
+	// std types
+	p.add_module(fe::stdlib::typedefs::load());
+	auto state = p.eval(code);
+	REQUIRE(state.registers[sp_reg] == 0);
+	REQUIRE(state.registers[ret_reg] == 3);
 }
 
 TEST_CASE("instructions", "[bytecode]")
@@ -33,16 +52,17 @@ TEST_CASE("instructions", "[bytecode]")
 	using namespace fe::vm;
 	auto p = program();
 	auto bc = bytecode();
-	bc.add_instructions({
-		make_mv(reg(3), 100),
-		make_mv(reg(4), 150),
+	bc.add_instructions(
+		make_mv_reg_ui8(reg(3), 100),
+		make_mv_reg_ui16(reg(4), 150),
 		make_add(reg(5), reg(3), reg(4)),
-		make_mv(reg(1), 120),
+		make_mv_reg_ui8(reg(1), 120),
 		make_push8(reg(1)),
 		make_pop8(reg(2))
-		});
+	);
 	p.add_chunk(bc);
 	auto res = interpret(p);
+	REQUIRE(res.registers[sp_reg] == 0);
 	REQUIRE(res.registers[5] == 250);
 	REQUIRE(res.registers[2] == 120);
 }
@@ -58,6 +78,7 @@ TEST_CASE("number", "[bytecode]")
 
 	auto p = generate_bytecode(ast);
 	auto res = interpret(p);
+	REQUIRE(res.registers[sp_reg] == 0);
 }
 
 //

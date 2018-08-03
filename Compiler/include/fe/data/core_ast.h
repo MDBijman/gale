@@ -83,6 +83,7 @@ namespace fe::core_ast
 		memory::dynamic_store<function_call_data> function_call_data_store;
 		memory::dynamic_store<label> label_store;
 		memory::dynamic_store<size> size_store;
+		memory::dynamic_store<return_data> return_data_store;
 		constants_store constants;
 
 		node_id root;
@@ -154,6 +155,7 @@ namespace fe::core_ast
 		template<> function_call_data& get_data<function_call_data>(data_index i) { return function_call_data_store.get_at(i); }
 		template<> label& get_data<label>(data_index i) { return label_store.get_at(i); }
 		template<> size& get_data<size>(data_index i) { return size_store.get_at(i); }
+		template<> return_data& get_data<return_data>(data_index i) { return return_data_store.get_at(i); }
 
 	private:
 		std::optional<data_index> create_node_data(node_type t)
@@ -171,8 +173,9 @@ namespace fe::core_ast
 				return label_store.create();
 			case node_type::SDEALLOC: 
 			case node_type::SALLOC: 
-			case node_type::RET:
 				return size_store.create();
+			case node_type::RET:
+				return return_data_store.create();
 			default: return std::nullopt;
 			}
 		}

@@ -128,9 +128,6 @@ namespace fe::ext_ast
 				}), constraint);
 				if(sub) sub_constraints.push_back(std::move(*sub));
 				else return std::nullopt;
-				//else throw typecheck_error{ "constraint " + std::visit(to_string, constraint) 
-					//+ "\n(subconstraint of " + this->operator std::string() + ")"
-					//+ "\ndoes not contain a subconstraint with index " + std::to_string(i) };
 			}
 
 			return type_constraints(std::move(sub_constraints));
