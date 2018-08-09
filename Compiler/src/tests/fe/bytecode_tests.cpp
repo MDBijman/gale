@@ -37,6 +37,7 @@ import [std]
 
 let test: std.i64 -> std.i64 = \n => n;
 let a: std.i64 = test 3;
+let b: std.i64 = a + 2;
 		)delim";
 
 	fe::project p{ fe::pipeline() };

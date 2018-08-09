@@ -158,13 +158,7 @@ namespace fe::ext_ast
 				.resolve_variable(ast.get_data<identifier>(param_node.data_index), ast.type_scope_cb()))
 				.type.calculate_size();
 
-			function_data.label = context.new_label();
-			types::function_type* func_type = dynamic_cast<types::function_type*>(&(*ast
-				.get_type_scope(n.type_scope_id)
-				.resolve_variable(identifier_data, ast.type_scope_cb()))
-				.type);
-			function_data.in_size = func_type->from->calculate_size();
-			function_data.out_size = func_type->to->calculate_size();
+
 			// #todo put stack offset in register
 		}
 		else if (param_node.kind == node_type::IDENTIFIER_TUPLE)
@@ -174,14 +168,15 @@ namespace fe::ext_ast
 		}
 		else throw std::runtime_error("Error: parameter node type invalid");
 
-		auto block = new_ast.create_node(core_ast::node_type::BLOCK, function_id);
+		auto ret = new_ast.create_node(core_ast::node_type::RET, function_id);
+		new_ast.get_data<core_ast::return_data>(*new_ast.get_node(ret).data_index) = core_ast::return_data{ in_size,  };
+
+		auto block = new_ast.create_node(core_ast::node_type::BLOCK, ret);
 		// Body
 		auto& body_node = ast.get_node(children[1]);
 		auto new_body = lower(body_node, ast, new_ast, context);
 		link_child_parent(new_body.id, block, new_ast);
 
-		auto ret = new_ast.create_node(core_ast::node_type::RET, block);
-		new_ast.get_data<core_ast::return_data>(*new_ast.get_node(ret).data_index) = core_ast::return_data{ in_size,  };
 
 		// #todo functions should be root-scope only
 		return { 0, function_id };
@@ -417,6 +412,13 @@ namespace fe::ext_ast
 			{
 				auto& function_data = new_ast.get_data<core_ast::function_data>(*new_ast.get_node(rhs.id).data_index);
 				function_data.name = identifier_data.full;
+				function_data.label = context.new_label();
+				types::function_type* func_type = dynamic_cast<types::function_type*>(&(*ast
+					.get_type_scope(n.type_scope_id)
+					.resolve_variable(identifier_data, ast.type_scope_cb()))
+					.type);
+				function_data.in_size = func_type->from->calculate_size();
+				function_data.out_size = func_type->to->calculate_size();
 			}
 
 			return { rhs.allocated_stack_space, block };

@@ -138,7 +138,7 @@ namespace fe::vm
 
 		auto value = ast.get_data<fe::boolean>(*ast.get_node(n).data_index).value;
 
-		// We cannot push literals onto the stack so we move it into a register and push the register
+		// We cannot push literals onto the stack (yet) so we move it into a register and push the register
 		auto r_res = i.alloc_register();
 		auto[location, size] = bc.add_instructions(
 			make_mv_reg_ui8(r_res, value ? 1 : 0),
@@ -299,12 +299,37 @@ namespace fe::vm
 	code_gen_result generate_return(core_ast::node_id n, core_ast::ast& ast, program& p, code_gen_state& i)
 	{
 		link_to_parent_chunk(n, ast, i);
+		auto& node = ast.get_node(n);
+		assert(node.children.size() == 1);
 		auto& bc = p.get_chunk(i.chunk_of(n));
 
-		auto size = ast.get_data<core_ast::size>(*ast.get_node(n).data_index);
-		auto[l, s] = bc.add_instruction(make_ret(static_cast<uint8_t>(size.val)));
+		size_t code_size = 0;
 
-		return code_gen_result(0, far_lbl(i.chunk_of(n), l.ip), s);
+		code_gen_result res = generate_bytecode(node.children[0], ast, p, i);
+		assert(res.result_size > 0 && res.result_size <= 8);
+		code_size += res.code_size;
+
+		int64_t mask = 0;
+		while (res.result_size > 0) { res.result_size--; mask >>= 8; mask |= 0xFF00000000000000; }
+		auto tmp = i.alloc_register();
+		auto[_, size] = bc.add_instructions(
+			// Put stack offset in target
+			make_mv_reg_i16(vm::ret_reg, -8),
+			// Add to this address the stack ptr, giving address
+			make_add(reg(vm::ret_reg), reg(vm::sp_reg), reg(vm::ret_reg)),
+			// Move 8 bytes at adress into the register
+			make_mv64_reg_loc(vm::ret_reg, vm::ret_reg),
+			// Zero extra copied bytes (e.g. if we needed 5 bytes we zero (8 - 5 =) 3 bytes)
+			make_mv_reg_i64(tmp, mask),
+			make_and(vm::ret_reg, vm::ret_reg, reg(tmp))
+		);
+		code_size += size;
+
+		auto in_size = ast.get_data<core_ast::size>(*ast.get_node(n).data_index);
+		auto[_, s] = bc.add_instruction(make_ret(static_cast<uint8_t>(in_size.val)));
+		code_size += s;
+
+		return code_gen_result(0, far_lbl(i.chunk_of(n), res.code_location.ip), code_size);
 	}
 
 	code_gen_result generate_move(core_ast::node_id n, core_ast::ast& ast, program& p, code_gen_state& i)
@@ -446,7 +471,7 @@ namespace fe::vm
 		link_to_parent_chunk(n, ast, i);
 		auto& bc = p.get_chunk(i.chunk_of(n));
 		auto& data = ast.get_data<core_ast::size>(*ast.get_node(n).data_index);
-		auto [loc, size] = bc.add_instruction(make_sub(reg(vm::sp_reg), reg(vm::sp_reg), byte(data.val)));
+		auto[loc, size] = bc.add_instruction(make_sub(reg(vm::sp_reg), reg(vm::sp_reg), byte(data.val)));
 		return code_gen_result(-static_cast<int64_t>(data.val), far_lbl(i.chunk_of(n), loc.ip), size);
 	}
 
@@ -459,7 +484,7 @@ namespace fe::vm
 		auto& lbl = ast.get_data<core_ast::label>(*node.data_index);
 
 		auto test_reg = i.alloc_register();
-		auto [loc, size] = bc.add_instructions(
+		auto[loc, size] = bc.add_instructions(
 			make_pop8(test_reg),
 			// the label is a placeholder for the actual location
 			// We must first register all labels before we substitute the locations in the jumps
@@ -529,12 +554,12 @@ namespace fe::vm
 		case core_ast::node_type::DIV:size += bc.add_instruction(make_div(r_res, r_res_lhs, r_res_rhs)).second; break;
 		case core_ast::node_type::MOD:size += bc.add_instruction(make_mod(r_res, r_res_lhs, r_res_rhs)).second; break;
 		case core_ast::node_type::AND:size += bc.add_instruction(make_and(r_res, r_res_lhs, r_res_rhs)).second; break;
-		case core_ast::node_type::OR: size += bc.add_instruction(make_or(r_res, r_res_lhs, r_res_rhs)).second;  break;
+		case core_ast::node_type::OR: size += bc.add_instruction(make_or(r_res, r_res_lhs, r_res_rhs)).second; break;
 		case core_ast::node_type::LT: size += bc.add_instruction(make_gte(r_res, r_res_rhs, r_res_lhs)).second; break;
-		case core_ast::node_type::GT: size += bc.add_instruction(make_gt(r_res, r_res_lhs, r_res_rhs)).second;  break;
-		case core_ast::node_type::LEQ:size += bc.add_instruction(make_gt(r_res, r_res_rhs, r_res_lhs)).second;  break;
 		case core_ast::node_type::GEQ:size += bc.add_instruction(make_gte(r_res, r_res_lhs, r_res_rhs)).second; break;
-		case core_ast::node_type::EQ: size += bc.add_instruction(make_eq(r_res, r_res_lhs, r_res_rhs)).second;  break;
+		case core_ast::node_type::GT: size += bc.add_instruction(make_gt(r_res, r_res_lhs, r_res_rhs)).second; break;
+		case core_ast::node_type::LEQ:size += bc.add_instruction(make_gt(r_res, r_res_rhs, r_res_lhs)).second; break;
+		case core_ast::node_type::EQ: size += bc.add_instruction(make_eq(r_res, r_res_lhs, r_res_rhs)).second; break;
 		case core_ast::node_type::NEQ:size += bc.add_instruction(make_neq(r_res, r_res_lhs, r_res_rhs)).second; break;
 		}
 		auto res_size = i1.result_size > i2.result_size
@@ -616,7 +641,7 @@ namespace fe::vm
 					data[j + 3] = offset[2];
 					data[j + 4] = offset[3];
 				}
-				case op_kind::JRNZ_REG_I32: 
+				case op_kind::JRNZ_REG_I32:
 				case op_kind::JRZ_REG_I32:
 				{
 					auto label = read_ui32(bytes<4>{data[j + 2], data[j + 3], data[j + 4], data[j + 5]});
