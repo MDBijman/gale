@@ -2,12 +2,18 @@
 #include <vector>
 #include <array>
 #include <variant>
+#include <functional>
 
 namespace fe::vm
 {
+	class machine_state;
+
 	enum class op_kind : uint8_t
 	{
 		NOP = 0,
+
+		// interrupt
+		INT_UI8,
 
 		/*
 		* Arithmetic
@@ -152,6 +158,7 @@ namespace fe::vm
 
 	// Operator construction methods
 	bytes<1> make_nop();
+	bytes<2> make_int(uint8_t id);
 	bytes<4> make_add(reg dest, reg a, reg b);
 	bytes<4> make_add(reg dest, reg a, byte b);
 	bytes<4> make_sub(reg dest, reg a, reg b);
@@ -280,6 +287,7 @@ namespace fe::vm
 	class program
 	{
 		std::vector<bytecode> chunks;
+		std::vector<std::function<void(machine_state&)>> interrupts;
 
 	public:
 		uint8_t add_chunk(bytecode);
@@ -295,10 +303,12 @@ namespace fe::vm
 			chunks.at(loc.chunk_id).data().insert(chunks.at(loc.chunk_id).data().begin() + loc.ip, size, byte(0));
 		}
 
+		uint8_t add_interrupt(std::function<void(machine_state&)> interrupt);
+		std::function<void(machine_state&)> get_interrupt(uint8_t id);
+
 		void print();
 	};
 }
-
 
 namespace std
 {

@@ -20,6 +20,7 @@ namespace fe::vm
 		switch (o)
 		{
 		case op_kind::NOP: return "nop";
+		case op_kind::INT_UI8: return "int_ui8";
 		case op_kind::ADD_REG_REG_REG: return "add_reg_reg_reg";
 		case op_kind::ADD_REG_REG_UI8: return "add_reg_reg_ui8";
 		case op_kind::SUB_REG_REG_REG: return "sub_reg_reg_reg";
@@ -79,6 +80,7 @@ namespace fe::vm
 		switch (o)
 		{
 		case op_kind::NOP: return 1;
+		case op_kind::INT_UI8: return 2;
 		case op_kind::ADD_REG_REG_REG: return 4;
 		case op_kind::ADD_REG_REG_UI8: return 4;
 		case op_kind::SUB_REG_REG_REG: return 4;
@@ -207,6 +209,10 @@ namespace fe::vm
 	bytes<1> make_nop()
 	{
 		return bytes<1>{ op_to_byte(op_kind::NOP) };
+	}
+	bytes<2> make_int(uint8_t id)
+	{
+		return bytes<2>{ op_to_byte(op_kind::INT_UI8), id };
 	}
 	bytes<4> make_add(reg dest, reg a, reg b)
 	{
@@ -543,6 +549,18 @@ namespace fe::vm
 	size_t program::chunk_count()
 	{
 		return chunks.size();
+	}
+
+	uint8_t program::add_interrupt(std::function<void(machine_state&)> interrupt)
+	{
+		assert(interrupts.size() < std::numeric_limits<uint8_t>::max());
+		interrupts.push_back(interrupt);
+		return interrupts.size() - 1;
+	}
+
+	std::function<void(machine_state&)> program::get_interrupt(uint8_t id)
+	{
+		return interrupts[id];
 	}
 
 	void program::print()
