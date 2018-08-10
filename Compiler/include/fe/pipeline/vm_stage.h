@@ -10,6 +10,7 @@ namespace fe::vm
 		sp_reg = register_count - 2,
 		fp_reg = register_count - 3,
 		ret_reg = register_count - 4;
+
 	struct machine_state
 	{
 		machine_state() : stack(), registers() {}

@@ -11,7 +11,7 @@
 TEST_CASE("fib", "[bytecode]")
 {
 	auto code = R"delim(
-		module fib
+module fib
 import [std std.io]
 
 let fib: std.i64 -> std.i64 = \n => if (n <= 2) { 1 } else { (fib (n - 1) + fib (n - 2)) };
@@ -25,14 +25,34 @@ let a: std.i64 = fib 3;
 	p.add_module(fe::stdlib::ui::load());
 	// std types
 	p.add_module(fe::stdlib::typedefs::load());
-	//auto mod = p.eval(code);
+	auto mod = p.eval(code);
+}
+
+
+TEST_CASE("interrupt", "[bytecode]")
+{
+	using namespace fe::vm;
+	auto p = program();
+	auto bc = bytecode();
+
+	auto interrupt = [](machine_state& s) {
+		s.registers[ret_reg] = 10;
+	};
+	auto id = p.add_interrupt(interrupt);
+
+	bc.add_instruction(make_int(id));
+	p.add_chunk(bc);
+
+	auto res = interpret(p);
+
+	REQUIRE(res.registers[ret_reg] == 10);
 }
 
 TEST_CASE("function", "[bytecode]")
 {
 	using namespace fe::vm;
 	auto code = R"delim(
-		module test
+module test
 import [std]
 
 let test: std.i64 -> std.i64 = \n => n;

@@ -326,8 +326,7 @@ namespace fe::vm
 		code_size += size;
 
 		auto in_size = ast.get_data<core_ast::size>(*ast.get_node(n).data_index);
-		auto[_, s] = bc.add_instruction(make_ret(static_cast<uint8_t>(in_size.val)));
-		code_size += s;
+		code_size += bc.add_instruction(make_ret(static_cast<uint8_t>(in_size.val))).second;
 
 		return code_gen_result(0, far_lbl(i.chunk_of(n), res.code_location.ip), code_size);
 	}

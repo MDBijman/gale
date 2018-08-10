@@ -105,6 +105,10 @@ namespace fe::vm
 			uint8_t size = op_size(op);
 			switch (op)
 			{
+				// Interrupt
+
+			case op_kind::INT_UI8: p.get_interrupt(in[1].val)(state); IP += size; break;
+
 				// Arithmetic
 
 			case op_kind::ADD_REG_REG_REG: REG[in[1].val] = REG[in[2].val] + REG[in[3].val]; IP += size; break;
