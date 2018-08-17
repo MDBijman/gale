@@ -10,7 +10,7 @@ namespace fe::ext_ast
 	struct lowering_result
 	{
 		int64_t allocated_stack_space;
-		core_ast::node_id id;
+		node_id id;
 	};
 
 	struct lowering_context
@@ -30,11 +30,25 @@ namespace fe::ext_ast
 		return ast.get_children(n.children_id).size() > 0;
 	}
 
-	static void link_child_parent(core_ast::node_id child, core_ast::node_id parent, core_ast::ast& new_ast)
+	static void link_child_parent(node_id child, node_id parent, core_ast::ast& new_ast)
 	{
 		new_ast.get_node(child).parent_id = parent;
 		new_ast.get_node(parent).children.push_back(child);
 	}
+
+	static std::string mangle(identifier id)
+	{
+		std::string res;
+		size_t segments = id.segments.size(), offsets = id.offsets.size();
+
+		for (int i = 0; i < segments - offsets - 2; i++)
+			res += id.segments[i] + ".";
+		res += id.segments[segments - offsets - 2] + "@";
+		res += id.segments[segments - offsets - 1];
+		return res;
+	}
+
+	// Lowerers
 
 	lowering_result lower_assignment(node& n, ast& ext_ast, core_ast::ast& new_ast, lowering_context& context)
 	{

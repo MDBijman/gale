@@ -62,7 +62,6 @@ namespace fe
 
 			// Stage 3: interpret
 			auto bytecode = pl.generate(c_ast);
-			bytecode.print();
 			return pl.run(bytecode);
 		}
 

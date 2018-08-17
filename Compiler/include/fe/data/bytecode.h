@@ -3,10 +3,11 @@
 #include <array>
 #include <variant>
 #include <functional>
+#include <map>
 
 namespace fe::vm
 {
-	class machine_state;
+	struct machine_state;
 
 	enum class op_kind : uint8_t
 	{
@@ -243,6 +244,9 @@ namespace fe::vm
 		std::vector<byte> instructions;
 
 	public:
+		bytecode() {}
+		bytecode(std::vector<byte> bs) : instructions(bs) {}
+
 		// Adds the bytes to the end of this bytecode, returning the address of the first byte
 		template<int C> std::pair<near_lbl, uint32_t> add_instruction(bytes<C> in)
 		{
@@ -284,15 +288,61 @@ namespace fe::vm
 		}
 	};
 
-	class program
+	class bytecode_builder
 	{
-		std::vector<bytecode> chunks;
-		std::vector<std::function<void(machine_state&)>> interrupts;
+		bytecode bc;
 
 	public:
-		uint8_t add_chunk(bytecode);
-		bytecode& get_chunk(uint8_t);
-		size_t chunk_count();
+		
+		// Adds the bytes to the end of the bytecode
+		template<int C> bytecode_builder& add(bytes<C> in)
+		{
+			bc.add_instruction(in);
+			return *this;
+		}
+		
+		// Adds the vector of bytes to the end of the bytecode
+		template<int... Cs> bytecode_builder& add(bytes<Cs>... in)
+		{
+			bc.add_instructions(in...);
+			return *this;
+		}
+
+		bytecode build()
+		{
+			return bc;
+		}
+	};
+
+	using name = std::string;
+
+	// A bytecode object with a name, referenced in other bytecode by the name
+	using function = std::pair<name, bytecode>;
+	using function_id = uint16_t;
+
+	// Vector of functions
+	using module = std::vector<function>;
+
+	// Interrupts for implementing system calls
+	using interrupt = std::function<void(machine_state&)>;
+
+	// Vector of interrupts
+	using interrupt_table = std::vector<interrupt>;
+
+	class program
+	{
+		module code;
+		interrupt_table interrupts;
+
+	public:
+		program() {}
+		program(interrupt_table interrupts) : interrupts(interrupts) {}
+
+		function_id add_function(function);
+		function& get_function(function_id);
+		function& get_function(name);
+		size_t function_count();
+
 		template<int C> bytes<C> get_instruction(far_lbl l)
 		{
 			return chunks.at(l.chunk_id).get_instruction<C>(l.ip);
@@ -300,13 +350,29 @@ namespace fe::vm
 
 		void insert_padding(far_lbl loc, uint8_t size)
 		{
-			chunks.at(loc.chunk_id).data().insert(chunks.at(loc.chunk_id).data().begin() + loc.ip, size, byte(0));
+			code.at(loc.chunk_id).second.data().insert(code.at(loc.chunk_id).second.data().begin() + loc.ip, size, byte(0));
 		}
 
-		uint8_t add_interrupt(std::function<void(machine_state&)> interrupt);
-		std::function<void(machine_state&)> get_interrupt(uint8_t id);
+		const module& get_code() { return code; }
+		const interrupt_table& get_interrupts() { return interrupts; }
 
 		void print();
+	};
+
+	class executable
+	{
+	public:
+		const std::vector<bytecode> chunks;
+		const std::vector<interrupt> interrupts;
+
+		executable(std::vector<bytecode> chunks, std::vector<interrupt> interrupts)
+			: chunks(chunks), interrupts(interrupts)
+		{}
+
+		template<int C> bytes<C> get_instruction(far_lbl l)
+		{
+			return chunks.at(l.chunk_id).get_instruction<C>(l.ip);
+		}
 	};
 }
 

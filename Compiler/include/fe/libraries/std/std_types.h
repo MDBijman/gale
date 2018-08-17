@@ -1,6 +1,7 @@
 #pragma once
 #include "fe/data/types.h"
 #include "fe/data/module.h"
+#include "fe/data/bytecode.h"
 
 namespace fe::stdlib::typedefs
 {
@@ -83,7 +84,8 @@ namespace fe::stdlib::typedefs
 			{"std"},
 			std::move(t),
 			std::move(s),
-			std::move(constants)
+			std::move(constants),
+			vm::module()
 		};
 	}
 }

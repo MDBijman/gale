@@ -534,42 +534,37 @@ namespace fe::vm
 	* Program
 	*/
 
-	uint8_t program::add_chunk(bytecode bc)
+	function_id program::add_function(function fn)
 	{
-		chunks.push_back(std::move(bc));
-		return chunks.size() - 1;
+		code.push_back(fn);
+		return code.size() - 1;
 	}
 
-	bytecode& program::get_chunk(uint8_t i)
+	function& program::get_function(function_id i)
 	{
-		assert(i < chunks.size());
-		return chunks.at(i);
+		assert(i < code.size());
+		return code.at(i);
 	}
 
-	size_t program::chunk_count()
+	function& program::get_function(name n)
 	{
-		return chunks.size();
+		auto loc = std::find_if(code.begin(), code.end(), [&n](auto& fn) { return fn.first == n; });
+		assert(loc != code.end());
+		return *loc;
 	}
 
-	uint8_t program::add_interrupt(std::function<void(machine_state&)> interrupt)
+	size_t program::function_count()
 	{
-		assert(interrupts.size() < std::numeric_limits<uint8_t>::max());
-		interrupts.push_back(interrupt);
-		return interrupts.size() - 1;
-	}
-
-	std::function<void(machine_state&)> program::get_interrupt(uint8_t id)
-	{
-		return interrupts[id];
+		return code.size();
 	}
 
 	void program::print()
 	{
-		for (auto& chunk : this->chunks)
+		for (auto& chunk : this->code)
 		{
-			std::cout << "chunk" << std::endl;
-			auto s = chunk.operator std::string();
-			std::cout << s << std::endl;
+			std::cout << chunk.first << "\n";
+			std::cout << chunk.second.operator std::string();
+			std::cout << std::endl;
 		}
 	}
 }

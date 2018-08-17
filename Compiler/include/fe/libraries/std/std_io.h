@@ -46,9 +46,10 @@ namespace fe::stdlib::io
 
 		return module{
 			{"std", "io"},
-				std::move(te),
-				std::move(se),
-				std::move(constants)
+			std::move(te),
+			std::move(se),
+			std::move(constants),
+			vm::module()
 		};
 	}
 }

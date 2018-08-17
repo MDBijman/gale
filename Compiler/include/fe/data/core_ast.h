@@ -57,10 +57,6 @@ namespace fe::core_ast
 			|| kind == node_type::MOD);
 	}
 
-	using data_index = size_t;
-	using scope_index = size_t;
-	using node_id = size_t;
-
 	struct node
 	{
 		node() : kind(node_type::NOP), id(0) {}

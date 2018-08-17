@@ -23,9 +23,9 @@ namespace fe
 		// Node data 
 		template<class DataType>
 		data_index create();
-		template<> data_index create<plain_identifier>() { return identifiers.create(); }
-		template<> data_index create<boolean>() { return booleans.create(); }
-		template<> data_index create<string>() { return strings.create(); }
-		template<> data_index create<number>() { return numbers.create(); }
+		template<> data_index create<plain_identifier>() { return static_cast<data_index>(identifiers.create()); }
+		template<> data_index create<boolean>() { return static_cast<data_index>(booleans.create()); }
+		template<> data_index create<string>() { return static_cast<data_index>(strings.create()); }
+		template<> data_index create<number>() { return static_cast<data_index>(numbers.create()); }
 	};
 }
