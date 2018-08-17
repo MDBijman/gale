@@ -29,23 +29,49 @@ let a: std.i64 = fib 3;
 }
 
 
-TEST_CASE("interrupt", "[bytecode]")
+TEST_CASE("vm interrupt", "[bytecode]")
 {
 	using namespace fe::vm;
-	auto p = program();
+
+	auto interrupt = [](machine_state& s) { s.registers[ret_reg] = 10; };
+	auto p = program({ interrupt });
+
 	auto bc = bytecode();
+	bc.add_instruction(make_int(0));
 
-	auto interrupt = [](machine_state& s) {
-		s.registers[ret_reg] = 10;
-	};
-	auto id = p.add_interrupt(interrupt);
+	p.add_function(function("@_main", bc));
 
-	bc.add_instruction(make_int(id));
-	p.add_chunk(bc);
+	auto e = link(p);
 
-	auto res = interpret(p);
+	auto res = interpret(e);
 
 	REQUIRE(res.registers[ret_reg] == 10);
+}
+
+TEST_CASE("vm modules", "[bytecode]")
+{
+	using namespace fe::vm;
+	auto code = R"delim(
+module test
+import [lib]
+
+let test: std.i64 = lib.get ();
+		)delim";
+
+	fe::project p{ fe::pipeline() };
+
+	p.add_module(fe::module_builder()
+		.set_name({ "lib" })
+		.add_function(
+			"get",
+			fe::types::unique_type(new fe::types::function_type(fe::types::product_type(), fe::types::i64())),
+			bytecode_builder()
+			.add(make_mv_reg_i64(ret_reg, 10), make_ret(0))
+			.build()
+		).build());
+
+	auto state = p.eval(code);
+	REQUIRE(state.registers[ret_reg] == 10);
 }
 
 TEST_CASE("function", "[bytecode]")
@@ -81,8 +107,8 @@ TEST_CASE("instructions", "[bytecode]")
 		make_push8(reg(1)),
 		make_pop8(reg(2))
 	);
-	p.add_chunk(bc);
-	auto res = interpret(p);
+	p.add_function(function("_main", bc));
+	auto res = interpret(link(p));
 	REQUIRE(res.registers[sp_reg] == 0);
 	REQUIRE(res.registers[5] == 250);
 	REQUIRE(res.registers[2] == 120);
@@ -97,8 +123,7 @@ TEST_CASE("number", "[bytecode]")
 	auto& num_node = ast.get_node(num);
 	ast.get_data<fe::number>(*num_node.data_index).value = 10;
 
-	auto p = generate_bytecode(ast);
-	auto res = interpret(p);
+	auto res = interpret(link(generate_bytecode(ast)));
 	REQUIRE(res.registers[sp_reg] == 0);
 }
 

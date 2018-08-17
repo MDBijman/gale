@@ -84,7 +84,7 @@ namespace fe::vm
 #undef SP
 #undef IP
 
-	machine_state interpret(program& p)
+	machine_state interpret(executable& e)
 	{
 #define IP state.registers[ip_reg]
 #define SP state.registers[sp_reg]
@@ -98,16 +98,16 @@ namespace fe::vm
 		auto chunk = (IP & 0xFFFFFFFF00000000) >> 32;
 		auto ip = IP & 0xFFFFFFFF;
 
-		while (p.get_chunk(chunk).has_instruction(ip))
+		while (e.chunks[chunk].has_instruction(ip))
 		{
-			bytes<10> in = p.get_chunk(chunk).get_instruction<10>(ip);
+			bytes<10> in = e.chunks[chunk].get_instruction<10>(ip);
 			op_kind op = byte_to_op(in[0].val);
 			uint8_t size = op_size(op);
 			switch (op)
 			{
 				// Interrupt
 
-			case op_kind::INT_UI8: p.get_interrupt(in[1].val)(state); IP += size; break;
+			case op_kind::INT_UI8: e.interrupts[in[1].val](state); IP += size; break;
 
 				// Arithmetic
 

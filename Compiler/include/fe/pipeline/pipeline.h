@@ -5,6 +5,7 @@
 #include "fe/pipeline/typechecker_stage.h"
 #include "fe/pipeline/lowering_stage.h"
 #include "fe/pipeline/bytecode_gen_stage.h"
+#include "fe/pipeline/linker_stage.h"
 #include "fe/pipeline/vm_stage.h"
 #include "fe/pipeline/error.h"
 
@@ -47,14 +48,15 @@ namespace fe
 			return ext_ast::lower(ast);
 		}
 
-		vm::program generate(core_ast::ast& ast) const
+		vm::executable generate(core_ast::ast& ast) const
 		{
-			return vm::generate_bytecode(ast);
+			vm::program p = vm::generate_bytecode(ast);
+			return vm::link(p);
 		}
 
-		vm::machine_state run(vm::program& p) const
+		vm::machine_state run(vm::executable& e) const
 		{
-			return vm::interpret(p);
+			return vm::interpret(e);
 		}
 
 	private:

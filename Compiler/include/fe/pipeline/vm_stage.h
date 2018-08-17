@@ -27,5 +27,5 @@ namespace fe::vm
 		uint64_t pop64();
 	};
 
-	machine_state interpret(program&);
+	machine_state interpret(executable&);
 }

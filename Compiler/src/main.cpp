@@ -4,6 +4,7 @@
 #include "utils/memory/small_vector.h"
 
 #define CATCH_CONFIG_RUNNER
+#define CATCH_CONFIG_FAST_COMPILE
 #include <catch2/catch.hpp>
 
 #include <iostream>
@@ -123,6 +124,31 @@ int main(int argc, char** argv)
 		{
 			std::cout << e.what() << std::endl;
 		}
+	}
+	else if (mode == "other")
+	{
+		auto code = R"delim(
+module test
+import [lib std]
+
+let test: std.i64 = lib.get ();
+		)delim";
+
+		fe::project p{ fe::pipeline() };
+
+		p.add_module(fe::module_builder()
+			.set_name({ "lib" })
+			.add_function(
+				"get",
+				fe::types::unique_type(new fe::types::function_type(fe::types::product_type(), fe::types::i64())),
+				fe::vm::bytecode_builder()
+				.add(fe::vm::make_mv_reg_i64(fe::vm::ret_reg, 10), fe::vm::make_ret(0))
+				.build()
+			).build());
+
+		p.add_module(fe::stdlib::typedefs::load());
+
+		auto state = p.eval(code);
 	}
 	else if (mode == "help")
 	{

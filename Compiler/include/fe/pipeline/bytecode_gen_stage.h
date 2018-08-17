@@ -12,7 +12,7 @@ namespace fe::vm
 	class code_gen_state
 	{
 		// Mapping of nodes to bytecode chunks
-		std::unordered_map<core_ast::node_id, uint8_t> node_to_chunk;
+		std::unordered_map<node_id, uint8_t> node_to_chunk;
 
 		// Register allocation
 		std::vector<reg> in_use;
@@ -24,8 +24,8 @@ namespace fe::vm
 		std::vector<reg> clear_registers();
 		reg alloc_register();
 
-		void link_node_chunk(core_ast::node_id, uint8_t);
-		uint8_t chunk_of(core_ast::node_id);
+		void link_node_chunk(node_id, uint8_t);
+		uint8_t chunk_of(node_id);
 
 		void register_function(std::string name, core_ast::label l);
 		core_ast::label label_of_function(std::string name);

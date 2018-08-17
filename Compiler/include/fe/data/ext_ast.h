@@ -184,7 +184,7 @@ namespace fe::ext_ast
 
 		node_id create_node(node_type t)
 		{
-			auto new_node = nodes.create();
+			auto new_node = static_cast<node_id>(nodes.create());
 			auto& node = get_node(new_node);
 			node.id = new_node;
 			node.kind = t;
@@ -233,7 +233,7 @@ namespace fe::ext_ast
 			assert(parent != no_scope);
 			auto new_scope = name_scopes.create();
 			name_scopes.get_at(new_scope).set_parent(parent);
-			return new_scope;
+			return static_cast<scope_index>(new_scope);
 		}
 
 		name_scope& get_name_scope(scope_index id)
@@ -249,7 +249,7 @@ namespace fe::ext_ast
 
 		scope_index create_type_scope()
 		{
-			return type_scopes.create();
+			return static_cast<scope_index>(type_scopes.create());
 		}
 
 		scope_index create_type_scope(scope_index parent)
@@ -289,12 +289,12 @@ namespace fe::ext_ast
 		{
 			switch (t)
 			{
-			case node_type::IDENTIFIER: return static_cast<size_t>(identifiers.create());
-			case node_type::NUMBER:     return static_cast<size_t>(constants.create<number>());
-			case node_type::STRING:     return static_cast<size_t>(constants.create<string>());
-			case node_type::BOOLEAN:    return static_cast<size_t>(constants.create<boolean>());
+			case node_type::IDENTIFIER: return static_cast<data_index>(identifiers.create());
+			case node_type::NUMBER:     return static_cast<data_index>(constants.create<number>());
+			case node_type::STRING:     return static_cast<data_index>(constants.create<string>());
+			case node_type::BOOLEAN:    return static_cast<data_index>(constants.create<boolean>());
 			default:
-				if (is_binary_op(t)) return static_cast<size_t>(constants.create<string>());
+				if (is_binary_op(t)) return static_cast<data_index>(constants.create<string>());
 				return no_data;
 			}
 		}

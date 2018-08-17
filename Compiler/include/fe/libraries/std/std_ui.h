@@ -37,7 +37,8 @@ namespace fe::stdlib::ui
 			{"std","ui"},
 			std::move(te),
 			std::move(se),
-			std::move(constants)
+			std::move(constants),
+			vm::module()
 		};
 	}
 }
