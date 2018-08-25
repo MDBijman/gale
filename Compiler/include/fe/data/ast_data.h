@@ -104,6 +104,20 @@ namespace fe::ext_ast
 		{
 			return std::string(full);
 		}
+
+		std::string mangle() const
+		{
+			std::string res;
+			int64_t segments = this->segments.size(), offsets = this->offsets.size();
+
+			for (int i = 0; i < segments - offsets - 2; i++)
+				res += this->segments[i] + ".";
+
+			if(this->segments.size() > this->offsets.size() + 1)
+				res += this->segments[segments - offsets - 2] + "@";
+			res += this->segments[segments - offsets - 1];
+			return res;
+		}
 	};
 
 	inline bool operator==(const identifier& a, const identifier& b)

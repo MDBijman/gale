@@ -7,45 +7,25 @@
 #include "fe/pipeline/bytecode_gen_stage.h"
 #include "fe/pipeline/pipeline.h"
 #include "fe/modes/project.h"
+#include "fe/libraries/std/std_assert.h"
 
 TEST_CASE("fib", "[bytecode]")
 {
 	auto code = R"delim(
 module fib
-import [std std.io]
+import [std std.io std.assert]
 
 let fib: std.i64 -> std.i64 = \n => if (n <= 2) { 1 } else { (fib (n - 1) + fib (n - 2)) };
 let a: std.i64 = fib 3;
+std.assert.assert (a == 1);
 		)delim";
 
+	using namespace fe::types;
 	fe::project p{ fe::pipeline() };
-	// std io
 	p.add_module(fe::stdlib::io::load());
-	// std ui
-	p.add_module(fe::stdlib::ui::load());
-	// std types
 	p.add_module(fe::stdlib::typedefs::load());
-	auto mod = p.eval(code);
-}
-
-
-TEST_CASE("vm interrupt", "[bytecode]")
-{
-	using namespace fe::vm;
-
-	auto interrupt = [](machine_state& s) { s.registers[ret_reg] = 10; };
-	auto p = program({ interrupt });
-
-	auto bc = bytecode();
-	bc.add_instruction(make_int(0));
-
-	p.add_function(function("@_main", bc));
-
-	auto e = link(p);
-
-	auto res = interpret(e);
-
-	REQUIRE(res.registers[ret_reg] == 10);
+	p.add_module(fe::stdlib::assert::load());
+	p.eval(code);
 }
 
 TEST_CASE("vm modules", "[bytecode]")
@@ -53,25 +33,42 @@ TEST_CASE("vm modules", "[bytecode]")
 	using namespace fe::vm;
 	auto code = R"delim(
 module test
-import [lib]
+import [lib std]
 
-let test: std.i64 = lib.get ();
-		)delim";
+let test: std.i64 = lib.get_ten ();
+)delim";
 
 	fe::project p{ fe::pipeline() };
 
+	p.add_module(fe::stdlib::typedefs::load());
 	p.add_module(fe::module_builder()
 		.set_name({ "lib" })
 		.add_function(
-			"get",
-			fe::types::unique_type(new fe::types::function_type(fe::types::product_type(), fe::types::i64())),
-			bytecode_builder()
-			.add(make_mv_reg_i64(ret_reg, 10), make_ret(0))
-			.build()
+			function("get_ten", bytecode_builder()
+				.add(make_mv_reg_i64(ret_reg, 10), make_ret(0))
+				.build()),
+			fe::types::unique_type(new fe::types::function_type(fe::types::product_type(), fe::types::i64()))
 		).build());
 
 	auto state = p.eval(code);
 	REQUIRE(state.registers[ret_reg] == 10);
+}
+
+TEST_CASE("variable", "[bytecode]")
+{
+	using namespace fe::vm;
+	auto code = R"delim(
+module test
+import [std std.assert]
+
+let a: std.i64 = 3;
+std.assert.assert (a == 3);
+)delim";
+
+	fe::project p{ fe::pipeline() };
+	p.add_module(fe::stdlib::typedefs::load());
+	p.add_module(fe::stdlib::assert::load());
+	p.eval(code);
 }
 
 TEST_CASE("function", "[bytecode]")
@@ -79,19 +76,19 @@ TEST_CASE("function", "[bytecode]")
 	using namespace fe::vm;
 	auto code = R"delim(
 module test
-import [std]
+import [std std.assert]
 
 let test: std.i64 -> std.i64 = \n => n;
 let a: std.i64 = test 3;
+std.assert.assert (a == 3);
 let b: std.i64 = a + 2;
-		)delim";
+std.assert.assert (b == 5);
+)delim";
 
 	fe::project p{ fe::pipeline() };
-	// std types
 	p.add_module(fe::stdlib::typedefs::load());
-	auto state = p.eval(code);
-	REQUIRE(state.registers[sp_reg] == 0);
-	REQUIRE(state.registers[ret_reg] == 3);
+	p.add_module(fe::stdlib::assert::load());
+	p.eval(code);
 }
 
 TEST_CASE("instructions", "[bytecode]")
@@ -107,7 +104,7 @@ TEST_CASE("instructions", "[bytecode]")
 		make_push8(reg(1)),
 		make_pop8(reg(2))
 	);
-	p.add_function(function("_main", bc));
+	p.add_function(function{ "_main", bc, {} });
 	auto res = interpret(link(p));
 	REQUIRE(res.registers[sp_reg] == 0);
 	REQUIRE(res.registers[5] == 250);

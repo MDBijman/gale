@@ -127,28 +127,30 @@ int main(int argc, char** argv)
 	}
 	else if (mode == "other")
 	{
-		auto code = R"delim(
-module test
-import [lib std]
+	auto code = R"delim(
+module fib
+import [std std.io std.assert]
 
-let test: std.i64 = lib.get ();
+let fib: std.i64 -> std.i64 = \n => if (n <= 2) { 1 } else { (fib (n - 1) + fib (n - 2)) };
+let a: std.i64 = fib 3;
+asserts.assert (a == 1);
+asserts.assert (a == 2);
 		)delim";
 
-		fe::project p{ fe::pipeline() };
-
-		p.add_module(fe::module_builder()
-			.set_name({ "lib" })
-			.add_function(
-				"get",
-				fe::types::unique_type(new fe::types::function_type(fe::types::product_type(), fe::types::i64())),
-				fe::vm::bytecode_builder()
-				.add(fe::vm::make_mv_reg_i64(fe::vm::ret_reg, 10), fe::vm::make_ret(0))
-				.build()
-			).build());
-
-		p.add_module(fe::stdlib::typedefs::load());
-
-		auto state = p.eval(code);
+	using namespace fe::types;
+	fe::project p{ fe::pipeline() };
+	p.add_module(fe::stdlib::io::load());
+	p.add_module(fe::stdlib::typedefs::load());
+	p.add_module(fe::module_builder()
+		.set_name({"asserts"})
+		.add_function(fe::vm::function("assert", fe::vm::native_code([](fe::vm::machine_state& ms) {
+				bool arg2 = ms.stack[ms.registers[fe::vm::fp_reg] - 17];
+				assert(arg2);
+				ms.ret(1);
+			})),
+			unique_type(new function_type(unique_type(new fe::types::boolean()), unique_type(new voidt()))))
+		.build());
+	auto mod = p.eval(code);
 	}
 	else if (mode == "help")
 	{

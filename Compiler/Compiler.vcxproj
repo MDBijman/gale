@@ -135,6 +135,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\fe\data\bytecode.cpp" />
+    <ClCompile Include="src\fe\data\core_ast.cpp" />
+    <ClCompile Include="src\fe\data\ext_ast.cpp" />
     <ClCompile Include="src\fe\data\name_scope.cpp" />
     <ClCompile Include="src\fe\data\types.cpp" />
     <ClCompile Include="src\fe\data\type_scope.cpp" />
@@ -170,6 +172,7 @@
     <ClInclude Include="include\fe\data\name_scope.h" />
     <ClInclude Include="include\fe\data\type_scope.h" />
     <ClInclude Include="include\fe\language_definition.h" />
+    <ClInclude Include="include\fe\libraries\std\std_assert.h" />
     <ClInclude Include="include\fe\libraries\std\std_io.h" />
     <ClInclude Include="include\fe\libraries\std\std_types.h" />
     <ClInclude Include="include\fe\libraries\std\std_ui.h" />

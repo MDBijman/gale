@@ -39,7 +39,6 @@ namespace fe::core_ast
 		ADD, SUB, MUL, DIV, MOD, NEG
 	};
 
-
 	constexpr bool is_binary_op(node_type kind)
 	{
 		return (kind == node_type::LT
@@ -85,60 +84,16 @@ namespace fe::core_ast
 		node_id root;
 
 	public:
-		ast(node_type t)
-		{
-			root = nodes.create();
-			nodes.get_at(root) = node(t);
-			nodes.get_at(root).id = root;
-			nodes.get_at(root).data_index = create_node_data(t);
-		}
-
-		node_id root_id()
-		{
-			return root;
-		}
+		ast(node_type t);
+		node_id root_id();
 
 		// Nodes
-		node_id create_node(node_type t)
-		{
-			auto new_node = nodes.create();
-			get_node(new_node).id = new_node;
-			get_node(new_node).kind = t;
-			get_node(new_node).data_index = create_node_data(t);
-			return new_node;
-		}
-
-		node_id create_node(node_type t, node_id parent)
-		{
-			auto new_node = nodes.create();
-			get_node(new_node).id = new_node;
-			get_node(new_node).kind = t;
-			get_node(new_node).data_index = create_node_data(t);
-			get_node(new_node).parent_id = parent;
-			get_node(parent).children.push_back(new_node);
-			return new_node;
-		}
-
-		node& parent_of(node_id id)
-		{
-			return nodes.get_at(*nodes.get_at(id).parent_id);
-		}
-
-		std::vector<node_id>& children_of(node_id id)
-		{
-			return nodes.get_at(id).children;
-		}
-
-		void link_child_parent(node_id child, node_id parent)
-		{
-			children_of(parent).push_back(child);
-			get_node(child).parent_id = parent;
-		}
-
-		node& get_node(node_id id)
-		{
-			return nodes.get_at(id);
-		}
+		node_id create_node(node_type t);
+		node_id create_node(node_type t, node_id parent);
+		node& parent_of(node_id id);
+		std::vector<node_id>& children_of(node_id id);
+		void link_child_parent(node_id child, node_id parent);
+		node& get_node(node_id id);
 
 		// Node data 
 		template<class DataType>
@@ -154,27 +109,7 @@ namespace fe::core_ast
 		template<> return_data& get_data<return_data>(data_index i) { return return_data_store.get_at(i); }
 
 	private:
-		std::optional<data_index> create_node_data(node_type t)
-		{
-			switch (t)
-			{
-			case node_type::NUMBER: return constants.create<number>();
-			case node_type::STRING: return constants.create<string>();
-			case node_type::BOOLEAN: return constants.create<boolean>();
-			case node_type::MOVE: return move_data_store.create();
-			case node_type::FUNCTION: return function_data_store.create();
-			case node_type::FUNCTION_CALL: return function_call_data_store.create();
-			case node_type::JMP:
-			case node_type::JNZ:
-				return label_store.create();
-			case node_type::SDEALLOC: 
-			case node_type::SALLOC: 
-				return size_store.create();
-			case node_type::RET:
-				return return_data_store.create();
-			default: return std::nullopt;
-			}
-		}
+		std::optional<data_index> create_node_data(node_type t);
 	};
 
 }

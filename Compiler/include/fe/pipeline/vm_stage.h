@@ -25,6 +25,7 @@ namespace fe::vm
 		uint16_t pop16();
 		uint32_t pop32();
 		uint64_t pop64();
+		void ret(uint8_t);
 	};
 
 	machine_state interpret(executable&);

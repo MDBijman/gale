@@ -20,7 +20,6 @@ namespace fe::vm
 		switch (o)
 		{
 		case op_kind::NOP: return "nop";
-		case op_kind::INT_UI8: return "int_ui8";
 		case op_kind::ADD_REG_REG_REG: return "add_reg_reg_reg";
 		case op_kind::ADD_REG_REG_UI8: return "add_reg_reg_ui8";
 		case op_kind::SUB_REG_REG_REG: return "sub_reg_reg_reg";
@@ -80,7 +79,6 @@ namespace fe::vm
 		switch (o)
 		{
 		case op_kind::NOP: return 1;
-		case op_kind::INT_UI8: return 2;
 		case op_kind::ADD_REG_REG_REG: return 4;
 		case op_kind::ADD_REG_REG_UI8: return 4;
 		case op_kind::SUB_REG_REG_REG: return 4;
@@ -159,6 +157,17 @@ namespace fe::vm
 			(static_cast<int64_t>(in[6].val) << 8) |
 			in[7].val;
 	}
+	int64_t read_i64(uint8_t* b)
+	{
+		return (static_cast<int64_t>(*b) << 56) |
+			(static_cast<int64_t>(*(b + 1)) << 48) |
+			(static_cast<int64_t>(*(b + 2)) << 40) |
+			(static_cast<int64_t>(*(b + 3)) << 32) |
+			(static_cast<int64_t>(*(b + 4)) << 24) |
+			(static_cast<int64_t>(*(b + 5)) << 16) |
+			(static_cast<int64_t>(*(b + 6)) << 8) |
+			(*(b + 7));
+	}
 	bytes<8> make_ui64(uint64_t a) { return make_i64(static_cast<int64_t>(a)); }
 	uint64_t read_ui64(bytes<8> in) { return static_cast<uint64_t>(read_i64(in)); }
 	bytes<4> make_i32(int32_t a)
@@ -180,10 +189,10 @@ namespace fe::vm
 	bytes<4> make_ui32(uint32_t a) { return make_i32(static_cast<int32_t>(a)); }
 	uint32_t read_ui32(bytes<4> in) { return static_cast<uint32_t>(read_i32(in)); }
 	bytes<2> make_i16(int16_t a)
-	{ 
+	{
 		return bytes<2> {
 			static_cast<uint8_t>((a & 0xFF00) >> 8),
-			static_cast<uint8_t>((a & 0xFF))
+				static_cast<uint8_t>((a & 0xFF))
 		};
 	}
 	int16_t read_i16(bytes<2> in)
@@ -193,7 +202,7 @@ namespace fe::vm
 	}
 	bytes<2> make_ui16(uint16_t a) { return make_i16(static_cast<int16_t>(a)); }
 	uint16_t read_ui16(bytes<2> in) { return static_cast<int16_t>(read_i16(in)); }
-	bytes<1> make_ui8(uint8_t a) 
+	bytes<1> make_ui8(uint8_t a)
 	{
 		return bytes<1>{a};
 	}
@@ -204,15 +213,9 @@ namespace fe::vm
 	bytes<1> make_i8(int8_t a) { return make_ui8(static_cast<uint8_t>(a)); }
 	int8_t read_i8(bytes<1> in) { return static_cast<int8_t>(read_ui8(in)); }
 
-
-
 	bytes<1> make_nop()
 	{
 		return bytes<1>{ op_to_byte(op_kind::NOP) };
-	}
-	bytes<2> make_int(uint8_t id)
-	{
-		return bytes<2>{ op_to_byte(op_kind::INT_UI8), id };
 	}
 	bytes<4> make_add(reg dest, reg a, reg b)
 	{
@@ -346,8 +349,9 @@ namespace fe::vm
 		case 2: return make_mv16_reg_reg(dest, a);
 		case 4: return make_mv32_reg_reg(dest, a);
 		case 8: return make_mv64_reg_reg(dest, a);
-		default: assert(!"Invalid push bit count");
+		default: assert(!"Invalid mv bit count");
 		}
+		throw std::runtime_error("Bytecode Generation Error: Invalid mv bit count");
 	}
 	bytes<3> make_mv8_reg_reg(reg dest, reg src)
 	{
@@ -373,8 +377,9 @@ namespace fe::vm
 		case 2: return make_mv16_reg_loc(dest, src);
 		case 4: return make_mv32_reg_loc(dest, src);
 		case 8: return make_mv64_reg_loc(dest, src);
-		default: assert(!"Invalid push bit count");
+		default: assert(!"Invalid mv bit count");
 		}
+		throw std::runtime_error("Bytecode Generation Error: Invalid mv bit count");
 	}
 	bytes<3> make_mv8_reg_loc(reg dest, reg src)
 	{
@@ -400,8 +405,9 @@ namespace fe::vm
 		case 2: return make_mv16_loc_reg(dest, src);
 		case 4: return make_mv32_loc_reg(dest, src);
 		case 8: return make_mv64_loc_reg(dest, src);
-		default: assert(!"Invalid push bit count");
+		default: assert(!"Invalid mv bit count");
 		}
+		throw std::runtime_error("Bytecode Generation Error: Invalid mv bit count");
 	}
 	bytes<3> make_mv8_loc_reg(reg dest, reg src)
 	{
@@ -429,6 +435,7 @@ namespace fe::vm
 		case 8: return make_push64(src);
 		default: assert(!"Invalid push bit count");
 		}
+		throw std::runtime_error("Bytecode Generation Error: Invalid push bit count");
 	}
 	bytes<2> make_push8(reg dest)
 	{
@@ -454,8 +461,9 @@ namespace fe::vm
 		case 2: return make_pop16(src);
 		case 4: return make_pop32(src);
 		case 8: return make_pop64(src);
-		default: assert(!"Invalid push bit count");
+		default: assert(!"Invalid pop bit count");
 		}
+		throw std::runtime_error("Bytecode Generation Error: Invalid pop bit count");
 	}
 	bytes<2> make_pop8(reg dest)
 	{
@@ -548,7 +556,7 @@ namespace fe::vm
 
 	function& program::get_function(name n)
 	{
-		auto loc = std::find_if(code.begin(), code.end(), [&n](auto& fn) { return fn.first == n; });
+		auto loc = std::find_if(code.begin(), code.end(), [&n](auto& fn) { return fn.get_name() == n; });
 		assert(loc != code.end());
 		return *loc;
 	}
@@ -562,8 +570,8 @@ namespace fe::vm
 	{
 		for (auto& chunk : this->code)
 		{
-			std::cout << chunk.first << "\n";
-			std::cout << chunk.second.operator std::string();
+			std::cout << chunk.get_name() << "\n";
+			std::cout << chunk.get_bytecode().operator std::string();
 			std::cout << std::endl;
 		}
 	}
