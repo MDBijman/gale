@@ -38,7 +38,7 @@ namespace fe::stdlib::ui
 			std::move(te),
 			std::move(se),
 			std::move(constants),
-			vm::module()
+			{}
 		};
 	}
 }

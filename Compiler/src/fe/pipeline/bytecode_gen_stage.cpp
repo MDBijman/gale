@@ -20,6 +20,20 @@ namespace fe::vm
 		return res;
 	}
 
+	reg code_gen_state::alloc_variable_register(uint8_t var)
+	{
+		if (auto loc = var_to_reg.find(var); loc != var_to_reg.end())
+		{
+			return loc->second;
+		}
+		else
+		{
+			reg r = alloc_register();
+			var_to_reg.insert({ var, r.val });
+			return r;
+		}
+	}
+
 	void code_gen_state::link_node_chunk(node_id n, uint8_t c)
 	{
 		node_to_chunk.insert_or_assign(n, c);
@@ -32,17 +46,19 @@ namespace fe::vm
 	}
 
 	code_gen_result::code_gen_result() : result_size(0), code_location(), code_size() {}
-	code_gen_result::code_gen_result(int64_t size, far_lbl loc, uint32_t code_size) 
+	code_gen_result::code_gen_result(int64_t size, far_lbl loc, uint32_t code_size)
 		: result_size(size), code_location(loc), code_size(code_size) {}
 
-	void code_gen_state::register_function(std::string name, core_ast::label l)
+	core_ast::label code_gen_state::function_label(std::string name)
 	{
-		this->functions.insert({ name, l });
-	}
-
-	core_ast::label code_gen_state::label_of_function(std::string name)
-	{
-		return this->functions.find(name)->second;
+		auto p = this->functions.find(name);
+		if (p == this->functions.end())
+		{
+			auto lbl = new_function_label();
+			this->functions.insert({ name, lbl });
+			return lbl;
+		}
+		else return p->second;
 	}
 }
 
@@ -55,10 +71,10 @@ namespace fe::vm
 		i.link_node_chunk(n, i.chunk_of(ast.parent_of(n).id));
 	}
 
-	code_gen_result generate_number(node_id n, core_ast::ast& ast, program& p, code_gen_state& i) 
+	code_gen_result generate_number(node_id n, core_ast::ast& ast, program& p, code_gen_state& i)
 	{
 		link_to_parent_chunk(n, ast, i);
-		auto& bc = p.get_function(i.chunk_of(n)).second;
+		auto& bc = p.get_function(i.chunk_of(n)).get_bytecode();
 
 		auto& num = ast.get_data<fe::number>(*ast.get_node(n).data_index);
 		size_t size = 0;
@@ -134,7 +150,7 @@ namespace fe::vm
 	code_gen_result generate_boolean(node_id n, core_ast::ast& ast, program& p, code_gen_state& i)
 	{
 		link_to_parent_chunk(n, ast, i);
-		auto& bc = p.get_function(i.chunk_of(n)).second;
+		auto& bc = p.get_function(i.chunk_of(n)).get_bytecode();
 
 		auto value = ast.get_data<fe::boolean>(*ast.get_node(n).data_index).value;
 
@@ -152,7 +168,7 @@ namespace fe::vm
 	{
 		auto id = p.add_function(function());
 		auto& func = p.get_function(id);
-		auto& func_bc = func.second;
+		auto& func_bc = func.get_bytecode();
 		i.link_node_chunk(n, id);
 
 		auto& node = ast.get_node(n);
@@ -160,9 +176,9 @@ namespace fe::vm
 
 		// Register function
 		auto& func_data = ast.get_data<core_ast::function_data>(*node.data_index);
-		func.first = func_data.name;
+		func.get_name() = func_data.name;
 
-		i.register_function(func_data.name, core_ast::label{ func_data.label });
+		i.function_label(func_data.name);
 
 		// We haven't used any registers yet so clear them so they don't get saved
 		i.clear_registers();
@@ -210,6 +226,16 @@ namespace fe::vm
 		auto& node = ast.get_node(n);
 		uint32_t stack_size = 0;
 		uint32_t code_size = 0;
+
+		if (node.children.size() == 0)
+		{
+			return code_gen_result(
+				stack_size,
+				far_lbl(info.chunk_of(n), p.get_function(info.chunk_of(n)).get_bytecode().data().size()),
+				code_size
+			);
+		}
+
 		auto first_info = generate_bytecode(node.children[0], ast, p, info);
 		stack_size += first_info.result_size;
 
@@ -230,7 +256,7 @@ namespace fe::vm
 
 		if (is_root) // Create new chunk
 		{
-			chunk_id = p.add_function(function("_main", bytecode()));
+			chunk_id = p.add_function(function{ "_main", bytecode(), {} });
 			info.link_node_chunk(n, chunk_id);
 		}
 		else // Link to parent chunk
@@ -243,7 +269,7 @@ namespace fe::vm
 
 		assert(children.size() > 0);
 
-		far_lbl location(chunk_id, p.get_function(chunk_id).second.data().size());
+		far_lbl location(chunk_id, p.get_function(chunk_id).get_bytecode().size());
 
 		int64_t stack_size = 0;
 		uint32_t code_size = 0;
@@ -252,17 +278,7 @@ namespace fe::vm
 		{
 			auto child_res = generate_bytecode(children[i], ast, p, info);
 			code_size += child_res.code_size;
-
-			// If we are root we know the stack bytes of each child are not used
-			if (is_root)
-			{
-				p.get_function(chunk_id).second.add_instruction(make_sub(vm::sp_reg, vm::sp_reg, byte(child_res.result_size)));
-				code_size += 4;
-			}
-			else
-			{
-				stack_size += child_res.result_size;
-			}
+			stack_size += child_res.result_size;
 		}
 
 		return code_gen_result(stack_size, location, code_size);
@@ -273,9 +289,11 @@ namespace fe::vm
 		auto& node = ast.get_node(n);
 		assert(node.children.size() == 1);
 		i.link_node_chunk(n, i.chunk_of(ast.parent_of(n).id));
-		auto& c = p.get_function(i.chunk_of(n)).second;
+		auto& bc = p.get_function(i.chunk_of(n)).get_bytecode();
 
-		core_ast::label func_label = i.label_of_function(ast.get_data<core_ast::function_call_data>(*node.data_index).name);
+		auto& call_data = ast.get_data<core_ast::function_call_data>(*node.data_index);
+		core_ast::label func_label = i.function_label(call_data.name);
+		p.get_function(i.chunk_of(n)).get_symbols().insert({ func_label.id, call_data.name });
 
 		// Put params on stack
 		auto& param_node = ast.get_node(node.children[0]);
@@ -285,7 +303,7 @@ namespace fe::vm
 		assert(node.size);
 		assert(*node.size <= 8);
 
-		auto [loc, size] = c.add_instructions(
+		auto[loc, size] = bc.add_instructions(
 			make_call_ui64(func_label.id),
 			make_push64(vm::ret_reg),
 			make_sub(vm::sp_reg, vm::sp_reg, byte(8 - *node.size))
@@ -304,7 +322,7 @@ namespace fe::vm
 		link_to_parent_chunk(n, ast, i);
 		auto& node = ast.get_node(n);
 		assert(node.children.size() == 1);
-		auto& bc = p.get_function(i.chunk_of(n)).second;
+		auto& bc = p.get_function(i.chunk_of(n)).get_bytecode();
 
 		size_t code_size = 0;
 
@@ -337,7 +355,7 @@ namespace fe::vm
 	code_gen_result generate_move(node_id n, core_ast::ast& ast, program& p, code_gen_state& i)
 	{
 		link_to_parent_chunk(n, ast, i);
-		auto& bc = p.get_function(i.chunk_of(n)).second;
+		auto& bc = p.get_function(i.chunk_of(n)).get_bytecode();
 		auto& move_node = ast.get_node(n);
 		auto& move_data = ast.get_data<core_ast::move_data>(*move_node.data_index);
 		auto& f_t = move_data.from_t;
@@ -345,6 +363,15 @@ namespace fe::vm
 
 		near_lbl loc(-1);
 		uint32_t size = 0;
+
+		if (t_t == core_ast::move_data::dst_type::REG)
+		{ 
+			move_data.to = i.alloc_variable_register(move_data.to).val;
+		}
+		if (f_t == core_ast::move_data::src_type::REG)
+		{ 
+			move_data.from = i.alloc_variable_register(move_data.from).val;
+		}
 
 		if (t_t == core_ast::move_data::dst_type::RES)
 		{
@@ -418,7 +445,7 @@ namespace fe::vm
 		}
 		else if (t_t == core_ast::move_data::dst_type::STACK && f_t == core_ast::move_data::src_type::LOC_WITH_OFFSET)
 		{
-			auto r_from = static_cast<uint32_t>(move_data.from >> 32);
+			auto r_from = i.alloc_variable_register(static_cast<uint32_t>(move_data.from >> 32));
 			auto offset = static_cast<uint32_t>(move_data.from & 0xFFFFFFFF);
 
 			std::tie(loc, size) = bc.add_instruction(make_add(r_from, r_from, byte(offset)));
@@ -462,7 +489,7 @@ namespace fe::vm
 	code_gen_result generate_stack_alloc(node_id n, core_ast::ast& ast, program& p, code_gen_state& i)
 	{
 		link_to_parent_chunk(n, ast, i);
-		auto& bc = p.get_function(i.chunk_of(n)).second;
+		auto& bc = p.get_function(i.chunk_of(n)).get_bytecode();
 		auto& data = ast.get_data<core_ast::size>(*ast.get_node(n).data_index);
 		auto[loc, size] = bc.add_instruction(make_add(reg(vm::sp_reg), reg(vm::sp_reg), byte(data.val)));
 		return code_gen_result(data.val, far_lbl(i.chunk_of(n), loc.ip), size);
@@ -471,7 +498,7 @@ namespace fe::vm
 	code_gen_result generate_stack_dealloc(node_id n, core_ast::ast& ast, program& p, code_gen_state& i)
 	{
 		link_to_parent_chunk(n, ast, i);
-		auto& bc = p.get_function(i.chunk_of(n)).second;
+		auto& bc = p.get_function(i.chunk_of(n)).get_bytecode();
 		auto& data = ast.get_data<core_ast::size>(*ast.get_node(n).data_index);
 		auto[loc, size] = bc.add_instruction(make_sub(reg(vm::sp_reg), reg(vm::sp_reg), byte(data.val)));
 		return code_gen_result(-static_cast<int64_t>(data.val), far_lbl(i.chunk_of(n), loc.ip), size);
@@ -480,7 +507,7 @@ namespace fe::vm
 	code_gen_result generate_jump_not_zero(node_id n, core_ast::ast& ast, program& p, code_gen_state& i)
 	{
 		link_to_parent_chunk(n, ast, i);
-		auto& bc = p.get_function(i.chunk_of(n)).second;
+		auto& bc = p.get_function(i.chunk_of(n)).get_bytecode();
 
 		auto& node = ast.get_node(n);
 		auto& lbl = ast.get_data<core_ast::label>(*node.data_index);
@@ -500,7 +527,7 @@ namespace fe::vm
 	code_gen_result generate_jump(node_id n, core_ast::ast& ast, program& p, code_gen_state& i)
 	{
 		link_to_parent_chunk(n, ast, i);
-		auto& bc = p.get_function(i.chunk_of(n)).second;
+		auto& bc = p.get_function(i.chunk_of(n)).get_bytecode();
 		auto& node = ast.get_node(n);
 		auto& lbl = ast.get_data<core_ast::label>(*node.data_index);
 
@@ -515,7 +542,7 @@ namespace fe::vm
 	code_gen_result generate_label(node_id n, core_ast::ast& ast, program& p, code_gen_state& i)
 	{
 		link_to_parent_chunk(n, ast, i);
-		auto& bc = p.get_function(i.chunk_of(n)).second;
+		auto& bc = p.get_function(i.chunk_of(n)).get_bytecode();
 		auto& node = ast.get_node(n);
 		auto& lbl = ast.get_data<core_ast::label>(*node.data_index);
 
@@ -527,7 +554,7 @@ namespace fe::vm
 	code_gen_result generate_binary_op(node_id n, core_ast::ast& ast, program& p, code_gen_state& i)
 	{
 		link_to_parent_chunk(n, ast, i);
-		auto& bc = p.get_function(i.chunk_of(n)).second;
+		auto& bc = p.get_function(i.chunk_of(n)).get_bytecode();
 		auto& children = ast.children_of(n);
 		int32_t size = 0;
 
@@ -568,7 +595,7 @@ namespace fe::vm
 		uint8_t res_size;
 		switch (node.kind)
 		{
-		case core_ast::node_type::ADD: case core_ast::node_type::SUB: 
+		case core_ast::node_type::ADD: case core_ast::node_type::SUB:
 		case core_ast::node_type::MUL: case core_ast::node_type::DIV:
 		case core_ast::node_type::MOD: case core_ast::node_type::AND:
 		case core_ast::node_type::OR:

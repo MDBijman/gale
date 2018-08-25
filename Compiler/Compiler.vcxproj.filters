@@ -166,6 +166,12 @@
     <ClCompile Include="src\fe\pipeline\linker_stage.cpp">
       <Filter>Source Files\fe\pipeline</Filter>
     </ClCompile>
+    <ClCompile Include="src\fe\data\ext_ast.cpp">
+      <Filter>Source Files\fe\data</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fe\data\core_ast.cpp">
+      <Filter>Source Files\fe\data</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\fe\data\core_ast.h">
@@ -266,6 +272,9 @@
     </ClInclude>
     <ClInclude Include="include\fe\pipeline\linker_stage.h">
       <Filter>Source Files\fe\pipeline</Filter>
+    </ClInclude>
+    <ClInclude Include="include\fe\libraries\std\std_assert.h">
+      <Filter>Source Files\fe\libraries\std</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

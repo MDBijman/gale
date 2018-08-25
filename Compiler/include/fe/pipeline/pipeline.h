@@ -48,10 +48,14 @@ namespace fe
 			return ext_ast::lower(ast);
 		}
 
-		vm::executable generate(core_ast::ast& ast) const
+		vm::program generate(core_ast::ast& ast) const
 		{
-			vm::program p = vm::generate_bytecode(ast);
-			return vm::link(p);
+			return vm::generate_bytecode(ast);
+		}
+
+		vm::executable link(vm::program& ast) const
+		{
+			return vm::link(ast);
 		}
 
 		vm::machine_state run(vm::executable& e) const

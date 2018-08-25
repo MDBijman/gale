@@ -19,16 +19,25 @@ namespace fe::vm
 		reg next_allocation = 0;
 
 		std::unordered_map<std::string, core_ast::label> functions;
+		core_ast::label next_function_label = { 0 };
+		core_ast::label new_function_label() 
+		{
+			auto copy = next_function_label;
+			next_function_label.id++;
+			return copy;
+		}
+
+		std::unordered_map<uint8_t, uint8_t> var_to_reg;
 
 	public:
 		std::vector<reg> clear_registers();
 		reg alloc_register();
+		reg alloc_variable_register(uint8_t);
 
 		void link_node_chunk(node_id, uint8_t);
 		uint8_t chunk_of(node_id);
 
-		void register_function(std::string name, core_ast::label l);
-		core_ast::label label_of_function(std::string name);
+		core_ast::label function_label(std::string name);
 	};
 
 	struct code_gen_result

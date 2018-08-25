@@ -13,9 +13,6 @@ namespace fe::vm
 	{
 		NOP = 0,
 
-		// interrupt
-		INT_UI8,
-
 		/*
 		* Arithmetic
 		*/
@@ -139,6 +136,7 @@ namespace fe::vm
 
 	bytes<8> make_i64(int64_t);
 	int64_t read_i64(bytes<8>);
+	int64_t read_i64(uint8_t*);
 	bytes<8> make_ui64(uint64_t);
 	uint64_t read_ui64(bytes<8>);
 
@@ -159,7 +157,6 @@ namespace fe::vm
 
 	// Operator construction methods
 	bytes<1> make_nop();
-	bytes<2> make_int(uint8_t id);
 	bytes<4> make_add(reg dest, reg a, reg b);
 	bytes<4> make_add(reg dest, reg a, byte b);
 	bytes<4> make_sub(reg dest, reg a, reg b);
@@ -282,6 +279,11 @@ namespace fe::vm
 
 		operator std::string() const;
 
+		size_t size() const
+		{
+			return instructions.size();
+		}
+
 		std::vector<byte>& data()
 		{
 			return this->instructions;
@@ -314,29 +316,39 @@ namespace fe::vm
 		}
 	};
 
+	using native_code = std::function<void(machine_state&)>;
+
 	using name = std::string;
+	using symbols = std::unordered_map<uint32_t, name>;
 
 	// A bytecode object with a name, referenced in other bytecode by the name
-	using function = std::pair<name, bytecode>;
+	class function
+	{
+		name signature;
+		std::variant<bytecode, native_code> code;
+		symbols externals;
+	public:
+		function(name n, bytecode c, symbols s) : signature(n), code(c), externals(s) {}
+		function(name n, bytecode c) : signature(n), code(c) {}
+		function(name n, native_code c, symbols s) : signature(n), code(c), externals(s) {}
+		function(name n, native_code c) : signature(n), code(c) {}
+		function() {}
+
+		name& get_name() { return signature; }
+		symbols& get_symbols() { return externals; }
+		bool is_bytecode() { return std::holds_alternative<bytecode>(code); }
+		bool is_native() { return std::holds_alternative<native_code>(code); }
+		bytecode& get_bytecode() { return std::get<bytecode>(code); }
+		native_code& get_native_code() { return std::get<native_code>(code); }
+	};
 	using function_id = uint16_t;
-
-	// Vector of functions
-	using module = std::vector<function>;
-
-	// Interrupts for implementing system calls
-	using interrupt = std::function<void(machine_state&)>;
-
-	// Vector of interrupts
-	using interrupt_table = std::vector<interrupt>;
 
 	class program
 	{
-		module code;
-		interrupt_table interrupts;
+		std::vector<function> code;
 
 	public:
 		program() {}
-		program(interrupt_table interrupts) : interrupts(interrupts) {}
 
 		function_id add_function(function);
 		function& get_function(function_id);
@@ -350,11 +362,11 @@ namespace fe::vm
 
 		void insert_padding(far_lbl loc, uint8_t size)
 		{
-			code.at(loc.chunk_id).second.data().insert(code.at(loc.chunk_id).second.data().begin() + loc.ip, size, byte(0));
+			auto& bc = code.at(loc.chunk_id).get_bytecode().data();
+			bc.insert(bc.begin() + loc.ip, size, byte(0));
 		}
 
-		const module& get_code() { return code; }
-		const interrupt_table& get_interrupts() { return interrupts; }
+		std::vector<function>& get_code() { return code; }
 
 		void print();
 	};
@@ -362,16 +374,13 @@ namespace fe::vm
 	class executable
 	{
 	public:
-		const std::vector<bytecode> chunks;
-		const std::vector<interrupt> interrupts;
+		std::vector<function> functions;
 
-		executable(std::vector<bytecode> chunks, std::vector<interrupt> interrupts)
-			: chunks(chunks), interrupts(interrupts)
-		{}
+		executable(std::vector<function> funcs) : functions(funcs) {}
 
 		template<int C> bytes<C> get_instruction(far_lbl l)
 		{
-			return chunks.at(l.chunk_id).get_instruction<C>(l.ip);
+			return functions.at(l.chunk_id).code.get_instruction<C>(l.ip);
 		}
 	};
 }

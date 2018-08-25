@@ -11,14 +11,14 @@ namespace fe
 	struct module
 	{
 		module() {}
-		module(module_name n, ext_ast::type_scope ts, ext_ast::name_scope ns, constants_store cs, vm::module c) :
+		module(module_name n, ext_ast::type_scope ts, ext_ast::name_scope ns, constants_store cs, std::vector<vm::function> c) :
 			name(n), types(ts), names(ns), constants(cs), code(c) {}
 
 		module_name name;
 		ext_ast::type_scope types;
 		ext_ast::name_scope names;
 		constants_store constants;
-		vm::module code;
+		std::vector<vm::function> code;
 	};
 
 	class module_builder
@@ -34,12 +34,19 @@ namespace fe
 			return *this;
 		}
 
-		module_builder& add_function(std::string name, types::unique_type t, vm::bytecode b)
+		module_builder& add_function(vm::function f, types::unique_type t)
 		{
-			m.names.declare_variable(name, -1);
-			m.names.define_variable(name);
-			m.types.set_type(name, std::move(t));
-			m.code.push_back(vm::function{ name, b });
+			m.names.declare_variable(f.get_name(), -1);
+			m.names.define_variable(f.get_name());
+			m.types.set_type(f.get_name(), std::move(t));
+			m.code.push_back(f);
+			return *this;
+		}
+
+		module_builder& add_type(std::string name, types::unique_type t)
+		{
+			m.names.define_type(name, -1);
+			m.types.define_type(name, std::move(t));
 			return *this;
 		}
 		

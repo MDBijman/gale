@@ -15,12 +15,12 @@ namespace fe::ext_ast
 
 	struct lowering_context
 	{
-		using register_index = uint32_t;
-		register_index next_register = 1;
+		using variable_index = uint32_t;
+		variable_index next_variable = 1;
 		using label_index = uint32_t;
 		label_index next_label = 1;
 
-		register_index alloc_register() { return next_register++; }
+		variable_index alloc_variable() { return next_variable++; }
 		label_index new_label() { return next_label++; }
 	};
 
@@ -34,18 +34,6 @@ namespace fe::ext_ast
 	{
 		new_ast.get_node(child).parent_id = parent;
 		new_ast.get_node(parent).children.push_back(child);
-	}
-
-	static std::string mangle(identifier id)
-	{
-		std::string res;
-		size_t segments = id.segments.size(), offsets = id.offsets.size();
-
-		for (int i = 0; i < segments - offsets - 2; i++)
-			res += id.segments[i] + ".";
-		res += id.segments[segments - offsets - 2] + "@";
-		res += id.segments[segments - offsets - 1];
-		return res;
 	}
 
 	// Lowerers
@@ -117,30 +105,43 @@ namespace fe::ext_ast
 		auto block = new_ast.create_node(core_ast::node_type::BLOCK);
 		auto& children = ast.children_of(n);
 
-		lowering_context nested_context = context;
+		//lowering_context nested_context = context;
 
-		int64_t res_size = 0;
+		int64_t declaration_sum = 0;
 		for (auto it = children.begin(); it != children.end(); it++)
 		{
 			auto& n = ast.get_node(*it);
-			auto res = lower(n, ast, new_ast, nested_context);
+			auto res = lower(n, ast, new_ast, context);
 			link_child_parent(res.id, block, new_ast);
 
-			if (n.kind != node_type::BLOCK_RESULT)
+			if (n.kind == node_type::BLOCK_RESULT)
+			{
+				assert(res.allocated_stack_space <= 8);
+				auto move = new_ast.create_node(core_ast::node_type::MOVE, block);
+				auto& move_data = new_ast.get_data<core_ast::move_data>(*new_ast.get_node(move).data_index);
+				move_data.from_t = core_ast::move_data::src_type::STACK;
+				move_data.from = -res.allocated_stack_space;
+				move_data.to_t = core_ast::move_data::dst_type::RES;
+			}
+			else if(n.kind == node_type::DECLARATION)
+			{
+				declaration_sum += res.allocated_stack_space;
+			}
+			else
 			{
 				auto dealloc = new_ast.create_node(core_ast::node_type::SDEALLOC);
 				link_child_parent(dealloc, block, new_ast);
 				new_ast.get_data<core_ast::size>(*new_ast.get_node(dealloc).data_index).val = res.allocated_stack_space;
 			}
-			else
-			{
-				res_size = res.allocated_stack_space;
-			}
 		}
 
-		context.next_label = nested_context.next_label;
+		auto dealloc = new_ast.create_node(core_ast::node_type::SDEALLOC);
+		link_child_parent(dealloc, block, new_ast);
+		new_ast.get_data<core_ast::size>(*new_ast.get_node(dealloc).data_index).val = declaration_sum;
 
-		return { res_size, block };
+		//context.next_label = nested_context.next_label;
+
+		return { 0, block };
 	}
 
 	lowering_result lower_block_result(node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
@@ -166,7 +167,7 @@ namespace fe::ext_ast
 		size_t in_size = 0;
 		if (param_node.kind == node_type::IDENTIFIER)
 		{
-			ast.get_data<ext_ast::identifier>(param_node.data_index).index_in_function = context.alloc_register();
+			ast.get_data<ext_ast::identifier>(param_node.data_index).index_in_function = context.alloc_variable();
 			in_size = (*ast
 				.get_type_scope(param_node.type_scope_id)
 				.resolve_variable(ast.get_data<identifier>(param_node.data_index), ast.type_scope_cb()))
@@ -360,9 +361,8 @@ namespace fe::ext_ast
 		auto fun_id = new_ast.create_node(core_ast::node_type::FUNCTION_CALL);
 
 		auto& name = ast.get_data<identifier>(ast.get_node(children[0]).data_index);
-		assert(name.segments.size() == 1);
 		assert(name.offsets.size() == 0);
-		new_ast.get_data<core_ast::function_call_data>(*new_ast.get_node(fun_id).data_index).name = name.segments[0];
+		new_ast.get_data<core_ast::function_call_data>(*new_ast.get_node(fun_id).data_index).name = name.mangle();
 
 		auto param = lower(ast.get_node(children[1]), ast, new_ast, context);
 		auto& param_node = new_ast.get_node(param.id);
@@ -409,13 +409,14 @@ namespace fe::ext_ast
 		auto& lhs_node = ast.get_node(children[0]);
 		if (lhs_node.kind == node_type::IDENTIFIER)
 		{
-			auto loc = context.alloc_register();
+			// Put location in register
+			auto loc = context.alloc_variable();
 			auto& identifier_data = ast.get_data<ext_ast::identifier>(lhs_node.data_index);
 			identifier_data.index_in_function = loc;
 			auto mv = new_ast.create_node(core_ast::node_type::MOVE, block);
 			auto& mv_data = new_ast.get_data<core_ast::move_data>(*new_ast.get_node(mv).data_index);
-			mv_data.to_t = core_ast::move_data::dst_type::REG;
 			mv_data.from_t = core_ast::move_data::src_type::SP;
+			mv_data.to_t = core_ast::move_data::dst_type::REG;
 			mv_data.to = loc;
 
 			auto& rhs_node = ast.get_node(children[2]);

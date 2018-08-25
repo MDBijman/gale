@@ -5,51 +5,28 @@ namespace fe::stdlib::io
 {
 	static module load()
 	{
-		ext_ast::name_scope se;
-		ext_ast::type_scope te;
-		constants_store constants;
-
-		{
-			using namespace types;
-			auto& print_ref = constants.get<plain_identifier>(constants.create<plain_identifier>());
-			print_ref.full = "print";
-
-			se.declare_variable(print_ref.full, 0);
-			se.define_variable(print_ref.full);
-			te.set_type(print_ref.full, unique_type(
-				new function_type(unique_type(new types::str()), unique_type(new unset()))));
-
-			auto& println_ref = constants.get<plain_identifier>(constants.create<plain_identifier>());
-			println_ref.full = "println";
-
-			se.declare_variable(println_ref.full, 0);
-			te.set_type(println_ref.full, unique_type(
-				new function_type(unique_type(new types::str()), unique_type(new unset()))));
-		}
-
-		{
-			using namespace types;
-			auto& get_ref = constants.get<plain_identifier>(constants.create<plain_identifier>());
-			get_ref.full = "get";
-
-			se.declare_variable(get_ref.full, 0);
-			se.define_variable(get_ref.full);
-			te.set_type(get_ref.full, unique_type(
-				new function_type(unique_type(new product_type()), unique_type(new types::i32()))));
-
-			auto& time_ref = constants.get<plain_identifier>(constants.create<plain_identifier>());
-			time_ref.full = "time";
-			se.declare_variable(time_ref.full, 0);
-			se.define_variable(time_ref.full);
-			te.set_type(time_ref.full, unique_type(new function_type(unique_type(new product_type()), unique_type(new types::i64))));
-		}
-
-		return module{
-			{"std", "io"},
-			std::move(te),
-			std::move(se),
-			std::move(constants),
-			vm::module()
-		};
+		fe::pipeline p{};
+		
+		return module_builder()
+			.set_name({"std","io"})
+			.add_function(
+				// #todo ms.ret(n) can be calculated from the type and added automatically
+				vm::function("print", [](vm::machine_state& ms) { 
+					uint8_t* arg = &ms.stack[ms.registers[vm::fp_reg] - 24];
+					std::cout << vm::read_i64(arg); 
+					ms.ret(8); 
+				}),
+				types::unique_type(new types::function_type(types::unique_type(new types::i64()), types::unique_type(new types::voidt()))))
+			.add_function(
+				vm::function("println", [](vm::machine_state& ms) { 
+					uint8_t* arg = &ms.stack[ms.registers[vm::fp_reg] - 24];
+					std::cout << vm::read_i64(arg) << std::endl; 
+					ms.ret(8); 
+				}),
+				types::unique_type(new types::function_type(types::unique_type(new types::i64()), types::unique_type(new types::voidt()))))
+			.add_function(
+				vm::function("time", [](vm::machine_state& ms) { ms.registers[vm::ret_reg] = std::chrono::high_resolution_clock::now().time_since_epoch().count(); ms.ret(0); }),
+				types::unique_type(new types::function_type(types::unique_type(new types::product_type()), types::unique_type(new types::i64()))))
+			.build();
 	}
 }

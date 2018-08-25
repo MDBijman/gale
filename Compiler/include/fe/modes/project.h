@@ -60,9 +60,31 @@ namespace fe
 			auto c_ast = pl.lower(e_ast);
 			auto& core_root_node = c_ast.get_node(c_ast.root_id());
 
-			// Stage 3: interpret
+			// Stage 3: generate
 			auto bytecode = pl.generate(c_ast);
-			return pl.run(bytecode);
+
+			if (imports)
+			{
+				for (const ext_ast::identifier& imp : *imports)
+				{
+					auto pos = modules.find(imp.copy_name());
+					if (pos == modules.end())
+						throw other_error{ "Cannot find module: " + imp.operator std::string() };
+
+					for (auto c : pos->second.code)
+					{
+						auto full_name = imp.full + "@" + c.get_name();
+						bytecode.add_function(c.is_bytecode() ?
+							vm::function(full_name, c.get_bytecode()) :
+							vm::function(full_name, c.get_native_code()));
+					}
+				}
+			}
+
+			auto executable = pl.link(bytecode);
+
+			// Stage 4: interpret
+			return pl.run(executable);
 		}
 
 	private:
