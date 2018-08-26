@@ -137,7 +137,7 @@ namespace fe::vm
 
 					// Logic
 
-				case op_kind::GT_REG_REG_REG:  REG[in[1].val] = REG[in[2].val] > REG[in[3].val] ? 1 : 0; IP += size; break;
+				case op_kind::GT_REG_REG_REG:  REG[in[1].val] = REG[in[2].val] > REG[in[3].val] ? 1 : 0; IP += size; std::cout << REG[in[1].val] << "\n"; break;
 				case op_kind::GTE_REG_REG_REG: REG[in[1].val] = REG[in[2].val] >= REG[in[3].val] ? 1 : 0; IP += size; break;
 				case op_kind::EQ_REG_REG_REG:  REG[in[1].val] = REG[in[2].val] == REG[in[3].val] ? 1 : 0; IP += size; break;
 				case op_kind::NEQ_REG_REG_REG: REG[in[1].val] = REG[in[2].val] != REG[in[3].val] ? 1 : 0; IP += size; break;

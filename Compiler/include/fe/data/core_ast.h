@@ -30,7 +30,7 @@ namespace fe::core_ast
 
 		BLOCK,
 		LABEL,
-		JMP, JNZ,
+		JMP, JNZ, JZ,
 		REFERENCE,
 
 		// logic ops

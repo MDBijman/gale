@@ -69,6 +69,8 @@ namespace fe::core_ast
 		case node_type::FUNCTION_CALL: return function_call_data_store.create();
 		case node_type::JMP:
 		case node_type::JNZ:
+		case node_type::JZ:
+		case node_type::LABEL:
 			return label_store.create();
 		case node_type::SDEALLOC:
 		case node_type::SALLOC:
