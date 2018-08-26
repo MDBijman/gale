@@ -412,9 +412,9 @@ namespace fe::vm
 		else if (t_t == core_ast::move_data::dst_type::REG && f_t == core_ast::move_data::src_type::STACK)
 		{
 			assert(move_data.size > 0 && move_data.size <= 8);
-			auto size = move_data.size;
+			auto move_size = move_data.size;
 			int64_t mask = 0;
-			while (size > 0) { size--; mask >>= 8; mask |= 0xFF00000000000000; }
+			while (move_size > 0) { move_size--; mask >>= 8; mask |= 0xFF00000000000000; }
 			auto tmp = i.alloc_register();
 			std::tie(loc, size) = bc.add_instructions(
 				// Put stack offset in target
@@ -431,11 +431,13 @@ namespace fe::vm
 		else if (t_t == core_ast::move_data::dst_type::LOC && f_t == core_ast::move_data::src_type::STACK)
 		{
 			auto r_from = i.alloc_register();
+			auto r_to_orig = i.alloc_variable_register(move_data.to);
+			auto r_to = i.alloc_register();
 			std::tie(loc, size) = bc.add_instructions(
 				make_mv_reg_i16(r_from, move_data.from),
-				make_add(r_from, vm::sp_reg, r_from)
+				make_add(r_from, vm::sp_reg, r_from),
+				make_mv64_reg_reg(r_to, r_to_orig)
 			);
-			auto r_to = move_data.to;
 			auto r_buff = i.alloc_register();
 			int i = 0;
 			for (; (i + 1) * 8 <= move_data.size; i += 8) size += bc.add_instructions(make_mv64_reg_loc(r_buff, r_from), make_mv64_loc_reg(r_to, r_buff), make_add(r_from, r_from, byte(8)), make_add(r_to, r_to, byte(8))).second;
@@ -445,14 +447,16 @@ namespace fe::vm
 		}
 		else if (t_t == core_ast::move_data::dst_type::STACK && f_t == core_ast::move_data::src_type::LOC_WITH_OFFSET)
 		{
-			auto r_from = i.alloc_variable_register(static_cast<uint32_t>(move_data.from >> 32));
+			auto r_from_orig = i.alloc_variable_register(static_cast<uint32_t>(move_data.from >> 32));
+			auto r_from = i.alloc_register();
 			auto offset = static_cast<uint32_t>(move_data.from & 0xFFFFFFFF);
 
 			std::tie(loc, size) = bc.add_instruction(make_add(r_from, r_from, byte(offset)));
 			auto r_to = i.alloc_register();
 			size += bc.add_instructions(
 				make_mv_reg_i16(r_to, move_data.to),
-				make_add(r_to, vm::sp_reg, r_to)
+				make_add(r_to, vm::sp_reg, r_to),
+				make_mv64_reg_reg(r_from, r_from_orig)
 			).second;
 
 			auto r_buff = i.alloc_register();
@@ -519,6 +523,26 @@ namespace fe::vm
 			// We must first register all labels before we substitute the locations in the jumps
 			// As labels can occur after the jumps to them and locations can still change
 			make_jrnz_i32(test_reg, lbl.id)
+		);
+
+		return { -1, far_lbl(i.chunk_of(n), loc.ip), size };
+	}
+
+	code_gen_result generate_jump_zero(node_id n, core_ast::ast& ast, program& p, code_gen_state& i)
+	{
+		link_to_parent_chunk(n, ast, i);
+		auto& bc = p.get_function(i.chunk_of(n)).get_bytecode();
+
+		auto& node = ast.get_node(n);
+		auto& lbl = ast.get_data<core_ast::label>(*node.data_index);
+
+		auto test_reg = i.alloc_register();
+		auto[loc, size] = bc.add_instructions(
+			make_pop8(test_reg),
+			// the label is a placeholder for the actual location
+			// We must first register all labels before we substitute the locations in the jumps
+			// As labels can occur after the jumps to them and locations can still change
+			make_jrz_i32(test_reg, lbl.id)
 		);
 
 		return { -1, far_lbl(i.chunk_of(n), loc.ip), size };
@@ -633,6 +657,7 @@ namespace fe::vm
 		case core_ast::node_type::SALLOC: return generate_stack_alloc(n, ast, p, i);
 		case core_ast::node_type::SDEALLOC: return generate_stack_dealloc(n, ast, p, i);
 		case core_ast::node_type::JNZ: return generate_jump_not_zero(n, ast, p, i);
+		case core_ast::node_type::JZ: return generate_jump_zero(n, ast, p, i);
 		case core_ast::node_type::JMP: return generate_jump(n, ast, p, i);
 		case core_ast::node_type::LABEL: return generate_label(n, ast, p, i);
 		default:
@@ -653,4 +678,4 @@ namespace fe::vm
 
 		return p;
 	}
-}
+	}

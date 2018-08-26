@@ -59,7 +59,10 @@ namespace fe::ext_ast
 		// b
 		auto& id_node = ext_ast.get_node(children[0]);
 		assert(id_node.kind == ext_ast::node_type::IDENTIFIER);
-		auto reg_index = ext_ast.get_data<ext_ast::identifier>(id_node.data_index).index_in_function;
+		auto reg_index = ext_ast.get_data<ext_ast::identifier>(ext_ast.get_node((*ext_ast
+			.get_name_scope(id_node.name_scope_id)
+			.resolve_variable(ext_ast.get_data<identifier>(id_node.data_index).segments[0], ext_ast.name_scope_cb()))
+			.declaration_node).data_index).index_in_function;
 
 		// c
 		auto move = new_ast.create_node(core_ast::node_type::MOVE);
@@ -68,16 +71,13 @@ namespace fe::ext_ast
 		mv_data.to_t = core_ast::move_data::dst_type::LOC;
 		mv_data.from = -static_cast<int64_t>(rhs.allocated_stack_space);
 		mv_data.to = reg_index;
+		mv_data.size = rhs.allocated_stack_space;
 		link_child_parent(move, block, new_ast);
 
 		// d
 		auto dealloc = new_ast.create_node(core_ast::node_type::SDEALLOC);
 		link_child_parent(dealloc, block, new_ast);
-		auto size = (*ext_ast
-			.get_type_scope(id_node.type_scope_id)
-			.resolve_type(ext_ast.get_data<identifier>(id_node.data_index), ext_ast.type_scope_cb()))
-			.type.calculate_size();
-		new_ast.get_data<core_ast::size>(*new_ast.get_node(dealloc).data_index).val = size;
+		new_ast.get_data<core_ast::size>(*new_ast.get_node(dealloc).data_index).val = rhs.allocated_stack_space;
 
 		return { 0, block };
 	}
@@ -122,6 +122,7 @@ namespace fe::ext_ast
 				move_data.from_t = core_ast::move_data::src_type::STACK;
 				move_data.from = -res.allocated_stack_space;
 				move_data.to_t = core_ast::move_data::dst_type::RES;
+				move_data.size = res.allocated_stack_space;
 			}
 			else if(n.kind == node_type::DECLARATION)
 			{
@@ -225,10 +226,10 @@ namespace fe::ext_ast
 			auto test_res = lower(ast.get_node(children[i]), ast, new_ast, context);
 			link_child_parent(test_res.id, block, new_ast);
 
-			// Does not count towards allocation size since JNZ consumes the byte
+			// Does not count towards allocation size since JZ consumes the byte
 			assert(test_res.allocated_stack_space == 1);
 
-			auto jump = new_ast.create_node(core_ast::node_type::JNZ, block);
+			auto jump = new_ast.create_node(core_ast::node_type::JZ, block);
 			new_ast.get_data<core_ast::label>(*new_ast.get_node(jump).data_index).id = lbl;
 
 			auto body_res = lower(ast.get_node(children[i + 1]), ast, new_ast, context);
@@ -248,6 +249,7 @@ namespace fe::ext_ast
 		if (has_else)
 		{
 			auto body_res = lower(ast.get_node(children.back()), ast, new_ast, context);
+			link_child_parent(body_res.id, block, new_ast);
 			assert(body_res.allocated_stack_space == size);
 		}
 
