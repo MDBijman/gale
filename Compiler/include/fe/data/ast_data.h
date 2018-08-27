@@ -60,6 +60,7 @@ namespace fe::ext_ast
 		// The index in function of an identifier is equal to the index of the register that is used to store the address
 		// The address of the nth declared variable in a function is stored in the nth register
 		uint32_t index_in_function = static_cast<uint32_t>(-1);
+		int32_t offset_from_fp = std::numeric_limits<int32_t>::max();
 
 		identifier without_first_segment() const
 		{
@@ -190,8 +191,11 @@ namespace fe::core_ast
 			IP,
 			// result register
 			RES,
-			// stack
-			STACK,
+
+			// stack 
+			RELATIVE_TO_SP,
+			RELATIVE_TO_FP,
+
 			// register containing location
 			LOC,
 			// register containing location in 32 msbits and offset in 32 lsbits
@@ -207,12 +211,16 @@ namespace fe::core_ast
 			IP,
 			// result register
 			RES,
+
 			// stack 
-			STACK,
+			RELATIVE_TO_SP,
+			RELATIVE_TO_FP,
+
 			// register containing location 
 			LOC,
 			// register containing location in 32 msbits and offset in 32 lsbits
 			LOC_WITH_OFFSET,
+
 			// literal value
 			LIT
 		};

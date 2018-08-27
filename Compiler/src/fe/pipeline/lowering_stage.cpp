@@ -20,6 +20,8 @@ namespace fe::ext_ast
 		using label_index = uint32_t;
 		label_index next_label = 1;
 
+		uint32_t frame_size = 0;
+
 		variable_index alloc_variable() { return next_variable++; }
 		label_index new_label() { return next_label++; }
 	};
@@ -59,18 +61,18 @@ namespace fe::ext_ast
 		// b
 		auto& id_node = ext_ast.get_node(children[0]);
 		assert(id_node.kind == ext_ast::node_type::IDENTIFIER);
-		auto reg_index = ext_ast.get_data<ext_ast::identifier>(ext_ast.get_node((*ext_ast
+		auto frame_offset = ext_ast.get_data<ext_ast::identifier>(ext_ast.get_node((*ext_ast
 			.get_name_scope(id_node.name_scope_id)
 			.resolve_variable(ext_ast.get_data<identifier>(id_node.data_index).segments[0], ext_ast.name_scope_cb()))
-			.declaration_node).data_index).index_in_function;
+			.declaration_node).data_index).offset_from_fp;
 
 		// c
 		auto move = new_ast.create_node(core_ast::node_type::MOVE);
 		auto& mv_data = new_ast.get_data<core_ast::move_data>(*new_ast.get_node(move).data_index);
-		mv_data.from_t = core_ast::move_data::src_type::STACK;
-		mv_data.to_t = core_ast::move_data::dst_type::LOC;
+		mv_data.from_t = core_ast::move_data::src_type::RELATIVE_TO_SP;
 		mv_data.from = -static_cast<int64_t>(rhs.allocated_stack_space);
-		mv_data.to = reg_index;
+		mv_data.to_t = core_ast::move_data::dst_type::RELATIVE_TO_FP;
+		mv_data.to = frame_offset;
 		mv_data.size = rhs.allocated_stack_space;
 		link_child_parent(move, block, new_ast);
 
@@ -103,9 +105,11 @@ namespace fe::ext_ast
 	{
 		assert(n.kind == node_type::BLOCK);
 		auto block = new_ast.create_node(core_ast::node_type::BLOCK);
+		auto& block_n = new_ast.get_node(block);
+		block_n.size = 0;
 		auto& children = ast.children_of(n);
 
-		//lowering_context nested_context = context;
+		lowering_context nested_context = context;
 
 		int64_t declaration_sum = 0;
 		for (auto it = children.begin(); it != children.end(); it++)
@@ -119,10 +123,11 @@ namespace fe::ext_ast
 				assert(res.allocated_stack_space <= 8);
 				auto move = new_ast.create_node(core_ast::node_type::MOVE, block);
 				auto& move_data = new_ast.get_data<core_ast::move_data>(*new_ast.get_node(move).data_index);
-				move_data.from_t = core_ast::move_data::src_type::STACK;
+				move_data.from_t = core_ast::move_data::src_type::RELATIVE_TO_SP;
 				move_data.from = -res.allocated_stack_space;
 				move_data.to_t = core_ast::move_data::dst_type::RES;
 				move_data.size = res.allocated_stack_space;
+				block_n.size = res.allocated_stack_space;
 			}
 			else if(n.kind == node_type::DECLARATION)
 			{
@@ -136,13 +141,16 @@ namespace fe::ext_ast
 			}
 		}
 
-		auto dealloc = new_ast.create_node(core_ast::node_type::SDEALLOC);
-		link_child_parent(dealloc, block, new_ast);
-		new_ast.get_data<core_ast::size>(*new_ast.get_node(dealloc).data_index).val = declaration_sum;
+		if (declaration_sum > 0)
+		{
+			auto dealloc = new_ast.create_node(core_ast::node_type::SDEALLOC);
+			link_child_parent(dealloc, block, new_ast);
+			new_ast.get_data<core_ast::size>(*new_ast.get_node(dealloc).data_index).val = declaration_sum;
+		}
 
-		//context.next_label = nested_context.next_label;
+		context.next_label = nested_context.next_label;
 
-		return { 0, block };
+		return { static_cast<int64_t>(*block_n.size), block };
 	}
 
 	lowering_result lower_block_result(node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
@@ -168,11 +176,11 @@ namespace fe::ext_ast
 		size_t in_size = 0;
 		if (param_node.kind == node_type::IDENTIFIER)
 		{
-			ast.get_data<ext_ast::identifier>(param_node.data_index).index_in_function = context.alloc_variable();
 			in_size = (*ast
 				.get_type_scope(param_node.type_scope_id)
 				.resolve_variable(ast.get_data<identifier>(param_node.data_index), ast.type_scope_cb()))
 				.type.calculate_size();
+			ast.get_data<ext_ast::identifier>(param_node.data_index).offset_from_fp = -16 - in_size;
 
 
 			// #todo put stack offset in register
@@ -185,7 +193,7 @@ namespace fe::ext_ast
 		else throw std::runtime_error("Error: parameter node type invalid");
 
 		auto ret = new_ast.create_node(core_ast::node_type::RET, function_id);
-		new_ast.get_data<core_ast::return_data>(*new_ast.get_node(ret).data_index) = core_ast::return_data{ in_size,  };
+		new_ast.get_data<core_ast::return_data>(*new_ast.get_node(ret).data_index) = core_ast::return_data{ in_size, };
 
 		auto block = new_ast.create_node(core_ast::node_type::BLOCK, ret);
 		// Body
@@ -193,6 +201,7 @@ namespace fe::ext_ast
 		auto new_body = lower(body_node, ast, new_ast, context);
 		link_child_parent(new_body.id, block, new_ast);
 
+		new_ast.get_node(ret).size = new_ast.get_node(new_body.id).size;
 
 		// #todo functions should be root-scope only
 		return { 0, function_id };
@@ -246,6 +255,9 @@ namespace fe::ext_ast
 			new_ast.get_data<core_ast::label>(*new_ast.get_node(label).data_index).id = lbl;
 		}
 
+		// This size will be used in bytecode generation
+		new_ast.get_node(block).size = size;
+
 		if (has_else)
 		{
 			auto body_res = lower(ast.get_node(children.back()), ast, new_ast, context);
@@ -271,6 +283,8 @@ namespace fe::ext_ast
 
 	lowering_result lower_id(node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
 	{
+		// Assumes variable in current stack frame
+
 		assert(n.kind == node_type::IDENTIFIER);
 		assert(!has_children(n, ast));
 
@@ -287,20 +301,20 @@ namespace fe::ext_ast
 			.resolve_variable(id.root_identifier(), ast.type_scope_cb()))
 			.type
 			.calculate_offset(id.offsets);
-		auto& location_reg = ast.get_data<identifier>(ast.get_node((*ast
+		auto frame_offset = ast.get_data<identifier>(ast.get_node((*ast
 			.get_name_scope(n.name_scope_id)
 			.resolve_variable(id.root_identifier(), ast.name_scope_cb())).declaration_node)
-			.data_index).index_in_function;
+			.data_index).offset_from_fp;
 
 		auto alloc = new_ast.create_node(core_ast::node_type::SALLOC, block);
 		new_ast.get_data<core_ast::size>(*new_ast.get_node(alloc).data_index).val = size;
 
 		auto read = new_ast.create_node(core_ast::node_type::MOVE, block);
 		auto& move_data = new_ast.get_data<core_ast::move_data>(*new_ast.get_node(read).data_index);
-		move_data.to_t = core_ast::move_data::dst_type::STACK;
+		move_data.to_t = core_ast::move_data::dst_type::RELATIVE_TO_SP;
 		move_data.to = -static_cast<int64_t>(size);
-		move_data.from_t = core_ast::move_data::src_type::LOC_WITH_OFFSET;
-		move_data.from = (static_cast<int64_t>(location_reg) << 32) | static_cast<int32_t>(offset);
+		move_data.from_t = core_ast::move_data::src_type::RELATIVE_TO_FP;
+		move_data.from = frame_offset;
 		move_data.size = size;
 
 		return { static_cast<int64_t>(size), block };
@@ -412,18 +426,14 @@ namespace fe::ext_ast
 		if (lhs_node.kind == node_type::IDENTIFIER)
 		{
 			// Put location in register
-			auto loc = context.alloc_variable();
 			auto& identifier_data = ast.get_data<ext_ast::identifier>(lhs_node.data_index);
-			identifier_data.index_in_function = loc;
-			auto mv = new_ast.create_node(core_ast::node_type::MOVE, block);
-			auto& mv_data = new_ast.get_data<core_ast::move_data>(*new_ast.get_node(mv).data_index);
-			mv_data.from_t = core_ast::move_data::src_type::SP;
-			mv_data.to_t = core_ast::move_data::dst_type::REG;
-			mv_data.to = loc;
+			identifier_data.offset_from_fp = context.frame_size;
 
 			auto& rhs_node = ast.get_node(children[2]);
 			auto rhs = lower(rhs_node, ast, new_ast, context);
 			link_child_parent(rhs.id, block, new_ast);
+
+			context.frame_size += rhs.allocated_stack_space;
 
 			if (rhs_node.kind == node_type::FUNCTION)
 			{
@@ -482,9 +492,9 @@ namespace fe::ext_ast
 
 		auto move = new_ast.create_node(core_ast::node_type::MOVE, block);
 		auto& move_data = new_ast.get_data<core_ast::move_data>(*new_ast.get_node(move).data_index);
-		move_data.from_t = core_ast::move_data::src_type::STACK;
-		move_data.to_t = core_ast::move_data::dst_type::RES;
+		move_data.from_t = core_ast::move_data::src_type::RELATIVE_TO_SP;
 		move_data.from = (2 * -static_cast<int64_t>(size)) - 2;
+		move_data.to_t = core_ast::move_data::dst_type::RES;
 		move_data.to = 0;
 		move_data.size = size;
 
@@ -493,6 +503,7 @@ namespace fe::ext_ast
 
 		auto ret = new_ast.create_node(core_ast::node_type::RET, block);
 		new_ast.get_data<core_ast::size>(*new_ast.get_node(ret).data_index).val = size;
+		new_ast.get_node(ret).size = size;
 
 		return { 0, fn };
 	}

@@ -29,6 +29,8 @@ namespace fe::vm
 		case op_kind::MOD_REG_REG_REG: return "mod_reg_reg_reg";
 		case op_kind::GT_REG_REG_REG: return "gt_reg_reg_reg";
 		case op_kind::GTE_REG_REG_REG: return "gte_reg_reg_reg";
+		case op_kind::LT_REG_REG_REG: return "lt_reg_reg_reg";
+		case op_kind::LTE_REG_REG_REG: return "lte_reg_reg_reg";
 		case op_kind::EQ_REG_REG_REG: return "eq_reg_reg_reg";
 		case op_kind::NEQ_REG_REG_REG: return "neq_reg_reg_reg";
 		case op_kind::AND_REG_REG_REG: return "and_reg_reg_reg";
@@ -88,6 +90,8 @@ namespace fe::vm
 		case op_kind::MOD_REG_REG_REG: return 4;
 		case op_kind::GT_REG_REG_REG: return 4;
 		case op_kind::GTE_REG_REG_REG: return 4;
+		case op_kind::LT_REG_REG_REG: return 4;
+		case op_kind::LTE_REG_REG_REG: return 4;
 		case op_kind::EQ_REG_REG_REG: return 4;
 		case op_kind::NEQ_REG_REG_REG: return 4;
 		case op_kind::AND_REG_REG_REG: return 4;
@@ -264,6 +268,14 @@ namespace fe::vm
 	bytes<4> make_gte(reg dest, reg a, reg b)
 	{
 		return bytes<4>{ op_to_byte(op_kind::GTE_REG_REG_REG), dest.val, a.val, b.val };
+	}
+	bytes<4> make_lt(reg dest, reg a, reg b)
+	{
+		return bytes<4>{ op_to_byte(op_kind::LT_REG_REG_REG), dest.val, a.val, b.val };
+	}
+	bytes<4> make_lte(reg dest, reg a, reg b)
+	{
+		return bytes<4>{ op_to_byte(op_kind::LTE_REG_REG_REG), dest.val, a.val, b.val };
 	}
 	bytes<4> make_eq(reg dest, reg a, reg b)
 	{

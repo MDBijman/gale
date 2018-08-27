@@ -326,8 +326,9 @@ namespace fe::vm
 
 		size_t code_size = 0;
 
+		assert(node.size > 0 && node.size <= 8);
+
 		code_gen_result res = generate_bytecode(node.children[0], ast, p, i);
-		assert(res.result_size > 0 && res.result_size <= 8);
 		code_size += res.code_size;
 
 		int64_t mask = 0;
@@ -409,7 +410,7 @@ namespace fe::vm
 		{
 			std::tie(loc, size) = bc.add_instruction(make_mv_loc_reg(move_data.size, reg(move_data.to), reg(move_data.from)));
 		}
-		else if (t_t == core_ast::move_data::dst_type::REG && f_t == core_ast::move_data::src_type::STACK)
+		else if (t_t == core_ast::move_data::dst_type::REG && f_t == core_ast::move_data::src_type::RELATIVE_TO_SP)
 		{
 			assert(move_data.size > 0 && move_data.size <= 8);
 			auto move_size = move_data.size;
@@ -428,7 +429,7 @@ namespace fe::vm
 				make_and(move_data.to, move_data.to, reg(tmp))
 			);
 		}
-		else if (t_t == core_ast::move_data::dst_type::LOC && f_t == core_ast::move_data::src_type::STACK)
+		else if (t_t == core_ast::move_data::dst_type::LOC && f_t == core_ast::move_data::src_type::RELATIVE_TO_SP)
 		{
 			auto r_from = i.alloc_register();
 			auto r_to_orig = i.alloc_variable_register(move_data.to);
@@ -445,7 +446,7 @@ namespace fe::vm
 			for (; (i + 1) * 2 <= move_data.size; i += 2) size += bc.add_instructions(make_mv16_reg_loc(r_buff, r_from), make_mv16_loc_reg(r_to, r_buff), make_add(r_from, r_from, byte(2)), make_add(r_to, r_to, byte(2))).second;
 			for (; (i + 1) <= move_data.size; i += 1) size += bc.add_instructions(make_mv8_reg_loc(r_buff, r_from), make_mv8_loc_reg(r_to, r_buff)).second;
 		}
-		else if (t_t == core_ast::move_data::dst_type::STACK && f_t == core_ast::move_data::src_type::LOC_WITH_OFFSET)
+		else if (t_t == core_ast::move_data::dst_type::RELATIVE_TO_SP && f_t == core_ast::move_data::src_type::LOC_WITH_OFFSET)
 		{
 			auto r_from_orig = i.alloc_variable_register(static_cast<uint32_t>(move_data.from >> 32));
 			auto r_from = i.alloc_register();
@@ -466,7 +467,7 @@ namespace fe::vm
 			for (; (i + 1) * 2 <= move_data.size; i += 2) size += bc.add_instructions(make_mv16_reg_loc(r_buff, r_from), make_mv16_loc_reg(r_to, r_buff), make_add(r_from, r_from, byte(2)), make_add(r_to, r_to, byte(2))).second;
 			for (; (i + 1) <= move_data.size; i += 1) size += bc.add_instructions(make_mv8_reg_loc(r_buff, r_from), make_mv8_loc_reg(r_to, r_buff)).second;
 		}
-		else if (t_t == core_ast::move_data::dst_type::STACK && f_t == core_ast::move_data::src_type::STACK)
+		else if (t_t == core_ast::move_data::dst_type::RELATIVE_TO_SP && f_t == core_ast::move_data::src_type::RELATIVE_TO_SP)
 		{
 			auto r_from = i.alloc_register();
 			std::tie(loc, size) = bc.add_instructions(
@@ -478,6 +479,42 @@ namespace fe::vm
 				make_mv_reg_i16(r_to, move_data.to),
 				make_add(r_to, vm::sp_reg, r_to)
 			).second;
+			auto r_buff = i.alloc_register();
+			int i = 0;
+			for (; (i + 1) * 8 <= move_data.size; i += 8) size += bc.add_instructions(make_mv64_reg_loc(r_buff, r_from), make_mv64_loc_reg(r_to, r_buff), make_add(r_from, r_from, byte(8)), make_add(r_to, r_to, byte(8))).second;
+			for (; (i + 1) * 4 <= move_data.size; i += 4) size += bc.add_instructions(make_mv32_reg_loc(r_buff, r_from), make_mv32_loc_reg(r_to, r_buff), make_add(r_from, r_from, byte(4)), make_add(r_to, r_to, byte(4))).second;
+			for (; (i + 1) * 2 <= move_data.size; i += 2) size += bc.add_instructions(make_mv16_reg_loc(r_buff, r_from), make_mv16_loc_reg(r_to, r_buff), make_add(r_from, r_from, byte(2)), make_add(r_to, r_to, byte(2))).second;
+			for (; (i + 1) <= move_data.size; i += 1) size += bc.add_instructions(make_mv8_reg_loc(r_buff, r_from), make_mv8_loc_reg(r_to, r_buff)).second;
+		}
+		else if (t_t == core_ast::move_data::dst_type::RELATIVE_TO_SP && f_t == core_ast::move_data::src_type::RELATIVE_TO_FP)
+		{
+			auto r_from = i.alloc_register();
+			auto r_to = i.alloc_register();
+			size = bc.add_instructions(
+				make_mv64_reg_reg(r_from, vm::fp_reg),
+				move_data.from > 0 ? make_add(r_from, r_from, byte(move_data.from)) : make_sub(r_from, r_from, byte(-move_data.from)),
+				make_mv64_reg_reg(r_to, vm::sp_reg),
+				move_data.to > 0 ? make_add(r_to, r_to, byte(move_data.to)) : make_sub(r_to, r_to, byte(-move_data.to))
+			).second;
+
+			auto r_buff = i.alloc_register();
+			int i = 0;
+			for (; (i + 1) * 8 <= move_data.size; i += 8) size += bc.add_instructions(make_mv64_reg_loc(r_buff, r_from), make_mv64_loc_reg(r_to, r_buff), make_add(r_from, r_from, byte(8)), make_add(r_to, r_to, byte(8))).second;
+			for (; (i + 1) * 4 <= move_data.size; i += 4) size += bc.add_instructions(make_mv32_reg_loc(r_buff, r_from), make_mv32_loc_reg(r_to, r_buff), make_add(r_from, r_from, byte(4)), make_add(r_to, r_to, byte(4))).second;
+			for (; (i + 1) * 2 <= move_data.size; i += 2) size += bc.add_instructions(make_mv16_reg_loc(r_buff, r_from), make_mv16_loc_reg(r_to, r_buff), make_add(r_from, r_from, byte(2)), make_add(r_to, r_to, byte(2))).second;
+			for (; (i + 1) <= move_data.size; i += 1) size += bc.add_instructions(make_mv8_reg_loc(r_buff, r_from), make_mv8_loc_reg(r_to, r_buff)).second;
+		}
+		else if (t_t == core_ast::move_data::dst_type::RELATIVE_TO_FP && f_t == core_ast::move_data::src_type::RELATIVE_TO_SP)
+		{
+			auto r_from = i.alloc_register();
+			auto r_to = i.alloc_register();
+			size = bc.add_instructions(
+				make_mv64_reg_reg(r_from, vm::sp_reg),
+				move_data.from > 0 ? make_add(r_from, r_from, byte(move_data.from)) : make_sub(r_from, r_from, byte(-move_data.from)),
+				make_mv64_reg_reg(r_to, vm::fp_reg),
+				move_data.to > 0 ? make_add(r_to, r_to, byte(move_data.to)) : make_sub(r_to, r_to, byte(-move_data.to))
+			).second;
+
 			auto r_buff = i.alloc_register();
 			int i = 0;
 			for (; (i + 1) * 8 <= move_data.size; i += 8) size += bc.add_instructions(make_mv64_reg_loc(r_buff, r_from), make_mv64_loc_reg(r_to, r_buff), make_add(r_from, r_from, byte(8)), make_add(r_to, r_to, byte(8))).second;
@@ -608,10 +645,10 @@ namespace fe::vm
 		case core_ast::node_type::MOD:size += bc.add_instruction(make_mod(r_res, r_res_lhs, r_res_rhs)).second; break;
 		case core_ast::node_type::AND:size += bc.add_instruction(make_and(r_res, r_res_lhs, r_res_rhs)).second; break;
 		case core_ast::node_type::OR: size += bc.add_instruction(make_or(r_res, r_res_lhs, r_res_rhs)).second; break;
-		case core_ast::node_type::LT: size += bc.add_instruction(make_gte(r_res, r_res_rhs, r_res_lhs)).second; break;
-		case core_ast::node_type::GEQ:size += bc.add_instruction(make_gte(r_res, r_res_lhs, r_res_rhs)).second; break;
+		case core_ast::node_type::LT: size += bc.add_instruction(make_lt(r_res, r_res_lhs, r_res_rhs)).second; break;
+		case core_ast::node_type::LEQ:size += bc.add_instruction(make_lte(r_res, r_res_lhs, r_res_rhs)).second; break;
 		case core_ast::node_type::GT: size += bc.add_instruction(make_gt(r_res, r_res_lhs, r_res_rhs)).second; break;
-		case core_ast::node_type::LEQ:size += bc.add_instruction(make_gt(r_res, r_res_rhs, r_res_lhs)).second; break;
+		case core_ast::node_type::GEQ:size += bc.add_instruction(make_gte(r_res, r_res_lhs, r_res_rhs)).second; break;
 		case core_ast::node_type::EQ: size += bc.add_instruction(make_eq(r_res, r_res_lhs, r_res_rhs)).second; break;
 		case core_ast::node_type::NEQ:size += bc.add_instruction(make_neq(r_res, r_res_lhs, r_res_rhs)).second; break;
 		}

@@ -38,6 +38,10 @@ namespace fe::vm
 		GT_REG_REG_REG,
 		// if reg[b1] >= reg[b2] { reg[b0] <- 1 } else { reg[b0] <- 0 }
 		GTE_REG_REG_REG,
+		// if reg[b1] < reg[b2] { reg[b0] <- 1 } else { reg[b0] <- 0 }
+		LT_REG_REG_REG,
+		// if reg[b1] <= reg[b2] { reg[b0] <- 1 } else { reg[b0] <- 0 }
+		LTE_REG_REG_REG,
 		// if reg[b1] == reg[b2] { reg[b0] <- 1 } else { reg[b0] <- 0 }
 		EQ_REG_REG_REG,
 		// if reg[b1] != reg[b2] { reg[b0] <- 1 } else { reg[b0] <- 0 }
@@ -169,6 +173,8 @@ namespace fe::vm
 	bytes<4> make_or(reg dest, reg a, reg b);
 	bytes<4> make_gt(reg dest, reg a, reg b);
 	bytes<4> make_gte(reg dest, reg a, reg b);
+	bytes<4> make_lt(reg dest, reg a, reg b);
+	bytes<4> make_lte(reg dest, reg a, reg b);
 	bytes<4> make_eq(reg dest, reg a, reg b);
 	bytes<4> make_neq(reg dest, reg a, reg b);
 	bytes<2> make_mv_sp(reg dest);
