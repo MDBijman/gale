@@ -16,15 +16,19 @@ module fib
 import [std std.assert]
 
 let fib: std.i64 -> std.i64 = \n => if (n <= 2) { 1 } else { (fib (n - 1) + fib (n - 2)) };
-let a: std.i64 = fib 3;
-std.assert.assert (a == 2);
+let a: std.i64 = fib 31;
+std.assert.assert (a == 1346269);
 		)delim";
 
 	using namespace fe::types;
 	fe::project p{ fe::pipeline() };
 	p.add_module(fe::stdlib::typedefs::load());
 	p.add_module(fe::stdlib::assert::load());
+	auto before = std::chrono::high_resolution_clock::now();
 	p.eval(code);
+	auto after = std::chrono::high_resolution_clock::now();
+	auto time = std::chrono::duration<double, std::milli>(after - before).count();
+	std::cout << time << std::endl;
 }
 
 TEST_CASE("scope", "[bytecode]")

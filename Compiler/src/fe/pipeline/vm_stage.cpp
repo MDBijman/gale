@@ -119,9 +119,10 @@ namespace fe::vm
 				bytes<10> in = e.functions[chunk].get_bytecode().get_instruction<10>(ip);
 				op_kind op = byte_to_op(in[0].val);
 				uint8_t size = op_size(op);
-				std::cout << chunk << ":" << ip << " " << op_to_string(op) << " ";
-				for (int i = 1; i < op_size(op); i++) std::cout << std::to_string(in[i].val) << " ";
-				std::cout << std::endl;
+
+				//std::cout << chunk << ":" << ip << " " << op_to_string(op) << " ";
+				//for (int i = 1; i < op_size(op); i++) std::cout << std::to_string(in[i].val) << " ";
+				//std::cout << std::endl;
 
 				switch (op)
 				{
@@ -137,8 +138,10 @@ namespace fe::vm
 
 					// Logic
 
-				case op_kind::GT_REG_REG_REG:  REG[in[1].val] = REG[in[2].val] > REG[in[3].val] ? 1 : 0; IP += size; std::cout << REG[in[1].val] << "\n"; break;
+				case op_kind::GT_REG_REG_REG:  REG[in[1].val] = REG[in[2].val] > REG[in[3].val] ? 1 : 0; IP += size; break;
 				case op_kind::GTE_REG_REG_REG: REG[in[1].val] = REG[in[2].val] >= REG[in[3].val] ? 1 : 0; IP += size; break;
+				case op_kind::LT_REG_REG_REG:  REG[in[1].val] = REG[in[2].val] < REG[in[3].val] ? 1 : 0; IP += size; break;
+				case op_kind::LTE_REG_REG_REG: REG[in[1].val] = REG[in[2].val] <= REG[in[3].val] ? 1 : 0; IP += size; break;
 				case op_kind::EQ_REG_REG_REG:  REG[in[1].val] = REG[in[2].val] == REG[in[3].val] ? 1 : 0; IP += size; break;
 				case op_kind::NEQ_REG_REG_REG: REG[in[1].val] = REG[in[2].val] != REG[in[3].val] ? 1 : 0; IP += size; break;
 				case op_kind::AND_REG_REG_REG: REG[in[1].val] = REG[in[2].val] & REG[in[3].val]; IP += size; break;
