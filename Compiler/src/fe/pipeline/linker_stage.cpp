@@ -49,23 +49,14 @@ namespace fe::vm
 				case op_kind::JMPR_I32:
 				{
 					auto label = read_ui32(bytes<4>{data[j + 1], data[j + 2], data[j + 3], data[j + 4]});
-					auto offset = make_i32(label_locations.at(label).ip - j);
-					// #todo abstract this into function
-					data[j + 1] = offset[0];
-					data[j + 2] = offset[1];
-					data[j + 3] = offset[2];
-					data[j + 4] = offset[3];
+					*(reinterpret_cast<int32_t*>(&data[j + 1])) = static_cast<int32_t>(label_locations.at(label).ip - j);
 					break;
 				}
 				case op_kind::JRNZ_REG_I32:
 				case op_kind::JRZ_REG_I32:
 				{
 					auto label = read_ui32(bytes<4>{data[j + 2], data[j + 3], data[j + 4], data[j + 5]});
-					auto offset = make_i32(label_locations.at(label).ip - j);
-					data[j + 2] = offset[0];
-					data[j + 3] = offset[1];
-					data[j + 4] = offset[2];
-					data[j + 5] = offset[3];
+					*(reinterpret_cast<int32_t*>(&data[j + 2])) = static_cast<int32_t>(label_locations.at(label).ip - j);
 					break;
 				}
 
@@ -73,19 +64,11 @@ namespace fe::vm
 
 				case op_kind::CALL_UI64:
 				{
-					auto label = read_ui32(bytes<4>{data[j + 5], data[j + 6], data[j + 7], data[j + 8]});
+					auto label = read_ui64(&data[j + 1].val);
 					auto function_name = chunks[i].get_symbols().at(label);
 					auto function_location = function_locations.at(function_name);
 
-					auto offset = make_ui64(far_lbl(function_location, 0).make_ip());
-					data[j + 1] = offset[0];
-					data[j + 2] = offset[1];
-					data[j + 3] = offset[2];
-					data[j + 4] = offset[3];
-					data[j + 5] = offset[4];
-					data[j + 6] = offset[5];
-					data[j + 7] = offset[6];
-					data[j + 8] = offset[7];
+					*(reinterpret_cast<uint64_t*>(&data[j + 1])) = far_lbl(function_location, 0).make_ip();
 					break;
 				}
 				}
