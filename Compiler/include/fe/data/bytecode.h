@@ -114,7 +114,70 @@ namespace fe::vm
 	op_kind byte_to_op(uint8_t);
 
 	std::string op_to_string(op_kind);
-	uint8_t op_size(op_kind);
+
+	// Returns max uint8_t value on error
+	constexpr uint8_t op_size(op_kind o)
+	{
+		switch (o)
+		{
+		case op_kind::NOP: return 1;
+		case op_kind::ADD_REG_REG_REG: return 4;
+		case op_kind::ADD_REG_REG_UI8: return 4;
+		case op_kind::SUB_REG_REG_REG: return 4;
+		case op_kind::SUB_REG_REG_UI8: return 4;
+		case op_kind::MUL_REG_REG_REG: return 4;
+		case op_kind::DIV_REG_REG_REG: return 4;
+		case op_kind::MOD_REG_REG_REG: return 4;
+		case op_kind::GT_REG_REG_REG: return 4;
+		case op_kind::GTE_REG_REG_REG: return 4;
+		case op_kind::LT_REG_REG_REG: return 4;
+		case op_kind::LTE_REG_REG_REG: return 4;
+		case op_kind::EQ_REG_REG_REG: return 4;
+		case op_kind::NEQ_REG_REG_REG: return 4;
+		case op_kind::AND_REG_REG_REG: return 4;
+		case op_kind::AND_REG_REG_UI8: return 4;
+		case op_kind::OR_REG_REG_REG: return 4;
+		case op_kind::MV_REG_SP: return 2;
+		case op_kind::MV_REG_IP: return 2;
+		case op_kind::MV_REG_UI8: return 3;
+		case op_kind::MV_REG_UI16: return 4;
+		case op_kind::MV_REG_UI32: return 6;
+		case op_kind::MV_REG_UI64: return 10;
+		case op_kind::MV_REG_I8: return 3;
+		case op_kind::MV_REG_I16: return 4;
+		case op_kind::MV_REG_I32: return 6;
+		case op_kind::MV_REG_I64: return 10;
+		case op_kind::MV8_REG_REG: return 3;
+		case op_kind::MV16_REG_REG: return 3;
+		case op_kind::MV32_REG_REG: return 3;
+		case op_kind::MV64_REG_REG: return 3;
+		case op_kind::MV8_LOC_REG: return 3;
+		case op_kind::MV16_LOC_REG: return 3;
+		case op_kind::MV32_LOC_REG: return 3;
+		case op_kind::MV64_LOC_REG: return 3;
+		case op_kind::MV8_REG_LOC: return 3;
+		case op_kind::MV16_REG_LOC: return 3;
+		case op_kind::MV32_REG_LOC: return 3;
+		case op_kind::MV64_REG_LOC: return 3;
+		case op_kind::PUSH8_REG: return 2;
+		case op_kind::PUSH16_REG: return 2;
+		case op_kind::PUSH32_REG: return 2;
+		case op_kind::PUSH64_REG: return 2;
+		case op_kind::POP8_REG: return 2;
+		case op_kind::POP16_REG: return 2;
+		case op_kind::POP32_REG: return 2;
+		case op_kind::POP64_REG: return 2;
+		case op_kind::LBL_UI32: return 5;
+		case op_kind::JMPR_I32: return 5;
+		case op_kind::JRNZ_REG_I32: return 6;
+		case op_kind::JRZ_REG_I32: return 6;
+		case op_kind::CALL_UI64: return 9;
+		case op_kind::RET_UI8: return 2;
+		default: return -1;
+		}
+	}
+	// Compile time op size struct
+	template<op_kind Op> struct ct_op_size { static constexpr uint8_t value = op_size(Op); };
 
 	struct byte
 	{
@@ -139,24 +202,35 @@ namespace fe::vm
 	using bytes = std::array<byte, C>;
 
 	bytes<8> make_i64(int64_t);
+	int64_t read_i64(const uint8_t*);
 	int64_t read_i64(bytes<8>);
-	int64_t read_i64(uint8_t*);
+
 	bytes<8> make_ui64(uint64_t);
+	uint64_t read_ui64(const uint8_t*);
 	uint64_t read_ui64(bytes<8>);
 
 	bytes<4> make_i32(int32_t);
+	int32_t read_i32(const uint8_t*);
 	int32_t read_i32(bytes<4>);
+
 	bytes<4> make_ui32(uint32_t);
+	uint32_t read_ui32(const uint8_t*);
 	uint32_t read_ui32(bytes<4>);
 
 	bytes<2> make_ui16(uint16_t);
+	uint16_t read_ui16(const uint8_t*);
 	uint16_t read_ui16(bytes<2>);
+
 	bytes<2> make_i16(int16_t);
+	int16_t read_i16(const uint8_t*);
 	int16_t read_i16(bytes<2>);
 
 	bytes<1> make_ui8(uint8_t);
+	uint8_t read_ui8(const uint8_t*);
 	uint8_t read_ui8(bytes<1>);
+
 	bytes<1> make_i8(int8_t);
+	int8_t read_i8(const uint8_t*);
 	int8_t read_i8(bytes<1>);
 
 	// Operator construction methods
@@ -224,7 +298,7 @@ namespace fe::vm
 	{
 		far_lbl() : chunk_id(0), ip(0) {}
 		far_lbl(uint64_t chunk, uint64_t ip) : chunk_id(chunk), ip(ip) {}
-		uint64_t chunk_id; 
+		uint64_t chunk_id;
 		uint64_t ip;
 		uint64_t make_ip()
 		{
@@ -234,10 +308,10 @@ namespace fe::vm
 
 	// near_lbl is used to refer to an instruction within a chunk of bytecode
 
-	struct near_lbl 
+	struct near_lbl
 	{
 		near_lbl(uint64_t i) : ip(i) {}
-		uint64_t ip; 
+		uint64_t ip;
 	};
 	inline near_lbl operator+(const near_lbl& a, const near_lbl& b) { return near_lbl(a.ip + b.ip); }
 	inline near_lbl operator-(const near_lbl& a, const near_lbl& b) { return near_lbl(a.ip - b.ip); }
@@ -257,7 +331,7 @@ namespace fe::vm
 			for (int i = 0; i < C; i++) instructions.push_back(in[i]);
 			return std::make_pair(l, in.size());
 		}
-		
+
 		// Adds the vector of bytes to the end of this bytecode, returning the address of the first byte
 		template<int... Cs> std::pair<near_lbl, uint32_t> add_instructions(bytes<Cs>... in)
 		{
@@ -265,7 +339,12 @@ namespace fe::vm
 			(add_instruction(in), ...);
 			return std::make_pair(l, (Cs + ... + 0));
 		}
-		
+
+		const byte* get_instruction(near_lbl l) const
+		{
+			return &(instructions[l.ip]);
+		}
+
 		// Returns the C bytes starting at the given address, padded with op_kind::ERR bytes
 		template<int C> bytes<C> get_instruction(near_lbl l) const
 		{
@@ -279,7 +358,7 @@ namespace fe::vm
 		{
 			for (int i = 0; i < C; i++) instructions[l.ip + i] = b[i];
 		}
-		
+
 		// Returns true if the given address maps to an instruction
 		bool has_instruction(near_lbl) const;
 
@@ -301,14 +380,14 @@ namespace fe::vm
 		bytecode bc;
 
 	public:
-		
+
 		// Adds the bytes to the end of the bytecode
 		template<int C> bytecode_builder& add(bytes<C> in)
 		{
 			bc.add_instruction(in);
 			return *this;
 		}
-		
+
 		// Adds the vector of bytes to the end of the bytecode
 		template<int... Cs> bytecode_builder& add(bytes<Cs>... in)
 		{

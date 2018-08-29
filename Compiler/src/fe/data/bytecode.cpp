@@ -76,146 +76,38 @@ namespace fe::vm
 		assert(!"Unknown instruction");
 	}
 
-	uint8_t op_size(op_kind o)
-	{
-		switch (o)
-		{
-		case op_kind::NOP: return 1;
-		case op_kind::ADD_REG_REG_REG: return 4;
-		case op_kind::ADD_REG_REG_UI8: return 4;
-		case op_kind::SUB_REG_REG_REG: return 4;
-		case op_kind::SUB_REG_REG_UI8: return 4;
-		case op_kind::MUL_REG_REG_REG: return 4;
-		case op_kind::DIV_REG_REG_REG: return 4;
-		case op_kind::MOD_REG_REG_REG: return 4;
-		case op_kind::GT_REG_REG_REG: return 4;
-		case op_kind::GTE_REG_REG_REG: return 4;
-		case op_kind::LT_REG_REG_REG: return 4;
-		case op_kind::LTE_REG_REG_REG: return 4;
-		case op_kind::EQ_REG_REG_REG: return 4;
-		case op_kind::NEQ_REG_REG_REG: return 4;
-		case op_kind::AND_REG_REG_REG: return 4;
-		case op_kind::AND_REG_REG_UI8: return 4;
-		case op_kind::OR_REG_REG_REG: return 4;
-		case op_kind::MV_REG_SP: return 2;
-		case op_kind::MV_REG_IP: return 2;
-		case op_kind::MV_REG_UI8: return 3;
-		case op_kind::MV_REG_UI16: return 4;
-		case op_kind::MV_REG_UI32: return 6;
-		case op_kind::MV_REG_UI64: return 10;
-		case op_kind::MV_REG_I8: return 3;
-		case op_kind::MV_REG_I16: return 4;
-		case op_kind::MV_REG_I32: return 6;
-		case op_kind::MV_REG_I64: return 10;
-		case op_kind::MV8_REG_REG: return 3;
-		case op_kind::MV16_REG_REG: return 3;
-		case op_kind::MV32_REG_REG: return 3;
-		case op_kind::MV64_REG_REG: return 3;
-		case op_kind::MV8_LOC_REG: return 3;
-		case op_kind::MV16_LOC_REG: return 3;
-		case op_kind::MV32_LOC_REG: return 3;
-		case op_kind::MV64_LOC_REG: return 3;
-		case op_kind::MV8_REG_LOC: return 3;
-		case op_kind::MV16_REG_LOC: return 3;
-		case op_kind::MV32_REG_LOC: return 3;
-		case op_kind::MV64_REG_LOC: return 3;
-		case op_kind::PUSH8_REG: return 2;
-		case op_kind::PUSH16_REG: return 2;
-		case op_kind::PUSH32_REG: return 2;
-		case op_kind::PUSH64_REG: return 2;
-		case op_kind::POP8_REG: return 2;
-		case op_kind::POP16_REG: return 2;
-		case op_kind::POP32_REG: return 2;
-		case op_kind::POP64_REG: return 2;
-		case op_kind::LBL_UI32: return 5;
-		case op_kind::JMPR_I32: return 5;
-		case op_kind::JRNZ_REG_I32: return 6;
-		case op_kind::JRZ_REG_I32: return 6;
-		case op_kind::CALL_UI64: return 9;
-		case op_kind::RET_UI8: return 2;
-		}
-		assert(!"Unknown instruction");
-	}
 
-	bytes<8> make_i64(int64_t a)
-	{
-		return bytes<8> {
-			static_cast<uint8_t>((a & 0xFF00000000000000) >> 56),
-				static_cast<uint8_t>((a & 0xFF000000000000) >> 48),
-				static_cast<uint8_t>((a & 0xFF0000000000) >> 40),
-				static_cast<uint8_t>((a & 0xFF00000000) >> 32),
-				static_cast<uint8_t>((a & 0xFF000000) >> 24),
-				static_cast<uint8_t>((a & 0xFF0000) >> 16),
-				static_cast<uint8_t>((a & 0xFF00) >> 8),
-				static_cast<uint8_t>(a & 0xFF)
-		};
-	}
-	int64_t read_i64(bytes<8> in)
-	{
-		return (static_cast<int64_t>(in[0].val) << 56) |
-			(static_cast<int64_t>(in[1].val) << 48) |
-			(static_cast<int64_t>(in[2].val) << 40) |
-			(static_cast<int64_t>(in[3].val) << 32) |
-			(static_cast<int64_t>(in[4].val) << 24) |
-			(static_cast<int64_t>(in[5].val) << 16) |
-			(static_cast<int64_t>(in[6].val) << 8) |
-			in[7].val;
-	}
-	int64_t read_i64(uint8_t* b)
-	{
-		return (static_cast<int64_t>(*b) << 56) |
-			(static_cast<int64_t>(*(b + 1)) << 48) |
-			(static_cast<int64_t>(*(b + 2)) << 40) |
-			(static_cast<int64_t>(*(b + 3)) << 32) |
-			(static_cast<int64_t>(*(b + 4)) << 24) |
-			(static_cast<int64_t>(*(b + 5)) << 16) |
-			(static_cast<int64_t>(*(b + 6)) << 8) |
-			(*(b + 7));
-	}
-	bytes<8> make_ui64(uint64_t a) { return make_i64(static_cast<int64_t>(a)); }
+	bytes<8> make_i64(int64_t a) { return *reinterpret_cast<bytes<8>*>(&a); }
+	int64_t read_i64(const uint8_t* b) { return *reinterpret_cast<const int64_t*>(b); }
+	int64_t read_i64(bytes<8> in) { return read_i64(&in[0].val); }
+	
+	bytes<8> make_ui64(uint64_t a) { return *reinterpret_cast<bytes<8>*>(&a); }
+	uint64_t read_ui64(const uint8_t* in) { return *reinterpret_cast<const uint64_t*>(in); }
 	uint64_t read_ui64(bytes<8> in) { return static_cast<uint64_t>(read_i64(in)); }
-	bytes<4> make_i32(int32_t a)
-	{
-		return bytes<4> {
-			static_cast<uint8_t>((a & 0xFF000000) >> 24),
-				static_cast<uint8_t>((a & 0xFF0000) >> 16),
-				static_cast<uint8_t>((a & 0xFF00) >> 8),
-				static_cast<uint8_t>((a & 0xFF))
-		};
-	}
-	int32_t read_i32(bytes<4> in)
-	{
-		return (static_cast<int32_t>(in[0].val) << 24) |
-			(static_cast<int32_t>(in[1].val) << 16) |
-			(static_cast<int32_t>(in[2].val) << 8) |
-			in[3].val;
-	}
+
+	bytes<4> make_i32(int32_t a) { return *reinterpret_cast<bytes<4>*>(&a); }
+	int32_t read_i32(const uint8_t* in) { return *reinterpret_cast<const int32_t*>(in); }
+	int32_t read_i32(bytes<4> in) { return read_i32(&in[0].val); }
+
 	bytes<4> make_ui32(uint32_t a) { return make_i32(static_cast<int32_t>(a)); }
+	uint32_t read_ui32(const uint8_t* in) { return static_cast<uint32_t>(read_i32(in)); }
 	uint32_t read_ui32(bytes<4> in) { return static_cast<uint32_t>(read_i32(in)); }
-	bytes<2> make_i16(int16_t a)
-	{
-		return bytes<2> {
-			static_cast<uint8_t>((a & 0xFF00) >> 8),
-				static_cast<uint8_t>((a & 0xFF))
-		};
-	}
-	int16_t read_i16(bytes<2> in)
-	{
-		return (static_cast<int16_t>(in[0].val) << 8) |
-			in[1].val;
-	}
+
+	bytes<2> make_i16(int16_t a) { return *reinterpret_cast<bytes<2>*>(&a); }
+	int16_t read_i16(const uint8_t* in) { return *reinterpret_cast<const int16_t*>(in); }
+	int16_t read_i16(bytes<2> in) { return read_i16(&in[0].val); }
+
 	bytes<2> make_ui16(uint16_t a) { return make_i16(static_cast<int16_t>(a)); }
-	uint16_t read_ui16(bytes<2> in) { return static_cast<int16_t>(read_i16(in)); }
-	bytes<1> make_ui8(uint8_t a)
-	{
-		return bytes<1>{a};
-	}
-	uint8_t read_ui8(bytes<1> in)
-	{
-		return in[0].val;
-	}
-	bytes<1> make_i8(int8_t a) { return make_ui8(static_cast<uint8_t>(a)); }
-	int8_t read_i8(bytes<1> in) { return static_cast<int8_t>(read_ui8(in)); }
+	uint16_t read_ui16(const uint8_t* in) { return static_cast<uint16_t>(read_i16(in)); }
+	uint16_t read_ui16(bytes<2> in) { return static_cast<uint16_t>(read_i16(in)); }
+
+	bytes<1> make_i8(int8_t a) { return *reinterpret_cast<bytes<1>*>(&a); }
+	int8_t read_i8(const uint8_t* in) { return *reinterpret_cast<const int8_t*>(in); }
+	int8_t read_i8(bytes<1> in) { return read_i8(&in[0].val); }
+
+	bytes<1> make_ui8(uint8_t a) { return make_i8(static_cast<int8_t>(a)); }
+	uint8_t read_ui8(const uint8_t* in) { return static_cast<uint8_t>(read_i8(in)); }
+	uint8_t read_ui8(bytes<1> in) { return static_cast<uint8_t>(read_i8(in)); }
 
 	bytes<1> make_nop()
 	{
@@ -299,41 +191,18 @@ namespace fe::vm
 	}
 	bytes<4> make_mv_reg_ui16(reg dest, uint16_t a)
 	{
-		return bytes<4>{
-			op_to_byte(op_kind::MV_REG_UI16),
-				dest.val,
-				// #todo replace with make_ui16
-				static_cast<uint8_t>((a & 0xFF00) >> 8),
-				static_cast<uint8_t>(a & 0xFF),
-		};
+		auto lit = make_ui16(a);
+		return bytes<4>{op_to_byte(op_kind::MV_REG_UI16), dest.val, lit[0], lit[1] };
 	}
 	bytes<6> make_mv_reg_ui32(reg dest, uint32_t a)
 	{
-		return bytes<6>{
-			op_to_byte(op_kind::MV_REG_UI32),
-				dest.val,
-				// #todo replace with make_ui32
-				static_cast<uint8_t>((a & 0xFF000000) >> 24),
-				static_cast<uint8_t>((a & 0xFF0000) >> 16),
-				static_cast<uint8_t>((a & 0xFF00) >> 8),
-				static_cast<uint8_t>(a & 0xFF),
-		};
+		auto lit = make_ui32(a);
+		return bytes<6>{op_to_byte(op_kind::MV_REG_UI32), dest.val, lit[0], lit[1], lit[2], lit[3] };
 	}
 	bytes<10> make_mv_reg_ui64(reg dest, uint64_t a)
 	{
-		return bytes<10>{
-			op_to_byte(op_kind::MV_REG_UI64),
-				dest.val,
-				// #todo replace with make_ui64
-				static_cast<uint8_t>((a & 0xFF00000000000000) >> 56),
-				static_cast<uint8_t>((a & 0xFF000000000000) >> 48),
-				static_cast<uint8_t>((a & 0xFF0000000000) >> 40),
-				static_cast<uint8_t>((a & 0xFF00000000) >> 32),
-				static_cast<uint8_t>((a & 0xFF000000) >> 24),
-				static_cast<uint8_t>((a & 0xFF0000) >> 16),
-				static_cast<uint8_t>((a & 0xFF00) >> 8),
-				static_cast<uint8_t>(a & 0xFF),
-		};
+		auto lit = make_ui64(a);
+		return bytes<10>{op_to_byte(op_kind::MV_REG_UI64), dest.val, lit[0], lit[1], lit[2], lit[3], lit[4], lit[5], lit[6], lit[7] };
 	}
 	bytes<3> make_mv_reg_i8(reg dest, int8_t a)
 	{
@@ -341,12 +210,13 @@ namespace fe::vm
 	}
 	bytes<4> make_mv_reg_i16(reg dest, int16_t a)
 	{
-		return bytes<4>{ op_to_byte(op_kind::MV_REG_I16), dest.val, static_cast<uint8_t>((a & 0xFF00) >> 8), static_cast<uint8_t>(a & 0xFF) };
+		auto lit = make_i16(a);
+		return bytes<4>{op_to_byte(op_kind::MV_REG_I16), dest.val, lit[0], lit[1] };
 	}
 	bytes<6> make_mv_reg_i32(reg dest, int32_t a)
 	{
-		assert(!"nyi");
-		return bytes<6>();
+		auto lit = make_i32(a);
+		return bytes<6>{op_to_byte(op_kind::MV_REG_I32), dest.val, lit[0], lit[1], lit[2], lit[3] };
 	}
 	bytes<10> make_mv_reg_i64(reg dest, int64_t a)
 	{

@@ -3,7 +3,7 @@
 
 namespace fe::vm
 {
-	constexpr size_t stack_size = 8192;
+	constexpr size_t stack_size = 2*8192;
 	constexpr size_t register_count = 64;
 	constexpr uint8_t
 		ip_reg = register_count - 1,

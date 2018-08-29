@@ -2,6 +2,7 @@
 #include "fe/modes/project.h"
 #include "fe/modes/repl.h"
 #include "utils/memory/small_vector.h"
+#include "fe/libraries/std/std_assert.h"
 
 #define CATCH_CONFIG_RUNNER
 #define CATCH_CONFIG_FAST_COMPILE
@@ -127,30 +128,24 @@ int main(int argc, char** argv)
 	}
 	else if (mode == "other")
 	{
-	auto code = R"delim(
+		auto code = R"delim(
 module fib
-import [std std.io std.assert]
+import [std std.assert]
 
 let fib: std.i64 -> std.i64 = \n => if (n <= 2) { 1 } else { (fib (n - 1) + fib (n - 2)) };
-let a: std.i64 = fib 3;
-asserts.assert (a == 1);
-asserts.assert (a == 2);
+let a: std.i64 = fib 35;
+std.assert.assert (a == 9227465);
 		)delim";
 
-	using namespace fe::types;
-	fe::project p{ fe::pipeline() };
-	p.add_module(fe::stdlib::io::load());
-	p.add_module(fe::stdlib::typedefs::load());
-	p.add_module(fe::module_builder()
-		.set_name({"asserts"})
-		.add_function(fe::vm::function("assert", fe::vm::native_code([](fe::vm::machine_state& ms) {
-				bool arg2 = ms.stack[ms.registers[fe::vm::fp_reg] - 17];
-				assert(arg2);
-				ms.ret(1);
-			})),
-			unique_type(new function_type(unique_type(new fe::types::boolean()), unique_type(new voidt()))))
-		.build());
-	auto mod = p.eval(code);
+		using namespace fe::types;
+		fe::project p{ fe::pipeline() };
+		p.add_module(fe::stdlib::typedefs::load());
+		p.add_module(fe::stdlib::assert::load());
+		auto before = std::chrono::high_resolution_clock::now();
+		p.eval(code);
+		auto after = std::chrono::high_resolution_clock::now();
+		auto time = std::chrono::duration_cast<std::chrono::milliseconds>(after - before).count();
+		std::cout << "\n" << time << std::endl;
 	}
 	else if (mode == "help")
 	{
