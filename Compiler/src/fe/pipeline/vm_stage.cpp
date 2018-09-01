@@ -69,9 +69,16 @@ namespace fe::vm
 #undef SP
 #undef IP
 
+	extern "C" void vm_init();
+	extern "C" int vm_interpret(const byte* first);
+
 	machine_state interpret(executable& e, settings& s)
 	{
 		const byte* first_instruction = e.code.get_instruction(near_lbl(0));
+
+		vm_init();
+		auto res = vm_interpret(first_instruction);
+
 		machine_state state;
 
 

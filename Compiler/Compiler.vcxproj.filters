@@ -277,4 +277,9 @@
       <Filter>Source Files\fe\libraries\std</Filter>
     </ClInclude>
   </ItemGroup>
+  <ItemGroup>
+    <MASM Include="src\fe\pipeline\vm.asm">
+      <Filter>Source Files\fe\pipeline</Filter>
+    </MASM>
+  </ItemGroup>
 </Project>
