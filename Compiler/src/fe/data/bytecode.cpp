@@ -71,7 +71,9 @@ namespace fe::vm
 		case op_kind::JRNZ_REG_I32: return "jrnz_reg_i32";
 		case op_kind::JRZ_REG_I32: return "jrz_reg_i32";
 		case op_kind::CALL_UI64: return "call_ui64";
+		case op_kind::CALL_NATIVE_UI64: return "call_native_ui64";
 		case op_kind::RET_UI8: return "ret_ui8";
+		case op_kind::EXIT: return "exit";
 		}
 		assert(!"Unknown instruction");
 	}
@@ -368,6 +370,11 @@ namespace fe::vm
 		auto to = make_ui64(ip);
 		return bytes<9>{ op_to_byte(op_kind::CALL_UI64), to[0], to[1], to[2], to[3], to[4], to[5], to[6], to[7] };
 	}
+	bytes<9> make_call_native_ui64(uint64_t ip)
+	{
+		auto to = make_ui64(ip);
+		return bytes<9>{ op_to_byte(op_kind::CALL_NATIVE_UI64), to[0], to[1], to[2], to[3], to[4], to[5], to[6], to[7] };
+	}
 	bytes<2> make_ret(byte a)
 	{
 		return bytes<2>{ op_to_byte(op_kind::RET_UI8), a.val };
@@ -392,6 +399,11 @@ namespace fe::vm
 	{
 		auto lit = make_ui32(id);
 		return bytes<5>{op_to_byte(op_kind::LBL_UI32), lit[0], lit[1], lit[2], lit[3] };
+	}
+
+	bytes<1> make_exit()
+	{
+		return bytes<1>{op_to_byte(op_kind::EXIT)};
 	}
 
 	/*

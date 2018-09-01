@@ -281,6 +281,11 @@ namespace fe::vm
 			stack_size += child_res.result_size;
 		}
 
+		if (is_root)
+		{
+			code_size += p.get_function(info.chunk_of(n)).get_bytecode().add_instruction(make_exit()).second;
+		}
+
 		return code_gen_result(stack_size, location, code_size);
 	}
 

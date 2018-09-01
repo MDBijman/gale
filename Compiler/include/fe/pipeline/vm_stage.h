@@ -28,5 +28,9 @@ namespace fe::vm
 		void ret(uint8_t);
 	};
 
-	machine_state interpret(executable&);
+	struct settings
+	{
+	};
+
+	machine_state interpret(executable&, settings& = settings{});
 }
