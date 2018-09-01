@@ -60,7 +60,7 @@ namespace fe
 
 		vm::machine_state run(vm::executable& e) const
 		{
-			return vm::interpret(e);
+			return vm::interpret(e, vm::settings{});
 		}
 
 	private:

@@ -102,11 +102,15 @@ namespace fe::vm
 		JRZ_REG_I32,
 		// push bp, push ip, ip <- reg[b1]
 		CALL_UI64,
+		CALL_NATIVE_UI64,
 		// reg[x] <- pop, ip <- reg[x]
 		RET_UI8,
 
 		// temporary label with id
 		LBL_UI32,
+
+		EXIT,
+
 		ERR = 255
 	};
 
@@ -172,7 +176,9 @@ namespace fe::vm
 		case op_kind::JRNZ_REG_I32: return 6;
 		case op_kind::JRZ_REG_I32: return 6;
 		case op_kind::CALL_UI64: return 9;
+		case op_kind::CALL_NATIVE_UI64: return 9;
 		case op_kind::RET_UI8: return 2;
+		case op_kind::EXIT: return 1;
 		default: return -1;
 		}
 	}
@@ -286,11 +292,13 @@ namespace fe::vm
 	bytes<2> make_pop32(reg dest);
 	bytes<2> make_pop64(reg dest);
 	bytes<9> make_call_ui64(uint64_t ip);
+	bytes<9> make_call_native_ui64(uint64_t ip);
 	bytes<2> make_ret(byte a);
 	bytes<5> make_jmpr_i32(int32_t offset);
 	bytes<6> make_jrnz_i32(reg a, int32_t offset);
 	bytes<6> make_jrz_i32(reg a, int32_t offset);
 	bytes<5> make_lbl(uint32_t id);
+	bytes<1> make_exit();
 
 	// far_lbl is used to refer to an instruction and the chunk it is a part of
 
@@ -357,6 +365,11 @@ namespace fe::vm
 		template<int C> void set_instruction(near_lbl l, bytes<C> b)
 		{
 			for (int i = 0; i < C; i++) instructions[l.ip + i] = b[i];
+		}
+
+		void append(bytecode& other)
+		{
+			instructions.insert(instructions.end(), other.data().begin(), other.data().end());
 		}
 
 		// Returns true if the given address maps to an instruction
@@ -459,13 +472,14 @@ namespace fe::vm
 	class executable
 	{
 	public:
-		std::vector<function> functions;
+		bytecode code;
+		std::vector<native_code> native_functions;
 
-		executable(std::vector<function> funcs) : functions(funcs) {}
+		executable(bytecode code, std::vector<native_code> nc) : code(code), native_functions(nc) {}
 
-		template<int C> bytes<C> get_instruction(far_lbl l)
+		template<int C> bytes<C> get_instruction(uint64_t loc)
 		{
-			return functions.at(l.chunk_id).code.get_instruction<C>(l.ip);
+			return code.get_instruction<C>(l.ip);
 		}
 	};
 }
