@@ -3,6 +3,7 @@
 #include "fe/data/bytecode.h"
 #include "utils/memory/data_store.h"
 #include <unordered_map>
+#include <bitset>
 
 namespace fe::vm
 {
@@ -14,9 +15,12 @@ namespace fe::vm
 		// Mapping of nodes to bytecode chunks
 		std::unordered_map<node_id, uint8_t> node_to_chunk;
 
-		// Register allocation
-		std::vector<reg> in_use;
-		reg next_allocation = 0;
+		// Caller saved registers = 0..31
+		reg next_caller_saved_allocation = 0;
+		// Callee saved registers = 32..63
+		reg next_callee_saved_allocation = 32;
+		// Bitfield with 64 entries, one for each register, 1 indicates register is allocated
+		std::bitset<64> used_registers;
 
 		std::unordered_map<std::string, core_ast::label> functions;
 		core_ast::label next_function_label = { 0 };
@@ -30,9 +34,15 @@ namespace fe::vm
 		std::unordered_map<uint8_t, uint8_t> var_to_reg;
 
 	public:
-		std::vector<reg> clear_registers();
-		reg alloc_register();
-		reg alloc_variable_register(uint8_t);
+		std::vector<reg> clear_temp_registers();
+		void set_temp_registers(std::vector<reg>);
+		reg alloc_temp_register();
+		void dealloc_temp_register(reg r);
+
+		std::vector<reg> clear_saved_registers();
+		void set_saved_registers(std::vector<reg>);
+		reg alloc_saved_register();
+		void dealloc_saved_register(reg r);
 
 		void link_node_chunk(node_id, uint8_t);
 		uint8_t chunk_of(node_id);

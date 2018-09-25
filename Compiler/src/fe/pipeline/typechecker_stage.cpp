@@ -282,10 +282,7 @@ namespace fe::ext_ast
 		auto& lhs_node = ast.get_node(children[0]);
 		auto& rhs_node = ast.get_node(children[1]);
 
-		auto lhs_type = typeof(lhs_node, ast);
-		auto rhs_type = typeof(rhs_node, ast, type_constraints({ equality_constraint(*lhs_type) }));
-
-		types::unique_type res_type;
+		types::unique_type lhs_type, rhs_type, res_type;
 
 		switch (n.kind)
 		{
@@ -295,6 +292,9 @@ namespace fe::ext_ast
 		case node_type::DIVISION:
 		case node_type::MODULO:
 		{
+			lhs_type = typeof(lhs_node, ast, tc);
+			rhs_type = typeof(rhs_node, ast, type_constraints({ equality_constraint(*lhs_type) }));
+
 			res_type = types::unique_type(lhs_type->copy());
 			break;
 		}
@@ -306,6 +306,9 @@ namespace fe::ext_ast
 		case node_type::AND:
 		case node_type::OR:
 		{
+			lhs_type = typeof(lhs_node, ast);
+			rhs_type = typeof(rhs_node, ast, type_constraints({ equality_constraint(*lhs_type) }));
+
 			res_type = types::unique_type(new types::boolean());
 			break;
 		}

@@ -46,10 +46,10 @@ namespace fe::vm
 		EQ_REG_REG_REG,
 		// if reg[b1] != reg[b2] { reg[b0] <- 1 } else { reg[b0] <- 0 }
 		NEQ_REG_REG_REG,
-		// if reg[b1] != 0 && reg[b2] != 0 { reg[b0] <- 1 } else { reg[b0] <- 0 }
+		// reg[b0] <- reg[b1] & reg[b2]
 		AND_REG_REG_REG,
 		AND_REG_REG_UI8,
-		// if reg[b1] != 0 || reg[b2] != 0 { reg[b0] <- 1 } else { reg[b0] <- 0 }
+		// reg[b0] <- reg[b1] | reg[b2]
 		OR_REG_REG_REG,
 
 		/*
@@ -109,9 +109,14 @@ namespace fe::vm
 		// temporary label with id
 		LBL_UI32,
 
+		// allocate ui8 bytes of memory, put address in reg
+		SALLOC_REG_UI8,
+		// deallocate ui8 bytes of memory
+		SDEALLOC_UI8,
+
 		EXIT,
 
-		ERR = 255
+		ERR 
 	};
 
 	uint8_t op_to_byte(op_kind);
@@ -178,6 +183,8 @@ namespace fe::vm
 		case op_kind::CALL_UI64: return 9;
 		case op_kind::CALL_NATIVE_UI64: return 9;
 		case op_kind::RET_UI8: return 2;
+		case op_kind::SALLOC_REG_UI8: return 3;
+		case op_kind::SDEALLOC_UI8: return 2;
 		case op_kind::EXIT: return 1;
 		default: return -1;
 		}
@@ -298,6 +305,8 @@ namespace fe::vm
 	bytes<6> make_jrnz_i32(reg a, int32_t offset);
 	bytes<6> make_jrz_i32(reg a, int32_t offset);
 	bytes<5> make_lbl(uint32_t id);
+	bytes<3> make_salloc_reg_ui8(reg r, uint8_t size);
+	bytes<2> make_sdealloc_ui8(uint8_t size);
 	bytes<1> make_exit();
 
 	// far_lbl is used to refer to an instruction and the chunk it is a part of
@@ -460,6 +469,7 @@ namespace fe::vm
 
 		void insert_padding(far_lbl loc, uint8_t size)
 		{
+			if (size == 0) return;
 			auto& bc = code.at(loc.chunk_id).get_bytecode().data();
 			bc.insert(bc.begin() + loc.ip, size, byte(0));
 		}

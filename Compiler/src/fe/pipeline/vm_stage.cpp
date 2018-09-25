@@ -72,15 +72,10 @@ namespace fe::vm
 	extern "C" void vm_init();
 	extern "C" int vm_interpret(const byte* first);
 
-	machine_state interpret(executable& e, settings& s)
+	machine_state vm_hl_interpret(executable& e, settings& s)
 	{
+		auto state = machine_state();
 		const byte* first_instruction = e.code.get_instruction(near_lbl(0));
-
-		vm_init();
-		auto res = vm_interpret(first_instruction);
-
-		machine_state state;
-
 
 #define IP state.registers[ip_reg]
 #define SP state.registers[sp_reg]
@@ -164,6 +159,9 @@ namespace fe::vm
 			case op_kind::JRNZ_REG_I32: IP += REG[in[1].val] != 0 ? read_i32(&in[2].val) : ct_op_size<op_kind::JRNZ_REG_I32>::value; continue;
 			case op_kind::JRZ_REG_I32: IP += REG[in[1].val] == 0 ? read_i32(&in[2].val) : ct_op_size<op_kind::JRZ_REG_I32>::value; continue;
 
+			case op_kind::SALLOC_REG_UI8: REG[in[1].val] = SP; SP += read_ui8(&in[2].val); IP += ct_op_size<op_kind::SALLOC_REG_UI8>::value; continue;
+			case op_kind::SDEALLOC_UI8: SP -= read_ui8(&in[1].val); IP += ct_op_size<op_kind::SDEALLOC_UI8>::value; continue;
+
 				// Call
 
 			case op_kind::CALL_UI64:
@@ -211,5 +209,48 @@ namespace fe::vm
 #undef IP
 #undef REG
 		throw std::runtime_error("Program did not exit with op kind EXIT");
+	}
+
+	machine_state interpret(executable& e, settings& s)
+	{
+		const byte* first_instruction = e.code.get_instruction(near_lbl(0));
+
+		if (s.verbosity == s.debug)
+		{
+			for (auto i = 0; i < e.code.size(); )
+			{
+				auto* instruction = e.code.get_instruction(i);
+				auto size = op_size(byte_to_op(instruction->val));
+				std::cout << op_to_string(byte_to_op(instruction->val));
+				for (int j = 1; j < size; j++)
+				{
+					std::cout << " " << std::to_string((instruction + j)->val);
+				}
+				std::cout << "\n";
+				i += size;
+			}
+		}
+		else if (s.verbosity == s.silent)
+		{
+		}
+		else
+		{
+			throw std::runtime_error("Unknown verbosity strategy");
+		}
+
+		if (s.implementation == s.cpp)
+		{
+			return vm_hl_interpret(e, s);
+		}
+		else if (s.implementation == s.asm_)
+		{
+			vm_init();
+			auto res = vm_interpret(first_instruction);
+			return machine_state();
+		}
+		else
+		{
+			throw std::runtime_error("Unknown implementation strategy");
+		}
 	}
 }

@@ -173,75 +173,14 @@ namespace fe::core_ast
 		size_t val;
 	};
 
+	struct stack_alloc
+	{
+		size_t size, location_reg;
+	};
+
 	struct return_data
 	{
 		size_t in_size, out_size;
-	};
-
-	struct move_data
-	{
-		move_data() {}
-		enum class dst_type
-		{
-			// register
-			REG,
-			// stack pointer register
-			SP,
-			// instruction pointer register
-			IP,
-			// result register
-			RES,
-
-			// stack 
-			RELATIVE_TO_SP,
-			RELATIVE_TO_FP,
-
-			// register containing location
-			LOC,
-			// register containing location in 32 msbits and offset in 32 lsbits
-			LOC_WITH_OFFSET
-		};
-		enum class src_type
-		{
-			// register
-			REG,
-			// stack pointer register
-			SP,
-			// instruction pointer register
-			IP,
-			// result register
-			RES,
-
-			// stack 
-			RELATIVE_TO_SP,
-			RELATIVE_TO_FP,
-
-			// register containing location 
-			LOC,
-			// register containing location in 32 msbits and offset in 32 lsbits
-			LOC_WITH_OFFSET,
-
-			// literal value
-			LIT
-		};
-		dst_type to_t;
-		src_type from_t;
-
-		/*
-		* Contains the value indicating the src/dest value.
-		* If the type is REG, contains the register id.
-		* If the type is STACK, contains the offset from SP.
-		* If the type is LOC, contains the register id of the register containing the location.
-		* If the type is LIT, contains the literal value.
-		* If the type is LOC_WITH_OFFSET, contains the loc in the 32 msbits, and the offset in32 lsbits
-		* Otherwise this value is unused.
-		*/
-		int64_t from, to;
-
-		/*
-		* The size of the move to be performed, in bytes.
-		*/
-		uint32_t size;
 	};
 
 	struct function_data

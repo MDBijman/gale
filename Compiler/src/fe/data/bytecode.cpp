@@ -73,6 +73,8 @@ namespace fe::vm
 		case op_kind::CALL_UI64: return "call_ui64";
 		case op_kind::CALL_NATIVE_UI64: return "call_native_ui64";
 		case op_kind::RET_UI8: return "ret_ui8";
+		case op_kind::SALLOC_REG_UI8: return "salloc_reg_ui8";
+		case op_kind::SDEALLOC_UI8: return "sdealloc_ui8";
 		case op_kind::EXIT: return "exit";
 		}
 		assert(!"Unknown instruction");
@@ -394,13 +396,19 @@ namespace fe::vm
 		auto to = make_i32(dest);
 		return bytes<6>{ op_to_byte(op_kind::JRZ_REG_I32), a.val, to[0], to[1], to[2], to[3] };
 	}
-
 	bytes<5> make_lbl(uint32_t id)
 	{
 		auto lit = make_ui32(id);
 		return bytes<5>{op_to_byte(op_kind::LBL_UI32), lit[0], lit[1], lit[2], lit[3] };
 	}
-
+	bytes<3> make_salloc_reg_ui8(reg r, uint8_t size)
+	{
+		return bytes<3>{ op_to_byte(op_kind::SALLOC_REG_UI8), r.val, size };
+	}
+	bytes<2> make_sdealloc_ui8(uint8_t size)
+	{
+		return bytes<2>{ op_to_byte(op_kind::SDEALLOC_UI8), size };
+	}
 	bytes<1> make_exit()
 	{
 		return bytes<1>{op_to_byte(op_kind::EXIT)};

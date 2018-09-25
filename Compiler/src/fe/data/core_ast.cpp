@@ -64,7 +64,6 @@ namespace fe::core_ast
 		case node_type::NUMBER: return constants.create<number>();
 		case node_type::STRING: return constants.create<string>();
 		case node_type::BOOLEAN: return constants.create<boolean>();
-		case node_type::MOVE: return move_data_store.create();
 		case node_type::FUNCTION: return function_data_store.create();
 		case node_type::FUNCTION_CALL: return function_call_data_store.create();
 		case node_type::JMP:
@@ -72,8 +71,11 @@ namespace fe::core_ast
 		case node_type::JZ:
 		case node_type::LABEL:
 			return label_store.create();
-		case node_type::SDEALLOC:
-		case node_type::SALLOC:
+		case node_type::STACK_DEALLOC:
+		case node_type::STACK_ALLOC:
+		case node_type::MOVE: 
+		case node_type::POP:
+		case node_type::LOCAL_ADDRESS:
 			return size_store.create();
 		case node_type::RET:
 			return return_data_store.create();

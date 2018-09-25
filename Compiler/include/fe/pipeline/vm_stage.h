@@ -30,6 +30,17 @@ namespace fe::vm
 
 	struct settings
 	{
+		settings() : verbosity(silent), implementation(asm_) {}
+
+		enum {
+			debug,
+			silent
+		} verbosity;
+
+		enum {
+			cpp,
+			asm_
+		} implementation;
 	};
 
 	machine_state interpret(executable&, settings& = settings{});
