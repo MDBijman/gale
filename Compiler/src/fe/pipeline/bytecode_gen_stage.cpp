@@ -5,33 +5,85 @@
 
 namespace fe::vm
 {
-	std::vector<reg> code_gen_state::clear_registers()
+	std::vector<reg> code_gen_state::clear_temp_registers()
 	{
-		auto copy = this->in_use;
-		this->in_use.clear();
-		return copy;
+		std::vector<reg> out;
+		for (auto i = 0; i < 32; i++)
+		{
+			if (!used_registers.test(i)) continue;
+
+			used_registers.set(i, false);
+			out.push_back(i);
+		}
+		this->next_caller_saved_allocation = 0;
+		return out;
 	}
-	
-	reg code_gen_state::alloc_register()
+
+	void code_gen_state::set_temp_registers(std::vector<reg> regs)
 	{
-		reg res = this->next_allocation;
-		this->in_use.push_back(res);
-		this->next_allocation.val++;
+		next_caller_saved_allocation = 0;
+		for (auto r : regs)
+		{
+			this->used_registers.set(r.val, true);
+			if (r.val > next_caller_saved_allocation.val)
+				next_caller_saved_allocation = r.val;
+		}
+	}
+
+	std::vector<reg> code_gen_state::clear_saved_registers()
+	{
+		// duplicated from clear_temp_registers but with different bounds
+		std::vector<reg> out;
+		for (auto i = 32; i < 64; i++)
+		{
+			if (!used_registers.test(i)) continue;
+
+			used_registers.set(i, false);
+			out.push_back(i);
+		}
+		this->next_callee_saved_allocation = 0;
+		return out;
+	}
+
+	void code_gen_state::set_saved_registers(std::vector<reg> regs)
+	{
+		next_callee_saved_allocation = 0;
+		for (auto r : regs)
+		{
+			this->used_registers.set(r.val, true);
+			if (r.val > next_callee_saved_allocation.val)
+				next_callee_saved_allocation = r.val;
+		}
+	}
+
+	reg code_gen_state::alloc_saved_register()
+	{
+		assert(this->next_callee_saved_allocation.val < 64);
+		reg res = this->next_callee_saved_allocation;
+		this->used_registers.set(res.val);
+		this->next_callee_saved_allocation.val++;
 		return res;
 	}
 
-	reg code_gen_state::alloc_variable_register(uint8_t var)
+	void code_gen_state::dealloc_saved_register(reg r)
 	{
-		if (auto loc = var_to_reg.find(var); loc != var_to_reg.end())
-		{
-			return loc->second;
-		}
-		else
-		{
-			reg r = alloc_register();
-			var_to_reg.insert({ var, r.val });
-			return r;
-		}
+		assert(r.val >= 32 && r.val < 64);
+		this->used_registers.set(r.val, false);
+	}
+	
+	reg code_gen_state::alloc_temp_register()
+	{
+		assert(this->next_caller_saved_allocation.val < 32);
+		reg res = this->next_caller_saved_allocation;
+		this->used_registers.set(res.val);
+		this->next_caller_saved_allocation.val++;
+		return res;
+	}
+
+	void code_gen_state::dealloc_temp_register(reg r)
+	{
+		assert(r.val >= 0 && r.val < 32);
+		this->used_registers.set(r.val, false);
 	}
 
 	void code_gen_state::link_node_chunk(node_id n, uint8_t c)
@@ -64,6 +116,10 @@ namespace fe::vm
 
 namespace fe::vm
 {
+	// Size of a word on x86 in terms of bytes
+	static constexpr int X86_WORD_SIZE = 2;
+
+
 	code_gen_result generate_bytecode(node_id n, core_ast::ast& ast, program& p, code_gen_state& i);
 
 	void link_to_parent_chunk(node_id n, core_ast::ast& ast, code_gen_state& i)
@@ -78,7 +134,7 @@ namespace fe::vm
 
 		auto& num = ast.get_data<fe::number>(*ast.get_node(n).data_index);
 		size_t size = 0;
-		reg r_result = i.alloc_register();
+		reg r_result = i.alloc_temp_register();
 		switch (num.type)
 		{
 		case number_type::UI8: {
@@ -86,6 +142,7 @@ namespace fe::vm
 				make_mv_reg_ui8(r_result, static_cast<uint8_t>(num.value)),
 				make_push8(r_result)
 			);
+			i.dealloc_temp_register(r_result);
 			return code_gen_result(1, far_lbl(i.chunk_of(n), location.ip), size);
 		}
 		case number_type::I8: {
@@ -93,6 +150,7 @@ namespace fe::vm
 				make_mv_reg_i8(r_result, static_cast<int8_t>(num.value)),
 				make_push8(r_result)
 			);
+			i.dealloc_temp_register(r_result);
 			return code_gen_result(1, far_lbl(i.chunk_of(n), location.ip), size);
 		}
 		case number_type::UI16: {
@@ -100,6 +158,7 @@ namespace fe::vm
 				make_mv_reg_ui16(r_result, static_cast<uint16_t>(num.value)),
 				make_push16(r_result)
 			);
+			i.dealloc_temp_register(r_result);
 			return code_gen_result(2, far_lbl(i.chunk_of(n), location.ip), size);
 		}
 		case number_type::I16: {
@@ -107,6 +166,7 @@ namespace fe::vm
 				make_mv_reg_i16(r_result, static_cast<int16_t>(num.value)),
 				make_push16(r_result)
 			);
+			i.dealloc_temp_register(r_result);
 			return code_gen_result(2, far_lbl(i.chunk_of(n), location.ip), size);
 		}
 		case number_type::UI32: {
@@ -114,6 +174,7 @@ namespace fe::vm
 				make_mv_reg_ui32(r_result, static_cast<uint32_t>(num.value)),
 				make_push32(r_result)
 			);
+			i.dealloc_temp_register(r_result);
 			return code_gen_result(4, far_lbl(i.chunk_of(n), location.ip), size);
 		}
 		case number_type::I32: {
@@ -121,6 +182,7 @@ namespace fe::vm
 				make_mv_reg_i32(r_result, static_cast<int32_t>(num.value)),
 				make_push32(r_result)
 			);
+			i.dealloc_temp_register(r_result);
 			return code_gen_result(4, far_lbl(i.chunk_of(n), location.ip), size);
 		}
 		case number_type::UI64: {
@@ -128,6 +190,7 @@ namespace fe::vm
 				make_mv_reg_ui64(r_result, static_cast<uint64_t>(num.value)),
 				make_push64(r_result)
 			);
+			i.dealloc_temp_register(r_result);
 			return code_gen_result(8, far_lbl(i.chunk_of(n), location.ip), size);
 		}
 		case number_type::I64: {
@@ -135,6 +198,7 @@ namespace fe::vm
 				make_mv_reg_i64(r_result, static_cast<int64_t>(num.value)),
 				make_push64(r_result)
 			);
+			i.dealloc_temp_register(r_result);
 			return code_gen_result(8, far_lbl(i.chunk_of(n), location.ip), size);
 		}
 		default: assert(!"Number type not supported");
@@ -155,11 +219,12 @@ namespace fe::vm
 		auto value = ast.get_data<fe::boolean>(*ast.get_node(n).data_index).value;
 
 		// We cannot push literals onto the stack (yet) so we move it into a register and push the register
-		auto r_res = i.alloc_register();
+		auto r_res = i.alloc_temp_register();
 		auto[location, size] = bc.add_instructions(
 			make_mv_reg_ui8(r_res, value ? 1 : 0),
 			make_push8(r_res)
 		);
+		i.dealloc_temp_register(r_res);
 
 		return code_gen_result(1, far_lbl(i.chunk_of(n), location.ip), size);
 	}
@@ -181,7 +246,12 @@ namespace fe::vm
 		i.function_label(func_data.name);
 
 		// We haven't used any registers yet so clear them so they don't get saved
-		i.clear_registers();
+		// #todo restore these after generating the function? Only necessary probably if we have functions as values i.e. not top level 
+		i.clear_saved_registers();
+		i.clear_temp_registers();
+
+		// Allocate the register used for the parameter location
+		assert(i.alloc_temp_register().val == 0);
 
 		// Generate body
 		auto[loc, size] = func_bc.add_instruction(make_lbl(func_data.label));
@@ -193,11 +263,11 @@ namespace fe::vm
 		* However, we don't know which registers are used until after bytecode generation
 		* So we add the pushes and pops afterwards
 		*/
-		auto register_allocations = i.clear_registers();
+		auto registers_to_save = i.clear_saved_registers();
 
 		// Padding for prologue pushes
 		far_lbl prologue_padding_loc = body_res.code_location;
-		auto prologue_padding_size = register_allocations.size() * op_size(op_kind::PUSH64_REG);
+		auto prologue_padding_size = registers_to_save.size() * op_size(op_kind::PUSH64_REG);
 		p.insert_padding(prologue_padding_loc, prologue_padding_size);
 		size += prologue_padding_size;
 
@@ -205,15 +275,15 @@ namespace fe::vm
 		// Check bytecode ends with a return, not perfect as the op_to_byte(ret) could be argument of other instruction
 		assert(func_bc.get_instruction<2>(near_lbl(size - op_size(op_kind::RET_UI8)))[0].val == op_to_byte(op_kind::RET_UI8));
 		far_lbl epilogue_padding_loc = far_lbl(id, size - op_size(op_kind::RET_UI8));
-		auto epilogue_padding_size = register_allocations.size() * op_size(op_kind::POP64_REG);
+		auto epilogue_padding_size = registers_to_save.size() * op_size(op_kind::POP64_REG);
 		p.insert_padding(epilogue_padding_loc, epilogue_padding_size);
 		size += epilogue_padding_size;
 
 		// Set padding to push and pop
-		for (int i = 0; i < register_allocations.size(); i++)
+		for (int i = 0; i < registers_to_save.size(); i++)
 		{
-			func_bc.set_instruction(prologue_padding_loc.ip + (i * 2), make_push64(register_allocations[i]));
-			func_bc.set_instruction(epilogue_padding_loc.ip + (i * 2), make_pop64(register_allocations[register_allocations.size() - 1 - i]));
+			func_bc.set_instruction(prologue_padding_loc.ip + (i * 2), make_push64(registers_to_save[i]));
+			func_bc.set_instruction(epilogue_padding_loc.ip + (i * 2), make_pop64(registers_to_save[registers_to_save.size() - 1 - i]));
 		}
 
 		return code_gen_result(0, far_lbl(id, 0), size);
@@ -283,6 +353,9 @@ namespace fe::vm
 
 		if (is_root)
 		{
+			code_size += p.get_function(info.chunk_of(n))
+				.get_bytecode()
+				.add_instruction(make_sdealloc_ui8(static_cast<uint8_t>(stack_size))).second;
 			code_size += p.get_function(info.chunk_of(n)).get_bytecode().add_instruction(make_exit()).second;
 		}
 
@@ -296,25 +369,59 @@ namespace fe::vm
 		i.link_node_chunk(n, i.chunk_of(ast.parent_of(n).id));
 		auto& bc = p.get_function(i.chunk_of(n)).get_bytecode();
 
+		int64_t code_size = 0;
+
 		auto& call_data = ast.get_data<core_ast::function_call_data>(*node.data_index);
 		core_ast::label func_label = i.function_label(call_data.name);
 		p.get_function(i.chunk_of(n)).get_symbols().insert({ func_label.id, call_data.name });
 
+		// Save temporary registers that are not deallocated (e.g. containing parameter locations)
+		auto registers_to_save = i.clear_temp_registers();
+		for (reg r : registers_to_save)
+		{
+			code_size += bc.add_instruction(make_push64(r)).second;
+		}
+
 		// Put params on stack
 		auto& param_node = ast.get_node(node.children[0]);
 		auto i1 = generate_bytecode(param_node.id, ast, p, i);
+		code_size += i1.code_size;
+
+		// Temporary registers used in parameter code can be safely deallocated
+		// #todo definitely?
+		i.clear_temp_registers();
+
+		// Repush the params with salloc_reg_ui8 to get stack address into reg(0)
+		auto param = i.alloc_temp_register();
+		assert(param.val == 0);
+		auto buf = i.alloc_temp_register();
+		auto i2 = bc.add_instructions(
+			make_pop(i1.result_size, buf),
+			make_salloc_reg_ui8(param, i1.result_size),
+			make_mv_loc_reg(i1.result_size, param, buf)
+		);
+		code_size += i2.second;
+
+		i.dealloc_temp_register(buf);
 
 		// Perform call
 		assert(node.size);
 		assert(*node.size <= 8);
+		code_size += bc.add_instruction(make_call_ui64(func_label.id)).second;
 
-		auto[loc, size] = bc.add_instructions(
-			make_call_ui64(func_label.id),
-			make_push64(vm::ret_reg),
-			make_sub(vm::sp_reg, vm::sp_reg, byte(8 - *node.size))
-		);
+		// Restore temporary registers
+		for (reg r : registers_to_save)
+		{
+			code_size += bc.add_instruction(make_pop64(r)).second;
+		}
 
-		return code_gen_result(*node.size, far_lbl(i.chunk_of(n), i1.code_location.ip), size + i1.code_size);
+		// Set saved register to be as before so they get saved during before next function call
+		i.set_saved_registers(registers_to_save);
+
+		// Push result of function call onto stack
+		code_size += bc.add_instruction(make_push(*node.size, vm::ret_reg)).second;
+
+		return code_gen_result(*node.size, far_lbl(i.chunk_of(n), i1.code_location.ip), code_size);
 	}
 
 	code_gen_result generate_reference(node_id n, core_ast::ast& ast, program& p, code_gen_state& i)
@@ -331,27 +438,10 @@ namespace fe::vm
 
 		size_t code_size = 0;
 
-		assert(node.size > 0 && node.size <= 8);
-
 		code_gen_result res = generate_bytecode(node.children[0], ast, p, i);
+		assert(res.result_size == 0);
 		code_size += res.code_size;
-
-		int64_t mask = 0;
-		while (res.result_size > 0) { res.result_size--; mask >>= 8; mask |= 0xFF00000000000000; }
-		auto tmp = i.alloc_register();
-		auto[_, size] = bc.add_instructions(
-			// Put stack offset in target
-			make_mv_reg_i16(vm::ret_reg, -8),
-			// Add to this address the stack ptr, giving address
-			make_add(reg(vm::ret_reg), reg(vm::sp_reg), reg(vm::ret_reg)),
-			// Move 8 bytes at adress into the register
-			make_mv64_reg_loc(vm::ret_reg, vm::ret_reg),
-			// Zero extra copied bytes (e.g. if we needed 5 bytes we zero (8 - 5 =) 3 bytes)
-			make_mv_reg_i64(tmp, mask),
-			make_and(vm::ret_reg, vm::ret_reg, reg(tmp))
-		);
-		code_size += size;
-
+		
 		auto in_size = ast.get_data<core_ast::size>(*ast.get_node(n).data_index);
 		code_size += bc.add_instruction(make_ret(static_cast<uint8_t>(in_size.val))).second;
 
@@ -363,173 +453,55 @@ namespace fe::vm
 		link_to_parent_chunk(n, ast, i);
 		auto& bc = p.get_function(i.chunk_of(n)).get_bytecode();
 		auto& move_node = ast.get_node(n);
-		auto& move_data = ast.get_data<core_ast::move_data>(*move_node.data_index);
-		auto& f_t = move_data.from_t;
-		auto& t_t = move_data.to_t;
+		auto& move_size = ast.get_node_data<core_ast::size>(move_node);
+		auto& from = ast.get_node(move_node.children[0]);
+		auto& to = ast.get_node(move_node.children[1]);
 
 		near_lbl loc(-1);
-		uint32_t size = 0;
+		uint32_t stack_size = 0, code_size = 0;
 
-		if (t_t == core_ast::move_data::dst_type::REG)
-		{ 
-			move_data.to = i.alloc_variable_register(move_data.to).val;
+		assert(move_size.val > 0 && move_size.val <= 8);
+
+		if (from.kind == core_ast::node_type::LOCAL_ADDRESS && to.kind == core_ast::node_type::LOCAL_ADDRESS)
+		{
+			auto r_from = ast.get_node_data<core_ast::size>(from).val, r_to = ast.get_node_data<core_ast::size>(to).val;
+			auto r_buf = i.alloc_temp_register();
+
+			switch (move_size.val)
+			{
+			case 8: code_size += bc.add_instructions(make_mv64_reg_loc(r_buf, r_from), make_mv64_loc_reg(r_to, r_buf)).second; break;
+			case 4: code_size += bc.add_instructions(make_mv32_reg_loc(r_buf, r_from), make_mv32_loc_reg(r_to, r_buf)).second; break;
+			case 2: code_size += bc.add_instructions(make_mv16_reg_loc(r_buf, r_from), make_mv16_loc_reg(r_to, r_buf)).second; break;
+			case 1: code_size += bc.add_instructions(make_mv8_reg_loc(r_buf, r_from), make_mv8_loc_reg(r_to, r_buf)).second; break;
+			default: throw std::runtime_error("invalid move size");
+			}
+
+			i.dealloc_temp_register(r_buf);
 		}
-		if (f_t == core_ast::move_data::src_type::REG)
-		{ 
-			move_data.from = i.alloc_variable_register(move_data.from).val;
+		else if (from.kind == core_ast::node_type::LOCAL_ADDRESS && to.kind == core_ast::node_type::STACK_ALLOC)
+		{
+			auto r_from = ast.get_node_data<core_ast::size>(from).val;
+			auto r_buf = i.alloc_temp_register();
+
+			stack_size = move_size.val;
+
+			switch (move_size.val)
+			{
+			case 8: code_size += bc.add_instructions(make_mv64_reg_loc(r_buf, r_from), make_push64(r_buf)).second; break;
+			case 4: code_size += bc.add_instructions(make_mv32_reg_loc(r_buf, r_from), make_push32(r_buf)).second; break;
+			case 2: code_size += bc.add_instructions(make_mv16_reg_loc(r_buf, r_from), make_push16(r_buf)).second; break;
+			case 1: code_size += bc.add_instructions(make_mv8_reg_loc(r_buf, r_from), make_push8(r_buf)).second; break;
+			default: throw std::runtime_error("invalid move size");
+			}
+
+			i.dealloc_temp_register(r_buf);
+		}
+		else
+		{
+			throw std::runtime_error("invalid move");
 		}
 
-		if (t_t == core_ast::move_data::dst_type::RES)
-		{
-			t_t = core_ast::move_data::dst_type::REG;
-			move_data.to = vm::ret_reg;
-		}
-
-		// Converting special register src types into regular registers
-		if (f_t == core_ast::move_data::src_type::SP)
-		{
-			f_t = core_ast::move_data::src_type::REG;
-			move_data.from = vm::sp_reg;
-			move_data.size = 8;
-		}
-		if (f_t == core_ast::move_data::src_type::RES)
-		{
-			f_t = core_ast::move_data::src_type::REG;
-			move_data.from = vm::ret_reg;
-			move_data.size = 8;
-		}
-		if (f_t == core_ast::move_data::src_type::IP)
-		{
-			f_t = core_ast::move_data::src_type::REG;
-			move_data.from = vm::ip_reg;
-			move_data.size = 8;
-		}
-
-
-		// #todo compose/simplify/dry further
-		if (t_t == core_ast::move_data::dst_type::REG && f_t == core_ast::move_data::src_type::REG)
-		{
-			std::tie(loc, size) = bc.add_instruction(make_mv_reg_reg(move_data.size, reg(move_data.to), reg(move_data.from)));
-		}
-		else if (t_t == core_ast::move_data::dst_type::REG && f_t == core_ast::move_data::src_type::LOC)
-		{
-			std::tie(loc, size) = bc.add_instruction(make_mv_loc_reg(move_data.size, reg(move_data.to), reg(move_data.from)));
-		}
-		else if (t_t == core_ast::move_data::dst_type::REG && f_t == core_ast::move_data::src_type::RELATIVE_TO_SP)
-		{
-			assert(move_data.size > 0 && move_data.size <= 8);
-			auto move_size = move_data.size;
-			int64_t mask = 0;
-			while (move_size > 0) { move_size--; mask >>= 8; mask |= 0xFF00000000000000; }
-			auto tmp = i.alloc_register();
-			std::tie(loc, size) = bc.add_instructions(
-				// Put stack offset in target
-				make_mv_reg_i16(move_data.to, move_data.from),
-				// Add to this address the stack ptr, giving address
-				make_add(reg(move_data.to), reg(vm::sp_reg), reg(move_data.to)),
-				// Move 8 bytes at adress into the register
-				make_mv64_reg_loc(move_data.to, move_data.to),
-				// Zero extra copied bytes (e.g. if we needed 5 bytes we zero (8 - 5 = ) 3 bytes)
-				make_mv_reg_i64(tmp, mask),
-				make_and(move_data.to, move_data.to, reg(tmp))
-			);
-		}
-		else if (t_t == core_ast::move_data::dst_type::LOC && f_t == core_ast::move_data::src_type::RELATIVE_TO_SP)
-		{
-			auto r_from = i.alloc_register();
-			auto r_to_orig = i.alloc_variable_register(move_data.to);
-			auto r_to = i.alloc_register();
-			std::tie(loc, size) = bc.add_instructions(
-				make_mv_reg_i16(r_from, move_data.from),
-				make_add(r_from, vm::sp_reg, r_from),
-				make_mv64_reg_reg(r_to, r_to_orig)
-			);
-			auto r_buff = i.alloc_register();
-			int i = 0;
-			for (; (i + 1) * 8 <= move_data.size; i += 8) size += bc.add_instructions(make_mv64_reg_loc(r_buff, r_from), make_mv64_loc_reg(r_to, r_buff), make_add(r_from, r_from, byte(8)), make_add(r_to, r_to, byte(8))).second;
-			for (; (i + 1) * 4 <= move_data.size; i += 4) size += bc.add_instructions(make_mv32_reg_loc(r_buff, r_from), make_mv32_loc_reg(r_to, r_buff), make_add(r_from, r_from, byte(4)), make_add(r_to, r_to, byte(4))).second;
-			for (; (i + 1) * 2 <= move_data.size; i += 2) size += bc.add_instructions(make_mv16_reg_loc(r_buff, r_from), make_mv16_loc_reg(r_to, r_buff), make_add(r_from, r_from, byte(2)), make_add(r_to, r_to, byte(2))).second;
-			for (; (i + 1) <= move_data.size; i += 1) size += bc.add_instructions(make_mv8_reg_loc(r_buff, r_from), make_mv8_loc_reg(r_to, r_buff)).second;
-		}
-		else if (t_t == core_ast::move_data::dst_type::RELATIVE_TO_SP && f_t == core_ast::move_data::src_type::LOC_WITH_OFFSET)
-		{
-			auto r_from_orig = i.alloc_variable_register(static_cast<uint32_t>(move_data.from >> 32));
-			auto r_from = i.alloc_register();
-			auto offset = static_cast<uint32_t>(move_data.from & 0xFFFFFFFF);
-
-			std::tie(loc, size) = bc.add_instruction(make_add(r_from, r_from, byte(offset)));
-			auto r_to = i.alloc_register();
-			size += bc.add_instructions(
-				make_mv_reg_i16(r_to, move_data.to),
-				make_add(r_to, vm::sp_reg, r_to),
-				make_mv64_reg_reg(r_from, r_from_orig)
-			).second;
-
-			auto r_buff = i.alloc_register();
-			int i = 0;
-			for (; (i + 1) * 8 <= move_data.size; i += 8) size += bc.add_instructions(make_mv64_reg_loc(r_buff, r_from), make_mv64_loc_reg(r_to, r_buff), make_add(r_from, r_from, byte(8)), make_add(r_to, r_to, byte(8))).second;
-			for (; (i + 1) * 4 <= move_data.size; i += 4) size += bc.add_instructions(make_mv32_reg_loc(r_buff, r_from), make_mv32_loc_reg(r_to, r_buff), make_add(r_from, r_from, byte(4)), make_add(r_to, r_to, byte(4))).second;
-			for (; (i + 1) * 2 <= move_data.size; i += 2) size += bc.add_instructions(make_mv16_reg_loc(r_buff, r_from), make_mv16_loc_reg(r_to, r_buff), make_add(r_from, r_from, byte(2)), make_add(r_to, r_to, byte(2))).second;
-			for (; (i + 1) <= move_data.size; i += 1) size += bc.add_instructions(make_mv8_reg_loc(r_buff, r_from), make_mv8_loc_reg(r_to, r_buff)).second;
-		}
-		else if (t_t == core_ast::move_data::dst_type::RELATIVE_TO_SP && f_t == core_ast::move_data::src_type::RELATIVE_TO_SP)
-		{
-			auto r_from = i.alloc_register();
-			std::tie(loc, size) = bc.add_instructions(
-				make_mv_reg_i16(r_from, move_data.from),
-				make_add(r_from, vm::sp_reg, r_from)
-			);
-			auto r_to = i.alloc_register();
-			size += bc.add_instructions(
-				make_mv_reg_i16(r_to, move_data.to),
-				make_add(r_to, vm::sp_reg, r_to)
-			).second;
-			auto r_buff = i.alloc_register();
-			int i = 0;
-			for (; (i + 1) * 8 <= move_data.size; i += 8) size += bc.add_instructions(make_mv64_reg_loc(r_buff, r_from), make_mv64_loc_reg(r_to, r_buff), make_add(r_from, r_from, byte(8)), make_add(r_to, r_to, byte(8))).second;
-			for (; (i + 1) * 4 <= move_data.size; i += 4) size += bc.add_instructions(make_mv32_reg_loc(r_buff, r_from), make_mv32_loc_reg(r_to, r_buff), make_add(r_from, r_from, byte(4)), make_add(r_to, r_to, byte(4))).second;
-			for (; (i + 1) * 2 <= move_data.size; i += 2) size += bc.add_instructions(make_mv16_reg_loc(r_buff, r_from), make_mv16_loc_reg(r_to, r_buff), make_add(r_from, r_from, byte(2)), make_add(r_to, r_to, byte(2))).second;
-			for (; (i + 1) <= move_data.size; i += 1) size += bc.add_instructions(make_mv8_reg_loc(r_buff, r_from), make_mv8_loc_reg(r_to, r_buff)).second;
-		}
-		else if (t_t == core_ast::move_data::dst_type::RELATIVE_TO_SP && f_t == core_ast::move_data::src_type::RELATIVE_TO_FP)
-		{
-			auto r_from = i.alloc_register();
-			auto r_to = i.alloc_register();
-			size = bc.add_instructions(
-				make_mv64_reg_reg(r_from, vm::fp_reg),
-				move_data.from > 0 ? make_add(r_from, r_from, byte(move_data.from)) : make_sub(r_from, r_from, byte(-move_data.from)),
-				make_mv64_reg_reg(r_to, vm::sp_reg),
-				move_data.to > 0 ? make_add(r_to, r_to, byte(move_data.to)) : make_sub(r_to, r_to, byte(-move_data.to))
-			).second;
-
-			auto r_buff = i.alloc_register();
-			int i = 0;
-			for (; (i + 1) * 8 <= move_data.size; i += 8) size += bc.add_instructions(make_mv64_reg_loc(r_buff, r_from), make_mv64_loc_reg(r_to, r_buff), make_add(r_from, r_from, byte(8)), make_add(r_to, r_to, byte(8))).second;
-			for (; (i + 1) * 4 <= move_data.size; i += 4) size += bc.add_instructions(make_mv32_reg_loc(r_buff, r_from), make_mv32_loc_reg(r_to, r_buff), make_add(r_from, r_from, byte(4)), make_add(r_to, r_to, byte(4))).second;
-			for (; (i + 1) * 2 <= move_data.size; i += 2) size += bc.add_instructions(make_mv16_reg_loc(r_buff, r_from), make_mv16_loc_reg(r_to, r_buff), make_add(r_from, r_from, byte(2)), make_add(r_to, r_to, byte(2))).second;
-			for (; (i + 1) <= move_data.size; i += 1) size += bc.add_instructions(make_mv8_reg_loc(r_buff, r_from), make_mv8_loc_reg(r_to, r_buff)).second;
-		}
-		else if (t_t == core_ast::move_data::dst_type::RELATIVE_TO_FP && f_t == core_ast::move_data::src_type::RELATIVE_TO_SP)
-		{
-			auto r_from = i.alloc_register();
-			auto r_to = i.alloc_register();
-			size = bc.add_instructions(
-				make_mv64_reg_reg(r_from, vm::sp_reg),
-				move_data.from > 0 ? make_add(r_from, r_from, byte(move_data.from)) : make_sub(r_from, r_from, byte(-move_data.from)),
-				make_mv64_reg_reg(r_to, vm::fp_reg),
-				move_data.to > 0 ? make_add(r_to, r_to, byte(move_data.to)) : make_sub(r_to, r_to, byte(-move_data.to))
-			).second;
-
-			auto r_buff = i.alloc_register();
-			int i = 0;
-			for (; (i + 1) * 8 <= move_data.size; i += 8) size += bc.add_instructions(make_mv64_reg_loc(r_buff, r_from), make_mv64_loc_reg(r_to, r_buff), make_add(r_from, r_from, byte(8)), make_add(r_to, r_to, byte(8))).second;
-			for (; (i + 1) * 4 <= move_data.size; i += 4) size += bc.add_instructions(make_mv32_reg_loc(r_buff, r_from), make_mv32_loc_reg(r_to, r_buff), make_add(r_from, r_from, byte(4)), make_add(r_to, r_to, byte(4))).second;
-			for (; (i + 1) * 2 <= move_data.size; i += 2) size += bc.add_instructions(make_mv16_reg_loc(r_buff, r_from), make_mv16_loc_reg(r_to, r_buff), make_add(r_from, r_from, byte(2)), make_add(r_to, r_to, byte(2))).second;
-			for (; (i + 1) <= move_data.size; i += 1) size += bc.add_instructions(make_mv8_reg_loc(r_buff, r_from), make_mv8_loc_reg(r_to, r_buff)).second;
-		}
-		else { assert(!"nyi"); }
-
-		return code_gen_result(0, far_lbl(i.chunk_of(n), loc.ip), size);
+		return code_gen_result(stack_size, far_lbl(i.chunk_of(n), loc.ip), code_size);
 	}
 
 	code_gen_result generate_stack_alloc(node_id n, core_ast::ast& ast, program& p, code_gen_state& i)
@@ -537,7 +509,7 @@ namespace fe::vm
 		link_to_parent_chunk(n, ast, i);
 		auto& bc = p.get_function(i.chunk_of(n)).get_bytecode();
 		auto& data = ast.get_data<core_ast::size>(*ast.get_node(n).data_index);
-		auto[loc, size] = bc.add_instruction(make_add(reg(vm::sp_reg), reg(vm::sp_reg), byte(data.val)));
+		auto[loc, size] = bc.add_instruction(make_salloc_reg_ui8(reg(vm::ret_reg), data.val));
 		return code_gen_result(data.val, far_lbl(i.chunk_of(n), loc.ip), size);
 	}
 
@@ -546,7 +518,7 @@ namespace fe::vm
 		link_to_parent_chunk(n, ast, i);
 		auto& bc = p.get_function(i.chunk_of(n)).get_bytecode();
 		auto& data = ast.get_data<core_ast::size>(*ast.get_node(n).data_index);
-		auto[loc, size] = bc.add_instruction(make_sub(reg(vm::sp_reg), reg(vm::sp_reg), byte(data.val)));
+		auto[loc, size] = bc.add_instruction(make_sdealloc_ui8(data.val));
 		return code_gen_result(-static_cast<int64_t>(data.val), far_lbl(i.chunk_of(n), loc.ip), size);
 	}
 
@@ -558,7 +530,7 @@ namespace fe::vm
 		auto& node = ast.get_node(n);
 		auto& lbl = ast.get_data<core_ast::label>(*node.data_index);
 
-		auto test_reg = i.alloc_register();
+		auto test_reg = i.alloc_temp_register();
 		auto[loc, size] = bc.add_instructions(
 			make_pop8(test_reg),
 			// the label is a placeholder for the actual location
@@ -566,6 +538,7 @@ namespace fe::vm
 			// As labels can occur after the jumps to them and locations can still change
 			make_jrnz_i32(test_reg, lbl.id)
 		);
+		i.dealloc_temp_register(test_reg);
 
 		return { -1, far_lbl(i.chunk_of(n), loc.ip), size };
 	}
@@ -578,14 +551,15 @@ namespace fe::vm
 		auto& node = ast.get_node(n);
 		auto& lbl = ast.get_data<core_ast::label>(*node.data_index);
 
-		auto test_reg = i.alloc_register();
+		auto test_reg = i.alloc_temp_register();
 		auto[loc, size] = bc.add_instructions(
 			make_pop8(test_reg),
 			// the label is a placeholder for the actual location
 			// We must first register all labels before we substitute the locations in the jumps
 			// As labels can occur after the jumps to them and locations can still change
-			make_jrz_i32(test_reg, lbl.id)
+			make_jrz_i32(vm::ret_reg, lbl.id)
 		);
+		i.dealloc_temp_register(test_reg);
 
 		return { -1, far_lbl(i.chunk_of(n), loc.ip), size };
 	}
@@ -626,37 +600,38 @@ namespace fe::vm
 
 		// children bytecode should leave 2 values on stack
 		auto i1 = generate_bytecode(children[0], ast, p, i);
-		assert(i1.result_size <= 8);
+		assert(i1.result_size > 0 && i1.result_size <= 8);
 		size += i1.code_size;
 		auto i2 = generate_bytecode(children[1], ast, p, i);
-		assert(i2.result_size <= 8);
+		assert(i2.result_size > 0 && i2.result_size <= 8);
 		size += i2.code_size;
 
-		auto r_res_lhs = i.alloc_register();
-		auto r_res_rhs = i.alloc_register();
+		auto r_res_lhs = i.alloc_temp_register();
+		auto r_res_rhs = i.alloc_temp_register();
 		size += bc.add_instructions(
 			make_pop(i1.result_size, r_res_rhs),
 			make_pop(i2.result_size, r_res_lhs)
 		).second;
-		auto r_res = i.alloc_register();
 
 		auto& node = ast.get_node(n);
 		switch (node.kind)
 		{
-		case core_ast::node_type::ADD:size += bc.add_instruction(make_add(r_res, r_res_lhs, r_res_rhs)).second; break;
-		case core_ast::node_type::SUB:size += bc.add_instruction(make_sub(r_res, r_res_lhs, r_res_rhs)).second; break;
-		case core_ast::node_type::MUL:size += bc.add_instruction(make_mul(r_res, r_res_lhs, r_res_rhs)).second; break;
-		case core_ast::node_type::DIV:size += bc.add_instruction(make_div(r_res, r_res_lhs, r_res_rhs)).second; break;
-		case core_ast::node_type::MOD:size += bc.add_instruction(make_mod(r_res, r_res_lhs, r_res_rhs)).second; break;
-		case core_ast::node_type::AND:size += bc.add_instruction(make_and(r_res, r_res_lhs, r_res_rhs)).second; break;
-		case core_ast::node_type::OR: size += bc.add_instruction(make_or(r_res, r_res_lhs, r_res_rhs)).second; break;
-		case core_ast::node_type::LT: size += bc.add_instruction(make_lt(r_res, r_res_lhs, r_res_rhs)).second; break;
-		case core_ast::node_type::LEQ:size += bc.add_instruction(make_lte(r_res, r_res_lhs, r_res_rhs)).second; break;
-		case core_ast::node_type::GT: size += bc.add_instruction(make_gt(r_res, r_res_lhs, r_res_rhs)).second; break;
-		case core_ast::node_type::GEQ:size += bc.add_instruction(make_gte(r_res, r_res_lhs, r_res_rhs)).second; break;
-		case core_ast::node_type::EQ: size += bc.add_instruction(make_eq(r_res, r_res_lhs, r_res_rhs)).second; break;
-		case core_ast::node_type::NEQ:size += bc.add_instruction(make_neq(r_res, r_res_lhs, r_res_rhs)).second; break;
+		case core_ast::node_type::ADD:size += bc.add_instruction(make_add(vm::ret_reg, r_res_lhs, r_res_rhs)).second; break;
+		case core_ast::node_type::SUB:size += bc.add_instruction(make_sub(vm::ret_reg, r_res_lhs, r_res_rhs)).second; break;
+		case core_ast::node_type::MUL:size += bc.add_instruction(make_mul(vm::ret_reg, r_res_lhs, r_res_rhs)).second; break;
+		case core_ast::node_type::DIV:size += bc.add_instruction(make_div(vm::ret_reg, r_res_lhs, r_res_rhs)).second; break;
+		case core_ast::node_type::MOD:size += bc.add_instruction(make_mod(vm::ret_reg, r_res_lhs, r_res_rhs)).second; break;
+		case core_ast::node_type::AND:size += bc.add_instruction(make_and(vm::ret_reg, r_res_lhs, r_res_rhs)).second; break;
+		case core_ast::node_type::OR: size += bc.add_instruction(make_or(vm::ret_reg, r_res_lhs, r_res_rhs)).second; break;
+		case core_ast::node_type::LT: size += bc.add_instruction(make_lt(vm::ret_reg, r_res_lhs, r_res_rhs)).second; break;
+		case core_ast::node_type::LEQ:size += bc.add_instruction(make_lte(vm::ret_reg, r_res_lhs, r_res_rhs)).second; break;
+		case core_ast::node_type::GT: size += bc.add_instruction(make_gt(vm::ret_reg, r_res_lhs, r_res_rhs)).second; break;
+		case core_ast::node_type::GEQ:size += bc.add_instruction(make_gte(vm::ret_reg, r_res_lhs, r_res_rhs)).second; break;
+		case core_ast::node_type::EQ: size += bc.add_instruction(make_eq(vm::ret_reg, r_res_lhs, r_res_rhs)).second; break;
+		case core_ast::node_type::NEQ:size += bc.add_instruction(make_neq(vm::ret_reg, r_res_lhs, r_res_rhs)).second; break;
 		}
+		i.dealloc_temp_register(r_res_lhs);
+		i.dealloc_temp_register(r_res_rhs);
 
 		uint8_t res_size;
 		switch (node.kind)
@@ -675,10 +650,33 @@ namespace fe::vm
 			res_size = 1;
 			break;
 		}
-		size += bc.add_instruction(make_push(res_size, r_res)).second;
+
+		size += bc.add_instruction(make_push(res_size, vm::ret_reg)).second;
 
 		return code_gen_result(res_size, far_lbl(i.chunk_of(n), i1.code_location.ip), size);
 	}
+
+	code_gen_result generate_pop(node_id n, core_ast::ast& ast, program& p, code_gen_state& i)
+	{
+		link_to_parent_chunk(n, ast, i);
+		auto& bc = p.get_function(i.chunk_of(n)).get_bytecode();
+		auto& node = ast.get_node(n);
+		auto& size = ast.get_node_data<core_ast::size>(node);
+
+		int64_t stack_size = 0, code_size = 0;
+		near_lbl location = 0;
+
+		auto& target = ast.get_node(node.children[0]);
+		switch (target.kind)
+		{
+		case core_ast::node_type::RESULT_REGISTER: 
+			std::tie(location, code_size) = bc.add_instruction(make_pop(size.val, vm::ret_reg)); break;
+		default: throw std::runtime_error("unknown pop result");
+		}
+
+		return code_gen_result(-static_cast<int64_t>(size.val), far_lbl(i.chunk_of(n), location.ip), code_size);
+	}
+
 
 	code_gen_result generate_bytecode(node_id n, core_ast::ast& ast, program& p, code_gen_state& i)
 	{
@@ -696,12 +694,13 @@ namespace fe::vm
 		case core_ast::node_type::REFERENCE: return generate_reference(n, ast, p, i);
 		case core_ast::node_type::RET: return generate_return(n, ast, p, i);
 		case core_ast::node_type::MOVE: return generate_move(n, ast, p, i);
-		case core_ast::node_type::SALLOC: return generate_stack_alloc(n, ast, p, i);
-		case core_ast::node_type::SDEALLOC: return generate_stack_dealloc(n, ast, p, i);
+		case core_ast::node_type::STACK_ALLOC: return generate_stack_alloc(n, ast, p, i);
+		case core_ast::node_type::STACK_DEALLOC: return generate_stack_dealloc(n, ast, p, i);
 		case core_ast::node_type::JNZ: return generate_jump_not_zero(n, ast, p, i);
 		case core_ast::node_type::JZ: return generate_jump_zero(n, ast, p, i);
 		case core_ast::node_type::JMP: return generate_jump(n, ast, p, i);
 		case core_ast::node_type::LABEL: return generate_label(n, ast, p, i);
+		case core_ast::node_type::POP: return generate_pop(n, ast, p, i);
 		default:
 			if (core_ast::is_binary_op(node.kind)) return generate_binary_op(n, ast, p, i);
 			throw std::runtime_error("Unknown node type");

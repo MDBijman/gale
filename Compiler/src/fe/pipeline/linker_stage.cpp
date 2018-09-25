@@ -50,6 +50,8 @@ namespace fe::vm
 				// Replace label with nops as labels don't do anything
 				for (int k = 0; k < op_size(op_kind::LBL_UI32); k++)
 					data[i + k] = op_to_byte(op_kind::NOP);
+				// Labels must be unique
+				assert(label_locations.find(id) == label_locations.end());
 				label_locations.insert({ id, i });
 			}
 
@@ -90,8 +92,9 @@ namespace fe::vm
 
 			case op_kind::CALL_UI64:
 			{
-				uint32_t current_chunk = *std::find_if(chunk_locations.begin() + minimal_chunk_id, chunk_locations.end(),
+				auto sc = std::find_if(chunk_locations.rbegin(), chunk_locations.rend(),
 					[i](auto loc) { return loc < i; });
+				uint32_t current_chunk = std::distance(chunk_locations.begin(), sc.base() - 1);
 				minimal_chunk_id = current_chunk;
 				auto label = read_ui64(&data[i + 1].val);
 				auto function_name = funcs[current_chunk].get_symbols().at(label);

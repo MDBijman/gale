@@ -132,20 +132,30 @@ int main(int argc, char** argv)
 module fib
 import [std std.assert]
 
-let fib: std.i64 -> std.i64 = \n => if (n <= 2) { 1 } else { (fib (n - 1) + fib (n - 2)) };
+let fib: std.i64 -> std.i64 = \n => if (n <= 2) { 1 } else { (fib (n - 1)) + (fib (n - 2)) };
 let a: std.i64 = fib 35;
-std.assert.assert (a == 9227465);
 		)delim";
 
-		using namespace fe::types;
-		fe::project p{ fe::pipeline() };
-		p.add_module(fe::stdlib::typedefs::load());
-		p.add_module(fe::stdlib::assert::load());
-		auto before = std::chrono::high_resolution_clock::now();
-		p.eval(code);
-		auto after = std::chrono::high_resolution_clock::now();
-		auto time = std::chrono::duration_cast<std::chrono::milliseconds>(after - before).count();
-		std::cout << "\n" << time << std::endl;
+		long ms_sum = 0;
+		constexpr int loop_count = 10;
+
+		for(int i = 0; i < loop_count; i++)
+		{
+			using namespace fe::types;
+			fe::project p{ fe::pipeline() };
+			p.add_module(fe::stdlib::typedefs::load());
+			p.add_module(fe::stdlib::assert::load());
+			auto before = std::chrono::high_resolution_clock::now();
+			p.eval(code);
+			auto after = std::chrono::high_resolution_clock::now();
+			auto time = std::chrono::duration_cast<std::chrono::milliseconds>(after - before).count();
+			ms_sum += time;
+			std::cout << "\n" << time << std::endl;
+		}
+
+		std::cout << "sum " << ms_sum << std::endl;
+		std::cout << "avg " << ((double)ms_sum) / loop_count << std::endl;
+
 	}
 	else if (mode == "help")
 	{

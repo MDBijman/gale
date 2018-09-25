@@ -20,9 +20,14 @@ namespace fe::core_ast
 		TUPLE,
 		ARRAY,
 
-		SALLOC,
-		SDEALLOC,
+		POP,
 		MOVE,
+		STACK_ALLOC,
+		STACK_DEALLOC,
+
+		LOCAL_ADDRESS,
+		GLOBAL_ADDRESS,
+		RESULT_REGISTER,
 
 		FUNCTION,
 		FUNCTION_CALL,
@@ -73,7 +78,6 @@ namespace fe::core_ast
 	class ast
 	{
 		memory::dynamic_store<node> nodes;
-		memory::dynamic_store<move_data> move_data_store;
 		memory::dynamic_store<function_data> function_data_store;
 		memory::dynamic_store<function_call_data> function_call_data_store;
 		memory::dynamic_store<label> label_store;
@@ -98,10 +102,13 @@ namespace fe::core_ast
 		// Node data 
 		template<class DataType>
 		DataType& get_data(data_index i);
+		template<class DataType>
+		DataType& get_node_data(node& i) { return get_data<DataType>(*i.data_index); }
+		template<class DataType>
+		DataType& get_node_data(node_id i) { return get_data<DataType>(*get_node(i).data_index); }
 		template<> boolean& get_data<boolean>(data_index i) { return constants.get<boolean>(i); }
 		template<> string& get_data<string>(data_index i) { return constants.get<string>(i); }
 		template<> number& get_data<number>(data_index i) { return constants.get<number>(i); }
-		template<> move_data& get_data<move_data>(data_index i) { return move_data_store.get_at(i); }
 		template<> function_data& get_data<function_data>(data_index i) { return function_data_store.get_at(i); }
 		template<> function_call_data& get_data<function_call_data>(data_index i) { return function_call_data_store.get_at(i); }
 		template<> label& get_data<label>(data_index i) { return label_store.get_at(i); }
