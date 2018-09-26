@@ -1049,9 +1049,9 @@ exit LABEL NEAR PTR WORD
 dispatch:
 	; put operands in r9
 	mov r9, QWORD PTR [r8] 
-	movzx rcx, r9b
-	mov rcx, [rcx*8 + r12]
-	jmp rcx
+	movzx rax, r9b
+	mov rax, [rax*8 + r12]
+	jmp rax
 
 vm_interpret ENDP
 
