@@ -18,12 +18,17 @@ push r13
 push r14
 push r15
 
+; move register pointer into r13, used for register operations
+mov r13, OFFSET registers
+
 ; move stack pointer into r14, used for memory loads and stores
 mov r14, OFFSET stack_
+; move stack offset into r15
 mov r15, 0
 
 ; r8 contains the pointer to data
 ; r9 contains the operands
+; r13 contains register base
 ; r14 contains stack base
 ; r15 contains stack pointer
 
@@ -55,10 +60,9 @@ add_reg_reg_reg LABEL NEAR PTR WORD
 	and rax, 0ffh
 	and rbx, 0ffh
 
-	lea rcx, OFFSET registers
-	mov rax, [rcx + rax*8]
-	add rax, [rcx + r9*8]
-	mov [rcx + rbx*8], rax
+	mov rax, [r13 + rax*8]
+	add rax, [r13 + r9*8]
+	mov [r13 + rbx*8], rax
 
 	add r8, 4
 	jmp dispatch
@@ -80,9 +84,8 @@ add_reg_reg_ui8 LABEL NEAR PTR WORD
 	and rax, 0ffh
 	and rbx, 0ffh
 
-	lea r11, OFFSET registers
-	add r9, [r11 + rax*8]
-	mov [r11 + rbx*8], r9
+	add r9, [r13 + rax*8]
+	mov [r13 + rbx*8], r9
 
 	add r8, 4
 	jmp dispatch
@@ -103,10 +106,9 @@ sub_reg_reg_reg LABEL NEAR PTR WORD
 	and rax, 0ffh
 	and rbx, 0ffh
 
-	lea r11, OFFSET registers
-	mov rax, [r11 + rax*8]
-	sub rax, [r11 + r9*8]
-	mov [r11 + rbx*8], rax
+	mov rax, [r13 + rax*8]
+	sub rax, [r13 + r9*8]
+	mov [r13 + rbx*8], rax
 
 	add r8, 4
 	jmp dispatch
@@ -127,9 +129,8 @@ sub_reg_reg_ui8 LABEL NEAR PTR WORD
 	and rax, 0ffh
 	and rbx, 0ffh
 
-	lea r11, OFFSET registers
-	sub r9, [r11 + rax*8]
-	mov [r11 + rbx*8], r9
+	sub r9, [r13 + rax*8]
+	mov [r13 + rbx*8], r9
 
 	add r8, 4
 	jmp dispatch
@@ -150,10 +151,9 @@ mul_reg_reg_reg LABEL NEAR PTR WORD
 	and rax, 0ffh
 	and r9, 0ffh
 
-	lea r11, OFFSET registers
-	mov rax, [r11 + rax*8]
-	imul QWORD PTR [r11 + r9*8]
-	mov [r11 + rbx*8], rax
+	mov rax, [r13 + rax*8]
+	imul QWORD PTR [r13 + r9*8]
+	mov [r13 + rbx*8], rax
 
 	add r8, 4
 	jmp dispatch
@@ -176,10 +176,9 @@ div_reg_reg_reg LABEL NEAR PTR WORD
 	and rax, 0ffh
 	and r9, 0ffh
 
-	lea r11, OFFSET registers
-	mov rax, [r11 + rax*8]
-	idiv QWORD PTR [r11 + r9*8]
-	mov [r11 + rbx*8], rax
+	mov rax, [r13 + rax*8]
+	idiv QWORD PTR [r13 + r9*8]
+	mov [r13 + rbx*8], rax
 
 	add r8, 4
 	jmp dispatch
@@ -202,10 +201,9 @@ mod_reg_reg_reg LABEL NEAR PTR WORD
 	and rax, 0ffh
 	and r9, 0ffh
 
-	lea r11, OFFSET registers
-	mov rax, [r11 + rax*8]
-	idiv QWORD PTR [r11 + r9*8]
-	mov [r11 + rbx*8], rdx
+	mov rax, [r13 + rax*8]
+	idiv QWORD PTR [r13 + r9*8]
+	mov [r13 + rbx*8], rdx
 
 	add r8, 4
 	jmp dispatch
@@ -226,9 +224,8 @@ gt_reg_reg_reg LABEL NEAR PTR WORD
 	and rax, 0ffh
 	and r9, 0ffh
 
-	lea r11, OFFSET registers
-	mov r9, [r11 + r9*8]
-	mov rax, [r11 + rax*8]
+	mov r9, [r13 + r9*8]
+	mov rax, [r13 + rax*8]
 	; default move 0 into rbx
 	mov rdx, 0
 	; conditional move 1 into rbx
@@ -236,7 +233,7 @@ gt_reg_reg_reg LABEL NEAR PTR WORD
 	cmp rax, r9
 	cmovg rdx, rcx
 
-	mov [r11 + rbx*8], rdx
+	mov [r13 + rbx*8], rdx
 
 	add r8, 4
 	jmp dispatch
@@ -257,16 +254,15 @@ gte_reg_reg_reg LABEL NEAR PTR WORD
 	and rax, 0ffh
 	and r9, 0ffh
 
-	lea r11, OFFSET registers
-	mov r9, [r11 + r9*8]
-	mov rax, [r11 + rax*8]
+	mov r9, [r13 + r9*8]
+	mov rax, [r13 + rax*8]
 	; default move 0 into rbx
 	mov rdx, 0
 	; conditional move 1 into rbx
 	mov rcx, 1
 	cmp rax, r9
 	cmovge rdx, rcx
-	mov [r11 + rbx*8], rdx
+	mov [r13 + rbx*8], rdx
 
 	add r8, 4
 	jmp dispatch
@@ -287,16 +283,15 @@ lt_reg_reg_reg LABEL NEAR PTR WORD
 	and rax, 0ffh
 	and r9, 0ffh
 
-	lea r11, OFFSET registers
-	mov r9, [r11 + r9*8]
-	mov rax, [r11 + rax*8]
+	mov r9, [r13 + r9*8]
+	mov rax, [r13 + rax*8]
 	; default move 0 into rbx
 	mov rdx, 0
 	; conditional move 1 into rbx
 	mov rcx, 1
 	cmp rax, r9
 	cmovl rdx, rcx
-	mov [r11 + rbx*8], rdx
+	mov [r13 + rbx*8], rdx
 
 	add r8, 4
 	jmp dispatch
@@ -317,16 +312,15 @@ lte_reg_reg_reg LABEL NEAR PTR WORD
 	and rax, 0ffh
 	and r9, 0ffh
 
-	lea r11, OFFSET registers
-	mov r9, [r11 + r9*8]
-	mov rax, [r11 + rax*8]
+	mov r9, [r13 + r9*8]
+	mov rax, [r13 + rax*8]
 	; default move 0 into rbx
 	mov rdx, 0
 	; conditional move 1 into rbx
 	mov rcx, 1
 	cmp rax, r9
 	cmovle rdx, rcx
-	mov [r11 + rbx*8], rdx
+	mov [r13 + rbx*8], rdx
 
 	add r8, 4
 	jmp dispatch
@@ -348,16 +342,15 @@ eq_reg_reg_reg LABEL NEAR PTR WORD
 	and rax, 0ffh
 	and rbx, 0ffh
 
-	lea r11, OFFSET registers
-	mov r9, [r11 + r9*8]
-	mov rax, [r11 + rax*8]
+	mov r9, [r13 + r9*8]
+	mov rax, [r13 + rax*8]
 	; default move 0 into rbx
 	mov rdx, 0
 	; conditional move 1 into rbx
 	mov rcx, 1
 	cmp rax, r9
 	cmove rdx, rcx
-	mov [r11 + rbx*8], rdx
+	mov [r13 + rbx*8], rdx
 
 	add r8, 4
 	jmp dispatch
@@ -378,16 +371,15 @@ neq_reg_reg_reg LABEL NEAR PTR WORD
 	and rax, 0ffh
 	and rbx, 0ffh
 
-	lea r11, OFFSET registers
-	mov r9, [r11 + r9*8]
-	mov rax, [r11 + rax*8]
+	mov r9, [r13 + r9*8]
+	mov rax, [r13 + rax*8]
 	; default move 0 into rbx
 	mov rdx, 0
 	; conditional move 1 into rbx
 	mov rcx, 1
 	cmp rax, r9
 	cmovne rdx, rcx
-	mov [r11 + rbx*8], rdx
+	mov [r13 + rbx*8], rdx
 
 	add r8, 4
 	jmp dispatch
@@ -408,10 +400,9 @@ and_reg_reg_reg LABEL NEAR PTR WORD
 	and rax, 0ffh
 	and rbx, 0ffh
 
-	lea r11, OFFSET registers
-	mov r9, [r11 + r9*8]
-	and r9, [r11 + rax*8]
-	mov [r11 + rbx*8], r9
+	mov r9, [r13 + r9*8]
+	and r9, [r13 + rax*8]
+	mov [r13 + rbx*8], r9
 
 	add r8, 4
 	jmp dispatch
@@ -432,10 +423,9 @@ and_reg_reg_ui8 LABEL NEAR PTR WORD
 	and rax, 0ffh
 	and rbx, 0ffh
 
-	lea r11, OFFSET registers
-	mov rax, [r11 + rax*8]
+	mov rax, [r13 + rax*8]
 	and r9, rax
-	mov [r11 + rbx*8], r9
+	mov [r13 + rbx*8], r9
 
 	add r8, 4
 	jmp dispatch
@@ -456,10 +446,9 @@ or_reg_reg_reg LABEL NEAR PTR WORD
 	and rax, 0ffh
 	and rbx, 0ffh
 
-	lea r11, OFFSET registers
-	mov r9, [r11 + r9*8]
-	or r9, [r11 + rax*8]
-	mov [r11 + rbx*8], r9
+	mov r9, [r13 + r9*8]
+	or r9, [r13 + rax*8]
+	mov [r13 + rbx*8], r9
 
 	add r8, 4
 	jmp dispatch
@@ -469,9 +458,8 @@ or_reg_reg_reg LABEL NEAR PTR WORD
 mv_reg_sp LABEL NEAR PTR WORD
 	shr r9, 8
 	and r9, 0ffh
-	lea r10, OFFSET registers
-	mov rax, [r10 + 62*8]
-	mov [r10 + r9*8], rax
+	mov rax, [r13 + 62*8]
+	mov [r13 + r9*8], rax
 
 	add r8, 2
 	jmp dispatch
@@ -481,9 +469,8 @@ mv_reg_sp LABEL NEAR PTR WORD
 mv_reg_ip LABEL NEAR PTR WORD
 	shr r9, 8
 	and r9, 0ffh
-	lea r10, OFFSET registers
-	mov rax, [r10 + 63*8]
-	mov [r10 + r9*8], rax
+	mov rax, [r13 + 63*8]
+	mov [r13 + r9*8], rax
 
 	add r8, 2
 	jmp dispatch
@@ -499,8 +486,7 @@ mv_reg_ui8 LABEL NEAR PTR WORD
 	shr r9, 8
 	and r9, 0ffh
 	; r9 contains literal
-	lea r10, OFFSET registers
-	mov [r10 + rax*8], r9
+	mov [r13 + rax*8], r9
 
 	add r8, 3
 	jmp dispatch
@@ -516,8 +502,7 @@ mv_reg_ui16 LABEL NEAR PTR WORD
 	shr r9, 8
 	and r9, 0ffffh
 	; r9 contains literal
-	lea r10, OFFSET registers
-	mov [r10 + rax*8], r9
+	mov [r13 + rax*8], r9
 
 	add r8, 4
 	jmp dispatch
@@ -533,8 +518,7 @@ mv_reg_ui32 LABEL NEAR PTR WORD
 	shr r9, 8
 	and r9, 0ffffffffh
 	; r9 contains literal
-	lea r10, OFFSET registers
-	mov [r10 + rax*8], r9
+	mov [r13 + rax*8], r9
 
 	add r8, 6
 	jmp dispatch
@@ -546,8 +530,7 @@ mv_reg_ui64 LABEL NEAR PTR WORD
 	mov rax, QWORD PTR [r8 + 2]
 	shr r9, 8
 	and r9, 0ffh
-	lea r11, OFFSET registers
-	mov [r11 + r9*8], rax
+	mov [r13 + r9*8], rax
 
 	add r8, 10
 	jmp dispatch
@@ -564,10 +547,9 @@ mv8_reg_reg LABEL NEAR PTR WORD
 	xor rbx, rbx
 	mov bl, r9b
 
-	lea r11, OFFSET registers
-	mov rcx, QWORD PTR [r11 + rbx*8]
+	mov rcx, QWORD PTR [r13 + rbx*8]
 	and rcx, 0ffh
-	mov QWORD PTR [r11 + rax*8], rcx
+	mov QWORD PTR [r13 + rax*8], rcx
 
 	add r8, 3
 	jmp dispatch
@@ -584,10 +566,9 @@ mv16_reg_reg LABEL NEAR PTR WORD
 	xor rbx, rbx
 	mov bl, r9b
 
-	lea r11, OFFSET registers
-	mov rcx, QWORD PTR [r11 + rbx*8]
+	mov rcx, QWORD PTR [r13 + rbx*8]
 	and rcx, 0ffffh
-	mov QWORD PTR [r11 + rax*8], rcx
+	mov QWORD PTR [r13 + rax*8], rcx
 
 	add r8, 3
 	jmp dispatch
@@ -604,10 +585,9 @@ mv32_reg_reg LABEL NEAR PTR WORD
 	xor rbx, rbx
 	mov bl, r9b
 
-	lea r11, OFFSET registers
-	mov rcx, QWORD PTR [r11 + rbx*8]
+	mov rcx, QWORD PTR [r13 + rbx*8]
 	and rcx, 0ffffffffh
-	mov QWORD PTR [r11 + rax*8], rcx
+	mov QWORD PTR [r13 + rax*8], rcx
 
 	add r8, 3
 	jmp dispatch
@@ -624,9 +604,8 @@ mv64_reg_reg LABEL NEAR PTR WORD
 	xor rbx, rbx
 	mov bl, r9b
 
-	lea r11, OFFSET registers
-	mov rcx, QWORD PTR [r11 + rbx*8]
-	mov QWORD PTR [r11 + rax*8], rcx
+	mov rcx, QWORD PTR [r13 + rbx*8]
+	mov QWORD PTR [r13 + rax*8], rcx
 
 	add r8, 3
 	jmp dispatch
@@ -643,9 +622,8 @@ mv8_loc_reg LABEL NEAR PTR WORD
 	xor rbx, rbx
 	mov bl, r9b
 
-	lea r11, OFFSET registers
-	mov rax, QWORD PTR [r11 + rax*8]
-	mov bl, BYTE PTR [r11 + rbx*8]
+	mov rax, QWORD PTR [r13 + rax*8]
+	mov bl, BYTE PTR [r13 + rbx*8]
 	mov BYTE PTR [r14 + rax], bl
 
 	add r8, 3
@@ -663,11 +641,10 @@ mv16_loc_reg LABEL NEAR PTR WORD
 	xor rbx, rbx
 	mov bl, r9b
 
-	lea r11, OFFSET registers
 	; get location from register
-	mov rax, QWORD PTR [r11 + rax*8]
+	mov rax, QWORD PTR [r13 + rax*8]
 	; get value from register
-	mov bx, WORD PTR [r11 + rbx*8]
+	mov bx, WORD PTR [r13 + rbx*8]
 	mov WORD PTR [r14 + rax], bx
 
 	add r8, 3
@@ -685,11 +662,10 @@ mv32_loc_reg LABEL NEAR PTR WORD
 	xor rbx, rbx
 	mov bl, r9b
 
-	lea r11, OFFSET registers
 	; get location from register
-	mov rax, QWORD PTR [r11 + rax*8]
+	mov rax, QWORD PTR [r13 + rax*8]
 	; get value from register
-	mov ebx, DWORD PTR [r11 + rbx*8]
+	mov ebx, DWORD PTR [r13 + rbx*8]
 	mov DWORD PTR [r14 + rax], ebx
 
 	add r8, 3
@@ -707,11 +683,10 @@ mv64_loc_reg LABEL NEAR PTR WORD
 	xor rbx, rbx
 	mov bl, r9b
 
-	lea r11, OFFSET registers
 	; get location from register
-	mov rax, QWORD PTR [r11 + rax*8]
+	mov rax, QWORD PTR [r13 + rax*8]
 	; get value from register
-	mov rbx, QWORD PTR [r11 + rbx*8]
+	mov rbx, QWORD PTR [r13 + rbx*8]
 	mov QWORD PTR [r14 + rax], rbx
 
 	add r8, 3
@@ -729,13 +704,12 @@ mv8_reg_loc LABEL NEAR PTR WORD
 	xor rbx, rbx
 	mov bl, r9b
 
-	lea r11, OFFSET registers
 	; get location from register
-	mov rbx, QWORD PTR [r11 + rbx*8]
+	mov rbx, QWORD PTR [r13 + rbx*8]
 	; get value at location
 	mov bl, BYTE PTR [r14 + rbx]
 	; put value in register
-	mov BYTE PTR [r11 + rax*8], bl
+	mov BYTE PTR [r13 + rax*8], bl
 
 	add r8, 3
 	jmp dispatch
@@ -752,13 +726,12 @@ mv16_reg_loc LABEL NEAR PTR WORD
 	xor rbx, rbx
 	mov bl, r9b
 
-	lea r11, OFFSET registers
 	; get location from register
-	mov rbx, QWORD PTR [r11 + rbx*8]
+	mov rbx, QWORD PTR [r13 + rbx*8]
 	; get value at location
 	mov bx, WORD PTR [r14 + rbx]
 	; put value in register
-	mov WORD PTR [r11 + rax*8], bx
+	mov WORD PTR [r13 + rax*8], bx
 
 	add r8, 3
 	jmp dispatch
@@ -775,13 +748,12 @@ mv32_reg_loc LABEL NEAR PTR WORD
 	xor rbx, rbx
 	mov bl, r9b
 
-	lea r11, OFFSET registers
 	; get location from register
-	mov rbx, QWORD PTR [r11 + rbx*8]
+	mov rbx, QWORD PTR [r13 + rbx*8]
 	; get value at location
 	mov ebx, DWORD PTR [r14 + rbx]
 	; put value in register
-	mov DWORD PTR [r11 + rax*8], ebx
+	mov DWORD PTR [r13 + rax*8], ebx
 
 	add r8, 3
 	jmp dispatch
@@ -798,13 +770,12 @@ mv64_reg_loc LABEL NEAR PTR WORD
 	xor rbx, rbx
 	mov bl, r9b
 
-	lea r11, OFFSET registers
 	; get location from register
-	mov rbx, QWORD PTR [r11 + rbx*8]
+	mov rbx, QWORD PTR [r13 + rbx*8]
 	; get value at location
 	mov rbx, QWORD PTR [r14 + rbx]
 	; put value in register
-	mov QWORD PTR [r11 + rax*8], rbx
+	mov QWORD PTR [r13 + rax*8], rbx
 
 	add r8, 3
 	jmp dispatch
@@ -817,8 +788,7 @@ push8_reg LABEL NEAR PTR WORD
 	xor rax, rax
 	mov al, r9b
 	
-	lea r11, OFFSET registers
-	mov al, BYTE PTR [r11 + rax*8]
+	mov al, BYTE PTR [r13 + rax*8]
 	mov BYTE PTR [r14 + r15], al
 	inc r15
 
@@ -833,8 +803,7 @@ push16_reg LABEL NEAR PTR WORD
 	xor rax, rax
 	mov al, r9b
 	
-	lea r11, OFFSET registers
-	mov ax, WORD PTR [r11 + rax*8]
+	mov ax, WORD PTR [r13 + rax*8]
 	mov WORD PTR [r14 + r15], ax
 	add r15, 2
 
@@ -849,8 +818,7 @@ push32_reg LABEL NEAR PTR WORD
 	xor rax, rax
 	mov al, r9b
 	
-	lea r11, OFFSET registers
-	mov eax, DWORD PTR [r11 + rax*8]
+	mov eax, DWORD PTR [r13 + rax*8]
 	mov DWORD PTR [r14 + r15], eax
 	add r15, 4
 
@@ -865,8 +833,7 @@ push64_reg LABEL NEAR PTR WORD
 	xor rax, rax
 	mov al, r9b
 	
-	lea r11, OFFSET registers
-	mov rax, QWORD PTR [r11 + rax*8]
+	mov rax, QWORD PTR [r13 + rax*8]
 	mov QWORD PTR [r14 + r15], rax
 	add r15, 8
 
@@ -883,8 +850,7 @@ pop8_reg LABEL NEAR PTR WORD
 	
 	dec r15
 	mov bl, BYTE PTR [r14 + r15]
-	lea r11, OFFSET registers
-	mov BYTE PTR [r11 + rax*8], bl
+	mov BYTE PTR [r13 + rax*8], bl
 
 	add r8, 2
 	jmp dispatch
@@ -899,8 +865,7 @@ pop16_reg LABEL NEAR PTR WORD
 	
 	sub r15, 2
 	mov bx, WORD PTR [r14 + r15]
-	lea r11, OFFSET registers
-	mov WORD PTR [r11 + rax*8], bx
+	mov WORD PTR [r13 + rax*8], bx
 
 	add r8, 2
 	jmp dispatch
@@ -915,8 +880,7 @@ pop32_reg LABEL NEAR PTR WORD
 	
 	sub r15, 4
 	mov ebx, DWORD PTR [r14 + r15]
-	lea r11, OFFSET registers
-	mov DWORD PTR [r11 + rax*8], ebx
+	mov DWORD PTR [r13 + rax*8], ebx
 
 	add r8, 2
 	jmp dispatch
@@ -931,8 +895,7 @@ pop64_reg LABEL NEAR PTR WORD
 	
 	sub r15, 8
 	mov rbx, QWORD PTR [r14 + r15]
-	lea r11, OFFSET registers
-	mov QWORD PTR [r11 + rax*8], rbx
+	mov QWORD PTR [r13 + rax*8], rbx
 
 	add r8, 2
 	jmp dispatch
@@ -957,8 +920,7 @@ jrnz_reg_i32 LABEL NEAR PTR WORD
 	shr r9, 8
 	movsxd r9, r9d
 
-	lea r11, OFFSET registers
-	mov rax, QWORD PTR [r11 + rax*8]
+	mov rax, QWORD PTR [r13 + rax*8]
 
 	cmp rax, 0
 	je _skip_jrnz
@@ -979,8 +941,7 @@ jrz_reg_i32 LABEL NEAR PTR WORD
 	shr r9, 8
 	movsxd r9, r9d
 
-	lea r11, OFFSET registers
-	mov rax, QWORD PTR [r11 + rax*8]
+	mov rax, QWORD PTR [r13 + rax*8]
 
 	cmp rax, 0
 	jne _skip_jrz
@@ -999,7 +960,7 @@ call_ui64 LABEL NEAR PTR WORD
 	; simulate call
 
 	; save frame pointer
-	mov rbx, QWORD PTR [r14 + 61*8]
+	mov rbx, QWORD PTR [r13 + 61*8]
 	mov QWORD PTR [r14 + r15], rbx
 	add r15, 8
 	; push the next op so we return and continue execution after this op
@@ -1010,8 +971,8 @@ call_ui64 LABEL NEAR PTR WORD
 
 	; set new frame pointer
 	; load sp
-	mov rbx, QWORD PTR [r14 + 62*8]
-	mov QWORD PTR [r14 + 61*8], rbx
+	mov rbx, QWORD PTR [r13 + 62*8]
+	mov QWORD PTR [r13 + 61*8], rbx
 	
 	; update ip to function entry location
 	add r8, rax
@@ -1029,8 +990,8 @@ ret_ui8 LABEL NEAR PTR WORD
 	mov r8, QWORD PTR [r14 + r15]
 	sub r15, 8
 	mov rbx, QWORD PTR [r14 + r15]
-	mov QWORD PTR [r14 + 62*8], r15
-	mov QWORD PTR [r14 + 61*8], rbx
+	mov QWORD PTR [r13 + 62*8], r15
+	mov QWORD PTR [r13 + 61*8], rbx
 	sub r15, r9
 
 	jmp dispatch
@@ -1052,8 +1013,7 @@ salloc_reg_ui8 LABEL NEAR PTR WORD
 	shr r9, 8
 	and r9, 0ffh
 
-	mov r10, OFFSET registers
-	mov [r10 + rax], r15
+	mov [r13 + rax], r15
 
 	add r15, r9
 
@@ -1072,8 +1032,7 @@ sdealloc_ui8 LABEL NEAR PTR WORD
 
 ; BEGIN exit
 exit LABEL NEAR PTR WORD
-	mov rax, OFFSET registers
-	mov rax, QWORD PTR [rax + 60*8]
+	mov rax, QWORD PTR [r13 + 60*8]
 
 	; restore nonvolatile registers rbx, r12, r13, r14, r15
 	pop r15
