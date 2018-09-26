@@ -18,6 +18,9 @@ push r13
 push r14
 push r15
 
+; move handler pointer into r12, used for dispatch
+mov r12, OFFSET handlers
+
 ; move register pointer into r13, used for register operations
 mov r13, OFFSET registers
 
@@ -1046,11 +1049,8 @@ exit LABEL NEAR PTR WORD
 dispatch:
 	; put operands in r9
 	mov r9, QWORD PTR [r8] 
-	lea rdx, OFFSET handlers
-	xor ecx, ecx
-	mov cl, r9b
-	lea rcx, [rcx*8 + rdx]
-	mov rcx, [rcx]
+	movzx rcx, r9b
+	mov rcx, [rcx*8 + r12]
 	jmp rcx
 
 vm_interpret ENDP
