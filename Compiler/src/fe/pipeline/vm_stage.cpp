@@ -246,6 +246,7 @@ namespace fe::vm
 		{
 			vm_init();
 			auto res = vm_interpret(first_instruction);
+			std::cout << res << "\n";
 			return machine_state();
 		}
 		else
