@@ -83,6 +83,9 @@ namespace fe
 
 			auto executable = pl.link(bytecode);
 
+			// optimize
+			pl.optimize_bytecode(executable);
+
 			// Stage 4: interpret
 			return pl.run(executable);
 		}

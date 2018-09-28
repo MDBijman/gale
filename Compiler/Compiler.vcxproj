@@ -147,6 +147,7 @@
     <ClCompile Include="src\fe\data\type_scope.cpp" />
     <ClCompile Include="src\fe\language_definition.cpp" />
     <ClCompile Include="src\fe\pipeline\bytecode_gen_stage.cpp" />
+    <ClCompile Include="src\fe\pipeline\bytecode_optimization_stage.cpp" />
     <ClCompile Include="src\fe\pipeline\linker_stage.cpp" />
     <ClCompile Include="src\fe\pipeline\lowering_stage.cpp" />
     <ClCompile Include="src\fe\pipeline\parser_stage.cpp" />
@@ -185,6 +186,7 @@
     <ClInclude Include="include\fe\modes\project.h" />
     <ClInclude Include="include\fe\modes\repl.h" />
     <ClInclude Include="include\fe\pipeline\bytecode_gen_stage.h" />
+    <ClInclude Include="include\fe\pipeline\bytecode_optimization_stage.h" />
     <ClInclude Include="include\fe\pipeline\error.h" />
     <ClInclude Include="include\fe\pipeline\lexer_stage.h" />
     <ClInclude Include="include\fe\pipeline\linker_stage.h" />

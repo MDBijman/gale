@@ -175,6 +175,9 @@
     <ClCompile Include="src\tests\fe\lowering_tests.cpp">
       <Filter>Source Files\tests\fe</Filter>
     </ClCompile>
+    <ClCompile Include="src\fe\pipeline\bytecode_optimization_stage.cpp">
+      <Filter>Source Files\fe\pipeline</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\fe\data\core_ast.h">
@@ -278,6 +281,9 @@
     </ClInclude>
     <ClInclude Include="include\fe\libraries\std\std_assert.h">
       <Filter>Source Files\fe\libraries\std</Filter>
+    </ClInclude>
+    <ClInclude Include="include\fe\pipeline\bytecode_optimization_stage.h">
+      <Filter>Source Files\fe\pipeline</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
