@@ -264,7 +264,6 @@ namespace fe::vm
 	bytes<4> make_lte(reg dest, reg a, reg b);
 	bytes<4> make_eq(reg dest, reg a, reg b);
 	bytes<4> make_neq(reg dest, reg a, reg b);
-	bytes<2> make_mv_sp(reg dest);
 	bytes<3> make_mv_reg_ui8(reg dest, uint8_t a);
 	bytes<4> make_mv_reg_ui16(reg dest, uint16_t a);
 	bytes<6> make_mv_reg_ui32(reg dest, uint32_t a);
@@ -489,7 +488,7 @@ namespace fe::vm
 
 		template<int C> bytes<C> get_instruction(uint64_t loc)
 		{
-			return code.get_instruction<C>(l.ip);
+			return code.get_instruction<C>(loc);
 		}
 	};
 }

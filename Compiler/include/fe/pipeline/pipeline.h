@@ -6,6 +6,7 @@
 #include "fe/pipeline/lowering_stage.h"
 #include "fe/pipeline/bytecode_gen_stage.h"
 #include "fe/pipeline/linker_stage.h"
+#include "fe/pipeline/bytecode_optimization_stage.h"
 #include "fe/pipeline/vm_stage.h"
 #include "fe/pipeline/error.h"
 
@@ -58,9 +59,19 @@ namespace fe
 			return vm::link(ast);
 		}
 
+		void optimize_bytecode(vm::executable& e) const
+		{
+			vm::optimize(e, vm::optimization_settings());
+		}
+
 		vm::machine_state run(vm::executable& e) const
 		{
-			return vm::interpret(e, vm::settings{});
+			return vm::interpret(e, vm::vm_settings(
+				vm::vm_implementation::asm_, 
+				/*print code*/false, 
+				/*print result*/true, 
+				/*print time*/true)
+			);
 		}
 
 	private:

@@ -28,20 +28,21 @@ namespace fe::vm
 		void ret(uint8_t);
 	};
 
-	struct settings
-	{
-		settings() : verbosity(silent), implementation(asm_) {}
-
-		enum {
-			debug,
-			silent
-		} verbosity;
-
-		enum {
-			cpp,
-			asm_
-		} implementation;
+	enum class vm_implementation {
+		cpp,
+		asm_
 	};
 
-	machine_state interpret(executable&, settings& = settings{});
+	struct vm_settings
+	{
+		vm_settings()
+			: print_code(false), print_result(false), print_time(false), implementation(vm_implementation::asm_) {}
+		vm_settings(vm_implementation imp, bool print_code, bool print_result, bool print_time)
+			: print_code(print_code), print_result(print_result), print_time(print_time), implementation(imp) {}
+
+		bool print_code, print_result, print_time;
+		vm_implementation implementation;
+	};
+
+	machine_state interpret(executable&, vm_settings& = vm_settings{});
 }

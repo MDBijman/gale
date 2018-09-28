@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <iostream>
 #include <string>
+#include <chrono>
 
 namespace fe::vm
 {
@@ -72,7 +73,7 @@ namespace fe::vm
 	extern "C" void vm_init();
 	extern "C" int vm_interpret(const byte* first);
 
-	machine_state vm_hl_interpret(executable& e, settings& s)
+	machine_state vm_hl_interpret(executable& e, vm_settings& s)
 	{
 		auto state = machine_state();
 		const byte* first_instruction = e.code.get_instruction(near_lbl(0));
@@ -211,11 +212,11 @@ namespace fe::vm
 		throw std::runtime_error("Program did not exit with op kind EXIT");
 	}
 
-	machine_state interpret(executable& e, settings& s)
+	machine_state interpret(executable& e, vm_settings& s)
 	{
 		const byte* first_instruction = e.code.get_instruction(near_lbl(0));
 
-		if (s.verbosity == s.debug)
+		if (s.print_code)
 		{
 			for (auto i = 0; i < e.code.size(); )
 			{
@@ -230,28 +231,29 @@ namespace fe::vm
 				i += size;
 			}
 		}
-		else if (s.verbosity == s.silent)
+
+		auto before = std::chrono::high_resolution_clock::now();
+		machine_state res;
+
+		switch (s.implementation)
 		{
+		case vm_implementation::asm_: {
+			vm_init();
+			auto rax_res = vm_interpret(first_instruction);
+			if (s.print_result) std::cout << rax_res << "\n";
+			break;
 		}
-		else
-		{
-			throw std::runtime_error("Unknown verbosity strategy");
+		case vm_implementation::cpp:
+			res = vm_hl_interpret(e, s);
+			break;
 		}
 
-		if (s.implementation == s.cpp)
+		if (s.print_time)
 		{
-			return vm_hl_interpret(e, s);
+			auto after = std::chrono::high_resolution_clock::now();
+			auto time = std::chrono::duration_cast<std::chrono::milliseconds>(after - before).count();
+			std::cout << "\n" << time << std::endl;
 		}
-		else if (s.implementation == s.asm_)
-		{
-			vm_init();
-			auto res = vm_interpret(first_instruction);
-			std::cout << res << "\n";
-			return machine_state();
-		}
-		else
-		{
-			throw std::runtime_error("Unknown implementation strategy");
-		}
+		return res;
 	}
 }

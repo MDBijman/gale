@@ -85,7 +85,6 @@ int main(int argc, char** argv)
 				}
 				auto& code = std::get<std::string>(file_or_error);
 
-				//proj.add_module(proj.eval(code));
 				proj.eval(code);
 			}
 		}
@@ -145,17 +144,8 @@ let a: std.i64 = fib 35;
 			fe::project p{ fe::pipeline() };
 			p.add_module(fe::stdlib::typedefs::load());
 			p.add_module(fe::stdlib::assert::load());
-			auto before = std::chrono::high_resolution_clock::now();
 			p.eval(code);
-			auto after = std::chrono::high_resolution_clock::now();
-			auto time = std::chrono::duration_cast<std::chrono::milliseconds>(after - before).count();
-			ms_sum += time;
-			std::cout << "\n" << time << std::endl;
 		}
-
-		std::cout << "sum " << ms_sum << std::endl;
-		std::cout << "avg " << ((double)ms_sum) / loop_count << std::endl;
-
 	}
 	else if (mode == "help")
 	{

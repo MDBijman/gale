@@ -974,7 +974,7 @@ call_ui64 LABEL NEAR PTR WORD
 
 	; set new frame pointer
 	; load sp
-	mov rbx, QWORD PTR [r13 + 62*8]
+	lea rbx, [r14 + r15]
 	mov QWORD PTR [r13 + 61*8], rbx
 	
 	; update ip to function entry location
@@ -993,7 +993,6 @@ ret_ui8 LABEL NEAR PTR WORD
 	mov r8, QWORD PTR [r14 + r15]
 	sub r15, 8
 	mov rbx, QWORD PTR [r14 + r15]
-	mov QWORD PTR [r13 + 62*8], r15
 	mov QWORD PTR [r13 + 61*8], rbx
 	sub r15, r9
 
@@ -1027,6 +1026,7 @@ salloc_reg_ui8 LABEL NEAR PTR WORD
 ; BEGIN sdealloc ui8
 sdealloc_ui8 LABEL NEAR PTR WORD
 	shr r9, 8
+	and r9, 0ffh
 	sub r15, r9
 
 	add r8, 2
@@ -1111,6 +1111,7 @@ mov [rax + 15*8], rbx
 lea rbx, or_reg_reg_reg
 mov [rax + 16*8], rbx
 
+; todo remove
 lea rbx, mv_reg_sp
 mov [rax + 17*8], rbx
 

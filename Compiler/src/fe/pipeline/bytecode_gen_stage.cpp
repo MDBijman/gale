@@ -15,18 +15,14 @@ namespace fe::vm
 			used_registers.set(i, false);
 			out.push_back(i);
 		}
-		this->next_caller_saved_allocation = 0;
 		return out;
 	}
 
 	void code_gen_state::set_temp_registers(std::vector<reg> regs)
 	{
-		next_caller_saved_allocation = 0;
 		for (auto r : regs)
 		{
 			this->used_registers.set(r.val, true);
-			if (r.val > next_caller_saved_allocation.val)
-				next_caller_saved_allocation = r.val;
 		}
 	}
 
@@ -41,28 +37,28 @@ namespace fe::vm
 			used_registers.set(i, false);
 			out.push_back(i);
 		}
-		this->next_callee_saved_allocation = 0;
 		return out;
 	}
 
 	void code_gen_state::set_saved_registers(std::vector<reg> regs)
 	{
-		next_callee_saved_allocation = 0;
 		for (auto r : regs)
 		{
 			this->used_registers.set(r.val, true);
-			if (r.val > next_callee_saved_allocation.val)
-				next_callee_saved_allocation = r.val;
 		}
 	}
 
 	reg code_gen_state::alloc_saved_register()
 	{
-		assert(this->next_callee_saved_allocation.val < 64);
-		reg res = this->next_callee_saved_allocation;
-		this->used_registers.set(res.val);
-		this->next_callee_saved_allocation.val++;
-		return res;
+		for (auto i = 32; i < 64; i++)
+		{
+			if (!used_registers.test(i))
+			{
+				used_registers.set(i);
+				return reg(i);
+			}
+		}
+		throw std::runtime_error("ICE: Ran out of registers!");
 	}
 
 	void code_gen_state::dealloc_saved_register(reg r)
@@ -73,11 +69,15 @@ namespace fe::vm
 	
 	reg code_gen_state::alloc_temp_register()
 	{
-		assert(this->next_caller_saved_allocation.val < 32);
-		reg res = this->next_caller_saved_allocation;
-		this->used_registers.set(res.val);
-		this->next_caller_saved_allocation.val++;
-		return res;
+		for (auto i = 0; i < 32; i++)
+		{
+			if (!used_registers.test(i))
+			{
+				used_registers.set(i);
+				return reg(i);
+			}
+		}
+		throw std::runtime_error("ICE: Ran out of registers!");
 	}
 
 	void code_gen_state::dealloc_temp_register(reg r)

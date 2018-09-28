@@ -15,10 +15,6 @@ namespace fe::vm
 		// Mapping of nodes to bytecode chunks
 		std::unordered_map<node_id, uint8_t> node_to_chunk;
 
-		// Caller saved registers = 0..31
-		reg next_caller_saved_allocation = 0;
-		// Callee saved registers = 32..63
-		reg next_callee_saved_allocation = 32;
 		// Bitfield with 64 entries, one for each register, 1 indicates register is allocated
 		std::bitset<64> used_registers;
 

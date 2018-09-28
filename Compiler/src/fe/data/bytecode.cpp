@@ -185,10 +185,6 @@ namespace fe::vm
 	{
 		return bytes<3>{ op_to_byte(op_kind::MV64_REG_REG), dest.val, src.val };
 	}
-	bytes<2> make_mv_sp(reg dest)
-	{
-		return bytes<2>{ op_to_byte(op_kind::MV_REG_SP), dest.val };
-	}
 	bytes<3> make_mv_reg_ui8(reg dest, uint8_t a)
 	{
 		return bytes<3>{ op_to_byte(op_kind::MV_REG_UI8), dest.val, a };
