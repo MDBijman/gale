@@ -81,10 +81,13 @@ namespace fe
 				}
 			}
 
+			// optimize
+			pl.optimize_program(bytecode);
+
 			auto executable = pl.link(bytecode);
 
 			// optimize
-			pl.optimize_bytecode(executable);
+			pl.optimize_executable(executable);
 
 			// Stage 4: interpret
 			return pl.run(executable);

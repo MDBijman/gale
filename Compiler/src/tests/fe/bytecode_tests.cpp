@@ -17,7 +17,6 @@ import [std std.assert]
 
 let fib: std.i64 -> std.i64 = \n => if (n <= 2) { 1 } else { (fib (n - 1) + fib (n - 2)) };
 let a: std.i64 = fib 31;
-std.assert.assert (a == 1346269);
 		)delim";
 
 	using namespace fe::types;
@@ -41,7 +40,6 @@ let a: std.i64 = 1;
 {
 	a = 2;
 };
-std.assert.assert (a == 2);
 		)delim";
 
 	using namespace fe::types;
@@ -59,7 +57,6 @@ import [std std.assert]
 
 let a: std.i64 = 1;
 a = 2;
-std.assert.assert (a == 2);
 		)delim";
 
 	using namespace fe::types;
@@ -77,7 +74,6 @@ import [std std.assert]
 
 let a: std.i64 = 1;
 if (true) { a = 2; } else { a = 3; };
-std.assert.assert (a == 2);
 		)delim";
 
 	using namespace fe::types;
@@ -121,7 +117,6 @@ module test
 import [std std.assert]
 
 let a: std.i64 = 3;
-std.assert.assert (a == 3);
 )delim";
 
 	fe::project p{ fe::pipeline() };
@@ -139,9 +134,7 @@ import [std std.assert]
 
 let test: std.i64 -> std.i64 = \n => n;
 let a: std.i64 = test 3;
-std.assert.assert (a == 3);
 let b: std.i64 = a + 2;
-std.assert.assert (b == 5);
 )delim";
 
 	fe::project p{ fe::pipeline() };

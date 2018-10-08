@@ -218,17 +218,15 @@ namespace fe::vm
 
 		if (s.print_code)
 		{
-			for (auto i = 0; i < e.code.size(); )
+			for (byte* op : e)
 			{
-				auto* instruction = e.code.get_instruction(i);
-				auto size = op_size(byte_to_op(instruction->val));
-				std::cout << op_to_string(byte_to_op(instruction->val));
+				auto size = op_size(byte_to_op(op->val));
+				std::cout << op_to_string(byte_to_op(op->val));
 				for (int j = 1; j < size; j++)
 				{
-					std::cout << " " << std::to_string((instruction + j)->val);
+					std::cout << " " << std::to_string((op + j)->val);
 				}
 				std::cout << "\n";
-				i += size;
 			}
 		}
 
@@ -248,12 +246,10 @@ namespace fe::vm
 			break;
 		}
 
-		if (s.print_time)
-		{
-			auto after = std::chrono::high_resolution_clock::now();
-			auto time = std::chrono::duration_cast<std::chrono::milliseconds>(after - before).count();
-			std::cout << "\n" << time << std::endl;
-		}
+		auto after = std::chrono::high_resolution_clock::now();
+		long long time = std::chrono::duration_cast<std::chrono::milliseconds>(after - before).count();
+		
+		std::cout << "time: " << time << std::endl;
 		return res;
 	}
 }

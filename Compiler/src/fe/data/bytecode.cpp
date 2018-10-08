@@ -464,13 +464,26 @@ namespace fe::vm
 		return code.size();
 	}
 
-	void program::print()
+	std::string program::to_string()
 	{
+		std::string r;
 		for (auto& chunk : this->code)
 		{
-			std::cout << chunk.get_name() << "\n";
-			std::cout << chunk.get_bytecode().operator std::string();
-			std::cout << std::endl;
+			if (!chunk.is_bytecode()) continue;
+
+			r += chunk.get_name() + "\n";
+			r += chunk.get_bytecode().operator std::string();
+			r += "\n";
 		}
+		return r;
+	}
+
+	/*
+	* Executable
+	*/
+
+	std::string executable::to_string()
+	{
+		return code.operator std::string();
 	}
 }
