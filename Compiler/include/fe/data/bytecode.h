@@ -29,7 +29,7 @@ namespace fe::vm
 		DIV_REG_REG_REG,
 		// reg[b0] <- reg[b1] % reg[b2]
 		MOD_REG_REG_REG,
-		
+
 		/*
 		* Logic
 		*/
@@ -116,7 +116,7 @@ namespace fe::vm
 
 		EXIT,
 
-		ERR 
+		ERR
 	};
 
 	uint8_t op_to_byte(op_kind);
@@ -334,11 +334,61 @@ namespace fe::vm
 
 	class bytecode
 	{
+	public:
+		class iterator
+		{
+			friend class bytecode;
+
+			std::vector<byte>& data;
+			uint64_t i;
+
+			iterator(std::vector<byte>& c) : i(0), data(c) {}
+			iterator(std::vector<byte>& c, uint64_t i) : i(i), data(c) {}
+
+		public:
+			iterator(iterator& o) : i(o.i), data(o.data) {}
+			iterator& operator=(const iterator& o)
+			{
+				data = o.data;
+				i = o.i;
+				return *this;
+			}
+			iterator& operator++()
+			{
+				i += op_size(byte_to_op(data[i].val));
+				return *this;
+			}
+			bool operator==(const iterator& o)
+			{
+				return (i == o.i) && (&data != &o.data);
+			}
+			bool operator!=(const iterator& o)
+			{
+				return (i != o.i) || (&data != &o.data);
+			}
+			byte* operator*()
+			{
+				return &data[i];
+			}
+			byte* operator->()
+			{
+				return this->operator*();
+			}
+		};
+
+	private:
 		std::vector<byte> instructions;
 
 	public:
 		bytecode() {}
 		bytecode(std::vector<byte> bs) : instructions(bs) {}
+
+		// Adds the bytes to this bytecode at the given address
+		template<int C> void add_instruction(near_lbl l, bytes<C> in)
+		{
+			for (int i = 0; i < C; i++) 
+				instructions.insert(instructions.begin() + l.ip + i, in[i]);
+		}
 
 		// Adds the bytes to the end of this bytecode, returning the address of the first byte
 		template<int C> std::pair<near_lbl, uint32_t> add_instruction(bytes<C> in)
@@ -394,6 +444,16 @@ namespace fe::vm
 		{
 			return this->instructions;
 		}
+
+		iterator begin()
+		{
+			return iterator(instructions);
+		}
+
+		iterator end()
+		{
+			return iterator(instructions, instructions.size());
+		}
 	};
 
 	class bytecode_builder
@@ -433,6 +493,7 @@ namespace fe::vm
 		name signature;
 		std::variant<bytecode, native_code> code;
 		symbols externals;
+
 	public:
 		function(name n, bytecode c, symbols s) : signature(n), code(c), externals(s) {}
 		function(name n, bytecode c) : signature(n), code(c) {}
@@ -461,10 +522,6 @@ namespace fe::vm
 		function& get_function(name);
 		size_t function_count();
 
-		template<int C> bytes<C> get_instruction(far_lbl l)
-		{
-			return chunks.at(l.chunk_id).get_instruction<C>(l.ip);
-		}
 
 		void insert_padding(far_lbl loc, uint8_t size)
 		{
@@ -475,7 +532,12 @@ namespace fe::vm
 
 		std::vector<function>& get_code() { return code; }
 
-		void print();
+		template<int C> bytes<C> operator[](far_lbl l)
+		{
+			return chunks.at(l.chunk_id).get_instruction<C>(l.ip);
+		}
+
+		std::string to_string();
 	};
 
 	class executable
@@ -489,6 +551,15 @@ namespace fe::vm
 		template<int C> bytes<C> get_instruction(uint64_t loc)
 		{
 			return code.get_instruction<C>(loc);
+		}
+
+		std::string to_string();
+
+		bytecode::iterator begin() { return code.begin(); }
+		bytecode::iterator end() { return code.end(); }
+		byte* operator[](uint64_t i)
+		{
+			return &code.data()[i];
 		}
 	};
 }

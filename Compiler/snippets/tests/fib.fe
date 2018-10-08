@@ -47,5 +47,3 @@ std.io.println std.to_string (fib 39);
 std.io.println std.to_string (fib 40);
 std.io.println std.to_string (fib 41);
 std.io.println std.to_string (fib 42);
-
-

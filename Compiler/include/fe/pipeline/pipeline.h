@@ -54,14 +54,21 @@ namespace fe
 			return vm::generate_bytecode(ast);
 		}
 
+		void optimize_program(vm::program& e) const
+		{
+			vm::optimization_settings s;
+			vm::optimize_program(e, s);
+		}
+
 		vm::executable link(vm::program& ast) const
 		{
 			return vm::link(ast);
 		}
 
-		void optimize_bytecode(vm::executable& e) const
+		void optimize_executable(vm::executable& e) const
 		{
-			vm::optimize(e, vm::optimization_settings());
+			vm::optimization_settings s;
+			vm::optimize_executable(e, s);
 		}
 
 		vm::machine_state run(vm::executable& e) const

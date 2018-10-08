@@ -136,7 +136,7 @@ let a: std.i64 = fib 35;
 		)delim";
 
 		long ms_sum = 0;
-		constexpr int loop_count = 10;
+		constexpr int loop_count = 1;
 
 		for(int i = 0; i < loop_count; i++)
 		{
