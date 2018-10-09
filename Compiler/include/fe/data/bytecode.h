@@ -121,7 +121,6 @@ namespace fe::vm
 
 	uint8_t op_to_byte(op_kind);
 	op_kind byte_to_op(uint8_t);
-
 	std::string op_to_string(op_kind);
 
 	// Returns max uint8_t value on error
@@ -189,6 +188,7 @@ namespace fe::vm
 		default: return -1;
 		}
 	}
+
 	// Compile time op size struct
 	template<op_kind Op> struct ct_op_size { static constexpr uint8_t value = op_size(Op); };
 
@@ -211,8 +211,19 @@ namespace fe::vm
 	};
 	inline bool operator==(const reg& a, const reg& b) { return a.val == b.val; }
 
+	bool writes_to(const byte* op, reg r);
+	bool reads_from(const byte* op, reg r);
+
 	template<int C>
 	using bytes = std::array<byte, C>;
+
+	template<int C> bytes<C> make_nops()
+	{
+		bytes<C> out;
+		for (int i = 0; i < C; i++)
+			out[i] = op_to_byte(op_kind::NOP);
+		return out;
+	}
 
 	bytes<8> make_i64(int64_t);
 	int64_t read_i64(const uint8_t*);
@@ -384,10 +395,11 @@ namespace fe::vm
 		bytecode(std::vector<byte> bs) : instructions(bs) {}
 
 		// Adds the bytes to this bytecode at the given address
-		template<int C> void add_instruction(near_lbl l, bytes<C> in)
+		template<int C> near_lbl add_instruction(near_lbl l, bytes<C> in)
 		{
 			for (int i = 0; i < C; i++) 
 				instructions.insert(instructions.begin() + l.ip + i, in[i]);
+			return l;
 		}
 
 		// Adds the bytes to the end of this bytecode, returning the address of the first byte

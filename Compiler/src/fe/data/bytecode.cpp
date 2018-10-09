@@ -80,11 +80,106 @@ namespace fe::vm
 		assert(!"Unknown instruction");
 	}
 
+	bool writes_to(const byte* op, reg r)
+	{
+		switch (byte_to_op(op->val))
+		{
+		case op_kind::ADD_REG_REG_REG:
+		case op_kind::ADD_REG_REG_UI8:
+		case op_kind::SUB_REG_REG_REG:
+		case op_kind::SUB_REG_REG_UI8:
+		case op_kind::MUL_REG_REG_REG:
+		case op_kind::DIV_REG_REG_REG:
+		case op_kind::MOD_REG_REG_REG:
+		case op_kind::GT_REG_REG_REG:
+		case op_kind::GTE_REG_REG_REG:
+		case op_kind::LT_REG_REG_REG:
+		case op_kind::LTE_REG_REG_REG: 
+		case op_kind::EQ_REG_REG_REG:
+		case op_kind::NEQ_REG_REG_REG:
+		case op_kind::AND_REG_REG_REG: 
+		case op_kind::AND_REG_REG_UI8: 
+		case op_kind::OR_REG_REG_REG:
+		case op_kind::MV_REG_SP:
+		case op_kind::MV_REG_IP:
+		case op_kind::MV_REG_UI8:
+		case op_kind::MV_REG_UI16:
+		case op_kind::MV_REG_UI32:
+		case op_kind::MV_REG_UI64:
+		case op_kind::MV_REG_I8:
+		case op_kind::MV_REG_I16:
+		case op_kind::MV_REG_I32:
+		case op_kind::MV_REG_I64:
+		case op_kind::MV8_REG_REG:
+		case op_kind::MV16_REG_REG:
+		case op_kind::MV32_REG_REG:
+		case op_kind::MV64_REG_REG: 
+		case op_kind::MV8_REG_LOC:
+		case op_kind::MV16_REG_LOC:
+		case op_kind::MV32_REG_LOC:
+		case op_kind::MV64_REG_LOC:
+		case op_kind::POP8_REG:
+		case op_kind::POP16_REG:
+		case op_kind::POP32_REG:
+		case op_kind::POP64_REG:
+		case op_kind::SALLOC_REG_UI8: 
+			return (op + 1)->val == r.val;
+		default: return false;
+		}
+	}
+
+	bool reads_from(const byte* op, reg r)
+	{
+		switch (byte_to_op(op->val))
+		{
+		case op_kind::ADD_REG_REG_REG:
+		case op_kind::SUB_REG_REG_REG:
+		case op_kind::MUL_REG_REG_REG:
+		case op_kind::DIV_REG_REG_REG:
+		case op_kind::MOD_REG_REG_REG:
+		case op_kind::GT_REG_REG_REG:
+		case op_kind::GTE_REG_REG_REG:
+		case op_kind::LT_REG_REG_REG:
+		case op_kind::LTE_REG_REG_REG:
+		case op_kind::EQ_REG_REG_REG:
+		case op_kind::NEQ_REG_REG_REG:
+		case op_kind::AND_REG_REG_REG:
+		case op_kind::AND_REG_REG_UI8:
+		case op_kind::OR_REG_REG_REG: 
+			return (op + 2)->val == r.val || (op + 3)->val == r.val;
+
+		case op_kind::ADD_REG_REG_UI8:
+		case op_kind::SUB_REG_REG_UI8:
+		case op_kind::MV8_REG_REG:
+		case op_kind::MV16_REG_REG: 
+		case op_kind::MV32_REG_REG:
+		case op_kind::MV64_REG_REG: 
+		case op_kind::MV8_LOC_REG:
+		case op_kind::MV16_LOC_REG:
+		case op_kind::MV32_LOC_REG:
+		case op_kind::MV64_LOC_REG:
+			return (op + 2)->val == r.val;
+
+		case op_kind::PUSH8_REG:
+		case op_kind::PUSH16_REG:
+		case op_kind::PUSH32_REG:
+		case op_kind::PUSH64_REG:
+		case op_kind::JRNZ_REG_I32: 
+		case op_kind::JRZ_REG_I32: 
+			return (op + 1)->val == r.val;
+
+		default: return false;
+		}
+	}
+
+	/*
+	* Op data helpers
+	*/
 
 	bytes<8> make_i64(int64_t a) { return *reinterpret_cast<bytes<8>*>(&a); }
 	int64_t read_i64(const uint8_t* b) { return *reinterpret_cast<const int64_t*>(b); }
 	int64_t read_i64(bytes<8> in) { return read_i64(&in[0].val); }
-	
+
 	bytes<8> make_ui64(uint64_t a) { return *reinterpret_cast<bytes<8>*>(&a); }
 	uint64_t read_ui64(const uint8_t* in) { return *reinterpret_cast<const uint64_t*>(in); }
 	uint64_t read_ui64(bytes<8> in) { return static_cast<uint64_t>(read_i64(in)); }
@@ -112,6 +207,10 @@ namespace fe::vm
 	bytes<1> make_ui8(uint8_t a) { return make_i8(static_cast<int8_t>(a)); }
 	uint8_t read_ui8(const uint8_t* in) { return static_cast<uint8_t>(read_i8(in)); }
 	uint8_t read_ui8(bytes<1> in) { return static_cast<uint8_t>(read_i8(in)); }
+
+	/*
+	* Op helpers
+	*/
 
 	bytes<1> make_nop()
 	{

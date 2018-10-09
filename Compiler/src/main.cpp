@@ -131,8 +131,8 @@ int main(int argc, char** argv)
 module fib
 import [std std.assert]
 
-let fib: std.i64 -> std.i64 = \n => if (n <= 2) { 1 } else { (fib (n - 1)) + (fib (n - 2)) };
-let a: std.i64 = fib 35;
+let fib: std.ui64 -> std.ui64 = \n => if (n <= 2) { 1 } else { (fib (n - 1)) + (fib (n - 2)) };
+let a: std.ui64 = fib 47;
 		)delim";
 
 		long ms_sum = 0;

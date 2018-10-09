@@ -4,13 +4,58 @@
 #include <string>
 #include <optional>
 #include <assert.h>
+#include <stack>
 
 namespace fe::vm
 {
 	void optimize_program(program& e, optimization_settings& s)
 	{
 		auto dg = build_dependency_graph(e);
-		remove_redundant_dependencies(e, dg, s);
+		while(remove_redundant_dependencies(e, dg, s));
+		auto& funs = e.get_code();
+		for (int i = 0; i < funs.size(); i++)
+		{
+			auto& fun = funs[i];
+			if (!fun.is_bytecode()) continue;
+			auto& bc = fun.get_bytecode();
+
+			std::cout << "\n" << fun.get_name() << "\n";
+			std::string out;
+			size_t ip = 0;
+			while (bc.has_instruction(ip))
+			{
+				auto in = bc.get_instruction<10>(ip);
+				if (byte_to_op(in[0].val) == op_kind::NOP)
+				{
+					ip++; continue;
+				}
+
+				out += std::to_string(ip) + ": ";
+				out += op_to_string(byte_to_op(in[0].val)) + " ";
+				for (int i = 1; i < op_size(byte_to_op(in[0].val)); i++)
+					out += std::to_string(in[i].val) + " ";
+
+				auto dep = std::find_if(dg.dependencies.at(i).begin(), dg.dependencies.at(i).end(), [ip](dependency& dep) {
+					return (ip == dep.instruction_id);
+				});
+
+				while (dep != dg.dependencies.at(i).end())
+				{
+					out += " dep ";
+					out += std::to_string(dep->depends_on);
+
+					dep = std::find_if(dep + 1, dg.dependencies.at(i).end(), [ip](dependency& dep) {
+						return (ip == dep.instruction_id);
+					});
+				}
+
+				out += "\n";
+				ip += op_size(byte_to_op(in[0].val));
+			}
+
+			std::cout << out;
+		}
+
 	}
 
 	void dependency_graph::add_offset(function_id fun, uint64_t loc, uint32_t size)
@@ -48,7 +93,7 @@ namespace fe::vm
 			// Vector of generated instruction dependencies
 			std::vector<dependency> dependencies;
 
-			std::optional<uint64_t> latest_push;
+			std::stack<uint64_t> latest_push_ops;
 
 			for (uint64_t i = 0, op_i = 0; i < bc.size(); op_i++)
 			{
@@ -130,7 +175,7 @@ namespace fe::vm
 				case op_kind::PUSH64_REG: {
 					reg src = current_instruction[1].val;
 
-					latest_push = i;
+					latest_push_ops.push(i);
 					dependencies.push_back(dependency{ i, latest_writes[src.val] });
 					break;
 				}
@@ -140,10 +185,10 @@ namespace fe::vm
 				case op_kind::POP64_REG: {
 					reg dst = current_instruction[1].val;
 
-					if (latest_push.has_value())
+					if (!latest_push_ops.empty())
 					{
-						dependencies.push_back(dependency{ i, *latest_push });
-						latest_push = std::nullopt;
+						dependencies.push_back(dependency{ i, latest_push_ops.top() });
+						latest_push_ops.pop();
 					}
 					latest_writes[dst.val] = i;
 					break;
@@ -152,14 +197,14 @@ namespace fe::vm
 				case op_kind::JRZ_REG_I32: {
 					reg src = current_instruction[1].val;
 
-					latest_push = std::nullopt;
+					latest_push_ops = {};
 					dependencies.push_back(dependency{ i, latest_writes[src.val] });
 					break;
 				}
 				case op_kind::CALL_UI64: {
 					for (int i = 0; i < 32; i++) latest_writes[i] = 0;
 
-					latest_push = std::nullopt;
+					latest_push_ops = {};
 					latest_writes[60] = i;
 					dependencies.push_back(dependency{ i, latest_writes[0] });
 					break;
@@ -191,49 +236,148 @@ namespace fe::vm
 			assert(function.is_bytecode());
 			auto& bytecode = function.get_bytecode();
 
-			for (auto& d : dependencies)
-			{
-				auto dependant = d.instruction_id;
-				auto dependency = d.depends_on;
+			// first: dependency, second: dependant, second: replacement
+			std::vector<std::tuple<uint64_t, uint64_t, uint64_t>> replaced_ops;
 
-				auto dependency_instruction = bytecode.get_instruction<2>(dependency);
+			for (auto it = dependencies.begin(); it != dependencies.end(); it++)
+			{
+				auto& dep = *it;
+				auto dependant = dep.instruction_id;
+				auto dependency = dep.depends_on;
+
+				auto dependency_instruction = bytecode.get_instruction<10>(dependency);
 				op_kind dependency_kind = byte_to_op(dependency_instruction[0].val);
 				size_t dependency_op_size = op_size(dependency_kind);
 
-				auto dependant_instruction = bytecode.get_instruction<2>(dependant);
+				auto dependant_instruction = bytecode.get_instruction<10>(dependant);
 				op_kind dependant_kind = byte_to_op(dependant_instruction[0].val);
 				size_t dependant_op_size = op_size(dependant_kind);
 
-				auto first_reg = dependant_instruction[1].val;
-				auto second_reg = dependency_instruction[1].val;
+				assert(dependency <= dependant);
 
 				// If not compatible pair
-				if (!(
-					(dependency_kind == op_kind::PUSH64_REG && dependant_kind == op_kind::POP64_REG)
+				if ((dependency_kind == op_kind::PUSH64_REG && dependant_kind == op_kind::POP64_REG)
 					|| (dependency_kind == op_kind::PUSH32_REG && dependant_kind == op_kind::POP32_REG)
 					|| (dependency_kind == op_kind::PUSH16_REG && dependant_kind == op_kind::POP16_REG)
-					|| (dependency_kind == op_kind::PUSH8_REG && dependant_kind == op_kind::POP8_REG)
-					))
+					|| (dependency_kind == op_kind::PUSH8_REG && dependant_kind == op_kind::POP8_REG))
 				{
-					continue;
+					auto first_reg = dependant_instruction[1].val;
+					auto second_reg = dependency_instruction[1].val;
+
+					// If there are conflicting instructions in between
+					bool conflict = false;
+					for (auto i = dependency + dependency_op_size; i < dependant;)
+					{
+						auto op = bytecode.get_instruction(i);
+
+						if (writes_to(op, second_reg))
+						{
+							conflict = true;
+							break;
+						}
+
+						i += op_size(byte_to_op(op->val));
+					}
+					if (conflict) continue;
+
+					change_made = true;
+
+					// Remove the old instructions
+					bytecode.set_instruction(dependency, make_nops<ct_op_size<op_kind::PUSH64_REG>::value>());
+					bytecode.set_instruction(dependant, make_nops<ct_op_size<op_kind::POP64_REG>::value>());
+
+					// And add new single instruction
+					uint64_t new_op;
+					switch (dependency_kind)
+					{
+					case op_kind::PUSH64_REG: new_op = bytecode.add_instruction(dependant + 2, make_mv64_reg_reg(first_reg, second_reg)).ip; break;
+					case op_kind::PUSH32_REG: new_op = bytecode.add_instruction(dependant + 2, make_mv32_reg_reg(first_reg, second_reg)).ip; break;
+					case op_kind::PUSH16_REG: new_op = bytecode.add_instruction(dependant + 2, make_mv16_reg_reg(first_reg, second_reg)).ip; break;
+					case op_kind::PUSH8_REG: new_op = bytecode.add_instruction(dependant + 2, make_mv8_reg_reg(first_reg, second_reg)).ip; break;
+					}
+
+					g.add_offset(fun_id, new_op, 3);
+
+					replaced_ops.push_back({ dependency, dependant, new_op });
 				}
-
-				change_made = true;
-
-				// Remove the old instructions
-				bytecode.set_instruction(dependency, bytes<2>{ op_to_byte(op_kind::NOP), op_to_byte(op_kind::NOP) });
-				bytecode.set_instruction(dependant, bytes<2>{ op_to_byte(op_kind::NOP), op_to_byte(op_kind::NOP) });
-
-				// And replace with single instruction
-				switch (dependency_kind)
+				else if ((dependency_kind == op_kind::MV_REG_I64 && dependant_kind == op_kind::MV64_REG_REG
+					&& dependency_instruction[1].val == dependant_instruction[2].val))
 				{
-				case op_kind::PUSH64_REG: bytecode.add_instruction(dependency, make_mv64_reg_reg(first_reg, second_reg)); break;
-				case op_kind::PUSH32_REG: bytecode.add_instruction(dependency, make_mv32_reg_reg(first_reg, second_reg)); break;
-				case op_kind::PUSH16_REG: bytecode.add_instruction(dependency, make_mv16_reg_reg(first_reg, second_reg)); break;
-				case op_kind::PUSH8_REG: bytecode.add_instruction(dependency, make_mv8_reg_reg(first_reg, second_reg)); break;
+					auto first_reg = dependant_instruction[2].val;
+					auto second_reg = dependency_instruction[1].val;
+					auto literal_int = read_i64(&dependency_instruction[2].val);
+
+					// If there are conflicting instructions in between
+					bool conflict = false;
+					for (auto i = dependency + dependency_op_size; i < dependant;)
+					{
+						auto op = bytecode.get_instruction(i);
+
+						if (reads_from(op, second_reg))
+						{
+							conflict = true;
+							break;
+						}
+
+						i += op_size(byte_to_op(op->val));
+					}
+					if (conflict) continue;
+
+					change_made = true;
+
+					// Remove the old instructions
+					bytecode.set_instruction(dependency, make_nops<ct_op_size<op_kind::MV_REG_I64>::value>());
+					bytecode.set_instruction(dependant, make_nops<ct_op_size<op_kind::MV64_REG_REG>::value>());
+
+					// And add new single instruction
+					uint64_t new_op = bytecode.add_instruction(
+						dependant + ct_op_size<op_kind::MV64_REG_REG>::value, 
+						make_mv_reg_i64(dependant_instruction[1].val, literal_int)
+					).ip;
+
+					g.add_offset(fun_id, new_op, ct_op_size<op_kind::MV_REG_I64>::value);
+
+					replaced_ops.push_back({ dependency, dependant, new_op });
 				}
-				g.add_offset(fun_id, dependency, 3);
 			}
+
+			std::vector<dependency> added_deps;
+			for (auto& dep : dependencies)
+			{
+				for (auto& replacement_tuple : replaced_ops)
+				{
+					auto dependency = std::get<0>(replacement_tuple);
+					auto dependant = std::get<1>(replacement_tuple);
+					auto replacement = std::get<2>(replacement_tuple);
+
+					if (dep.instruction_id == dependant && dep.depends_on == dependency)
+						continue;
+
+					assert(dep.depends_on != dependency);
+					if (dep.depends_on == dependant)
+						added_deps.push_back(vm::dependency{ dep.instruction_id, replacement });
+					else if (dep.instruction_id == dependency)
+						added_deps.push_back(vm::dependency{ replacement, dep.depends_on });
+				}
+			}
+
+			dependencies.erase(std::remove_if(dependencies.begin(), dependencies.end(), [replaced_ops](auto& dep) {
+				for (auto& replacement : replaced_ops)
+				{
+					if (std::get<0>(replacement) == dep.instruction_id
+						|| std::get<1>(replacement) == dep.depends_on
+						|| std::get<1>(replacement) == dep.instruction_id
+						|| std::get<1>(replacement) == dep.depends_on)
+					{
+						return true;
+					}
+				}
+
+				return false;
+			}), dependencies.end());
+
+
+			std::move(added_deps.begin(), added_deps.end(), std::back_inserter(dependencies));
 		}
 
 		return change_made;
@@ -242,7 +386,7 @@ namespace fe::vm
 	void optimize_executable(executable& e, optimization_settings& s)
 	{
 		remove_nops(e, s);
-		std::cout << e.to_string();
+		std::cout << "Full code size: " << e.code.size() << " bytes\n";
 	}
 
 	void remove_nops(executable& e, optimization_settings& s)
