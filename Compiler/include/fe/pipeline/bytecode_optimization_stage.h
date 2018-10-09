@@ -13,7 +13,7 @@ namespace fe::vm
 	*
 	* Passes
 	* 1) Builds dependency graph between instructions
-	* 2) 
+	* 2) Removes push/pop pairs that are equivalent to a single register mov 
 	* 3)
 	*/
 	void optimize_program(program& p, optimization_settings& s);

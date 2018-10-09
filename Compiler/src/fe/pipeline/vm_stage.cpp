@@ -71,7 +71,7 @@ namespace fe::vm
 #undef IP
 
 	extern "C" void vm_init();
-	extern "C" int vm_interpret(const byte* first);
+	extern "C" uint64_t vm_interpret(const byte* first);
 
 	machine_state vm_hl_interpret(executable& e, vm_settings& s)
 	{
