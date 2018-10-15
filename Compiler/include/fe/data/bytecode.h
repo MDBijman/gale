@@ -2,6 +2,7 @@
 #include <vector>
 #include <array>
 #include <variant>
+#include <assert.h>
 #include <functional>
 #include <map>
 
@@ -185,7 +186,7 @@ namespace fe::vm
 		case op_kind::SALLOC_REG_UI8: return 3;
 		case op_kind::SDEALLOC_UI8: return 2;
 		case op_kind::EXIT: return 1;
-		default: return -1;
+		default: assert(!"Unknown op"); return -1;
 		}
 	}
 
@@ -357,13 +358,31 @@ namespace fe::vm
 			iterator(std::vector<byte>& c, uint64_t i) : i(i), data(c) {}
 
 		public:
-			iterator(iterator& o) : i(o.i), data(o.data) {}
+			using value_type = byte*;
+			using reference = value_type;
+			using pointer = byte**;
+			using iterator_category = std::input_iterator_tag;
+			using difference_type = int;
+
+			iterator(const iterator& o) : i(o.i), data(o.data) {}
 			iterator& operator=(const iterator& o)
 			{
 				data = o.data;
 				i = o.i;
 				return *this;
 			}
+			iterator add_unsafe(uint64_t offset)
+			{
+				i += offset;
+				return *this;
+			}
+			// postfix
+			iterator operator++(int)
+			{
+				i += op_size(byte_to_op(data[i].val));
+				return *this;
+			}
+			// prefix
 			iterator& operator++()
 			{
 				i += op_size(byte_to_op(data[i].val));
@@ -435,6 +454,11 @@ namespace fe::vm
 		template<int C> void set_instruction(near_lbl l, bytes<C> b)
 		{
 			for (int i = 0; i < C; i++) instructions[l.ip + i] = b[i];
+		}
+
+		byte* operator[](uint64_t index)
+		{
+			return &instructions[index];
 		}
 
 		void append(bytecode& other)
@@ -573,6 +597,16 @@ namespace fe::vm
 		{
 			return &code.data()[i];
 		}
+	};
+
+	class direct_threaded_executable
+	{
+	public:
+		bytecode code;
+		std::vector<native_code> native_functions;
+
+		direct_threaded_executable(bytecode code, std::vector<native_code> nc) 
+			: code(code), native_functions(nc) {}
 	};
 }
 

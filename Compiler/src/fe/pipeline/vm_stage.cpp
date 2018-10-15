@@ -70,8 +70,71 @@ namespace fe::vm
 #undef SP
 #undef IP
 
-	extern "C" void vm_init();
+	extern "C" uint16_t* vm_init();
 	extern "C" uint64_t vm_interpret(const byte* first);
+
+	direct_threaded_executable preprocess(executable& e, uint16_t* handlers)
+	{
+		auto ops_between = [](executable& e, byte* a, byte* b) -> int32_t {
+			byte* min = a > b ? b : a;
+			byte* max = a > b ? a : b;
+
+			int32_t count = 0;
+			for (byte* i = min; i < max;)
+			{
+				count++;
+				i += op_size(byte_to_op(i->val));
+			}
+
+			return count;
+		};
+
+		bytecode bc;
+		auto& byte_data = bc.data();
+			
+		for (byte* i : e)
+		{
+			auto op = byte_to_op(i->val);
+			auto size = op_size(op);
+
+			uint16_t offset = handlers[i->val];
+			byte* offset_as_bytes = reinterpret_cast<byte*>(&offset);
+			byte_data.push_back(offset_as_bytes[0]);
+			byte_data.push_back(offset_as_bytes[1]);
+
+			switch (op)
+			{
+			case op_kind::CALL_UI64: {
+				auto offset = read_i64(*reinterpret_cast<bytes<8>*>(i + 1));
+				auto add_offset = ops_between(e, i, i + offset);
+				*reinterpret_cast<bytes<8>*>(i + 1) = make_i64(offset + (offset > 0 ? add_offset : -add_offset));
+				break;
+			}
+			case op_kind::JMPR_I32: {
+				auto offset = read_i32(*reinterpret_cast<bytes<4>*>(i + 1));
+				auto add_offset = ops_between(e, i, i + offset);
+				*reinterpret_cast<bytes<4>*>(i + 1) = make_i32(offset + (offset > 0 ? add_offset : -add_offset));
+				break;
+			}
+			case op_kind::JRNZ_REG_I32:
+			case op_kind::JRZ_REG_I32: {
+				auto offset = read_i32(*reinterpret_cast<bytes<4>*>(i + 2));
+				auto add_offset = ops_between(e, i, i + offset);
+				*reinterpret_cast<bytes<4>*>(i + 2) = make_i32(offset + (offset > 0 ? add_offset : -add_offset));
+				break;
+			}
+			default:break;
+			}
+
+			// Push parameters
+			for (int j = 1; j < size; j++)
+			{
+				byte_data.push_back(j[i].val);
+			}
+		}
+
+		return direct_threaded_executable(bc, e.native_functions);
+	}
 
 	machine_state vm_hl_interpret(executable& e, vm_settings& s)
 	{
@@ -236,9 +299,11 @@ namespace fe::vm
 		switch (s.implementation)
 		{
 		case vm_implementation::asm_: {
-			vm_init();
-			auto rax_res = vm_interpret(first_instruction);
-			if (s.print_result) std::cout << rax_res << "\n";
+			uint16_t* handlers = vm_init();
+			auto direct_threaded = preprocess(e, handlers);
+before = std::chrono::high_resolution_clock::now();
+			auto rax_res = vm_interpret(direct_threaded.code.get_instruction(0));
+			std::cout << rax_res << "\n";
 			break;
 		}
 		case vm_implementation::cpp:
@@ -248,7 +313,7 @@ namespace fe::vm
 
 		auto after = std::chrono::high_resolution_clock::now();
 		long long time = std::chrono::duration_cast<std::chrono::milliseconds>(after - before).count();
-		
+
 		std::cout << "time: " << time << std::endl;
 		return res;
 	}
