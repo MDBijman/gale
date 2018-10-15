@@ -132,11 +132,11 @@ module fib
 import [std std.assert]
 
 let fib: std.ui64 -> std.ui64 = \n => if (n <= 2) { 1 } else { (fib (n - 1)) + (fib (n - 2)) };
-let a: std.ui64 = fib 47;
+let a: std.ui64 = fib 37;
 		)delim";
 
 		long ms_sum = 0;
-		constexpr int loop_count = 1;
+		constexpr int loop_count = 10;
 
 		for(int i = 0; i < loop_count; i++)
 		{

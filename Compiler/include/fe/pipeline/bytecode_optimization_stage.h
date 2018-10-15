@@ -24,15 +24,19 @@ namespace fe::vm
 		uint64_t depends_on;
 	};
 
-	struct dependency_graph
+	struct function_dependency_graph
 	{
-		std::unordered_map<function_id, std::vector<dependency>> dependencies;
+		std::vector<dependency> dependencies;
 
-		void add_offset(function_id fun, uint64_t loc, uint32_t size);
+		void add_offset(uint64_t loc, uint32_t size);
 	};
 
-	dependency_graph build_dependency_graph(program& e);
-	bool remove_redundant_dependencies(program& e, dependency_graph& g, optimization_settings& s);
+	using program_dependency_graph = std::unordered_map<uint64_t, function_dependency_graph>;
+
+	program_dependency_graph build_dependency_graph(program& e);
+	bool remove_redundant_dependencies(program& e, program_dependency_graph& g, optimization_settings& s);
+	bool remove_idempotent_instructions(program& e, program_dependency_graph& g);
+	bool remove_dependantless_instructions(program& e, program_dependency_graph& g);
 
 	/*
 	* Executable object optimization
