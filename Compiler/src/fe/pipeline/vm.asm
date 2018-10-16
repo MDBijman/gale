@@ -2,7 +2,6 @@ PUBLIC vm_interpret, vm_init
 .data
 registers QWORD 64 dup (0) ; 64 registers of 64 bits each, initialized to 0
 handlers  WORD 57 dup (?) ; dispatch target locations, initialized in vm_init
-stack_    BYTE 16384 dup (0)
 .code
 
 
@@ -32,16 +31,10 @@ mov r12, OFFSET begin_interp
 ; move register pointer into r13, used for register operations
 mov r13, OFFSET registers
 
-; move stack pointer into r14, used for memory loads and stores
-mov r14, OFFSET stack_
-; move stack offset into r15
-mov r15, 0
-
 ; r8 contains the pointer to data
 ; r9 contains the operands
 ; r13 contains register base
-; r14 contains stack base
-; r15 contains stack pointer
+; rsp contains stack pointer
 
 ; mov argument into r8
 mov r8, rcx
@@ -340,6 +333,33 @@ lte_reg_reg_reg LABEL NEAR PTR WORD
 	DISPATCH
 ; END lte reg reg reg
 
+; BEGIN lte reg reg ui8
+lte_reg_reg_ui8 LABEL NEAR PTR WORD
+	shr r9, 16
+	mov rax, r9
+	mov rbx, r9
+
+	; bl gets target
+	; al gets first source
+	; r9b gets literal
+	shr rax, 8
+	shr r9, 16
+	and rbx, 0ffh
+	and rax, 0ffh
+	and r9, 0ffh
+
+	mov rax, [r13 + rax*8]
+	; default move 0 into rbx
+	mov rdx, 0
+	; conditional move 1 into rbx
+	mov rcx, 1
+	cmp rax, r9
+	cmovle rdx, rcx
+	mov [r13 + rbx*8], rdx
+
+	add r8, 5
+	DISPATCH
+; END lte reg reg ui8
 
 ; BEGIN eq reg reg reg
 eq_reg_reg_reg LABEL NEAR PTR WORD
@@ -638,7 +658,7 @@ mv8_loc_reg LABEL NEAR PTR WORD
 
 	mov rax, QWORD PTR [r13 + rax*8]
 	mov bl, BYTE PTR [r13 + rbx*8]
-	mov BYTE PTR [r14 + rax], bl
+	mov BYTE PTR [rax], bl
 
 	add r8, 4
 	DISPATCH
@@ -659,7 +679,7 @@ mv16_loc_reg LABEL NEAR PTR WORD
 	mov rax, QWORD PTR [r13 + rax*8]
 	; get value from register
 	mov bx, WORD PTR [r13 + rbx*8]
-	mov WORD PTR [r14 + rax], bx
+	mov WORD PTR [rax], bx
 
 	add r8, 4
 	DISPATCH
@@ -680,7 +700,7 @@ mv32_loc_reg LABEL NEAR PTR WORD
 	mov rax, QWORD PTR [r13 + rax*8]
 	; get value from register
 	mov ebx, DWORD PTR [r13 + rbx*8]
-	mov DWORD PTR [r14 + rax], ebx
+	mov DWORD PTR [rax], ebx
 
 	add r8, 4
 	DISPATCH
@@ -701,7 +721,7 @@ mv64_loc_reg LABEL NEAR PTR WORD
 	mov rax, QWORD PTR [r13 + rax*8]
 	; get value from register
 	mov rbx, QWORD PTR [r13 + rbx*8]
-	mov QWORD PTR [r14 + rax], rbx
+	mov QWORD PTR [rax], rbx
 
 	add r8, 4
 	DISPATCH
@@ -721,7 +741,7 @@ mv8_reg_loc LABEL NEAR PTR WORD
 	; get location from register
 	mov rbx, QWORD PTR [r13 + rbx*8]
 	; get value at location
-	mov bl, BYTE PTR [r14 + rbx]
+	mov bl, BYTE PTR [rbx]
 	; put value in register
 	mov BYTE PTR [r13 + rax*8], bl
 
@@ -743,7 +763,7 @@ mv16_reg_loc LABEL NEAR PTR WORD
 	; get location from register
 	mov rbx, QWORD PTR [r13 + rbx*8]
 	; get value at location
-	mov bx, WORD PTR [r14 + rbx]
+	mov bx, WORD PTR [rbx]
 	; put value in register
 	mov WORD PTR [r13 + rax*8], bx
 
@@ -765,7 +785,7 @@ mv32_reg_loc LABEL NEAR PTR WORD
 	; get location from register
 	mov rbx, QWORD PTR [r13 + rbx*8]
 	; get value at location
-	mov ebx, DWORD PTR [r14 + rbx]
+	mov ebx, DWORD PTR [rbx]
 	; put value in register
 	mov DWORD PTR [r13 + rax*8], ebx
 
@@ -787,7 +807,7 @@ mv64_reg_loc LABEL NEAR PTR WORD
 	; get location from register
 	mov rbx, QWORD PTR [r13 + rbx*8]
 	; get value at location
-	mov rbx, QWORD PTR [r14 + rbx]
+	mov rbx, QWORD PTR [rbx]
 	; put value in register
 	mov QWORD PTR [r13 + rax*8], rbx
 
@@ -801,11 +821,11 @@ push8_reg LABEL NEAR PTR WORD
 	shr r9, 16
 	xor rax, rax
 	mov al, r9b
-	
-	mov al, BYTE PTR [r13 + rax*8]
-	mov BYTE PTR [r14 + r15], al
-	inc r15
 
+	mov al, BYTE PTR [r13 + rax*8] 
+	mov BYTE PTR [rsp], al
+	dec rsp
+	
 	add r8, 3
 	DISPATCH
 ; END push8 reg
@@ -818,8 +838,7 @@ push16_reg LABEL NEAR PTR WORD
 	mov al, r9b
 	
 	mov ax, WORD PTR [r13 + rax*8]
-	mov WORD PTR [r14 + r15], ax
-	add r15, 2
+	push ax
 
 	add r8, 3
 	DISPATCH
@@ -833,8 +852,8 @@ push32_reg LABEL NEAR PTR WORD
 	mov al, r9b
 	
 	mov eax, DWORD PTR [r13 + rax*8]
-	mov DWORD PTR [r14 + r15], eax
-	add r15, 4
+	mov [rsp], eax
+	sub rsp, 4
 
 	add r8, 3
 	DISPATCH
@@ -848,8 +867,7 @@ push64_reg LABEL NEAR PTR WORD
 	mov al, r9b
 	
 	mov rax, QWORD PTR [r13 + rax*8]
-	mov QWORD PTR [r14 + r15], rax
-	add r15, 8
+	push rax
 
 	add r8, 3
 	DISPATCH
@@ -862,8 +880,8 @@ pop8_reg LABEL NEAR PTR WORD
 	xor rax, rax
 	mov al, r9b
 	
-	dec r15
-	mov bl, BYTE PTR [r14 + r15]
+	inc rsp
+	mov bl, [rsp]
 	mov BYTE PTR [r13 + rax*8], bl
 
 	add r8, 3
@@ -877,8 +895,7 @@ pop16_reg LABEL NEAR PTR WORD
 	xor rax, rax
 	mov al, r9b
 	
-	sub r15, 2
-	mov bx, WORD PTR [r14 + r15]
+	pop bx
 	mov WORD PTR [r13 + rax*8], bx
 
 	add r8, 3
@@ -892,8 +909,8 @@ pop32_reg LABEL NEAR PTR WORD
 	xor rax, rax
 	mov al, r9b
 	
-	sub r15, 4
-	mov ebx, DWORD PTR [r14 + r15]
+	add rsp, 4
+	mov ebx, [rsp]
 	mov DWORD PTR [r13 + rax*8], ebx
 
 	add r8, 3
@@ -907,8 +924,7 @@ pop64_reg LABEL NEAR PTR WORD
 	xor rax, rax
 	mov al, r9b
 	
-	sub r15, 8
-	mov rbx, QWORD PTR [r14 + r15]
+	pop rbx
 	mov QWORD PTR [r13 + rax*8], rbx
 
 	add r8, 3
@@ -975,18 +991,14 @@ call_ui64 LABEL NEAR PTR WORD
 
 	; save frame pointer
 	mov rbx, QWORD PTR [r13 + 61*8]
-	mov QWORD PTR [r14 + r15], rbx
-	add r15, 8
+	push rbx
 	; push the next op so we return and continue execution after this op
 	mov rbx, r8
 	add rbx, 10
-	mov QWORD PTR [r14 + r15], rbx
-	add r15, 8
+	push rbx
 
 	; set new frame pointer
-	; load sp
-	lea rbx, [r14 + r15]
-	mov QWORD PTR [r13 + 61*8], rbx
+	mov QWORD PTR [r13 + 61*8], rsp
 	
 	; update ip to function entry location
 	add r8, rax
@@ -1000,12 +1012,10 @@ ret_ui8 LABEL NEAR PTR WORD
 	shr r9, 16
 	and r9, 0ffh
 
-	sub r15, 8
-	mov r8, QWORD PTR [r14 + r15]
-	sub r15, 8
-	mov rbx, QWORD PTR [r14 + r15]
+	pop r8
+	pop rbx
 	mov QWORD PTR [r13 + 61*8], rbx
-	sub r15, r9
+	add rsp, r9
 
 	DISPATCH
 ; END ret ui8
@@ -1026,9 +1036,8 @@ salloc_reg_ui8 LABEL NEAR PTR WORD
 	shr r9, 8
 	and r9, 0ffh
 
-	mov [r13 + rax], r15
-
-	add r15, r9
+	sub rsp, r9
+	mov [r13 + rax*8], rsp
 
 	add r8, 4
 	DISPATCH
@@ -1038,7 +1047,7 @@ salloc_reg_ui8 LABEL NEAR PTR WORD
 sdealloc_ui8 LABEL NEAR PTR
 	shr r9, 16
 	and r9, 0ffh
-	sub r15, r9
+	add rsp, r9
 
 	add r8, 3
 	DISPATCH
@@ -1066,235 +1075,299 @@ lea rax, handlers
  
 lea rbx, begin_interp
 
+mov rdx, 0
+
 lea rcx, nop_
 sub rcx, rbx
-mov [rax + 0*2], cx
+mov [rax + rdx*2], cx
 
-lea rcx, add_reg_reg_reg
-sub rcx, rbx
-mov [rax + 1*2], cx
-
-lea rcx, add_reg_reg_ui8
-sub rcx, rbx
-mov [rax + 2*2], cx
-
-lea rcx, sub_reg_reg_reg
-sub rcx, rbx
-mov [rax + 3*2], cx
-
-lea rcx, sub_reg_reg_ui8
-sub rcx, rbx
-mov [rax + 4*2], cx
-
-lea rcx, mul_reg_reg_reg
-sub rcx, rbx
-mov [rax + 5*2], cx
-
-lea rcx, div_reg_reg_reg
-sub rcx, rbx
-mov [rax + 6*2], cx
-
-lea rcx, mod_reg_reg_reg
-sub rcx, rbx
-mov [rax + 7*2], cx
-
-lea rcx, gt_reg_reg_reg
-sub rcx, rbx
-mov [rax + 8*2], cx
-
-lea rcx, gte_reg_reg_reg
-sub rcx, rbx
-mov [rax + 9*2], cx
-
-lea rcx, lt_reg_reg_reg
-sub rcx, rbx
-mov [rax + 10*2], cx
-
-lea rcx, lte_reg_reg_reg
-sub rcx, rbx
-mov [rax + 11*2], cx
-
-lea rcx, eq_reg_reg_reg
-sub rcx, rbx
-mov [rax + 12*2], cx
-
-lea rcx, neq_reg_reg_reg
-sub rcx, rbx
-mov [rax + 13*2], cx
-
-lea rcx, and_reg_reg_reg
-sub rcx, rbx
-mov [rax + 14*2], cx
-
-lea rcx, and_reg_reg_ui8
-sub rcx, rbx
-mov [rax + 15*2], cx
-
-lea rcx, or_reg_reg_reg
-sub rcx, rbx
-mov [rax + 16*2], cx
-
-; todo remove
-lea rcx, mv_reg_sp
-sub rcx, rbx
-mov [rax + 17*2], cx
-
-; todo remove
-lea rcx, mv_reg_ip
-sub rcx, rbx
-mov [rax + 18*2], cx
-
-lea rcx, mv_reg_ui8
-sub rcx, rbx
-mov [rax + 19*2], cx
-
-lea rcx, mv_reg_ui16
-sub rcx, rbx
-mov [rax + 20*2], cx
-
-lea rcx, mv_reg_ui32
-sub rcx, rbx
-mov [rax + 21*2], cx
-
-lea rcx, mv_reg_ui64
-sub rcx, rbx
-mov [rax + 22*2], cx
-
-lea rcx, mv_reg_i8
-sub rcx, rbx
-mov [rax + 23*2], cx
-
-lea rcx, mv_reg_i16
-sub rcx, rbx
-mov [rax + 24*2], cx
-
-lea rcx, mv_reg_i32
-sub rcx, rbx
-mov [rax + 25*2], cx
-
-lea rcx, mv_reg_i64
-sub rcx, rbx
-mov [rax + 26*2], cx
-
-lea rcx, mv8_reg_reg
-sub rcx, rbx
-mov [rax + 27*2], cx
-
-lea rcx, mv16_reg_reg
-sub rcx, rbx
-mov [rax + 28*2], cx
-
-lea rcx, mv32_reg_reg
-sub rcx, rbx
-mov [rax + 29*2], cx
-
-lea rcx, mv64_reg_reg
-sub rcx, rbx
-mov [rax + 30*2], cx
-
-lea rcx, mv8_loc_reg
-sub rcx, rbx
-mov [rax + 31*2], cx
-
-lea rcx, mv16_loc_reg
-sub rcx, rbx
-mov [rax + 32*2], cx
-
-lea rcx, mv32_loc_reg
-sub rcx, rbx
-mov [rax + 33*2], cx
-
-lea rcx, mv64_loc_reg
-sub rcx, rbx
-mov [rax + 34*2], cx
-
-lea rcx, mv8_reg_loc
-sub rcx, rbx
-mov [rax + 35*2], cx
-
-lea rcx, mv16_reg_loc
-sub rcx, rbx
-mov [rax + 36*2], cx
-
-lea rcx, mv32_reg_loc
-sub rcx, rbx
-mov [rax + 37*2], cx
-
-lea rcx, mv64_reg_loc
-sub rcx, rbx
-mov [rax + 38*2], cx
-
-lea rcx, push8_reg
-sub rcx, rbx
-mov [rax + 39*2], cx
-
-lea rcx, push16_reg
-sub rcx, rbx
-mov [rax + 40*2], cx
-
-lea rcx, push32_reg
-sub rcx, rbx
-mov [rax + 41*2], cx
-
-lea rcx, push64_reg
-sub rcx, rbx
-mov [rax + 42*2], cx
-
-lea rcx, pop8_reg
-sub rcx, rbx
-mov [rax + 43*2], cx
-
-lea rcx, pop16_reg
-sub rcx, rbx
-mov [rax + 44*2], cx
-
-lea rcx, pop32_reg
-sub rcx, rbx
-mov [rax + 45*2], cx
-
-lea rcx, pop64_reg
-sub rcx, rbx
-mov [rax + 46*2], cx
-
-lea rcx, jmpr_i32
-sub rcx, rbx
-mov [rax + 47*2], cx
-
-lea rcx, jrnz_reg_i32
-sub rcx, rbx
-mov [rax + 48*2], cx
-
-lea rcx, jrz_reg_i32
-sub rcx, rbx
-mov [rax + 49*2], cx
-
-lea rcx, call_ui64
-sub rcx, rbx
-mov [rax + 50*2], cx
-
-lea rcx, call_native_ui64
-sub rcx, rbx
-mov [rax + 51*2], cx
-
-lea rcx, ret_ui8
-sub rcx, rbx
-mov [rax + 52*2], cx
-
-lea rcx, lbl_ui32
-sub rcx, rbx
-mov [rax + 53*2], cx
-
-lea rcx, salloc_reg_ui8
-sub rcx, rbx
-mov [rax + 54*2], cx
-
-lea rcx, sdealloc_ui8 
-sub rcx, rbx
-mov [rax + 55*2], cx
-
+inc rdx
 lea rcx, exit 
 sub rcx, rbx
-mov [rax + 56*2], cx
+mov [rax + rdx*2], cx
+
+inc rdx ; skip err opcode
+inc rdx
+lea rcx, lbl_ui32
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, add_reg_reg_reg
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, add_reg_reg_ui8
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, sub_reg_reg_reg
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, sub_reg_reg_ui8
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, mul_reg_reg_reg
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, div_reg_reg_reg
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, mod_reg_reg_reg
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, gt_reg_reg_reg
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, gte_reg_reg_reg
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, lt_reg_reg_reg
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, lte_reg_reg_reg
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, lte_reg_reg_ui8
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, eq_reg_reg_reg
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, neq_reg_reg_reg
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, and_reg_reg_reg
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, and_reg_reg_ui8
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, or_reg_reg_reg
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+; todo remove
+inc rdx
+lea rcx, mv_reg_sp
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+; todo remove
+inc rdx
+lea rcx, mv_reg_ip
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, mv_reg_ui8
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, mv_reg_ui16
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, mv_reg_ui32
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, mv_reg_ui64
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, mv_reg_i8
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, mv_reg_i16
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, mv_reg_i32
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, mv_reg_i64
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, mv8_reg_reg
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, mv16_reg_reg
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, mv32_reg_reg
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, mv64_reg_reg
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, mv8_loc_reg
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, mv16_loc_reg
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, mv32_loc_reg
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, mv64_loc_reg
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, mv8_reg_loc
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, mv16_reg_loc
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, mv32_reg_loc
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, mv64_reg_loc
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, push8_reg
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, push16_reg
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, push32_reg
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, push64_reg
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, pop8_reg
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, pop16_reg
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, pop32_reg
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, pop64_reg
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, jmpr_i32
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, jrnz_reg_i32
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, jrz_reg_i32
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, call_ui64
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, call_native_ui64
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, ret_ui8
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, salloc_reg_ui8
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, sdealloc_ui8 
+sub rcx, rbx
+mov [rax + rdx*2], cx
 
 ret
 vm_init ENDP

@@ -392,6 +392,41 @@ namespace fe::vm
 			).ip;
 		}
 
+		std::optional<uint64_t> try_simplify_lte_literal(bytecode& bc, uint64_t mv_reg_i64, uint64_t lte)
+		{
+			byte* first = bc[mv_reg_i64];
+			byte* second = bc[lte];
+
+			auto tmp_reg = first[1].val;
+
+			if (second[3].val != tmp_reg)
+				return std::nullopt;
+
+			/* can this be removed by simply checking if there are additional instructions with 'dependency' as dependency? */
+			if (std::any_of(
+				bc.begin().add_unsafe(mv_reg_i64 + op_size(op_kind::MV_REG_I64)),
+				bc.begin().add_unsafe(lte),
+				[tmp_reg](const byte* op) { return reads_from(op, tmp_reg); }
+			)) return std::nullopt;
+
+			auto target_reg = second[1].val;
+			auto other_src = second[2].val;
+			auto lit = read_i64(&(first + 2)->val);
+
+			if (lit < std::numeric_limits<int8_t>::min() || lit > std::numeric_limits<int8_t>::max())
+				return std::nullopt;
+
+			// Remove the old instructions
+			bc.set_instruction(mv_reg_i64, make_nops<ct_op_size<op_kind::MV_REG_I64>::value>());
+			bc.set_instruction(lte, make_nops<ct_op_size<op_kind::LTE_REG_REG_REG>::value>());
+
+			// And add new single instruction
+			return bc.add_instruction(
+				lte + ct_op_size<op_kind::LTE_REG_REG_REG>::value,
+				make_lte(reg(target_reg), reg(other_src), byte(static_cast<int8_t>(lit)))
+			).ip;
+		}
+
 		std::optional<uint64_t> try_remove_dependency(bytecode& b, function_dependency_graph& g, dependency& d)
 		{
 			auto* dependency = b[d.depends_on];
@@ -456,6 +491,17 @@ namespace fe::vm
 					return std::nullopt;
 
 				g.add_offset(*replacement, ct_op_size<op_kind::ADD_REG_REG_REG>::value);
+
+				return replacement;
+			}
+			else if (dependency_kind == op_kind::MV_REG_I64 && dependant_kind == op_kind::LTE_REG_REG_REG)
+			{
+				auto replacement = peephole_optimizations::try_simplify_lte_literal(b, d.depends_on, d.instruction_id);
+
+				if (!replacement)
+					return std::nullopt;
+
+				g.add_offset(*replacement, ct_op_size<op_kind::LTE_REG_REG_I8>::value);
 
 				return replacement;
 			}
