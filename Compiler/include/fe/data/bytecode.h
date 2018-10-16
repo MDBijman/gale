@@ -13,6 +13,11 @@ namespace fe::vm
 	enum class op_kind : uint8_t
 	{
 		NOP = 0,
+		EXIT,
+		ERR,
+		// temporary label with id
+		LBL_UI32,
+
 
 		/*
 		* Arithmetic
@@ -43,6 +48,7 @@ namespace fe::vm
 		LT_REG_REG_REG,
 		// if reg[b1] <= reg[b2] { reg[b0] <- 1 } else { reg[b0] <- 0 }
 		LTE_REG_REG_REG,
+		LTE_REG_REG_I8,
 		// if reg[b1] == reg[b2] { reg[b0] <- 1 } else { reg[b0] <- 0 }
 		EQ_REG_REG_REG,
 		// if reg[b1] != reg[b2] { reg[b0] <- 1 } else { reg[b0] <- 0 }
@@ -107,17 +113,10 @@ namespace fe::vm
 		// reg[x] <- pop, ip <- reg[x]
 		RET_UI8,
 
-		// temporary label with id
-		LBL_UI32,
-
 		// allocate ui8 bytes of memory, put address in reg
 		SALLOC_REG_UI8,
 		// deallocate ui8 bytes of memory
-		SDEALLOC_UI8,
-
-		EXIT,
-
-		ERR
+		SDEALLOC_UI8
 	};
 
 	uint8_t op_to_byte(op_kind);
@@ -141,6 +140,7 @@ namespace fe::vm
 		case op_kind::GTE_REG_REG_REG: return 4;
 		case op_kind::LT_REG_REG_REG: return 4;
 		case op_kind::LTE_REG_REG_REG: return 4;
+		case op_kind::LTE_REG_REG_I8: return 4;
 		case op_kind::EQ_REG_REG_REG: return 4;
 		case op_kind::NEQ_REG_REG_REG: return 4;
 		case op_kind::AND_REG_REG_REG: return 4;
@@ -274,6 +274,7 @@ namespace fe::vm
 	bytes<4> make_gte(reg dest, reg a, reg b);
 	bytes<4> make_lt(reg dest, reg a, reg b);
 	bytes<4> make_lte(reg dest, reg a, reg b);
+	bytes<4> make_lte(reg dest, reg a, byte b);
 	bytes<4> make_eq(reg dest, reg a, reg b);
 	bytes<4> make_neq(reg dest, reg a, reg b);
 	bytes<3> make_mv_reg_ui8(reg dest, uint8_t a);
