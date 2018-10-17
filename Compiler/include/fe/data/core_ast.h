@@ -27,6 +27,7 @@ namespace fe::core_ast
 
 		LOCAL_ADDRESS,
 		GLOBAL_ADDRESS,
+		REGISTER,
 		RESULT_REGISTER,
 
 		FUNCTION,

@@ -34,8 +34,9 @@ namespace fe::vm
 	using program_dependency_graph = std::unordered_map<uint64_t, function_dependency_graph>;
 
 	program_dependency_graph build_dependency_graph(program& e);
-	bool remove_redundant_dependencies(program& e, program_dependency_graph& g, optimization_settings& s);
-	bool remove_idempotent_instructions(program& e, program_dependency_graph& g);
+	bool optimize_dependencies(program& e, program_dependency_graph& g, optimization_settings& s);
+	bool optimize_single_ops(program& e, program_dependency_graph& g, optimization_settings& s);
+
 	bool remove_dependantless_instructions(program& e, program_dependency_graph& g);
 
 	/*

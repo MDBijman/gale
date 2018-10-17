@@ -320,18 +320,36 @@ namespace fe::ext_ast
 			.resolve_variable(id.root_identifier(), ast.name_scope_cb())).declaration_node)
 			.data_index).index_in_function;*/
 
-		auto read = new_ast.create_node(core_ast::node_type::MOVE);
-		new_ast.get_data<core_ast::size>(*new_ast.get_node(read).data_index).val = size;
+		if (size > 8)
+		{
+			auto read = new_ast.create_node(core_ast::node_type::MOVE);
+			new_ast.get_data<core_ast::size>(*new_ast.get_node(read).data_index).val = size;
 
-		// First child resolves source address
-		auto param_ref = new_ast.create_node(core_ast::node_type::LOCAL_ADDRESS, read);
-		new_ast.get_data<core_ast::size>(*new_ast.get_node(param_ref).data_index).val = location_register;
+			// First child resolves source address
+			auto param_ref = new_ast.create_node(core_ast::node_type::LOCAL_ADDRESS, read);
+			new_ast.get_data<core_ast::size>(*new_ast.get_node(param_ref).data_index).val = location_register;
 
-		// Second child resolves target address
-		auto alloc = new_ast.create_node(core_ast::node_type::STACK_ALLOC, read);
-		new_ast.get_data<core_ast::size>(*new_ast.get_node(alloc).data_index).val = size;
+			// Second child resolves target address
+			auto alloc = new_ast.create_node(core_ast::node_type::STACK_ALLOC, read);
+			new_ast.get_data<core_ast::size>(*new_ast.get_node(alloc).data_index).val = size;
 
-		return lowering_result(read, location_type::stack, size);
+			return lowering_result(read, location_type::stack, size);
+		}
+		else
+		{
+			auto read = new_ast.create_node(core_ast::node_type::MOVE);
+			new_ast.get_data<core_ast::size>(*new_ast.get_node(read).data_index).val = size;
+
+			// First child resolves source address
+			auto param_ref = new_ast.create_node(core_ast::node_type::REGISTER, read);
+			new_ast.get_data<core_ast::size>(*new_ast.get_node(param_ref).data_index).val = 0;
+
+			// Second child resolves target address
+			auto alloc = new_ast.create_node(core_ast::node_type::STACK_ALLOC, read);
+			new_ast.get_data<core_ast::size>(*new_ast.get_node(alloc).data_index).val = size;
+
+			return lowering_result(read, location_type::stack, size);
+		}
 	}
 
 	lowering_result lower_string(node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
