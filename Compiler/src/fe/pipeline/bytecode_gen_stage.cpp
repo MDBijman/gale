@@ -119,7 +119,6 @@ namespace fe::vm
 	// Size of a word on x86 in terms of bytes
 	static constexpr int X86_WORD_SIZE = 2;
 
-
 	code_gen_result generate_bytecode(node_id n, core_ast::ast& ast, program& p, code_gen_state& i);
 
 	void link_to_parent_chunk(node_id n, core_ast::ast& ast, code_gen_state& i)
@@ -391,18 +390,26 @@ namespace fe::vm
 		// #todo definitely?
 		i.clear_temp_registers();
 
-		// Repush the params with salloc_reg_ui8 to get stack address into reg(0)
-		auto param = i.alloc_temp_register();
-		assert(param.val == 0);
-		auto buf = i.alloc_temp_register();
-		auto i2 = bc.add_instructions(
-			make_pop(i1.result_size, buf),
-			make_salloc_reg_ui8(param, i1.result_size),
-			make_mv_loc_reg(i1.result_size, param, buf)
-		);
-		code_size += i2.second;
+		if (i1.result_size > 8)
+		{
+			// Repush the params with salloc_reg_ui8 to get stack address into reg(0)
+			auto param = i.alloc_temp_register();
+			assert(param.val == 0);
+			auto buf = i.alloc_temp_register();
+			auto i2 = bc.add_instructions(
+				make_pop(i1.result_size, buf),
+				make_salloc_reg_ui8(param, i1.result_size),
+				make_mv_loc_reg(i1.result_size, param, buf)
+			);
+			code_size += i2.second;
 
-		i.dealloc_temp_register(buf);
+			i.dealloc_temp_register(buf);
+		}
+		else
+		{
+			auto i2 = bc.add_instructions(make_pop(i1.result_size, 0));
+			code_size += i2.second;
+		}
 
 		// Perform call
 		assert(node.size);
@@ -441,9 +448,12 @@ namespace fe::vm
 		code_gen_result res = generate_bytecode(node.children[0], ast, p, i);
 		assert(res.result_size == 0);
 		code_size += res.code_size;
-		
+
 		auto in_size = ast.get_data<core_ast::size>(*ast.get_node(n).data_index);
-		code_size += bc.add_instruction(make_ret(static_cast<uint8_t>(in_size.val))).second;
+		if (in_size.val > 8)
+			code_size += bc.add_instruction(make_ret(static_cast<uint8_t>(in_size.val))).second;
+		else
+			code_size += bc.add_instruction(make_ret(0)).second;
 
 		return code_gen_result(0, far_lbl(i.chunk_of(n), res.code_location.ip), code_size);
 	}
@@ -495,6 +505,21 @@ namespace fe::vm
 			}
 
 			i.dealloc_temp_register(r_buf);
+		}
+		else if (from.kind == core_ast::node_type::REGISTER && to.kind == core_ast::node_type::STACK_ALLOC)
+		{
+			auto r_from = ast.get_node_data<core_ast::size>(from).val;
+
+			stack_size = move_size.val;
+
+			switch (move_size.val)
+			{
+			case 8: code_size += bc.add_instructions(make_push64(r_from)).second; break;
+			case 4: code_size += bc.add_instructions(make_push32(r_from)).second; break;
+			case 2: code_size += bc.add_instructions(make_push16(r_from)).second; break;
+			case 1: code_size += bc.add_instructions(make_push8(r_from)).second; break;
+			default: throw std::runtime_error("invalid move size");
+			}
 		}
 		else
 		{
@@ -669,14 +694,13 @@ namespace fe::vm
 		auto& target = ast.get_node(node.children[0]);
 		switch (target.kind)
 		{
-		case core_ast::node_type::RESULT_REGISTER: 
+		case core_ast::node_type::RESULT_REGISTER:
 			std::tie(location, code_size) = bc.add_instruction(make_pop(size.val, vm::ret_reg)); break;
 		default: throw std::runtime_error("unknown pop result");
 		}
 
 		return code_gen_result(-static_cast<int64_t>(size.val), far_lbl(i.chunk_of(n), location.ip), code_size);
 	}
-
 
 	code_gen_result generate_bytecode(node_id n, core_ast::ast& ast, program& p, code_gen_state& i)
 	{

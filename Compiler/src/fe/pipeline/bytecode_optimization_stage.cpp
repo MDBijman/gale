@@ -11,8 +11,8 @@ namespace fe::vm
 	void optimize_program(program& e, optimization_settings& s)
 	{
 		program_dependency_graph dg = build_dependency_graph(e);
-		while (remove_redundant_dependencies(e, dg, s)
-			|| remove_idempotent_instructions(e, dg)
+		while (optimize_dependencies(e, dg, s)
+			|| optimize_single_ops(e, dg, s)
 			|| remove_dependantless_instructions(e, dg));
 		auto& funs = e.get_code();
 		for (int i = 0; i < funs.size(); i++)
@@ -517,7 +517,7 @@ namespace fe::vm
 	* on the new instruction.
 	* Returns true if any changes to the program were made
 	*/
-	bool remove_redundant_dependencies(program& e, program_dependency_graph& g, optimization_settings& s)
+	bool optimize_dependencies(program& e, program_dependency_graph& g, optimization_settings& s)
 	{
 		bool change_made = false;
 
@@ -582,66 +582,144 @@ namespace fe::vm
 		return change_made;
 	}
 
-	/*
-	* Removes operations that have no effect on machine state.
-	* E.g. mov r1 r1.
-	* Dependencies are updated so that all dependants depend on the dependencies of the removed instruction.
-	* Returns true if any changes to the program were made.
-	*/
-	bool remove_idempotent_instructions(program& e, program_dependency_graph& g)
+	namespace peephole_optimizations
+	{
+		template<typename To, typename From> bool fits(From val)
+		{
+			return (val <= std::numeric_limits<To>::max() && val >= std::numeric_limits<To>::min());
+		}
+
+		std::optional<std::pair<uint64_t, uint64_t>> try_simplify_literal(bytecode& bc, uint64_t mv_lit)
+		{
+			byte* first = bc[mv_lit];
+
+			auto dst_reg = first[1].val;
+			byte* lit = &first[2];
+
+			// And add new single instruction
+			uint64_t new_op;
+			switch (byte_to_op(first->val))
+			{
+			case op_kind::MV_REG_I64: {
+				auto val = read_i64(*reinterpret_cast<bytes<8>*>(lit));
+
+				if (fits<uint8_t>(val))
+				{
+					new_op = bc.add_instruction(mv_lit + op_size(op_kind::MV_REG_I64), make_mv_reg_ui8(dst_reg, val)).ip;
+					// Remove the old instruction
+					bc.set_instruction(mv_lit, make_nops<ct_op_size<op_kind::MV_REG_I64>::value>());
+				}
+
+				break;
+			}
+			default: return std::nullopt;
+			}
+
+			return std::pair(mv_lit, new_op);
+		}
+
+		bool try_remove_mv(bytecode& bc, uint64_t mv)
+		{
+			byte* b = bc[mv];
+			
+			reg dst = (b + 1)->val;
+			reg src = (b + 2)->val;
+
+			if(!(dst == src))
+				return false;
+
+			bc.set_instruction(mv, make_nops<ct_op_size<op_kind::MV64_REG_REG>::value>());
+
+			return true;
+		}
+	}
+
+	bool optimize_single_ops(program& e, program_dependency_graph& g, optimization_settings& s)
 	{
 		bool change_made = false;
-		for (auto i = 0; i < e.get_code().size(); i++)
+
+		for (auto&[fun_id, fun_dg] : g)
 		{
-			auto& fun = e.get_function(i);
+			auto& function = e.get_function(fun_id);
+			assert(function.is_bytecode());
+			auto& bytecode = function.get_bytecode();
 
-			if (!fun.is_bytecode()) continue;
-			auto& bytecode = fun.get_bytecode();
-			auto& fun_dg = g[i];
-
-			std::vector<uint64_t> removed_ops;
-
-			for (auto it = bytecode.begin(); it != bytecode.end(); it++)
+			while (true)
 			{
-				auto op = *it;
-				if (byte_to_op(op->val) == op_kind::MV64_REG_REG
-					&& (op + 1)->val == (op + 2)->val)
+				std::optional<uint64_t> old_op;
+				// Only has value if the old op is replaced (instead of deleted)
+				std::optional<uint64_t> new_op;
+
+				for (int i = 0; i < bytecode.size();)
 				{
-					*reinterpret_cast<bytes<3>*>(op) = make_nops<3>();
-					change_made = true;
-					removed_ops.push_back(op - *bytecode.begin());
-				}
-			}
 
-			std::vector<dependency> added_deps;
-			std::vector<dependency>& current_deps = fun_dg.dependencies;
-			for (auto& op : removed_ops)
-			{
-				std::vector<uint64_t> op_dependencies;
-				for (auto& dep : current_deps)
-					if (dep.instruction_id == op)
-						op_dependencies.push_back(dep.depends_on);
+					auto replacement = peephole_optimizations::try_simplify_literal(bytecode, i);
 
-				std::vector<uint64_t> op_dependants;
-				for (auto& dep : current_deps)
-					if (dep.depends_on == op)
-						op_dependants.push_back(dep.instruction_id);
-
-				for (auto dependency : op_dependencies)
-				{
-					for (auto dependant : op_dependants)
+					if (replacement)
 					{
-						added_deps.push_back(vm::dependency{ dependant, dependency });
+						old_op = replacement->first;
+						new_op = replacement->second;
+						break;
+					}
+
+					if (byte_to_op(bytecode[i]->val) == op_kind::MV64_REG_REG)
+					{
+						auto removed = peephole_optimizations::try_remove_mv(bytecode, i);
+
+						if (removed)
+						{
+							old_op = i;
+							break;
+						}
+					}
+
+
+					i += op_size(byte_to_op(bytecode[i]->val));
+				}
+
+				if (!old_op)
+					break;
+
+				change_made = true;
+
+				std::vector<dependency> replacement_deps;
+
+				if (old_op && new_op)
+				{
+					for (auto& dep : fun_dg.dependencies)
+					{
+						if (!(dep.instruction_id == *old_op) && !(dep.depends_on == *old_op))
+							continue;
+
+						if (dep.instruction_id == *old_op)
+							replacement_deps.push_back(dependency{ *new_op, dep.depends_on });
+						else if (dep.depends_on == *old_op)
+							replacement_deps.push_back(dependency{ dep.instruction_id, *new_op });
 					}
 				}
+				else if (old_op && !new_op)
+				{
+					std::vector<uint64_t> op_dependencies;
+					for (auto& dep : fun_dg.dependencies)
+						if (dep.instruction_id == *old_op)
+							op_dependencies.push_back(dep.depends_on);
+
+					std::vector<uint64_t> op_dependants;
+					for (auto& dep : fun_dg.dependencies)
+						if (dep.depends_on == *old_op)
+							op_dependants.push_back(dep.instruction_id);
+
+					for (auto dependency : op_dependencies)
+						for (auto dependant : op_dependants)
+							replacement_deps.push_back(vm::dependency{ dependant, dependency });
+				}
+
+				fun_dg.dependencies.erase(std::remove_if(fun_dg.dependencies.begin(), fun_dg.dependencies.end(), [old_op, new_op](auto& dep) {
+					return (*old_op == dep.instruction_id) || (*new_op == dep.depends_on);
+				}), fun_dg.dependencies.end());
+
+				std::move(replacement_deps.begin(), replacement_deps.end(), std::back_inserter(fun_dg.dependencies));
 			}
-
-			current_deps.erase(std::remove_if(current_deps.begin(), current_deps.end(), [&removed_ops](auto& dep) {
-				return std::find(removed_ops.begin(), removed_ops.end(), dep.instruction_id) != removed_ops.end()
-					|| std::find(removed_ops.begin(), removed_ops.end(), dep.depends_on) != removed_ops.end();
-			}), current_deps.end());
-
-			std::move(added_deps.begin(), added_deps.end(), std::back_inserter(current_deps));
 		}
 
 		return change_made;
@@ -690,9 +768,6 @@ namespace fe::vm
 
 		return change_made;
 	}
-
-
-
 
 	void optimize_executable(executable& e, optimization_settings& s)
 	{
