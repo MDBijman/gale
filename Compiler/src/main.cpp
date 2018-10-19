@@ -2,8 +2,10 @@
 #include "fe/modes/project.h"
 #include "fe/modes/repl.h"
 #include "utils/memory/small_vector.h"
+#include "fe/libraries/std/std_assert.h"
 
 #define CATCH_CONFIG_RUNNER
+#define CATCH_CONFIG_FAST_COMPILE
 #include <catch2/catch.hpp>
 
 #include <iostream>
@@ -57,8 +59,6 @@ int main(int argc, char** argv)
 			}
 
 			fe::project proj(std::move(pipeline));
-			// core
-			proj.add_module(fe::core::operations::load());
 			// std io
 			proj.add_module(fe::stdlib::io::load());
 			// std ui
@@ -66,10 +66,10 @@ int main(int argc, char** argv)
 			// std types
 			proj.add_module(fe::stdlib::typedefs::load());
 
-			auto project_path = std::filesystem::path(argv[2]);
+			auto project_path = std::experimental::filesystem::path(argv[2]);
 			std::cout << "Project folder: " << project_path << "\n";
 
-			auto directory_it = std::filesystem::recursive_directory_iterator(argv[2]);
+			auto directory_it = std::experimental::filesystem::recursive_directory_iterator(argv[2]);
 			for (auto& item : directory_it)
 			{
 				auto path = item.path();
@@ -84,7 +84,8 @@ int main(int argc, char** argv)
 					continue;
 				}
 				auto& code = std::get<std::string>(file_or_error);
-				proj.add_module(proj.eval(code));
+
+				proj.eval(code);
 			}
 		}
 		catch (const lexing::error& e)
@@ -124,6 +125,28 @@ int main(int argc, char** argv)
 			std::cout << e.what() << std::endl;
 		}
 	}
+	else if (mode == "other")
+	{
+		auto code = R"delim(
+module fib
+import [std std.assert]
+
+let fib: std.ui64 -> std.ui64 = \n => if (n <= 2) { 1 } else { (fib (n - 1)) + (fib (n - 2)) };
+let a: std.ui64 = fib 35;
+		)delim";
+
+		long ms_sum = 0;
+		constexpr int loop_count = 10;
+
+		for(int i = 0; i < loop_count; i++)
+		{
+			using namespace fe::types;
+			fe::project p{ fe::pipeline() };
+			p.add_module(fe::stdlib::typedefs::load());
+			p.add_module(fe::stdlib::assert::load());
+			p.eval(code);
+		}
+	}
 	else if (mode == "help")
 	{
 		std::cout
@@ -136,35 +159,6 @@ int main(int argc, char** argv)
 			<< "{language} repl\n"
 			<< "\tStarts a REPL session\n"
 			<< std::endl;
-		std::cin.get();
-		return 0;
-	}
-	else if (mode == "other")
-	{
-		fe::pipeline p;
-		//fe::lexing_stage lexer;
-
-		// Init parse table
-		std::string code =
-			R"c(module statements
-	import [std std.io]
-
-	let x : std.i32 = 1;
-	)c";
-
-		for (int i = 0; i < 1000000; i++)
-			code += "x = 2;\n";
-
-		while (true)
-		{
-			auto now = std::chrono::steady_clock::now();
-			p.parse(code);
-			auto then = std::chrono::steady_clock::now();
-
-			auto time = std::chrono::duration<double, std::milli>(then - now).count();
-			std::cout << "Long parse: " << time << " ms" << "\n";
-		}
-
 		std::cin.get();
 		return 0;
 	}

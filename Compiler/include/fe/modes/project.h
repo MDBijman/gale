@@ -3,7 +3,6 @@
 #include "fe/language_definition.h"
 #include "fe/data/ext_ast.h"
 #include "fe/data/module.h"
-#include "fe/libraries/core/core_operations.h"
 #include "fe/libraries/std/std_ui.h"
 #include "fe/libraries/std/std_io.h"
 #include "fe/libraries/std/std_types.h"
@@ -24,28 +23,13 @@ namespace fe
 			modules.insert({ m.name, m });
 		}
 
-		module eval(const std::string& code)
+		vm::machine_state eval(const std::string& code)
 		{
 			auto e_ast = pl.parse(code);
 
 			auto& root_node = e_ast.get_node(e_ast.root_id());
 			root_node.type_scope_id = e_ast.create_type_scope();
 			root_node.name_scope_id = e_ast.create_name_scope();
-
-			module& core_module = modules.at(module_name{ "_core" });
-			{
-				// Name scope
-				auto core_name_scope = e_ast.create_name_scope();
-				e_ast.get_name_scope(core_name_scope).merge(core_module.names);
-				e_ast.get_name_scope(root_node.name_scope_id)
-					.add_module({ "_core" }, core_name_scope);
-
-				// Type scope
-				auto core_type_scope = e_ast.create_type_scope();
-				e_ast.get_type_scope(core_type_scope).merge(core_module.types);
-				e_ast.get_type_scope(root_node.type_scope_id)
-					.add_module({ "_core" }, core_type_scope);
-			}
 
 			// Add name and type scopes of imports
 			auto imports = e_ast.get_imports();
@@ -76,37 +60,37 @@ namespace fe
 			auto c_ast = pl.lower(e_ast);
 			auto& core_root_node = c_ast.get_node(c_ast.root_id());
 
-			// Value scope
-			{
-				auto core_value_scope = c_ast.create_value_scope();
-				c_ast.get_runtime_context().get_scope(core_value_scope).merge(core_module.values);
-				c_ast.get_runtime_context().add_module({ "_core" }, core_value_scope);
-			}
+			// Stage 3: generate
+			auto bytecode = pl.generate(c_ast);
 
-			// Add value scopes of imports
 			if (imports)
 			{
 				for (const ext_ast::identifier& imp : *imports)
 				{
 					auto pos = modules.find(imp.copy_name());
-					assert(pos != modules.end());
+					if (pos == modules.end())
+						throw other_error{ "Cannot find module: " + imp.operator std::string() };
 
-					auto module_value_scope = c_ast.create_value_scope();
-					c_ast.get_runtime_context().get_scope(module_value_scope).merge(pos->second.values);
-					c_ast.get_runtime_context().add_module(imp.segments, module_value_scope);
+					for (auto c : pos->second.code)
+					{
+						auto full_name = imp.full + "@" + c.get_name();
+						bytecode.add_function(c.is_bytecode() ?
+							vm::function(full_name, c.get_bytecode()) :
+							vm::function(full_name, c.get_native_code()));
+					}
 				}
 			}
 
-			// Stage 3: interpret
-			pl.interp(c_ast);
+			// optimize
+			pl.optimize_program(bytecode);
 
-			return module{
-				e_ast.get_module_name().value_or(ext_ast::identifier()).copy_name(),
-				c_ast.get_runtime_context().get_scope(*core_root_node.value_scope_id),
-				e_ast.get_type_scope(root_node.type_scope_id),
-				e_ast.get_name_scope(root_node.name_scope_id),
-				e_ast.get_constants()
-			};
+			auto executable = pl.link(bytecode);
+
+			// optimize
+			pl.optimize_executable(executable);
+
+			// Stage 4: interpret
+			return pl.run(executable);
 		}
 
 	private:

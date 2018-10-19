@@ -54,6 +54,7 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.props" />
   </ImportGroup>
   <ImportGroup Label="Shared">
   </ImportGroup>
@@ -118,6 +119,7 @@
       <AdditionalIncludeDirectories>$(ProjectDir)lib;$(ProjectDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
+      <PreprocessToFile>false</PreprocessToFile>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -132,32 +134,42 @@
     <None Include="snippets\syntax\statements.fe" />
     <None Include="snippets\tests\fib.fe" />
     <None Include="snippets\tests\performance_empty.fe" />
+    <MASM Include="src\fe\pipeline\vm.asm">
+      <FileType>Document</FileType>
+    </MASM>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\fe\data\bytecode.cpp" />
+    <ClCompile Include="src\fe\data\core_ast.cpp" />
+    <ClCompile Include="src\fe\data\ext_ast.cpp" />
     <ClCompile Include="src\fe\data\name_scope.cpp" />
     <ClCompile Include="src\fe\data\types.cpp" />
     <ClCompile Include="src\fe\data\type_scope.cpp" />
-    <ClCompile Include="src\fe\data\values.cpp" />
-    <ClCompile Include="src\fe\data\value_scope.cpp" />
     <ClCompile Include="src\fe\language_definition.cpp" />
-    <ClCompile Include="src\fe\pipeline\interpreting_stage.cpp" />
+    <ClCompile Include="src\fe\pipeline\bytecode_gen_stage.cpp" />
+    <ClCompile Include="src\fe\pipeline\bytecode_optimization_stage.cpp" />
+    <ClCompile Include="src\fe\pipeline\linker_stage.cpp" />
     <ClCompile Include="src\fe\pipeline\lowering_stage.cpp" />
     <ClCompile Include="src\fe\pipeline\parser_stage.cpp" />
     <ClCompile Include="src\fe\pipeline\resolution_stage.cpp" />
     <ClCompile Include="src\fe\pipeline\typechecker_stage.cpp" />
+    <ClCompile Include="src\fe\pipeline\vm_stage.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\tests\fe\bytecode_gen_tests.cpp" />
+    <ClCompile Include="src\tests\fe\bytecode_tests.cpp" />
     <ClCompile Include="src\tests\fe\comparison_tests.cpp" />
     <ClCompile Include="src\tests\fe\destructuring_tests.cpp" />
     <ClCompile Include="src\tests\fe\literal_inference_tests.cpp" />
+    <ClCompile Include="src\tests\fe\lowering_tests.cpp" />
     <ClCompile Include="src\tests\fe\name_resolution_tests.cpp" />
     <ClCompile Include="src\tests\fe\typechecking_tests.cpp" />
-    <ClCompile Include="src\tests\fe\while_tests.cpp" />
     <ClCompile Include="src\tests\utils\performance_tests.cpp" />
     <ClCompile Include="src\utils\memory\small_vec_tests.cpp" />
     <ClCompile Include="src\utils\parsing\recursive_descent_parser.cpp" />
     <ClCompile Include="src\utils\reading\reader.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\fe\data\bytecode.h" />
     <ClInclude Include="include\fe\data\constants_store.h" />
     <ClInclude Include="include\fe\data\core_ast.h" />
     <ClInclude Include="include\fe\data\ext_ast.h" />
@@ -166,23 +178,24 @@
     <ClInclude Include="include\fe\data\types.h" />
     <ClInclude Include="include\fe\data\name_scope.h" />
     <ClInclude Include="include\fe\data\type_scope.h" />
-    <ClInclude Include="include\fe\data\values.h" />
-    <ClInclude Include="include\fe\data\value_scope.h" />
     <ClInclude Include="include\fe\language_definition.h" />
-    <ClInclude Include="include\fe\libraries\core\core_operations.h" />
+    <ClInclude Include="include\fe\libraries\std\std_assert.h" />
     <ClInclude Include="include\fe\libraries\std\std_io.h" />
     <ClInclude Include="include\fe\libraries\std\std_types.h" />
     <ClInclude Include="include\fe\libraries\std\std_ui.h" />
     <ClInclude Include="include\fe\modes\project.h" />
     <ClInclude Include="include\fe\modes\repl.h" />
+    <ClInclude Include="include\fe\pipeline\bytecode_gen_stage.h" />
+    <ClInclude Include="include\fe\pipeline\bytecode_optimization_stage.h" />
     <ClInclude Include="include\fe\pipeline\error.h" />
-    <ClInclude Include="include\fe\pipeline\interpreting_stage.h" />
     <ClInclude Include="include\fe\pipeline\lexer_stage.h" />
+    <ClInclude Include="include\fe\pipeline\linker_stage.h" />
     <ClInclude Include="include\fe\pipeline\lowering_stage.h" />
     <ClInclude Include="include\fe\pipeline\parser_stage.h" />
     <ClInclude Include="include\fe\pipeline\pipeline.h" />
     <ClInclude Include="include\fe\pipeline\resolution_stage.h" />
     <ClInclude Include="include\fe\pipeline\typechecker_stage.h" />
+    <ClInclude Include="include\fe\pipeline\vm_stage.h" />
     <ClInclude Include="include\tests\test_utils.h" />
     <ClInclude Include="include\utils\algorithms\tree_traversal.h" />
     <ClInclude Include="include\utils\lexing\lexer.h" />
@@ -194,5 +207,6 @@
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.targets" />
   </ImportGroup>
 </Project>

@@ -4,7 +4,10 @@
 #include "fe/pipeline/resolution_stage.h"
 #include "fe/pipeline/typechecker_stage.h"
 #include "fe/pipeline/lowering_stage.h"
-#include "fe/pipeline/interpreting_stage.h"
+#include "fe/pipeline/bytecode_gen_stage.h"
+#include "fe/pipeline/linker_stage.h"
+#include "fe/pipeline/bytecode_optimization_stage.h"
+#include "fe/pipeline/vm_stage.h"
 #include "fe/pipeline/error.h"
 
 #include <memory>
@@ -46,13 +49,36 @@ namespace fe
 			return ext_ast::lower(ast);
 		}
 
-		values::unique_value interp(core_ast::ast& n) const
+		vm::program generate(core_ast::ast& ast) const
 		{
-			auto res = core_ast::interpret(n);
-			if (std::holds_alternative<interp_error>(res))
-				throw std::get<interp_error>(res);
+			return vm::generate_bytecode(ast);
+		}
 
-			return std::move(std::get<values::unique_value>(res));
+		void optimize_program(vm::program& e) const
+		{
+			vm::optimization_settings s;
+			vm::optimize_program(e, s);
+		}
+
+		vm::executable link(vm::program& ast) const
+		{
+			return vm::link(ast);
+		}
+
+		void optimize_executable(vm::executable& e) const
+		{
+			vm::optimization_settings s;
+			vm::optimize_executable(e, s);
+		}
+
+		vm::machine_state run(vm::executable& e) const
+		{
+			return vm::interpret(e, vm::vm_settings(
+				vm::vm_implementation::asm_, 
+				/*print code*/false, 
+				/*print result*/true, 
+				/*print time*/true)
+			);
 		}
 
 	private:
