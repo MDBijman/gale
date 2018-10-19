@@ -76,8 +76,8 @@ namespace fe
 			return vm::interpret(e, vm::vm_settings(
 				vm::vm_implementation::asm_, 
 				/*print code*/false, 
-				/*print result*/true, 
-				/*print time*/true)
+				/*print result*/false, 
+				/*print time*/false)
 			);
 		}
 
