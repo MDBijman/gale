@@ -1055,7 +1055,7 @@ sdealloc_ui8 LABEL NEAR PTR
 
 ; BEGIN exit
 exit LABEL NEAR PTR WORD
-	mov rax, QWORD PTR [r13 + 60*8]
+	lea rax, OFFSET registers 
 
 	; restore nonvolatile registers rbx, r12, r13, r14, r15
 	pop r15

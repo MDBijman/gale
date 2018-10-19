@@ -162,6 +162,7 @@
     <ClCompile Include="src\tests\fe\literal_inference_tests.cpp" />
     <ClCompile Include="src\tests\fe\lowering_tests.cpp" />
     <ClCompile Include="src\tests\fe\name_resolution_tests.cpp" />
+    <ClCompile Include="src\tests\fe\program_tests.cpp" />
     <ClCompile Include="src\tests\fe\typechecking_tests.cpp" />
     <ClCompile Include="src\tests\utils\performance_tests.cpp" />
     <ClCompile Include="src\utils\memory\small_vec_tests.cpp" />
