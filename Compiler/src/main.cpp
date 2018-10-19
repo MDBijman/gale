@@ -125,28 +125,6 @@ int main(int argc, char** argv)
 			std::cout << e.what() << std::endl;
 		}
 	}
-	else if (mode == "other")
-	{
-		auto code = R"delim(
-module fib
-import [std std.assert]
-
-let fib: std.ui64 -> std.ui64 = \n => if (n <= 2) { 1 } else { (fib (n - 1)) + (fib (n - 2)) };
-let a: std.ui64 = fib 35;
-		)delim";
-
-		long ms_sum = 0;
-		constexpr int loop_count = 10;
-
-		for(int i = 0; i < loop_count; i++)
-		{
-			using namespace fe::types;
-			fe::project p{ fe::pipeline() };
-			p.add_module(fe::stdlib::typedefs::load());
-			p.add_module(fe::stdlib::assert::load());
-			p.eval(code, fe::vm::vm_settings(fe::vm::vm_implementation::asm_, false, false, false));
-		}
-	}
 	else if (mode == "help")
 	{
 		std::cout
