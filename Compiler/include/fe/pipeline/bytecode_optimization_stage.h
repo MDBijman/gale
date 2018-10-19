@@ -5,7 +5,7 @@ namespace fe::vm
 {
 	struct optimization_settings
 	{
-
+		bool print_bytecode = false;
 	};
 
 	/*

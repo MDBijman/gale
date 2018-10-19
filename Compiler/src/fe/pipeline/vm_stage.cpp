@@ -303,7 +303,8 @@ namespace fe::vm
 			uint16_t* handlers = vm_init();
 			auto direct_threaded = preprocess(e, handlers);
 
-			// Skip timing the preprocessing step (just to measure actual execution speed)
+			// Skip timing the preprocessing step (just to measure actual execution speed) 
+			// #todo remove this at some point 
 			before = std::chrono::high_resolution_clock::now();
 
 			uint64_t* res_registers = vm_interpret(direct_threaded.code.get_instruction(0));
@@ -322,10 +323,14 @@ namespace fe::vm
 			throw std::runtime_error("Unknown VM implementation strategy");
 		}
 
-		auto after = std::chrono::high_resolution_clock::now();
-		long long time = std::chrono::duration_cast<std::chrono::milliseconds>(after - before).count();
+		if (s.print_time)
+		{
+			auto after = std::chrono::high_resolution_clock::now();
+			long long time = std::chrono::duration_cast<std::chrono::milliseconds>(after - before).count();
 
-		std::cout << "time: " << time << std::endl;
+			std::cout << "time: " << time << std::endl;
+		}
+
 		return res;
 	}
 }

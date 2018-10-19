@@ -71,14 +71,9 @@ namespace fe
 			vm::optimize_executable(e, s);
 		}
 
-		vm::machine_state run(vm::executable& e) const
+		vm::machine_state run(vm::executable& e, vm::vm_settings& s) const
 		{
-			return vm::interpret(e, vm::vm_settings(
-				vm::vm_implementation::asm_, 
-				/*print code*/false, 
-				/*print result*/false, 
-				/*print time*/false)
-			);
+			return vm::interpret(e, s);
 		}
 
 	private:

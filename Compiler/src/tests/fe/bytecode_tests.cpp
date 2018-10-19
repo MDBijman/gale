@@ -24,7 +24,7 @@ let a: std.i64 = fib 31;
 	p.add_module(fe::stdlib::typedefs::load());
 	p.add_module(fe::stdlib::assert::load());
 	auto before = std::chrono::high_resolution_clock::now();
-	p.eval(code);
+	p.eval(code, fe::vm::vm_settings());
 	auto after = std::chrono::high_resolution_clock::now();
 	auto time = std::chrono::duration<double, std::milli>(after - before).count();
 	std::cout << time << std::endl;
@@ -46,7 +46,7 @@ let a: std.i64 = 1;
 	fe::project p{ fe::pipeline() };
 	p.add_module(fe::stdlib::typedefs::load());
 	p.add_module(fe::stdlib::assert::load());
-	p.eval(code);
+	p.eval(code, fe::vm::vm_settings());
 }
 
 TEST_CASE("assignment", "[bytecode]")
@@ -63,7 +63,7 @@ a = 2;
 	fe::project p{ fe::pipeline() };
 	p.add_module(fe::stdlib::typedefs::load());
 	p.add_module(fe::stdlib::assert::load());
-	p.eval(code);
+	p.eval(code, fe::vm::vm_settings());
 }
 
 TEST_CASE("if", "[bytecode]")
@@ -80,7 +80,7 @@ if (true) { a = 2; } else { a = 3; };
 	fe::project p{ fe::pipeline() };
 	p.add_module(fe::stdlib::typedefs::load());
 	p.add_module(fe::stdlib::assert::load());
-	p.eval(code);
+	p.eval(code, fe::vm::vm_settings());
 }
 
 TEST_CASE("vm modules", "[bytecode]")
@@ -105,7 +105,7 @@ let test: std.i64 = lib.get_ten ();
 			fe::types::unique_type(new fe::types::function_type(fe::types::product_type(), fe::types::i64()))
 		).build());
 
-	auto state = p.eval(code);
+	auto state = p.eval(code, fe::vm::vm_settings());
 	REQUIRE(state.registers[ret_reg] == 10);
 }
 
@@ -122,7 +122,7 @@ let a: std.i64 = 3;
 	fe::project p{ fe::pipeline() };
 	p.add_module(fe::stdlib::typedefs::load());
 	p.add_module(fe::stdlib::assert::load());
-	p.eval(code);
+	p.eval(code, fe::vm::vm_settings());
 }
 
 TEST_CASE("function", "[bytecode]")
@@ -140,7 +140,7 @@ let b: std.i64 = a + 2;
 	fe::project p{ fe::pipeline() };
 	p.add_module(fe::stdlib::typedefs::load());
 	p.add_module(fe::stdlib::assert::load());
-	p.eval(code);
+	p.eval(code, fe::vm::vm_settings());
 }
 
 TEST_CASE("instructions", "[bytecode]")

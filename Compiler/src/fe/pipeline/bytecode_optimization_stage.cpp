@@ -14,49 +14,55 @@ namespace fe::vm
 		while (optimize_dependencies(e, dg, s)
 			|| optimize_single_ops(e, dg, s)
 			|| remove_dependantless_instructions(e, dg));
-		auto& funs = e.get_code();
-		for (int i = 0; i < funs.size(); i++)
+
+		if (s.print_bytecode)
 		{
-			auto& fun = funs[i];
-			if (!fun.is_bytecode()) continue;
-			auto& bc = fun.get_bytecode();
-			auto& local_dg = dg[i];
-
-			std::cout << "\n" << fun.get_name() << "\n";
-			std::string out;
-			size_t ip = 0;
-			while (bc.has_instruction(ip))
+			auto& funs = e.get_code();
+			for (int i = 0; i < funs.size(); i++)
 			{
-				auto in = bc.get_instruction<10>(ip);
-				if (byte_to_op(in[0].val) == op_kind::NOP)
+				auto& fun = funs[i];
+				if (!fun.is_bytecode()) continue;
+				auto& bc = fun.get_bytecode();
+				auto& local_dg = dg[i];
+
+				std::cout << "\n" << fun.get_name() << "\n";
+				std::string out;
+				size_t ip = 0;
+				while (bc.has_instruction(ip))
 				{
-					ip++; continue;
-				}
+					auto in = bc.get_instruction<10>(ip);
+					if (byte_to_op(in[0].val) == op_kind::NOP)
+					{
+						ip++; continue;
+					}
 
-				out += std::to_string(ip) + ": ";
-				out += op_to_string(byte_to_op(in[0].val)) + " ";
-				for (int i = 1; i < op_size(byte_to_op(in[0].val)); i++)
-					out += std::to_string(in[i].val) + " ";
+					out += std::to_string(ip) + ": ";
+					out += op_to_string(byte_to_op(in[0].val)) + " ";
+					for (int i = 1; i < op_size(byte_to_op(in[0].val)); i++)
+						out += std::to_string(in[i].val) + " ";
 
-				auto dep = std::find_if(local_dg.dependencies.begin(), local_dg.dependencies.end(), [ip](dependency& dep) {
-					return (ip == dep.instruction_id);
-				});
-
-				while (dep != local_dg.dependencies.end())
-				{
-					out += " dep ";
-					out += std::to_string(dep->depends_on);
-
-					dep = std::find_if(dep + 1, local_dg.dependencies.end(), [ip](dependency& dep) {
+					auto dep = std::find_if(local_dg.dependencies.begin(), local_dg.dependencies.end(), [ip](dependency& dep) {
 						return (ip == dep.instruction_id);
 					});
+
+					while (dep != local_dg.dependencies.end())
+					{
+						out += " dep ";
+						out += std::to_string(dep->depends_on);
+
+						dep = std::find_if(dep + 1, local_dg.dependencies.end(), [ip](dependency& dep) {
+							return (ip == dep.instruction_id);
+						});
+					}
+
+					out += "\n";
+					ip += op_size(byte_to_op(in[0].val));
 				}
 
-				out += "\n";
-				ip += op_size(byte_to_op(in[0].val));
+				std::cout << out;
 			}
 
-			std::cout << out;
+			std::cout << "Full code size: " << e.get_code().size() << " bytes\n";
 		}
 	}
 
@@ -621,11 +627,11 @@ namespace fe::vm
 		bool try_remove_mv(bytecode& bc, uint64_t mv)
 		{
 			byte* b = bc[mv];
-			
+
 			reg dst = (b + 1)->val;
 			reg src = (b + 2)->val;
 
-			if(!(dst == src))
+			if (!(dst == src))
 				return false;
 
 			bc.set_instruction(mv, make_nops<ct_op_size<op_kind::MV64_REG_REG>::value>());
@@ -772,7 +778,6 @@ namespace fe::vm
 	void optimize_executable(executable& e, optimization_settings& s)
 	{
 		remove_nops(e, s);
-		std::cout << "Full code size: " << e.code.size() << " bytes\n";
 	}
 
 	void remove_nops(executable& e, optimization_settings& s)
