@@ -61,9 +61,9 @@ namespace fe::vm
 
 				std::cout << out;
 			}
-		}
 
-		std::cout << "Full code size: " << e.get_code().size() << " bytes\n";
+			std::cout << "Full code size: " << e.get_code().size() << " bytes\n";
+		}
 	}
 
 	void function_dependency_graph::add_offset(uint64_t loc, uint32_t size)
