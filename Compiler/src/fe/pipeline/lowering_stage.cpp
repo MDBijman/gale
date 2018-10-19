@@ -85,8 +85,9 @@ namespace fe::ext_ast
 		auto& mv_data = new_ast.get_data<core_ast::size>(*new_ast.get_node(move).data_index);
 		mv_data.val = rhs.allocated_stack_space;
 
-		auto from = new_ast.create_node(core_ast::node_type::LOCAL_ADDRESS, move);
-		new_ast.get_data<core_ast::size>(*new_ast.get_node(from).data_index).val = rhs.result_register;
+
+			auto from = new_ast.create_node(core_ast::node_type::LOCAL_ADDRESS, move);
+			new_ast.get_data<core_ast::size>(*new_ast.get_node(from).data_index).val = rhs.result_register;
 
 		auto to = new_ast.create_node(core_ast::node_type::LOCAL_ADDRESS, move);
 		new_ast.get_data<core_ast::size>(*new_ast.get_node(to).data_index).val = location_register;
@@ -143,7 +144,7 @@ namespace fe::ext_ast
 
 				block_n.size = res.allocated_stack_space;
 			}
-			else if(n.kind == node_type::DECLARATION)
+			else if (n.kind == node_type::DECLARATION)
 			{
 				declaration_sum += res.allocated_stack_space;
 			}

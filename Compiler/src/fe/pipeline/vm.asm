@@ -822,9 +822,9 @@ push8_reg LABEL NEAR PTR WORD
 	xor rax, rax
 	mov al, r9b
 
+	dec rsp
 	mov al, BYTE PTR [r13 + rax*8] 
 	mov BYTE PTR [rsp], al
-	dec rsp
 	
 	add r8, 3
 	DISPATCH
@@ -851,9 +851,9 @@ push32_reg LABEL NEAR PTR WORD
 	xor rax, rax
 	mov al, r9b
 	
+	sub rsp, 4
 	mov eax, DWORD PTR [r13 + rax*8]
 	mov [rsp], eax
-	sub rsp, 4
 
 	add r8, 3
 	DISPATCH
@@ -880,8 +880,8 @@ pop8_reg LABEL NEAR PTR WORD
 	xor rax, rax
 	mov al, r9b
 	
-	inc rsp
 	mov bl, [rsp]
+	inc rsp
 	mov BYTE PTR [r13 + rax*8], bl
 
 	add r8, 3
@@ -909,8 +909,8 @@ pop32_reg LABEL NEAR PTR WORD
 	xor rax, rax
 	mov al, r9b
 	
-	add rsp, 4
 	mov ebx, [rsp]
+	add rsp, 4
 	mov DWORD PTR [r13 + rax*8], ebx
 
 	add r8, 3
