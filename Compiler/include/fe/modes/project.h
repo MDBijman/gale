@@ -23,7 +23,7 @@ namespace fe
 			modules.insert({ m.name, m });
 		}
 
-		vm::machine_state eval(const std::string& code)
+		vm::machine_state eval(const std::string& code, vm::vm_settings s)
 		{
 			auto e_ast = pl.parse(code);
 
@@ -90,7 +90,7 @@ namespace fe
 			pl.optimize_executable(executable);
 
 			// Stage 4: interpret
-			return pl.run(executable);
+			return pl.run(executable, s);
 		}
 
 	private:
