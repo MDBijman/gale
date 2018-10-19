@@ -85,7 +85,7 @@ int main(int argc, char** argv)
 				}
 				auto& code = std::get<std::string>(file_or_error);
 
-				proj.eval(code);
+				proj.eval(code, fe::vm::vm_settings(fe::vm::vm_implementation::asm_, false, false, false));
 			}
 		}
 		catch (const lexing::error& e)
@@ -144,7 +144,7 @@ let a: std.ui64 = fib 35;
 			fe::project p{ fe::pipeline() };
 			p.add_module(fe::stdlib::typedefs::load());
 			p.add_module(fe::stdlib::assert::load());
-			p.eval(code);
+			p.eval(code, fe::vm::vm_settings(fe::vm::vm_implementation::asm_, false, false, false));
 		}
 	}
 	else if (mode == "help")

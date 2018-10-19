@@ -25,6 +25,6 @@ let a: std.ui64 = fib 35;
 	fe::project p{ fe::pipeline() };
 	p.add_module(fe::stdlib::typedefs::load());
 	p.add_module(fe::stdlib::assert::load());
-	auto state = p.eval(code);
+	auto state = p.eval(code, fe::vm::vm_settings());
 	REQUIRE(state.registers[60] == 9227465);
 }
