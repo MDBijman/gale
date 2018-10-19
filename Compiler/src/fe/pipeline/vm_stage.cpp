@@ -71,7 +71,7 @@ namespace fe::vm
 #undef IP
 
 	extern "C" uint16_t* vm_init();
-	extern "C" uint64_t vm_interpret(const byte* first);
+	extern "C" uint64_t* vm_interpret(const byte* first);
 
 	direct_threaded_executable preprocess(executable& e, uint16_t* handlers)
 	{
@@ -136,6 +136,7 @@ namespace fe::vm
 		return direct_threaded_executable(bc, e.native_functions);
 	}
 
+	// #todo #cleanup move this into different file together with machine_state and create a common interpretation result 'object'
 	machine_state vm_hl_interpret(executable& e, vm_settings& s)
 	{
 		auto state = machine_state();
@@ -301,14 +302,24 @@ namespace fe::vm
 		case vm_implementation::asm_: {
 			uint16_t* handlers = vm_init();
 			auto direct_threaded = preprocess(e, handlers);
-before = std::chrono::high_resolution_clock::now();
-			auto rax_res = vm_interpret(direct_threaded.code.get_instruction(0));
-			std::cout << rax_res << "\n";
+
+			// Skip timing the preprocessing step (just to measure actual execution speed)
+			before = std::chrono::high_resolution_clock::now();
+
+			uint64_t* res_registers = vm_interpret(direct_threaded.code.get_instruction(0));
+
+			// Fill the res machine_state so we can check/test results
+			for (int i = 0; i < 64; i++)
+				res.registers[i] = res_registers[i];
+
 			break;
 		}
-		case vm_implementation::cpp:
+		case vm_implementation::cpp: {
 			res = vm_hl_interpret(e, s);
 			break;
+		}
+		default:
+			throw std::runtime_error("Unknown VM implementation strategy");
 		}
 
 		auto after = std::chrono::high_resolution_clock::now();
