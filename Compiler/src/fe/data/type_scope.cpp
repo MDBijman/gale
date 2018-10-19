@@ -98,33 +98,42 @@ namespace fe::ext_ast
 
 	std::optional<type_scope::type_lookup> type_scope::resolve_type(const identifier& id, get_scope_cb cb)
 	{
+		assert(id.scope_distance);
+
+		// Search in parent scope if non-zero scope distance
+		if (*id.scope_distance > 0)
+		{
+			if (!parent)
+				throw typecheck_error{ "Scope distance > 0 but no parent scope" };
+
+			auto parent_lookup = cb(*parent)->resolve_type(id, cb);
+
+			if (!parent_lookup) 
+				return std::nullopt;
+
+			parent_lookup->scope_distance++;
+			return parent_lookup;
+		}
+
+		// Search in this scope
 		if (auto pos = types.find(id.segments[0]); pos != types.end())
 		{
 			return type_lookup{ std::distance(types.begin(), pos), *pos->second };
 		}
-		else
+
+		// Search in modules
+		for (auto i = 1; i < id.segments.size(); i++)
 		{
-			for (auto i = 1; i < id.segments.size(); i++)
+			auto module_name = std::vector<std::string>(id.segments.begin(), id.segments.begin() + i);
+
+			if (auto pos = modules.find(module_name); pos != modules.end())
 			{
-				auto module_name = std::vector<std::string>(id.segments.begin(), id.segments.begin() + i);
+				identifier new_id;
+				new_id.scope_distance = 0;
+				new_id.segments = std::vector<std::string>(id.segments.begin() + i, id.segments.end());
 
-				if (auto pos = modules.find(module_name); pos != modules.end())
-				{
-					identifier new_id;
-					new_id.segments = std::vector<std::string>(id.segments.begin() + i, id.segments.end());
-
-					if (auto module_lookup = cb(pos->second)->resolve_type(new_id, cb); module_lookup)
-						return module_lookup;
-				}
-			}
-
-			if (parent)
-			{
-				if (auto parent_lookup = cb(*parent)->resolve_type(id, cb); parent_lookup)
-				{
-					parent_lookup->scope_distance++;
-					return parent_lookup;
-				}
+				if (auto module_lookup = cb(pos->second)->resolve_type(new_id, cb); module_lookup)
+					return module_lookup;
 			}
 		}
 

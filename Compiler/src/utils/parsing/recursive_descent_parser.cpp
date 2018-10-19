@@ -132,7 +132,7 @@ namespace recursive_descent
 
 	fe::node_id parse_type_tuple(tree& t, token_stream_reader& ts)
 	{
-		auto type_tuple_id = t.create_node(fe::ext_ast::node_type::ARRAY_TYPE);
+		auto type_tuple_id = t.create_node(fe::ext_ast::node_type::TYPE_TUPLE);
 
 		ts.consume(token_kind::LEFT_BRACKET);
 		link_child_parent(parse_type_operation(t, ts), type_tuple_id, t);
@@ -205,7 +205,7 @@ namespace recursive_descent
 			ts.consume(token_kind::COMMA);
 			link_child_parent(parse_record_element(t, ts), record_id, t);
 		}
-		ts.consume(token_kind::LEFT_BRACKET);
+		ts.consume(token_kind::RIGHT_BRACKET);
 
 		return record_id;
 	}
@@ -216,9 +216,10 @@ namespace recursive_descent
 
 		ts.consume(token_kind::TYPE_KEYWORD);
 		link_child_parent(parse_identifier(t, ts), type_definition_id, t);
+		ts.consume(token_kind::EQUALS);
 		link_child_parent(parse_record(t, ts), type_definition_id, t);
 
-		return type_definition;
+		return type_definition_id;
 	}
 
 	fe::node_id parse_identifier_tuple(tree& t, token_stream_reader& ts)
@@ -461,6 +462,7 @@ namespace recursive_descent
 
 			// ( op , op (, op)* ) becomes value tuple
 			auto tuple_id = t.create_node(fe::ext_ast::node_type::TUPLE);
+			link_child_parent(op_id, tuple_id, t);
 			while (ts.peek().value == token_kind::COMMA)
 			{
 				ts.consume(token_kind::COMMA);

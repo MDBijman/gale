@@ -10,14 +10,15 @@ namespace testing
 	public:
 		test_scope(fe::module m) : m(m) {}
 
-		template<typename ValueType>
-		bool value_equals(std::string name, ValueType val)
-		{
-			auto lookup = m.values.valueof(fe::core_ast::identifier({}, name, 0, {}));
-			if (!lookup) return false;
-			auto value = dynamic_cast<ValueType*>(*lookup);
-			if (!value) return false;
-			return *value == val;
-		}
+		// #todo new way of testing with new value envs
+		//template<typename ValueType>
+		//bool value_equals(std::string name, ValueType val)
+		//{
+		//	auto lookup = m.values.valueof(fe::core_ast::identifier({}, name, 0 ));
+		//	if (!lookup) return false;
+		//	auto value = dynamic_cast<ValueType*>(*lookup);
+		//	if (!value) return false;
+		//	return *value == val;
+		//}
 	};
 }

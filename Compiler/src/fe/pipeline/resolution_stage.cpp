@@ -94,7 +94,7 @@ namespace fe::ext_ast
 		if (assignable.kind == node_type::IDENTIFIER)
 		{
 			auto& data = ast.get_data<identifier>(assignable.data_index);
-			ast.get_name_scope(assignable.name_scope_id).declare_variable(data.full);
+			ast.get_name_scope(assignable.name_scope_id).declare_variable(data.full, assignable.id);
 			ast.get_name_scope(assignable.name_scope_id).define_variable(data.full);
 		}
 		else if (assignable.kind == node_type::IDENTIFIER_TUPLE)
@@ -180,7 +180,6 @@ namespace fe::ext_ast
 	std::optional<std::vector<size_t>> resolve_field(node& type_node, ast& ast, std::vector<name> id)
 	{
 		copy_parent_scope(type_node, ast);
-		auto& children = ast.children_of(type_node);
 		auto& scope = ast.get_name_scope(type_node.name_scope_id);
 
 		if (type_node.kind == node_type::IDENTIFIER)
@@ -189,11 +188,12 @@ namespace fe::ext_ast
 			auto& res = scope.resolve_type({ id_data.segments.begin(), id_data.segments.end() - 1 }, 
 				*id_data.segments.rbegin(), ast.name_scope_cb());
 			assert(res);
-			auto& referenced_type_node = ast.get_node(res->type_node);
+			auto& referenced_type_node = ast.get_node(res->declaration_node);
 			return resolve_field(referenced_type_node, ast, id);
 		}
 		else if (type_node.kind == node_type::RECORD)
 		{
+			auto& children = ast.children_of(type_node);
 			size_t index = 0;
 			for (auto child : children)
 			{
@@ -213,6 +213,7 @@ namespace fe::ext_ast
 		}
 		else if (type_node.kind == node_type::RECORD_ELEMENT)
 		{
+			auto& children = ast.children_of(type_node);
 			assert(children.size() == 2);
 			auto& id_node = ast.get_node(children[0]);
 			auto& id_data = ast.get_data<identifier>(id_node.data_index);
@@ -222,7 +223,7 @@ namespace fe::ext_ast
 				if (id.size() > 1)
 				{
 					auto& new_type_node = ast.get_node(children[1]);
-					return resolve_field(new_type_node, ast, { id.begin(), id.end() - 1 });
+					return resolve_field(new_type_node, ast, { id.begin() + 1, id.end() });
 				}
 				else
 				{
@@ -234,6 +235,7 @@ namespace fe::ext_ast
 		}
 		else if (type_node.kind == node_type::TYPE_ATOM)
 		{
+			auto& children = ast.children_of(type_node);
 			assert(id.size() > 0);
 			assert(children.size() == 1);
 			auto& id_node = ast.get_node(children[0]);
@@ -258,7 +260,7 @@ namespace fe::ext_ast
 			auto& res = scope.resolve_type({ id_data.segments.begin(), id_data.segments.end() - 1 },
 				*id_data.segments.rbegin(), ast.name_scope_cb());
 			assert(res);
-			auto& referenced_type_node = ast.get_node(res->type_node);
+			auto& referenced_type_node = ast.get_node(res->declaration_node);
 			return resolve_offsets(referenced_type_node, ast, offsets);
 		}
 		else if (type_node.kind == node_type::RECORD)
@@ -313,10 +315,11 @@ namespace fe::ext_ast
 				id_data.scope_distance = resolved_as_var->scope_distance;
 				if (fields.size() > 0)
 				{
-					assert(resolved_as_var->type_node);
-					auto& type_node = ast.get_node(*resolved_as_var->type_node);
+					auto type_node_id = ast.get_data<identifier>(ast.get_node(resolved_as_var->declaration_node).data_index).type_node;
+					auto& type_node = ast.get_node(type_node_id);
 					auto offsets = resolve_field(type_node, ast, fields);
-					if (!offsets) throw resolution_error{ "Variable does not contain such field" };
+					if (!offsets)
+						throw resolution_error{ "Variable does not contain such field" };
 					id_data.offsets = *offsets;
 				}
 				else
@@ -375,8 +378,9 @@ namespace fe::ext_ast
 		if (lhs.kind == node_type::IDENTIFIER)
 		{
 			auto& lhs_id = ast.get_data<identifier>(lhs.data_index);
+			lhs_id.type_node = type_node.id;
 			auto& scope = ast.get_name_scope(lhs.name_scope_id);
-			scope.declare_variable(lhs_id.segments[0], type_node.id);
+			scope.declare_variable(lhs_id.segments[0], lhs.id);
 		}
 		else if (lhs.kind == node_type::IDENTIFIER_TUPLE)
 		{
@@ -400,8 +404,7 @@ namespace fe::ext_ast
 		{
 			assert(lhs.data_index);
 			auto& lhs_id = ast.get_data<identifier>(lhs.data_index);
-			auto& scope = ast.get_name_scope(lhs.name_scope_id);
-			scope.define_variable(lhs_id.segments[0]);
+			ast.get_name_scope(lhs.name_scope_id).define_variable(lhs_id.segments[0]);
 		}
 		else if (lhs.kind == node_type::IDENTIFIER_TUPLE)
 		{

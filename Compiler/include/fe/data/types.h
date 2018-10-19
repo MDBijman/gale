@@ -46,6 +46,8 @@ namespace fe
 			virtual ~type() = 0 {};
 			virtual operator std::string() const = 0;
 			virtual type* copy() const = 0;
+			virtual size_t calculate_size() const = 0;
+			virtual size_t calculate_offset(const std::vector<size_t>& offsets, size_t curr = 0) const = 0;
 			virtual bool operator==(type* other) const = 0;
 		};
 
@@ -55,8 +57,12 @@ namespace fe
 
 		enum class atom_type
 		{
+			I8,
+			I16,
 			I32, 
 			I64,
+			UI8,
+			UI16,
 			UI32, 
 			UI64,
 			F32, 
@@ -72,8 +78,12 @@ namespace fe
 		{
 			switch (lit)
 			{
+			case atom_type::I8:        return "std.i8";     break;
+			case atom_type::I16:       return "std.i16";    break;
 			case atom_type::I32:       return "std.i32";    break;
 			case atom_type::I64:       return "std.i64";    break;
+			case atom_type::UI8:       return "std.ui8";     break;
+			case atom_type::UI16:      return "std.ui16";    break;
 			case atom_type::UI32:      return "std.ui32";   break;
 			case atom_type::UI64:      return "std.ui64";   break;
 			case atom_type::F32:       return "std.f32";    break;
@@ -87,6 +97,30 @@ namespace fe
 			assert(!"Unknown atom type");
 			throw std::runtime_error("Unknown atom type");
 		};
+
+		constexpr size_t atom_type_size(atom_type lit)
+		{
+			switch (lit)
+			{
+			case atom_type::I8:        return 1;  break;
+			case atom_type::I16:       return 2;  break;
+			case atom_type::I32:       return 4;  break;
+			case atom_type::I64:       return 8;  break;
+			case atom_type::UI8:       return 1;  break;
+			case atom_type::UI16:      return 2;  break;
+			case atom_type::UI32:      return 4;  break;
+			case atom_type::UI64:      return 8;  break;
+			case atom_type::F32:       return 4;  break;
+			case atom_type::F64:       return 8;  break;
+			case atom_type::STRING:    return 8;  break;
+			case atom_type::BOOL:      return 1;  break;
+			case atom_type::UNSET:     return -1; break;
+			case atom_type::ANY:       return -1; break;
+			case atom_type::VOID:      return 0;  break;
+			}
+			assert(!"Unknown atom type");
+			throw std::runtime_error("Unknown atom type");
+		}
 
 		template<atom_type Type>
 		struct atom : public type, private detail::comparable<atom<Type>, type>, private detail::copyable<atom<Type>, type>
@@ -108,10 +142,20 @@ namespace fe
 
 			bool operator==(type* other) const override { return comparable::operator==(other); }
 			type* copy() const override { return copyable::copy(*this); }
+			size_t calculate_size() const override { return atom_type_size(Type); }
+			size_t calculate_offset(const std::vector<size_t>& offsets, size_t curr = 0) const override
+			{
+				assert(curr == offsets.size());
+				return 0;
+			}
 		};
 
+		using i8         = atom<atom_type::I8>;
+		using i16        = atom<atom_type::I16>;
 		using i32        = atom<atom_type::I32>;
 		using i64        = atom<atom_type::I64>;
+		using ui8        = atom<atom_type::UI8>;
+		using ui16       = atom<atom_type::UI16>;
 		using ui32       = atom<atom_type::UI32>;
 		using ui64       = atom<atom_type::UI64>;
 		using f32        = atom<atom_type::F32>;
@@ -140,6 +184,21 @@ namespace fe
 			operator std::string() const override;
 			bool operator==(type* other) const override { return comparable::operator==(other); }
 			type* copy() const override { return copyable::copy(*this); }
+			size_t calculate_size() const override
+			{ 
+				size_t max = 0;
+				for (auto& t : sum)
+				{
+					size_t s = t->calculate_size();
+					max = s > max ? s : max;
+				}
+				return max;
+			}
+			size_t calculate_offset(const std::vector<size_t>& offsets, size_t curr = 0) const override
+			{
+				assert(curr == offsets.size());
+				return 0;
+			}
 
 			std::vector<unique_type> sum;
 		};
@@ -161,6 +220,15 @@ namespace fe
 			operator std::string() const override;
 			bool operator==(type* other) const override { return comparable::operator==(other); }
 			type* copy() const override { return copyable::copy(*this); }
+			size_t calculate_size() const override
+			{
+				return 4;
+			}
+			size_t calculate_offset(const std::vector<size_t>& offsets, size_t curr = 0) const override
+			{
+				assert(curr == offsets.size());
+				return 0;
+			}
 
 			unique_type element_type;
 		};
@@ -182,6 +250,15 @@ namespace fe
 			operator std::string() const override;
 			bool operator==(type* other) const override { return comparable::operator==(other); }
 			type* copy() const override { return copyable::copy(*this); }
+			size_t calculate_size() const override
+			{
+				return 4;
+			}
+			size_t calculate_offset(const std::vector<size_t>& offsets, size_t curr = 0) const override
+			{
+				assert(curr == offsets.size());
+				return 0;
+			}
 
 			unique_type referred_type;
 		};
@@ -202,6 +279,21 @@ namespace fe
 			operator std::string() const override;
 			bool operator==(type* other) const override { return comparable::operator==(other); }
 			type* copy() const override { return copyable::copy(*this); }
+			size_t calculate_size() const override
+			{
+				size_t sum = 0;
+				for (auto& t : product) sum += t->calculate_size();
+				return sum;
+			}
+			size_t calculate_offset(const std::vector<size_t>& offsets, size_t curr = 0) const override
+			{
+				assert(curr < offsets.size());
+				auto offset = offsets[curr];
+				size_t sum = 0;
+				for(int i = 0; i < offset; i++) sum += product[i]->calculate_size();
+				sum += product[offset]->calculate_offset(offsets, curr + 1);
+				return sum;
+			}
 
 			std::vector<unique_type> product;
 		};
@@ -222,6 +314,15 @@ namespace fe
 			operator std::string() const override;
 			bool operator==(type* other) const override { return comparable::operator==(other); }
 			type* copy() const override { return copyable::copy(*this); }
+			size_t calculate_size() const override
+			{
+				return to->calculate_size();
+			}
+			size_t calculate_offset(const std::vector<size_t>& offsets, size_t curr = 0) const override
+			{
+				assert(curr == offsets.size());
+				return 0;
+			}
 
 			unique_type from, to;
 		};
