@@ -51,7 +51,7 @@ namespace fe
 						code = std::get<std::string>(file_or_error);
 					}
 
-					proj.eval(code);
+					proj.eval(code, fe::vm::vm_settings());
 				}
 				catch (const lexing::error& e)
 				{
