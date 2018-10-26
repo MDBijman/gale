@@ -178,6 +178,12 @@
     <ClCompile Include="src\tests\fe\program_tests.cpp">
       <Filter>Source Files\tests\fe</Filter>
     </ClCompile>
+    <ClCompile Include="src\fe\libraries\std\std_io.cpp">
+      <Filter>Source Files\fe\libraries\std</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fe\libraries\std\std_assert.cpp">
+      <Filter>Source Files\fe\libraries\std</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\fe\data\core_ast.h">

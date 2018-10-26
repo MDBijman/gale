@@ -277,6 +277,7 @@ namespace fe::vm
 	bytes<4> make_lte(reg dest, reg a, byte b);
 	bytes<4> make_eq(reg dest, reg a, reg b);
 	bytes<4> make_neq(reg dest, reg a, reg b);
+	bytes<2> make_mv_reg_sp(reg dest);
 	bytes<3> make_mv_reg_ui8(reg dest, uint8_t a);
 	bytes<4> make_mv_reg_ui16(reg dest, uint16_t a);
 	bytes<6> make_mv_reg_ui32(reg dest, uint32_t a);
@@ -519,7 +520,7 @@ namespace fe::vm
 		}
 	};
 
-	using native_code = std::function<void(machine_state&)>;
+	using native_function_ptr = int(*)(uint64_t*, uint8_t*);
 
 	using name = std::string;
 	using symbols = std::unordered_map<uint32_t, name>;
@@ -528,22 +529,22 @@ namespace fe::vm
 	class function
 	{
 		name signature;
-		std::variant<bytecode, native_code> code;
+		std::variant<bytecode, native_function_ptr> code;
 		symbols externals;
 
 	public:
 		function(name n, bytecode c, symbols s) : signature(n), code(c), externals(s) {}
 		function(name n, bytecode c) : signature(n), code(c) {}
-		function(name n, native_code c, symbols s) : signature(n), code(c), externals(s) {}
-		function(name n, native_code c) : signature(n), code(c) {}
+		function(name n, native_function_ptr c, symbols s) : signature(n), code(c), externals(s) {}
+		function(name n, native_function_ptr c) : signature(n), code(c) {}
 		function() {}
 
 		name& get_name() { return signature; }
 		symbols& get_symbols() { return externals; }
 		bool is_bytecode() { return std::holds_alternative<bytecode>(code); }
-		bool is_native() { return std::holds_alternative<native_code>(code); }
+		bool is_native() { return std::holds_alternative<native_function_ptr>(code); }
 		bytecode& get_bytecode() { return std::get<bytecode>(code); }
-		native_code& get_native_code() { return std::get<native_code>(code); }
+		native_function_ptr get_native_function_ptr() { return std::get<native_function_ptr>(code); }
 	};
 	using function_id = uint16_t;
 
@@ -577,13 +578,14 @@ namespace fe::vm
 		std::string to_string();
 	};
 
+
 	class executable
 	{
 	public:
 		bytecode code;
-		std::vector<native_code> native_functions;
+		std::vector<native_function_ptr> native_functions;
 
-		executable(bytecode code, std::vector<native_code> nc) : code(code), native_functions(nc) {}
+		executable(bytecode code, std::vector<native_function_ptr> nc) : code(code), native_functions(nc) {}
 
 		template<int C> bytes<C> get_instruction(uint64_t loc)
 		{
@@ -604,9 +606,9 @@ namespace fe::vm
 	{
 	public:
 		bytecode code;
-		std::vector<native_code> native_functions;
+		std::vector<native_function_ptr> native_functions;
 
-		direct_threaded_executable(bytecode code, std::vector<native_code> nc) 
+		direct_threaded_executable(bytecode code, std::vector<native_function_ptr> nc) 
 			: code(code), native_functions(nc) {}
 	};
 }
