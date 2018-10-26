@@ -9,6 +9,21 @@
 #include "fe/modes/project.h"
 #include "fe/libraries/std/std_assert.h"
 
+
+TEST_CASE("assert true", "[bytecode]")
+{
+	auto code = R"delim(
+module fib
+import [std std.assert]
+std.assert.assert true;
+		)delim";
+
+	fe::project p{ fe::pipeline() };
+	p.add_module(fe::stdlib::typedefs::load());
+	p.add_module(fe::stdlib::assert::load());
+	REQUIRE_NOTHROW(p.eval(code, fe::vm::vm_settings()));
+}
+
 TEST_CASE("fib", "[bytecode]")
 {
 	auto code = R"delim(

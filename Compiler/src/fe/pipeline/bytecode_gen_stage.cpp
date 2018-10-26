@@ -425,8 +425,11 @@ namespace fe::vm
 		// Set saved register to be as before so they get saved during before next function call
 		i.set_saved_registers(registers_to_save);
 
-		// Push result of function call onto stack
-		code_size += bc.add_instruction(make_push(*node.size, vm::ret_reg)).second;
+		if (*node.size > 0)
+		{
+			// Push result of function call onto stack
+			code_size += bc.add_instruction(make_push(*node.size, vm::ret_reg)).second;
+		}
 
 		return code_gen_result(*node.size, far_lbl(i.chunk_of(n), i1.code_location.ip), code_size);
 	}
@@ -472,7 +475,17 @@ namespace fe::vm
 
 		assert(move_size.val > 0 && move_size.val <= 8);
 
-		if (from.kind == core_ast::node_type::LOCAL_ADDRESS && to.kind == core_ast::node_type::LOCAL_ADDRESS)
+		if (from.kind == core_ast::node_type::RESULT_REGISTER && to.kind == core_ast::node_type::REGISTER)
+		{
+			auto r_to = ast.get_node_data<core_ast::size>(to).val;
+			code_size += bc.add_instruction(make_mv64_reg_reg(r_to, vm::ret_reg)).second;
+		}
+		else if (from.kind == core_ast::node_type::SP_REGISTER && to.kind == core_ast::node_type::REGISTER)
+		{
+			auto r_to = ast.get_node_data<core_ast::size>(to).val;
+			code_size += bc.add_instruction(make_mv_reg_sp(r_to)).second;
+		}
+		else if (from.kind == core_ast::node_type::LOCAL_ADDRESS && to.kind == core_ast::node_type::LOCAL_ADDRESS)
 		{
 			auto r_from = ast.get_node_data<core_ast::size>(from).val, r_to = ast.get_node_data<core_ast::size>(to).val;
 			auto r_buf = i.alloc_temp_register();
@@ -696,6 +709,10 @@ namespace fe::vm
 		{
 		case core_ast::node_type::RESULT_REGISTER:
 			std::tie(location, code_size) = bc.add_instruction(make_pop(size.val, vm::ret_reg)); break;
+		case core_ast::node_type::REGISTER: {
+			auto r_target = ast.get_node_data<core_ast::size>(target).val;
+			std::tie(location, code_size) = bc.add_instruction(make_pop(size.val, r_target)); break;
+		}
 		default: throw std::runtime_error("unknown pop result");
 		}
 

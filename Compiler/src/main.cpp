@@ -65,6 +65,8 @@ int main(int argc, char** argv)
 			proj.add_module(fe::stdlib::ui::load());
 			// std types
 			proj.add_module(fe::stdlib::typedefs::load());
+			// std assert
+			proj.add_module(fe::stdlib::assert::load());
 
 			auto project_path = std::experimental::filesystem::path(argv[2]);
 			std::cout << "Project folder: " << project_path << "\n";

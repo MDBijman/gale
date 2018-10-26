@@ -70,7 +70,7 @@ namespace fe::vm
 #undef SP
 #undef IP
 
-	extern "C" uint16_t* vm_init();
+	extern "C" uint16_t* vm_init(native_function_ptr*);
 	extern "C" uint64_t* vm_interpret(const byte* first);
 
 	direct_threaded_executable preprocess(executable& e, uint16_t* handlers)
@@ -89,9 +89,10 @@ namespace fe::vm
 			return count;
 		};
 
+		// Replace each op with the offset of its handler to the first handler (i.e. direct threaded)
 		bytecode bc;
 		auto& byte_data = bc.data();
-			
+		
 		for (byte* i : e)
 		{
 			auto op = byte_to_op(i->val);
@@ -242,7 +243,9 @@ namespace fe::vm
 			case op_kind::CALL_NATIVE_UI64:
 			{
 				auto id = read_ui64(&in[1].val);
-				e.native_functions[id](state);
+				e.native_functions[id](
+					reinterpret_cast<uint64_t*>(&state.registers[0]), 
+					&state.stack[state.registers[vm::sp_reg]]);
 				IP += ct_op_size<op_kind::CALL_NATIVE_UI64>::value;
 				continue;
 			}
@@ -300,8 +303,8 @@ namespace fe::vm
 		switch (s.implementation)
 		{
 		case vm_implementation::asm_: {
-			uint16_t* handlers = vm_init();
-			auto direct_threaded = preprocess(e, handlers);
+			uint16_t* op_handlers = vm_init(e.native_functions.data());
+			auto direct_threaded = preprocess(e, op_handlers);
 
 			// Skip timing the preprocessing step (just to measure actual execution speed) 
 			// #todo remove this at some point 

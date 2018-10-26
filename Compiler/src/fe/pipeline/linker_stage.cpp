@@ -7,10 +7,11 @@ namespace fe::vm
 	executable link(program p)
 	{
 		bytecode code;
-		std::vector<native_code> native_functions;
 
 		std::unordered_map<name, int64_t> function_locations;
-		std::unordered_map<name, int64_t> native_function_locations;
+
+		std::vector<native_function_ptr> native_functions;
+		std::unordered_map<name, uint64_t> native_function_locations;
 
 		// chunk_locations[chunk_id] = locations of chunk
 		std::vector<int64_t> chunk_locations;
@@ -32,7 +33,7 @@ namespace fe::vm
 			else if(func.is_native())
 			{
 				native_function_locations.insert({ func.get_name(), native_functions.size() });
-				native_functions.push_back(func.get_native_code());
+				native_functions.push_back(func.get_native_function_ptr());
 			}
 		}
 
@@ -108,7 +109,7 @@ namespace fe::vm
 				else if (auto it = native_function_locations.find(function_name); it != native_function_locations.end())
 				{
 					data[i] = op_to_byte(op_kind::CALL_NATIVE_UI64);
-					*(reinterpret_cast<uint64_t*>(&data[i + 1])) = native_function_locations.at(function_name);
+					*(reinterpret_cast<uint64_t*>(&data[i + 1])) = native_function_locations[function_name];
 				}
 
 				break;
