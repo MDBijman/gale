@@ -285,6 +285,10 @@ namespace fe::vm
 	{
 		return bytes<4>{ op_to_byte(op_kind::NEQ_REG_REG_REG), dest.val, a.val, b.val };
 	}
+	bytes<2> make_mv_reg_sp(reg dest)
+	{
+		return bytes<2>{ op_to_byte(op_kind::MV_REG_SP), dest.val };
+	}
 	bytes<3> make_mv64(reg dest, reg src)
 	{
 		return bytes<3>{ op_to_byte(op_kind::MV64_REG_REG), dest.val, src.val };

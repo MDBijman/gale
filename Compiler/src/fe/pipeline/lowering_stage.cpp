@@ -14,7 +14,7 @@ namespace fe::ext_ast
 
 	struct lowering_result
 	{
-		lowering_result(node_id id, location_type l, int32_t p) : id(id), location(l) 
+		lowering_result(node_id id, location_type l, int64_t p) : id(id), location(l) 
 		{
 			if (l == location_type::stack) allocated_stack_space = p;
 			else if (l == location_type::reg) result_register = static_cast<uint8_t>(p);
@@ -315,42 +315,25 @@ namespace fe::ext_ast
 			.resolve_variable(id.root_identifier(), ast.type_scope_cb()))
 			.type
 			.calculate_offset(id.offsets);
-		auto location_register = 0; //TEMP only works for single parameter id
-									/*ast.get_data<identifier>(ast.get_node((*ast
+		auto location_register = ast.get_data<identifier>(ast.get_node((*ast
 			.get_name_scope(n.name_scope_id)
 			.resolve_variable(id.root_identifier(), ast.name_scope_cb())).declaration_node)
-			.data_index).index_in_function;*/
+			.data_index).index_in_function;
 
-		if (size > 8)
-		{
-			auto read = new_ast.create_node(core_ast::node_type::MOVE);
-			new_ast.get_data<core_ast::size>(*new_ast.get_node(read).data_index).val = size;
+		auto read = new_ast.create_node(core_ast::node_type::MOVE);
+		new_ast.get_data<core_ast::size>(*new_ast.get_node(read).data_index).val = size;
 
-			// First child resolves source address
-			auto param_ref = new_ast.create_node(core_ast::node_type::LOCAL_ADDRESS, read);
-			new_ast.get_data<core_ast::size>(*new_ast.get_node(param_ref).data_index).val = location_register;
+		// First child resolves source address
+		auto param_ref = new_ast.create_node(size > 8 
+			? core_ast::node_type::LOCAL_ADDRESS 
+			: core_ast::node_type::REGISTER, read);
+		new_ast.get_data<core_ast::size>(*new_ast.get_node(param_ref).data_index).val = location_register;
 
-			// Second child resolves target address
-			auto alloc = new_ast.create_node(core_ast::node_type::STACK_ALLOC, read);
-			new_ast.get_data<core_ast::size>(*new_ast.get_node(alloc).data_index).val = size;
+		// Second child resolves target address
+		auto alloc = new_ast.create_node(core_ast::node_type::STACK_ALLOC, read);
+		new_ast.get_data<core_ast::size>(*new_ast.get_node(alloc).data_index).val = size;
 
-			return lowering_result(read, location_type::stack, size);
-		}
-		else
-		{
-			auto read = new_ast.create_node(core_ast::node_type::MOVE);
-			new_ast.get_data<core_ast::size>(*new_ast.get_node(read).data_index).val = size;
-
-			// First child resolves source address
-			auto param_ref = new_ast.create_node(core_ast::node_type::REGISTER, read);
-			new_ast.get_data<core_ast::size>(*new_ast.get_node(param_ref).data_index).val = 0;
-
-			// Second child resolves target address
-			auto alloc = new_ast.create_node(core_ast::node_type::STACK_ALLOC, read);
-			new_ast.get_data<core_ast::size>(*new_ast.get_node(alloc).data_index).val = size;
-
-			return lowering_result(read, location_type::stack, size);
-		}
+		return lowering_result(read, location_type::stack, size);
 	}
 
 	lowering_result lower_string(node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
@@ -477,6 +460,26 @@ namespace fe::ext_ast
 					.type);
 				function_data.in_size = func_type->from->calculate_size();
 				function_data.out_size = func_type->to->calculate_size();
+			}
+			else
+			{
+				// Keep on stack, put location in register
+				if (rhs.allocated_stack_space > 8)
+				{
+					auto mv = new_ast.create_node(core_ast::node_type::MOVE, block);
+					new_ast.create_node(core_ast::node_type::SP_REGISTER, mv);
+					auto r = new_ast.create_node(core_ast::node_type::REGISTER, mv);
+					new_ast.get_node_data<core_ast::size>(r).val = identifier_data.index_in_function;
+				}
+				// Put value in register directly
+				else
+				{
+					// Pop value into result register
+					auto pop = new_ast.create_node(core_ast::node_type::POP, block);
+					new_ast.get_node_data<core_ast::size>(pop).val = rhs.allocated_stack_space;
+					auto r = new_ast.create_node(core_ast::node_type::REGISTER, pop);
+					new_ast.get_node_data<core_ast::size>(r).val = identifier_data.index_in_function;
+				}
 			}
 
 			return lowering_result(block, location_type::stack, rhs.allocated_stack_space);

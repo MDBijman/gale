@@ -145,6 +145,8 @@
     <ClCompile Include="src\fe\data\types.cpp" />
     <ClCompile Include="src\fe\data\type_scope.cpp" />
     <ClCompile Include="src\fe\language_definition.cpp" />
+    <ClCompile Include="src\fe\libraries\std\std_assert.cpp" />
+    <ClCompile Include="src\fe\libraries\std\std_io.cpp" />
     <ClCompile Include="src\fe\pipeline\bytecode_gen_stage.cpp" />
     <ClCompile Include="src\fe\pipeline\bytecode_optimization_stage.cpp" />
     <ClCompile Include="src\fe\pipeline\linker_stage.cpp" />

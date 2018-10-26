@@ -1,7 +1,8 @@
 PUBLIC vm_interpret, vm_init
 .data
 registers QWORD 64 dup (0) ; 64 registers of 64 bits each, initialized to 0
-handlers  WORD 57 dup (?) ; dispatch target locations, initialized in vm_init
+handlers  WORD 64 dup (?) ; dispatch target locations, initialized in vm_init
+native_functions QWORD (0) ; pointer to array of native functions
 .code
 
 
@@ -492,8 +493,7 @@ or_reg_reg_reg LABEL NEAR PTR WORD
 mv_reg_sp LABEL NEAR PTR WORD
 	shr r9, 16
 	and r9, 0ffh
-	mov rax, [r13 + 62*8]
-	mov [r13 + r9*8], rax
+	mov [r13 + r9*8], rsp
 
 	add r8, 3
 	DISPATCH
@@ -1022,7 +1022,40 @@ ret_ui8 LABEL NEAR PTR WORD
 
 ; BEGIN call native ui64
 call_native_ui64 LABEL NEAR PTR WORD
-	; TODO skip for now
+	mov rax, QWORD PTR [r8 + 2]
+	mov rbx, [native_functions]
+	mov rax, [rbx + rax*8]
+
+	mov rcx, OFFSET registers
+	mov rdx, rsp
+
+	push r8
+	push r9
+	sub rsp, 16
+	call rax
+	add rsp, 16
+	pop r9
+	pop r8
+
+	cmp rax, 0
+	je _after
+
+	cmp rax, 1
+	inc rsp
+	je _after
+
+	cmp rax, 2
+	add rsp, 1
+	je _after
+
+	cmp rax, 4
+	add rsp, 2
+	je _after
+
+	cmp rax, 8
+	add rsp, 4
+
+	_after:
 	add r8, 10
 	DISPATCH
 ; END call native ui64
@@ -1071,6 +1104,9 @@ vm_interpret ENDP
 ; initializes each handler pointer
 
 vm_init PROC
+; store the pointer to native function pointers
+mov [native_functions], rax
+
 lea rax, handlers
  
 lea rbx, begin_interp
