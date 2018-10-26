@@ -29,6 +29,7 @@ namespace fe::core_ast
 		GLOBAL_ADDRESS,
 		REGISTER,
 		RESULT_REGISTER,
+		SP_REGISTER,
 
 		FUNCTION,
 		FUNCTION_CALL,
