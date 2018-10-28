@@ -81,21 +81,33 @@ namespace fe::ext_ast
 			.declaration_node).data_index).index_in_function;
 
 		// c
-		auto move = new_ast.create_node(core_ast::node_type::MOVE, block);
-		auto& mv_data = new_ast.get_data<core_ast::size>(*new_ast.get_node(move).data_index);
-		mv_data.val = rhs.allocated_stack_space;
-
+		if (rhs.allocated_stack_space > 8)
+		{
+			assert(!"Not working since rhs.result_register is undefined");
+			auto move = new_ast.create_node(core_ast::node_type::MOVE, block);
+			auto& mv_data = new_ast.get_data<core_ast::size>(*new_ast.get_node(move).data_index);
+			mv_data.val = rhs.allocated_stack_space;
 
 			auto from = new_ast.create_node(core_ast::node_type::LOCAL_ADDRESS, move);
 			new_ast.get_data<core_ast::size>(*new_ast.get_node(from).data_index).val = rhs.result_register;
 
-		auto to = new_ast.create_node(core_ast::node_type::LOCAL_ADDRESS, move);
-		new_ast.get_data<core_ast::size>(*new_ast.get_node(to).data_index).val = location_register;
+			auto to = new_ast.create_node(core_ast::node_type::LOCAL_ADDRESS, move);
+			new_ast.get_data<core_ast::size>(*new_ast.get_node(to).data_index).val = location_register;
 
-		// d
-		auto dealloc = new_ast.create_node(core_ast::node_type::STACK_DEALLOC);
-		link_child_parent(dealloc, block, new_ast);
-		new_ast.get_data<core_ast::size>(*new_ast.get_node(dealloc).data_index).val = rhs.allocated_stack_space;
+			// d
+			auto dealloc = new_ast.create_node(core_ast::node_type::STACK_DEALLOC);
+			link_child_parent(dealloc, block, new_ast);
+			new_ast.get_data<core_ast::size>(*new_ast.get_node(dealloc).data_index).val = rhs.allocated_stack_space;
+		}
+		else
+		{
+			// d
+			auto pop = new_ast.create_node(core_ast::node_type::POP, block);
+			new_ast.get_data<core_ast::size>(*new_ast.get_node(pop).data_index).val = rhs.allocated_stack_space;
+
+			auto to = new_ast.create_node(core_ast::node_type::REGISTER, pop);
+			new_ast.get_data<core_ast::size>(*new_ast.get_node(to).data_index).val = location_register;
+		}
 
 		return lowering_result(block);
 	}
@@ -324,8 +336,8 @@ namespace fe::ext_ast
 		new_ast.get_data<core_ast::size>(*new_ast.get_node(read).data_index).val = size;
 
 		// First child resolves source address
-		auto param_ref = new_ast.create_node(size > 8 
-			? core_ast::node_type::LOCAL_ADDRESS 
+		auto param_ref = new_ast.create_node(size > 8
+			? core_ast::node_type::LOCAL_ADDRESS
 			: core_ast::node_type::REGISTER, read);
 		new_ast.get_data<core_ast::size>(*new_ast.get_node(param_ref).data_index).val = location_register;
 
