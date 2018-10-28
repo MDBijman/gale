@@ -52,16 +52,14 @@ module fib
 import [std std.assert]
 
 let a: std.i64 = 1;
-{
-	a = 2;
-};
+a = 2;
 		)delim";
 
 	using namespace fe::types;
 	fe::project p{ fe::pipeline() };
 	p.add_module(fe::stdlib::typedefs::load());
 	p.add_module(fe::stdlib::assert::load());
-	p.eval(code, fe::vm::vm_settings());
+	p.eval(code, fe::vm::vm_settings(fe::vm::vm_implementation::asm_, true, false, false));
 }
 
 TEST_CASE("assignment", "[bytecode]")
