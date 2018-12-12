@@ -7,6 +7,15 @@ extern "C" int fe_time(uint64_t* regs, uint8_t* stack);
 
 namespace fe::stdlib::io
 {
+	class iostream
+	{
+	public:
+		virtual void send_stdout(const std::string&);
+		virtual void send_stderr(const std::string&);
+	};
+
+	void set_iostream(std::unique_ptr<iostream> new_io);
+
 	static module load()
 	{
 		return module_builder()

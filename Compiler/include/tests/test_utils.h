@@ -1,24 +1,29 @@
 #pragma once
 #include "fe/data/module.h"
+#include "fe/libraries/std/std_io.h"
 #include <assert.h>
+#include <iostream>
 
 namespace testing
 {
-	class test_scope
+	struct test_failure
 	{
-		fe::module m;
-	public:
-		test_scope(fe::module m) : m(m) {}
+		std::string expected;
+		std::string actual;
+	};
 
-		// #todo new way of testing with new value envs
-		//template<typename ValueType>
-		//bool value_equals(std::string name, ValueType val)
-		//{
-		//	auto lookup = m.values.valueof(fe::core_ast::identifier({}, name, 0 ));
-		//	if (!lookup) return false;
-		//	auto value = dynamic_cast<ValueType*>(*lookup);
-		//	if (!value) return false;
-		//	return *value == val;
-		//}
+	class test_iostream : public fe::stdlib::io::iostream
+	{
+		std::string should_print;
+		bool has_printed;
+	public:
+		test_iostream(std::string s) : should_print(s), has_printed(false) {}
+
+		virtual void send_stdout(const std::string& s)
+		{
+			if (has_printed) throw test_failure{ "", s };
+			if (s != should_print) throw test_failure{ should_print, s };
+			has_printed = true;
+		}
 	};
 }
