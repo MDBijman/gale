@@ -231,7 +231,7 @@ namespace fe::vm
 
 	namespace peephole_optimizations
 	{
-		std::optional<uint64_t> try_replace_push_pop(bytecode& bc, uint64_t push, uint64_t pop)
+		std::optional<uint64_t> try_replace_push_pop(bytecode& bc, const function_dependency_graph& dg, uint64_t push, uint64_t pop)
 		{
 			byte* first = bc[push];
 			byte* second = bc[pop];
@@ -239,11 +239,12 @@ namespace fe::vm
 			auto first_reg = first[1].val;
 			auto second_reg = second[1].val;
 
-			if (std::any_of(
-				bc.begin().add_unsafe(push + op_size(op_kind::PUSH64_REG)),
-				bc.begin().add_unsafe(pop),
-				[second_reg](const byte* op) { return writes_to(op, second_reg); }
-			)) return std::nullopt;
+			// Only continue if there are no other dependencies on the dependency
+			for (const auto& d : dg.dependencies)
+			{
+				if (d.depends_on == push && d.instruction_id != pop)
+					return std::nullopt;
+			}
 
 			// And add new single instruction
 			uint64_t new_op;
@@ -262,7 +263,7 @@ namespace fe::vm
 			return new_op;
 		}
 
-		std::optional<uint64_t> try_replace_indirect_literal(bytecode& bc, uint64_t mv_i64, uint64_t mv_reg)
+		std::optional<uint64_t> try_replace_indirect_literal(bytecode& bc, const function_dependency_graph& dg, uint64_t mv_i64, uint64_t mv_reg)
 		{
 			static_assert(ct_op_size<op_kind::MV_REG_I64>::value == ct_op_size<op_kind::MV_REG_UI64>::value);
 
@@ -276,11 +277,12 @@ namespace fe::vm
 
 			auto dst_reg = (second + 1)->val;
 
-			if (std::any_of(
-				bc.begin().add_unsafe(mv_i64 + op_size(op_kind::MV_REG_I64)),
-				bc.begin().add_unsafe(mv_reg),
-				[tmp_reg](const byte* op) { return reads_from(op, tmp_reg) || writes_to(op, tmp_reg); }
-			)) return std::nullopt;
+			// Only continue if there are no other dependencies on the dependency
+			for (const auto& d : dg.dependencies)
+			{
+				if (d.depends_on == mv_i64 && d.instruction_id != mv_reg)
+					return std::nullopt;
+			}
 
 			auto literal_int = read_i64(&(first + 2)->val);
 			if (byte_to_op(first->val) == op_kind::MV_REG_UI64) assert(literal_int >= 0);
@@ -296,7 +298,7 @@ namespace fe::vm
 			).ip;
 		}
 
-		std::optional<uint64_t> try_simplify_store(bytecode& bc, uint64_t mv_reg, uint64_t mv_loc)
+		std::optional<uint64_t> try_simplify_store(bytecode& bc, const function_dependency_graph& dg, uint64_t mv_reg, uint64_t mv_loc)
 		{
 			byte* first = bc[mv_reg];
 			byte* second = bc[mv_loc];
@@ -306,12 +308,12 @@ namespace fe::vm
 			if (second[2].val != tmp_reg)
 				return std::nullopt;
 
-			/* can this be removed by simply checking if there are additional instructions with 'dependency' as dependency? */
-			if (std::any_of(
-				bc.begin().add_unsafe(mv_reg + op_size(op_kind::MV64_REG_REG)),
-				bc.begin().add_unsafe(mv_loc),
-				[tmp_reg](const byte* op) { return reads_from(op, tmp_reg); }
-			)) return std::nullopt;
+			// Only continue if there are no other dependencies on the dependency
+			for (const auto& d : dg.dependencies)
+			{
+				if (d.depends_on == mv_reg && d.instruction_id != mv_loc)
+					return std::nullopt;
+			}
 
 			auto src_reg = first[2].val;
 			auto dst_reg = second[1].val;
@@ -327,22 +329,22 @@ namespace fe::vm
 			).ip;
 		}
 
-		std::optional<uint64_t> try_simplify_sub(bytecode& bc, uint64_t mv_reg, uint64_t mv_loc)
+		std::optional<uint64_t> try_simplify_sub(bytecode& bc, const function_dependency_graph& dg, uint64_t mv_reg, uint64_t mv_loc)
 		{
 			byte* first = bc[mv_reg];
 			byte* second = bc[mv_loc];
 
 			auto tmp_reg = first[1].val;
-
+			
 			if (second[3].val != tmp_reg)
 				return std::nullopt;
 
-			/* can this be removed by simply checking if there are additional instructions with 'dependency' as dependency? */
-			if (std::any_of(
-				bc.begin().add_unsafe(mv_reg + op_size(op_kind::MV_REG_I64)),
-				bc.begin().add_unsafe(mv_loc),
-				[tmp_reg](const byte* op) { return reads_from(op, tmp_reg); }
-			)) return std::nullopt;
+			// Only continue if there are no other dependencies on the dependency
+			for (const auto& d : dg.dependencies)
+			{
+				if (d.depends_on == mv_reg && d.instruction_id != mv_loc)
+					return std::nullopt;
+			}
 
 			auto literal_value = read_i64(&first[2].val);
 			if (literal_value < 0 || literal_value > std::numeric_limits<uint8_t>::max())
@@ -364,7 +366,7 @@ namespace fe::vm
 			).ip;
 		}
 
-		std::optional<uint64_t> try_simplify_add(bytecode& bc, uint64_t mv_reg_reg, uint64_t add)
+		std::optional<uint64_t> try_simplify_add(bytecode& bc, const function_dependency_graph& dg, uint64_t mv_reg_reg, uint64_t add)
 		{
 			byte* first = bc[mv_reg_reg];
 			byte* second = bc[add];
@@ -375,12 +377,12 @@ namespace fe::vm
 			if (second[3].val != tmp_reg && second[2].val != tmp_reg)
 				return std::nullopt;
 
-			/* can this be removed by simply checking if there are additional instructions with 'dependency' as dependency? */
-			if (std::any_of(
-				bc.begin().add_unsafe(mv_reg_reg + op_size(op_kind::MV64_REG_REG)),
-				bc.begin().add_unsafe(add),
-				[tmp_reg](const byte* op) { return reads_from(op, tmp_reg); }
-			)) return std::nullopt;
+			// Only continue if there are no other dependencies on the dependency
+			for (const auto& d : dg.dependencies)
+			{
+				if (d.depends_on == mv_reg_reg && d.instruction_id != add)
+					return std::nullopt;
+			}
 
 			auto target_reg = second[1].val;
 
@@ -398,7 +400,7 @@ namespace fe::vm
 			).ip;
 		}
 
-		std::optional<uint64_t> try_simplify_lte_literal(bytecode& bc, uint64_t mv_reg_i64, uint64_t lte)
+		std::optional<uint64_t> try_simplify_lte_literal(bytecode& bc, const function_dependency_graph& dg, uint64_t mv_reg_i64, uint64_t lte)
 		{
 			byte* first = bc[mv_reg_i64];
 			byte* second = bc[lte];
@@ -408,12 +410,12 @@ namespace fe::vm
 			if (second[3].val != tmp_reg)
 				return std::nullopt;
 
-			/* can this be removed by simply checking if there are additional instructions with 'dependency' as dependency? */
-			if (std::any_of(
-				bc.begin().add_unsafe(mv_reg_i64 + op_size(op_kind::MV_REG_I64)),
-				bc.begin().add_unsafe(lte),
-				[tmp_reg](const byte* op) { return reads_from(op, tmp_reg); }
-			)) return std::nullopt;
+			// Only continue if there are no other dependencies on the dependency
+			for (const auto& d : dg.dependencies)
+			{
+				if (d.depends_on == mv_reg_i64 && d.instruction_id != lte)
+					return std::nullopt;
+			}
 
 			auto target_reg = second[1].val;
 			auto other_src = second[2].val;
@@ -443,7 +445,7 @@ namespace fe::vm
 
 			if (dependency_kind == op_kind::MV64_REG_REG && dependant_kind == op_kind::MV64_LOC_REG)
 			{
-				auto replacement = peephole_optimizations::try_simplify_store(b, d.depends_on, d.instruction_id);
+				auto replacement = peephole_optimizations::try_simplify_store(b, g, d.depends_on, d.instruction_id);
 
 				if (!replacement)
 					return std::nullopt;
@@ -455,7 +457,7 @@ namespace fe::vm
 			else if ((dependency_kind == op_kind::MV_REG_I64 || dependency_kind == op_kind::MV_REG_UI64)
 				&& dependant_kind == op_kind::MV64_REG_REG)
 			{
-				auto replacement = peephole_optimizations::try_replace_indirect_literal(b, d.depends_on, d.instruction_id);
+				auto replacement = peephole_optimizations::try_replace_indirect_literal(b, g, d.depends_on, d.instruction_id);
 
 				if (!replacement)
 					return std::nullopt;
@@ -469,7 +471,7 @@ namespace fe::vm
 				|| (dependency_kind == op_kind::PUSH16_REG && dependant_kind == op_kind::POP16_REG)
 				|| (dependency_kind == op_kind::PUSH8_REG && dependant_kind == op_kind::POP8_REG))
 			{
-				auto replacement = peephole_optimizations::try_replace_push_pop(b, d.depends_on, d.instruction_id);
+				auto replacement = peephole_optimizations::try_replace_push_pop(b, g, d.depends_on, d.instruction_id);
 
 				if (!replacement)
 					return std::nullopt;
@@ -480,7 +482,7 @@ namespace fe::vm
 			}
 			else if (dependency_kind == op_kind::MV_REG_I64 && dependant_kind == op_kind::SUB_REG_REG_REG)
 			{
-				auto replacement = peephole_optimizations::try_simplify_sub(b, d.depends_on, d.instruction_id);
+				auto replacement = peephole_optimizations::try_simplify_sub(b, g, d.depends_on, d.instruction_id);
 
 				if (!replacement)
 					return std::nullopt;
@@ -491,7 +493,7 @@ namespace fe::vm
 			}
 			else if (dependency_kind == op_kind::MV64_REG_REG && dependant_kind == op_kind::ADD_REG_REG_REG)
 			{
-				auto replacement = peephole_optimizations::try_simplify_add(b, d.depends_on, d.instruction_id);
+				auto replacement = peephole_optimizations::try_simplify_add(b, g, d.depends_on, d.instruction_id);
 
 				if (!replacement)
 					return std::nullopt;
@@ -502,7 +504,7 @@ namespace fe::vm
 			}
 			else if (dependency_kind == op_kind::MV_REG_I64 && dependant_kind == op_kind::LTE_REG_REG_REG)
 			{
-				auto replacement = peephole_optimizations::try_simplify_lte_literal(b, d.depends_on, d.instruction_id);
+				auto replacement = peephole_optimizations::try_simplify_lte_literal(b, g, d.depends_on, d.instruction_id);
 
 				if (!replacement)
 					return std::nullopt;
@@ -535,7 +537,7 @@ namespace fe::vm
 
 			while (true)
 			{
-				// first: dependency, second: dependant, second: replacement
+				// first: dependency, second: dependant, third: replacement
 				std::optional<std::tuple<uint64_t, uint64_t, uint64_t>> replaced_op;
 
 				for (auto it = fun_dg.dependencies.begin(); it != fun_dg.dependencies.end(); it++)
@@ -595,7 +597,7 @@ namespace fe::vm
 			return (val <= std::numeric_limits<To>::max() && val >= std::numeric_limits<To>::min());
 		}
 
-		std::optional<std::pair<uint64_t, uint64_t>> try_simplify_literal(bytecode& bc, uint64_t mv_lit)
+		std::optional<std::pair<uint64_t, uint64_t>> try_simplify_literal(bytecode& bc, function_dependency_graph& g, uint64_t mv_lit)
 		{
 			byte* first = bc[mv_lit];
 
@@ -614,6 +616,7 @@ namespace fe::vm
 					new_op = bc.add_instruction(mv_lit + op_size(op_kind::MV_REG_I64), make_mv_reg_ui8(dst_reg, val)).ip;
 					// Remove the old instruction
 					bc.set_instruction(mv_lit, make_nops<ct_op_size<op_kind::MV_REG_I64>::value>());
+					g.add_offset(mv_lit + op_size(op_kind::MV_REG_I64), ct_op_size<op_kind::MV_REG_UI8>::value);
 				}
 
 				break;
@@ -659,7 +662,7 @@ namespace fe::vm
 				for (int i = 0; i < bytecode.size();)
 				{
 
-					auto replacement = peephole_optimizations::try_simplify_literal(bytecode, i);
+					auto replacement = peephole_optimizations::try_simplify_literal(bytecode, g[fun_id], i);
 
 					if (replacement)
 					{
