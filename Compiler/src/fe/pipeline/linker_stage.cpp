@@ -94,7 +94,7 @@ namespace fe::vm
 			case op_kind::CALL_UI64:
 			{
 				auto sc = std::find_if(chunk_locations.rbegin(), chunk_locations.rend(),
-					[i](auto loc) { return loc < i; });
+					[i](auto loc) { return loc <= i; });
 				uint32_t current_chunk = std::distance(chunk_locations.begin(), sc.base() - 1);
 				minimal_chunk_id = current_chunk;
 				auto label = read_ui64(&data[i + 1].val);

@@ -43,7 +43,8 @@ namespace fe::vm
 		void link_node_chunk(node_id, uint8_t);
 		uint8_t chunk_of(node_id);
 
-		reg var_reg(uint8_t var);
+		void set_var_reg(uint8_t var, uint8_t reg);
+		reg get_var_reg(uint8_t var);
 		void dealloc_var(uint8_t var);
 
 		core_ast::label function_label(std::string name);

@@ -75,7 +75,7 @@ namespace fe::ext_ast
 		// b
 		auto& id_node = ext_ast.get_node(children[0]);
 		assert(id_node.kind == ext_ast::node_type::IDENTIFIER);
-		auto location_register = ext_ast.get_data<ext_ast::identifier>(ext_ast.get_node((*ext_ast
+		auto variable_id = ext_ast.get_data<ext_ast::identifier>(ext_ast.get_node((*ext_ast
 			.get_name_scope(id_node.name_scope_id)
 			.resolve_variable(ext_ast.get_data<identifier>(id_node.data_index).segments[0], ext_ast.name_scope_cb()))
 			.declaration_node).data_index).index_in_function;
@@ -92,7 +92,7 @@ namespace fe::ext_ast
 			new_ast.get_data<core_ast::size>(*new_ast.get_node(from).data_index).val = rhs.result_register;
 
 			auto to = new_ast.create_node(core_ast::node_type::LOCAL_ADDRESS, move);
-			new_ast.get_data<core_ast::size>(*new_ast.get_node(to).data_index).val = location_register;
+			new_ast.get_data<core_ast::size>(*new_ast.get_node(to).data_index).val = variable_id;
 
 			// d
 			auto dealloc = new_ast.create_node(core_ast::node_type::STACK_DEALLOC);
@@ -106,7 +106,7 @@ namespace fe::ext_ast
 			new_ast.get_data<core_ast::size>(*new_ast.get_node(pop).data_index).val = rhs.allocated_stack_space;
 
 			auto to = new_ast.create_node(core_ast::node_type::REGISTER, pop);
-			new_ast.get_data<core_ast::size>(*new_ast.get_node(to).data_index).val = location_register;
+			new_ast.get_data<core_ast::size>(*new_ast.get_node(to).data_index).val = variable_id;
 		}
 
 		return lowering_result(block);
@@ -160,7 +160,7 @@ namespace fe::ext_ast
 			{
 				declaration_sum += res.allocated_stack_space;
 			}
-			else
+			else if (res.location == location_type::stack)
 			{
 				auto dealloc = new_ast.create_node(core_ast::node_type::STACK_DEALLOC, block);
 				new_ast.get_data<core_ast::size>(*new_ast.get_node(dealloc).data_index).val = res.allocated_stack_space;

@@ -80,19 +80,22 @@ namespace fe::vm
 		throw std::runtime_error("ICE: Ran out of registers!");
 	}
 
-	reg code_gen_state::var_reg(uint8_t var)
+	void code_gen_state::set_var_reg(uint8_t var, uint8_t reg)
+	{
+		var_to_reg.insert({ var, reg });
+	}
+
+	reg code_gen_state::get_var_reg(uint8_t var)
 	{
 		auto it = var_to_reg.find(var);
 		if (it == var_to_reg.end())
 		{
-			reg r = alloc_saved_register();
+			auto r = alloc_temp_register();
 			var_to_reg.insert({ var, r.val });
 			return r;
 		}
-		else
-		{
-			return it->second;
-		}
+		assert(it != var_to_reg.end());
+		return it->second;
 	}
 	void code_gen_state::dealloc_var(uint8_t var)
 	{
@@ -268,8 +271,9 @@ namespace fe::vm
 		i.clear_saved_registers();
 		i.clear_temp_registers();
 
-		// Allocate the register used for the parameter location
+		// Allocate the register used for the parameter 
 		assert(i.alloc_temp_register().val == 0);
+		i.set_var_reg(0, 0);
 
 		// Generate body
 		auto[loc, size] = func_bc.add_instruction(make_lbl(func_data.label));
@@ -428,7 +432,7 @@ namespace fe::vm
 
 			i.dealloc_temp_register(buf);
 		}
-		else
+		else if(i1.result_size > 0)
 		{
 			auto i2 = bc.add_instructions(make_pop(i1.result_size, 0));
 			code_size += i2.second;
@@ -472,7 +476,10 @@ namespace fe::vm
 		size_t code_size = 0;
 
 		code_gen_result res = generate_bytecode(node.children[0], ast, p, i);
-		assert(res.result_size == 0);
+
+		if (res.result_size > 0)
+			code_size += bc.add_instruction(make_pop(res.result_size, vm::ret_reg)).second;
+
 		code_size += res.code_size;
 
 		auto in_size = ast.get_data<core_ast::size>(*ast.get_node(n).data_index);
@@ -501,19 +508,19 @@ namespace fe::vm
 		if (from.kind == core_ast::node_type::RESULT_REGISTER && to.kind == core_ast::node_type::REGISTER)
 		{
 			auto v_to = ast.get_node_data<core_ast::size>(to).val;
-			auto r_to = i.var_reg(v_to);
+			auto r_to = i.get_var_reg(v_to);
 			code_size += bc.add_instruction(make_mv64_reg_reg(r_to, vm::ret_reg)).second;
 		}
 		else if (from.kind == core_ast::node_type::SP_REGISTER && to.kind == core_ast::node_type::REGISTER)
 		{
 			auto v_to = ast.get_node_data<core_ast::size>(to).val;
-			auto r_to = i.var_reg(v_to);
+			auto r_to = i.get_var_reg(v_to);
 			code_size += bc.add_instruction(make_mv_reg_sp(r_to)).second;
 		}
 		else if (from.kind == core_ast::node_type::LOCAL_ADDRESS && to.kind == core_ast::node_type::LOCAL_ADDRESS)
 		{
 			auto v_from = ast.get_node_data<core_ast::size>(from).val, v_to = ast.get_node_data<core_ast::size>(to).val;
-			auto r_to = i.var_reg(v_to), r_from = i.var_reg(v_from);
+			auto r_to = i.get_var_reg(v_to), r_from = i.get_var_reg(v_from);
 			assert(r_from.val >= 0 && r_from.val <= 64);
 			assert(r_to.val >= 0 && r_to.val <= 64);
 			auto r_buf = i.alloc_temp_register();
@@ -532,7 +539,7 @@ namespace fe::vm
 		else if (from.kind == core_ast::node_type::LOCAL_ADDRESS && to.kind == core_ast::node_type::STACK_ALLOC)
 		{
 			auto v_from = ast.get_node_data<core_ast::size>(to).val;
-			auto r_from = i.var_reg(v_from);
+			auto r_from = i.get_var_reg(v_from);
 			auto r_buf = i.alloc_temp_register();
 
 			stack_size = move_size.val;
@@ -550,8 +557,8 @@ namespace fe::vm
 		}
 		else if (from.kind == core_ast::node_type::REGISTER && to.kind == core_ast::node_type::STACK_ALLOC)
 		{
-			auto v_from = ast.get_node_data<core_ast::size>(to).val;
-			auto r_from = i.var_reg(v_from);
+			auto v_from = ast.get_node_data<core_ast::size>(from).val;
+			auto r_from = i.get_var_reg(v_from);
 
 			stack_size = move_size.val;
 
@@ -625,7 +632,7 @@ namespace fe::vm
 			// the label is a placeholder for the actual location
 			// We must first register all labels before we substitute the locations in the jumps
 			// As labels can occur after the jumps to them and locations can still change
-			make_jrz_i32(vm::ret_reg, lbl.id)
+			make_jrz_i32(test_reg, lbl.id)
 		);
 		i.dealloc_temp_register(test_reg);
 
@@ -741,7 +748,7 @@ namespace fe::vm
 			std::tie(location, code_size) = bc.add_instruction(make_pop(size.val, vm::ret_reg)); break;
 		case core_ast::node_type::REGISTER: {
 			auto v_target = ast.get_node_data<core_ast::size>(target).val;
-			auto r_target = i.var_reg(v_target);
+			auto r_target = i.get_var_reg(v_target);
 			std::tie(location, code_size) = bc.add_instruction(make_pop(size.val, r_target)); break;
 		}
 		default: throw std::runtime_error("unknown pop result");
