@@ -432,7 +432,7 @@ namespace fe::vm
 
 			i.dealloc_temp_register(buf);
 		}
-		else
+		else if(i1.result_size > 0)
 		{
 			auto i2 = bc.add_instructions(make_pop(i1.result_size, 0));
 			code_size += i2.second;

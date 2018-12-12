@@ -90,34 +90,34 @@ std.io.print a;
 	p.eval(code, fe::vm::vm_settings(fe::vm::vm_implementation::asm_, true, true, false));
 }
 
-//TEST_CASE("vm modules", "[bytecode]")
-//{
-//	using namespace fe::vm;
-//	auto code = R"delim(
-//module test
-//import [lib std std.io]
-//
-//let test: std.ui64 = lib.get_ten ();
-//std.print test;
-//)delim";
-//
-//	fe::project p{ fe::pipeline() };
-//
-//	p.add_module(fe::stdlib::typedefs::load());
-//	p.add_module(fe::stdlib::io::load());
-//	p.add_module(fe::module_builder()
-//		.set_name({ "lib" })
-//		.add_function(
-//			function("get_ten", bytecode_builder()
-//				.add(make_mv_reg_i64(ret_reg, 10), make_ret(0))
-//				.build()),
-//			fe::types::unique_type(new fe::types::function_type(fe::types::product_type(), fe::types::ui64()))
-//		).build());
-//
-//	fe::stdlib::io::set_iostream(std::make_unique<testing::test_iostream>("10"));
-//	auto state = p.eval(code, fe::vm::vm_settings());
-//	REQUIRE(state.registers[ret_reg] == 10);
-//}
+TEST_CASE("vm modules", "[bytecode]")
+{
+	using namespace fe::vm;
+	auto code = R"delim(
+module test
+import [lib std std.io]
+
+let test: std.ui64 = lib.get_ten ();
+std.io.print test;
+)delim";
+
+	fe::project p{ fe::pipeline() };
+
+	p.add_module(fe::stdlib::typedefs::load());
+	p.add_module(fe::stdlib::io::load());
+	p.add_module(fe::module_builder()
+		.set_name({ "lib" })
+		.add_function(
+			function("get_ten", bytecode_builder()
+				.add(make_mv_reg_i64(ret_reg, 10), make_ret(0))
+				.build()),
+			fe::types::unique_type(new fe::types::function_type(fe::types::product_type(), fe::types::ui64()))
+		).build());
+
+	fe::stdlib::io::set_iostream(std::make_unique<testing::test_iostream>("10"));
+	auto state = p.eval(code, fe::vm::vm_settings());
+	REQUIRE(state.registers[ret_reg] == 10);
+}
 
 TEST_CASE("function", "[bytecode]")
 {
