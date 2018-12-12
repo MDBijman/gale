@@ -285,10 +285,24 @@ namespace fe::ext_ast
 		}
 		else if (type_node.kind == node_type::TYPE_ATOM)
 		{
-			assert(offsets.size() > 0);
-			assert(children.size() == 1);
-			auto& id_node = ast.get_node(children[0]);
-			return resolve_offsets(id_node, ast, offsets);
+			if (offsets.size() > 0)
+			{
+				assert(offsets.size() > 0);
+				assert(children.size() == 1);
+				auto& id_node = ast.get_node(children[0]);
+				return resolve_offsets(id_node, ast, offsets);
+			}
+			else
+			{
+				return type_node.id;
+			}
+		}
+		else if (type_node.kind == node_type::TYPE_TUPLE)
+		{
+			auto first_offset = *offsets.begin();
+			auto new_offsets = std::vector<size_t>(offsets.begin() + 1, offsets.end());
+			auto& new_node = ast.get_node(children[first_offset]);
+			return resolve_offsets(new_node, ast, new_offsets);
 		}
 		else
 		{
