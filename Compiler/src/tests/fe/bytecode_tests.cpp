@@ -139,25 +139,26 @@ std.io.print b;
 	p.eval(code, fe::vm::vm_settings(fe::vm::vm_implementation::asm_, true, false, false));
 }
 
-//TEST_CASE("instructions", "[bytecode]")
-//{
-//	using namespace fe::vm;
-//	auto p = program();
-//	auto bc = bytecode();
-//	bc.add_instructions(
-//		make_mv_reg_ui8(reg(3), 100),
-//		make_mv_reg_ui16(reg(4), 150),
-//		make_add(reg(5), reg(3), reg(4)),
-//		make_mv_reg_ui8(reg(1), 120),
-//		make_push8(reg(1)),
-//		make_pop8(reg(2))
-//	);
-//	p.add_function(function{ "_main", bc, {} });
-//	auto res = interpret(link(p));
-//	REQUIRE(res.registers[sp_reg] == 0);
-//	REQUIRE(res.registers[5] == 250);
-//	REQUIRE(res.registers[2] == 120);
-//}
+TEST_CASE("instructions", "[bytecode]")
+{
+	using namespace fe::vm;
+	auto p = program();
+	auto bc = bytecode();
+	bc.add_instructions(
+		make_mv_reg_ui8(reg(3), 100),
+		make_mv_reg_ui16(reg(4), 150),
+		make_add(reg(5), reg(3), reg(4)),
+		make_mv_reg_ui8(reg(1), 120),
+		make_push8(reg(1)),
+		make_pop8(reg(2)),
+		make_exit()
+	);
+	p.add_function(function{ "_main", bc, {} });
+	auto res = interpret(link(p));
+	REQUIRE(res.registers[sp_reg] == 0);
+	REQUIRE(res.registers[5] == 250);
+	REQUIRE(res.registers[2] == 120);
+}
 
 TEST_CASE("number", "[bytecode]")
 {
