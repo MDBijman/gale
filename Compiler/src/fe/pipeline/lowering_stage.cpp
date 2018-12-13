@@ -105,7 +105,7 @@ namespace fe::ext_ast
 			auto pop = new_ast.create_node(core_ast::node_type::POP, block);
 			new_ast.get_data<core_ast::size>(*new_ast.get_node(pop).data_index).val = rhs.allocated_stack_space;
 
-			auto to = new_ast.create_node(core_ast::node_type::REGISTER, pop);
+			auto to = new_ast.create_node(core_ast::node_type::VARIABLE, pop);
 			new_ast.get_data<core_ast::size>(*new_ast.get_node(to).data_index).val = variable_id;
 		}
 
@@ -338,7 +338,7 @@ namespace fe::ext_ast
 		// First child resolves source address
 		auto param_ref = new_ast.create_node(size > 8
 			? core_ast::node_type::LOCAL_ADDRESS
-			: core_ast::node_type::REGISTER, read);
+			: core_ast::node_type::VARIABLE, read);
 		new_ast.get_data<core_ast::size>(*new_ast.get_node(param_ref).data_index).val = location_register;
 
 		// Second child resolves target address
@@ -451,51 +451,58 @@ namespace fe::ext_ast
 		auto block = new_ast.create_node(core_ast::node_type::BLOCK);
 
 		auto& lhs_node = ast.get_node(children[0]);
-		if (lhs_node.kind == node_type::IDENTIFIER)
+
+		auto& rhs_node = ast.get_node(children[2]);
+		auto rhs = lower(rhs_node, ast, new_ast, context);
+		link_child_parent(rhs.id, block, new_ast);
+
+		// Function declaration
+		if (lhs_node.kind == node_type::IDENTIFIER && rhs_node.kind == node_type::FUNCTION)
 		{
 			// Put location in register
 			auto& identifier_data = ast.get_data<ext_ast::identifier>(lhs_node.data_index);
 			identifier_data.index_in_function = context.alloc_variable();
 
-			auto& rhs_node = ast.get_node(children[2]);
-			auto rhs = lower(rhs_node, ast, new_ast, context);
-			link_child_parent(rhs.id, block, new_ast);
+			auto& function_data = new_ast.get_data<core_ast::function_data>(*new_ast.get_node(rhs.id).data_index);
+			function_data.name = identifier_data.full;
+			function_data.label = context.new_label();
+			types::function_type* func_type = dynamic_cast<types::function_type*>(&(*ast
+				.get_type_scope(n.type_scope_id)
+				.resolve_variable(identifier_data, ast.type_scope_cb()))
+				.type);
+			function_data.in_size = func_type->from->calculate_size();
+			function_data.out_size = func_type->to->calculate_size();
 
-			if (rhs_node.kind == node_type::FUNCTION)
+			return lowering_result(block, location_type::stack, rhs.allocated_stack_space);
+		}
+		// Variable declaration
+		else if (lhs_node.kind == node_type::IDENTIFIER)
+		{
+			// Put location in register
+			auto& identifier_data = ast.get_data<ext_ast::identifier>(lhs_node.data_index);
+			identifier_data.index_in_function = context.alloc_variable();
+
+			// Keep on stack, put location in register
+			if (rhs.allocated_stack_space > 8)
 			{
-				auto& function_data = new_ast.get_data<core_ast::function_data>(*new_ast.get_node(rhs.id).data_index);
-				function_data.name = identifier_data.full;
-				function_data.label = context.new_label();
-				types::function_type* func_type = dynamic_cast<types::function_type*>(&(*ast
-					.get_type_scope(n.type_scope_id)
-					.resolve_variable(identifier_data, ast.type_scope_cb()))
-					.type);
-				function_data.in_size = func_type->from->calculate_size();
-				function_data.out_size = func_type->to->calculate_size();
+				auto mv = new_ast.create_node(core_ast::node_type::MOVE, block);
+				new_ast.create_node(core_ast::node_type::SP_REGISTER, mv);
+				auto r = new_ast.create_node(core_ast::node_type::VARIABLE, mv);
+				new_ast.get_node_data<core_ast::size>(r).val = identifier_data.index_in_function;
 			}
+			// Put value in register directly
 			else
 			{
-				// Keep on stack, put location in register
-				if (rhs.allocated_stack_space > 8)
-				{
-					auto mv = new_ast.create_node(core_ast::node_type::MOVE, block);
-					new_ast.create_node(core_ast::node_type::SP_REGISTER, mv);
-					auto r = new_ast.create_node(core_ast::node_type::REGISTER, mv);
-					new_ast.get_node_data<core_ast::size>(r).val = identifier_data.index_in_function;
-				}
-				// Put value in register directly
-				else
-				{
-					// Pop value into result register
-					auto pop = new_ast.create_node(core_ast::node_type::POP, block);
-					new_ast.get_node_data<core_ast::size>(pop).val = rhs.allocated_stack_space;
-					auto r = new_ast.create_node(core_ast::node_type::REGISTER, pop);
-					new_ast.get_node_data<core_ast::size>(r).val = identifier_data.index_in_function;
-				}
+				// Pop value into result register
+				auto pop = new_ast.create_node(core_ast::node_type::POP, block);
+				new_ast.get_node_data<core_ast::size>(pop).val = rhs.allocated_stack_space;
+				auto r = new_ast.create_node(core_ast::node_type::VARIABLE, pop);
+				new_ast.get_node_data<core_ast::size>(r).val = identifier_data.index_in_function;
 			}
 
 			return lowering_result(block, location_type::stack, rhs.allocated_stack_space);
 		}
+		// Tuple declaration
 		else if (lhs_node.kind == node_type::IDENTIFIER_TUPLE)
 		{
 			assert(!"identifier tuple lowering nyi");

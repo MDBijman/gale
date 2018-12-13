@@ -505,13 +505,13 @@ namespace fe::vm
 
 		assert(move_size.val > 0 && move_size.val <= 8);
 
-		if (from.kind == core_ast::node_type::RESULT_REGISTER && to.kind == core_ast::node_type::REGISTER)
+		if (from.kind == core_ast::node_type::RESULT_REGISTER && to.kind == core_ast::node_type::VARIABLE)
 		{
 			auto v_to = ast.get_node_data<core_ast::size>(to).val;
 			auto r_to = i.get_var_reg(v_to);
 			code_size += bc.add_instruction(make_mv64_reg_reg(r_to, vm::ret_reg)).second;
 		}
-		else if (from.kind == core_ast::node_type::SP_REGISTER && to.kind == core_ast::node_type::REGISTER)
+		else if (from.kind == core_ast::node_type::SP_REGISTER && to.kind == core_ast::node_type::VARIABLE)
 		{
 			auto v_to = ast.get_node_data<core_ast::size>(to).val;
 			auto r_to = i.get_var_reg(v_to);
@@ -555,7 +555,7 @@ namespace fe::vm
 
 			i.dealloc_temp_register(r_buf);
 		}
-		else if (from.kind == core_ast::node_type::REGISTER && to.kind == core_ast::node_type::STACK_ALLOC)
+		else if (from.kind == core_ast::node_type::VARIABLE && to.kind == core_ast::node_type::STACK_ALLOC)
 		{
 			auto v_from = ast.get_node_data<core_ast::size>(from).val;
 			auto r_from = i.get_var_reg(v_from);
@@ -746,7 +746,7 @@ namespace fe::vm
 		{
 		case core_ast::node_type::RESULT_REGISTER:
 			std::tie(location, code_size) = bc.add_instruction(make_pop(size.val, vm::ret_reg)); break;
-		case core_ast::node_type::REGISTER: {
+		case core_ast::node_type::VARIABLE: {
 			auto v_target = ast.get_node_data<core_ast::size>(target).val;
 			auto r_target = i.get_var_reg(v_target);
 			std::tie(location, code_size) = bc.add_instruction(make_pop(size.val, r_target)); break;
