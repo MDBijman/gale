@@ -505,57 +505,7 @@ namespace fe::vm
 
 		assert(move_size.val > 0 && move_size.val <= 8);
 
-		if (from.kind == core_ast::node_type::RESULT_REGISTER && to.kind == core_ast::node_type::VARIABLE)
-		{
-			auto v_to = ast.get_node_data<core_ast::size>(to).val;
-			auto r_to = i.get_var_reg(v_to);
-			code_size += bc.add_instruction(make_mv64_reg_reg(r_to, vm::ret_reg)).second;
-		}
-		else if (from.kind == core_ast::node_type::SP_REGISTER && to.kind == core_ast::node_type::VARIABLE)
-		{
-			auto v_to = ast.get_node_data<core_ast::size>(to).val;
-			auto r_to = i.get_var_reg(v_to);
-			code_size += bc.add_instruction(make_mv_reg_sp(r_to)).second;
-		}
-		else if (from.kind == core_ast::node_type::LOCAL_ADDRESS && to.kind == core_ast::node_type::LOCAL_ADDRESS)
-		{
-			auto v_from = ast.get_node_data<core_ast::size>(from).val, v_to = ast.get_node_data<core_ast::size>(to).val;
-			auto r_to = i.get_var_reg(v_to), r_from = i.get_var_reg(v_from);
-			assert(r_from.val >= 0 && r_from.val <= 64);
-			assert(r_to.val >= 0 && r_to.val <= 64);
-			auto r_buf = i.alloc_temp_register();
-
-			switch (move_size.val)
-			{
-			case 8: code_size += bc.add_instructions(make_mv64_reg_loc(r_buf, r_from), make_mv64_loc_reg(r_to, r_buf)).second; break;
-			case 4: code_size += bc.add_instructions(make_mv32_reg_loc(r_buf, r_from), make_mv32_loc_reg(r_to, r_buf)).second; break;
-			case 2: code_size += bc.add_instructions(make_mv16_reg_loc(r_buf, r_from), make_mv16_loc_reg(r_to, r_buf)).second; break;
-			case 1: code_size += bc.add_instructions(make_mv8_reg_loc(r_buf, r_from), make_mv8_loc_reg(r_to, r_buf)).second; break;
-			default: throw std::runtime_error("invalid move size");
-			}
-
-			i.dealloc_temp_register(r_buf);
-		}
-		else if (from.kind == core_ast::node_type::LOCAL_ADDRESS && to.kind == core_ast::node_type::STACK_ALLOC)
-		{
-			auto v_from = ast.get_node_data<core_ast::size>(to).val;
-			auto r_from = i.get_var_reg(v_from);
-			auto r_buf = i.alloc_temp_register();
-
-			stack_size = move_size.val;
-
-			switch (move_size.val)
-			{
-			case 8: code_size += bc.add_instructions(make_mv64_reg_loc(r_buf, r_from), make_push64(r_buf)).second; break;
-			case 4: code_size += bc.add_instructions(make_mv32_reg_loc(r_buf, r_from), make_push32(r_buf)).second; break;
-			case 2: code_size += bc.add_instructions(make_mv16_reg_loc(r_buf, r_from), make_push16(r_buf)).second; break;
-			case 1: code_size += bc.add_instructions(make_mv8_reg_loc(r_buf, r_from), make_push8(r_buf)).second; break;
-			default: throw std::runtime_error("invalid move size");
-			}
-
-			i.dealloc_temp_register(r_buf);
-		}
-		else if (from.kind == core_ast::node_type::VARIABLE && to.kind == core_ast::node_type::STACK_ALLOC)
+		if (from.kind == core_ast::node_type::VARIABLE && to.kind == core_ast::node_type::STACK_ALLOC)
 		{
 			auto v_from = ast.get_node_data<core_ast::size>(from).val;
 			auto r_from = i.get_var_reg(v_from);
@@ -744,8 +694,6 @@ namespace fe::vm
 		auto& target = ast.get_node(node.children[0]);
 		switch (target.kind)
 		{
-		case core_ast::node_type::RESULT_REGISTER:
-			std::tie(location, code_size) = bc.add_instruction(make_pop(size.val, vm::ret_reg)); break;
 		case core_ast::node_type::VARIABLE: {
 			auto v_target = ast.get_node_data<core_ast::size>(target).val;
 			auto r_target = i.get_var_reg(v_target);
