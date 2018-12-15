@@ -196,6 +196,14 @@ namespace fe::core_ast
 		function_call_data() {}
 		std::string name;
 	};
+
+	struct scope_data
+	{
+		scope_data() {}
+
+		int variable_count = 0;
+		int total_size = 0;
+	};
 }
 
 namespace std

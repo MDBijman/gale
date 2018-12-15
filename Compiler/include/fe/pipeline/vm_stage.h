@@ -36,11 +36,11 @@ namespace fe::vm
 	struct vm_settings
 	{
 		vm_settings()
-			: print_code(false), print_result(false), print_time(false), implementation(vm_implementation::asm_) {}
-		vm_settings(vm_implementation imp, bool print_code, bool print_result, bool print_time)
-			: print_code(print_code), print_result(print_result), print_time(print_time), implementation(imp) {}
+			: print_code(false), print_result(false), print_time(false), implementation(vm_implementation::asm_), should_optimize(true) {}
+		vm_settings(vm_implementation imp, bool print_code, bool print_result, bool print_time, bool so)
+			: print_code(print_code), print_result(print_result), print_time(print_time), implementation(imp), should_optimize(so) {}
 
-		bool print_code, print_result, print_time;
+		bool print_code, print_result, print_time, should_optimize;
 		vm_implementation implementation;
 	};
 

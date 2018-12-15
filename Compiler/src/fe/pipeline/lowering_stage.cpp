@@ -34,6 +34,7 @@ namespace fe::ext_ast
 		variable_index next_variable = 0;
 		using label_index = uint32_t;
 		label_index next_label = 0;
+		data_index current_scope_data = 0;
 
 		variable_index alloc_variable() { return next_variable++; }
 		label_index new_label() { return next_label++; }
@@ -80,34 +81,13 @@ namespace fe::ext_ast
 			.resolve_variable(ext_ast.get_data<identifier>(id_node.data_index).segments[0], ext_ast.name_scope_cb()))
 			.declaration_node).data_index).index_in_function;
 
-		// c
-		if (rhs.allocated_stack_space > 8)
-		{
-			assert(!"Not working since rhs.result_register is undefined");
-			auto move = new_ast.create_node(core_ast::node_type::MOVE, block);
-			auto& mv_data = new_ast.get_data<core_ast::size>(*new_ast.get_node(move).data_index);
-			mv_data.val = rhs.allocated_stack_space;
 
-			auto from = new_ast.create_node(core_ast::node_type::LOCAL_ADDRESS, move);
-			new_ast.get_data<core_ast::size>(*new_ast.get_node(from).data_index).val = rhs.result_register;
+		// d
+		auto pop = new_ast.create_node(core_ast::node_type::POP, block);
+		new_ast.get_data<core_ast::size>(*new_ast.get_node(pop).data_index).val = rhs.allocated_stack_space;
 
-			auto to = new_ast.create_node(core_ast::node_type::LOCAL_ADDRESS, move);
-			new_ast.get_data<core_ast::size>(*new_ast.get_node(to).data_index).val = variable_id;
-
-			// d
-			auto dealloc = new_ast.create_node(core_ast::node_type::STACK_DEALLOC);
-			link_child_parent(dealloc, block, new_ast);
-			new_ast.get_data<core_ast::size>(*new_ast.get_node(dealloc).data_index).val = rhs.allocated_stack_space;
-		}
-		else
-		{
-			// d
-			auto pop = new_ast.create_node(core_ast::node_type::POP, block);
-			new_ast.get_data<core_ast::size>(*new_ast.get_node(pop).data_index).val = rhs.allocated_stack_space;
-
-			auto to = new_ast.create_node(core_ast::node_type::VARIABLE, pop);
-			new_ast.get_data<core_ast::size>(*new_ast.get_node(to).data_index).val = variable_id;
-		}
+		auto to = new_ast.create_node(core_ast::node_type::VARIABLE, pop);
+		new_ast.get_data<core_ast::size>(*new_ast.get_node(to).data_index).val = variable_id;
 
 		return lowering_result(block);
 	}
@@ -133,32 +113,23 @@ namespace fe::ext_ast
 	{
 		assert(n.kind == node_type::BLOCK);
 		auto block = new_ast.create_node(core_ast::node_type::BLOCK);
-		auto& block_n = new_ast.get_node(block);
-		block_n.size = 0;
+		new_ast.get_node(block).size = 0;
 		auto& children = ast.children_of(n);
 
 		lowering_context nested_context = context;
+		nested_context.current_scope_data = *new_ast.get_node(block).data_index;
 
-		int64_t declaration_sum = 0;
 		for (auto it = children.begin(); it != children.end(); it++)
 		{
 			auto& n = ast.get_node(*it);
-			auto res = lower(n, ast, new_ast, context);
+			auto res = lower(n, ast, new_ast, nested_context);
 			link_child_parent(res.id, block, new_ast);
 
 			if (n.kind == node_type::BLOCK_RESULT)
 			{
 				assert(res.allocated_stack_space <= 8);
 				assert(it == children.end() - 1);
-				auto pop = new_ast.create_node(core_ast::node_type::POP, block);
-				new_ast.get_node_data<core_ast::size>(pop).val = res.allocated_stack_space;
-				new_ast.create_node(core_ast::node_type::RESULT_REGISTER, pop);
-
-				block_n.size = res.allocated_stack_space;
-			}
-			else if (n.kind == node_type::DECLARATION)
-			{
-				declaration_sum += res.allocated_stack_space;
+				new_ast.get_node(block).size = res.allocated_stack_space;
 			}
 			else if (res.location == location_type::stack)
 			{
@@ -167,16 +138,9 @@ namespace fe::ext_ast
 			}
 		}
 
-		if (declaration_sum > 0)
-		{
-			auto dealloc = new_ast.create_node(core_ast::node_type::STACK_DEALLOC);
-			link_child_parent(dealloc, block, new_ast);
-			new_ast.get_data<core_ast::size>(*new_ast.get_node(dealloc).data_index).val = declaration_sum;
-		}
-
 		context.next_label = nested_context.next_label;
 
-		return lowering_result(block, location_type::stack, *block_n.size);
+		return lowering_result(block, location_type::stack, *new_ast.get_node(block).size);
 	}
 
 	lowering_result lower_block_result(node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
@@ -223,6 +187,8 @@ namespace fe::ext_ast
 		new_ast.get_data<core_ast::return_data>(*new_ast.get_node(ret).data_index) = core_ast::return_data{ in_size, };
 
 		auto block = new_ast.create_node(core_ast::node_type::BLOCK, ret);
+		context.current_scope_data = *new_ast.get_node(block).data_index;
+
 		// Body
 		auto& body_node = ast.get_node(children[1]);
 		auto new_body = lower(body_node, ast, new_ast, context);
@@ -251,7 +217,7 @@ namespace fe::ext_ast
 		auto& children = ast.children_of(n);
 		assert(children.size() >= 2);
 
-		auto block = new_ast.create_node(core_ast::node_type::BLOCK);
+		auto parent_block = new_ast.create_node(core_ast::node_type::BLOCK);
 
 		bool has_else = children.size() % 2 == 1;
 
@@ -260,44 +226,50 @@ namespace fe::ext_ast
 		int64_t size = 0;
 		for (int i = 0; i < children.size() - 1; i += 2)
 		{
+			auto branch_block = new_ast.create_node(core_ast::node_type::BLOCK, parent_block);
+			context.current_scope_data = *new_ast.get_node(branch_block).data_index;
+
 			auto lbl = context.new_label();
 			auto test_res = lower(ast.get_node(children[i]), ast, new_ast, context);
-			link_child_parent(test_res.id, block, new_ast);
+			link_child_parent(test_res.id, branch_block, new_ast);
 
 			// Does not count towards allocation size since JZ consumes the byte
 			assert(test_res.allocated_stack_space == 1);
 
-			auto jump = new_ast.create_node(core_ast::node_type::JZ, block);
+			auto jump = new_ast.create_node(core_ast::node_type::JZ, branch_block);
 			new_ast.get_data<core_ast::label>(*new_ast.get_node(jump).data_index).id = lbl;
 
 			auto body_res = lower(ast.get_node(children[i + 1]), ast, new_ast, context);
-			link_child_parent(body_res.id, block, new_ast);
+			link_child_parent(body_res.id, branch_block, new_ast);
 
 			// Each branch must allocate the same amount of space
 			if (i == 0) size = body_res.allocated_stack_space;
 			else assert(body_res.allocated_stack_space == size);
 
-			auto jump_end = new_ast.create_node(core_ast::node_type::JMP, block);
+			auto jump_end = new_ast.create_node(core_ast::node_type::JMP, branch_block);
 			new_ast.get_data<core_ast::label>(*new_ast.get_node(jump_end).data_index).id = after_lbl;
 
-			auto label = new_ast.create_node(core_ast::node_type::LABEL, block);
+			auto label = new_ast.create_node(core_ast::node_type::LABEL, branch_block);
 			new_ast.get_data<core_ast::label>(*new_ast.get_node(label).data_index).id = lbl;
 		}
 
 		// This size will be used in bytecode generation
-		new_ast.get_node(block).size = size;
+		new_ast.get_node(parent_block).size = size;
 
 		if (has_else)
 		{
+			auto branch_block = new_ast.create_node(core_ast::node_type::BLOCK, parent_block);
+			context.current_scope_data = *new_ast.get_node(branch_block).data_index;
+
 			auto body_res = lower(ast.get_node(children.back()), ast, new_ast, context);
-			link_child_parent(body_res.id, block, new_ast);
+			link_child_parent(body_res.id, branch_block, new_ast);
 			assert(body_res.allocated_stack_space == size);
 		}
 
-		auto after_label = new_ast.create_node(core_ast::node_type::LABEL, block);
+		auto after_label = new_ast.create_node(core_ast::node_type::LABEL, parent_block);
 		new_ast.get_data<core_ast::label>(*new_ast.get_node(after_label).data_index).id = after_lbl;
 
-		return lowering_result(block, location_type::stack, size);
+		return lowering_result(parent_block, location_type::stack, size);
 	}
 
 	lowering_result lower_match(node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
@@ -327,7 +299,7 @@ namespace fe::ext_ast
 			.resolve_variable(id.root_identifier(), ast.type_scope_cb()))
 			.type
 			.calculate_offset(id.offsets);
-		auto location_register = ast.get_data<identifier>(ast.get_node((*ast
+		auto var_index = ast.get_data<identifier>(ast.get_node((*ast
 			.get_name_scope(n.name_scope_id)
 			.resolve_variable(id.root_identifier(), ast.name_scope_cb())).declaration_node)
 			.data_index).index_in_function;
@@ -336,10 +308,8 @@ namespace fe::ext_ast
 		new_ast.get_data<core_ast::size>(*new_ast.get_node(read).data_index).val = size;
 
 		// First child resolves source address
-		auto param_ref = new_ast.create_node(size > 8
-			? core_ast::node_type::LOCAL_ADDRESS
-			: core_ast::node_type::VARIABLE, read);
-		new_ast.get_data<core_ast::size>(*new_ast.get_node(param_ref).data_index).val = location_register;
+		auto param_ref = new_ast.create_node(core_ast::node_type::VARIABLE, read);
+		new_ast.get_data<core_ast::size>(*new_ast.get_node(param_ref).data_index).val = var_index;
 
 		// Second child resolves target address
 		auto alloc = new_ast.create_node(core_ast::node_type::STACK_ALLOC, read);
@@ -478,27 +448,17 @@ namespace fe::ext_ast
 		// Variable declaration
 		else if (lhs_node.kind == node_type::IDENTIFIER)
 		{
-			// Put location in register
 			auto& identifier_data = ast.get_data<ext_ast::identifier>(lhs_node.data_index);
 			identifier_data.index_in_function = context.alloc_variable();
 
-			// Keep on stack, put location in register
-			if (rhs.allocated_stack_space > 8)
-			{
-				auto mv = new_ast.create_node(core_ast::node_type::MOVE, block);
-				new_ast.create_node(core_ast::node_type::SP_REGISTER, mv);
-				auto r = new_ast.create_node(core_ast::node_type::VARIABLE, mv);
-				new_ast.get_node_data<core_ast::size>(r).val = identifier_data.index_in_function;
-			}
-			// Put value in register directly
-			else
-			{
-				// Pop value into result register
-				auto pop = new_ast.create_node(core_ast::node_type::POP, block);
-				new_ast.get_node_data<core_ast::size>(pop).val = rhs.allocated_stack_space;
-				auto r = new_ast.create_node(core_ast::node_type::VARIABLE, pop);
-				new_ast.get_node_data<core_ast::size>(r).val = identifier_data.index_in_function;
-			}
+			new_ast.get_data<core_ast::scope_data>(context.current_scope_data).variable_count++;
+			new_ast.get_data<core_ast::scope_data>(context.current_scope_data).total_size += rhs.allocated_stack_space;
+
+			// Pop value into result variable
+			auto pop = new_ast.create_node(core_ast::node_type::POP, block);
+			new_ast.get_node_data<core_ast::size>(pop).val = rhs.allocated_stack_space;
+			auto r = new_ast.create_node(core_ast::node_type::VARIABLE, pop);
+			new_ast.get_node_data<core_ast::size>(r).val = identifier_data.index_in_function;
 
 			return lowering_result(block, location_type::stack, rhs.allocated_stack_space);
 		}
@@ -549,7 +509,7 @@ namespace fe::ext_ast
 			new_ast.get_data<core_ast::size>(*new_ast.get_node(move).data_index).val = size;
 
 			// Resolve source (param at offset 0)
-			auto from = new_ast.create_node(core_ast::node_type::LOCAL_ADDRESS, move);
+			auto from = new_ast.create_node(core_ast::node_type::VARIABLE, move);
 			new_ast.get_data<core_ast::size>(*new_ast.get_node(from).data_index).val = location_register;
 
 			// Resolve target (stack)
@@ -677,6 +637,7 @@ namespace fe::ext_ast
 		lowering_context context;
 		core_ast::ast new_ast(core_ast::node_type::BLOCK);
 		auto block = new_ast.root_id();
+		context.current_scope_data = *new_ast.get_node(block).data_index;
 
 		for (auto child : children)
 		{

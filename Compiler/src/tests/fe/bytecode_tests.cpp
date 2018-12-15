@@ -22,7 +22,7 @@ fe::project test_project()
 
 fe::vm::vm_settings test_settings()
 {
-	return fe::vm::vm_settings(fe::vm::vm_implementation::asm_, false, false, false);
+	return fe::vm::vm_settings(fe::vm::vm_implementation::asm_, false, false, false, true);
 }
 
 void expect_io(const std::string& s)
@@ -59,7 +59,10 @@ module fib
 import [std std.io]
 
 let a: std.ui64 = 1;
-a = 2;
+a = {
+  let b: std.ui64 = 3;
+  b
+};
 std.io.print a;
 )", "2");
 }
@@ -91,15 +94,36 @@ std.io.print b;
 )", "23");
 }
 
-TEST_CASE("tuple", "[bytecode]")
-{
-	run_with_expectation(R"(
-module test
-import [std std.io]
-let (a, b): (std.ui64, std.ui64) = (3, 5);
-std.io.print a;
-)", "3");
-}
+//// Test multiple variables in scope
+//TEST_CASE("multiple vars", "[bytecode]")
+//{
+//	run_with_expectation(R"(
+//module fib
+//import [std std.io]
+//
+//let x: std.ui64 = {
+//	let a: std.ui64 = 1;
+//	let b: std.ui64 = 2;
+//	let c: std.ui64 = a + b;
+//	c
+//};
+//std.io.print x;
+//)", "3");
+//}
+
+//TEST_CASE("tuple", "[bytecode]")
+//{
+//	run_with_expectation(R"(
+//module test
+//import [std std.io]
+//
+//let _1 : _ = (3, 5);
+//let a : _ = x[0];
+//let b : _ = x[1];
+//let (a, b): (std.ui64, std.ui64) = (3, 5);
+//std.io.print a;
+//)", "3");
+//}
 
 TEST_CASE("vm modules", "[bytecode]")
 {

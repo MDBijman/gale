@@ -81,8 +81,11 @@ namespace fe
 				}
 			}
 
-			// optimize
-			pl.optimize_program(bytecode);
+			if (s.should_optimize)
+			{
+				// optimize
+				pl.optimize_program(bytecode);
+			}
 
 			auto executable = pl.link(bytecode);
 

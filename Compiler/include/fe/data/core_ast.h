@@ -25,10 +25,7 @@ namespace fe::core_ast
 		STACK_ALLOC,
 		STACK_DEALLOC,
 
-		LOCAL_ADDRESS,
 		VARIABLE,
-		RESULT_REGISTER,
-		SP_REGISTER,
 
 		FUNCTION,
 		FUNCTION_CALL,
@@ -84,6 +81,7 @@ namespace fe::core_ast
 		memory::dynamic_store<label> label_store;
 		memory::dynamic_store<size> size_store;
 		memory::dynamic_store<return_data> return_data_store;
+		memory::dynamic_store<scope_data> scope_store;
 		constants_store constants;
 
 		node_id root;
@@ -115,6 +113,7 @@ namespace fe::core_ast
 		template<> label& get_data<label>(data_index i) { return label_store.get_at(i); }
 		template<> size& get_data<size>(data_index i) { return size_store.get_at(i); }
 		template<> return_data& get_data<return_data>(data_index i) { return return_data_store.get_at(i); }
+		template<> scope_data& get_data<scope_data>(data_index i) { return scope_store.get_at(i); }
 
 	private:
 		std::optional<data_index> create_node_data(node_type t);
