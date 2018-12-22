@@ -439,18 +439,18 @@ namespace fe::vm
 	{
 		return bytes<2>{ op_to_byte(op_kind::PUSH32_REG), dest.val };
 	}
-	bytes<2> make_push64(reg dest)
+	bytes<2> make_push64(reg src)
 	{
-		return bytes<2>{ op_to_byte(op_kind::PUSH64_REG), dest.val };
+		return bytes<2>{ op_to_byte(op_kind::PUSH64_REG), src.val };
 	}
-	bytes<2> make_pop(uint8_t bits, reg src)
+	bytes<2> make_pop(uint8_t bits, reg dst)
 	{
 		switch (bits)
 		{
-		case 1: return make_pop8(src);
-		case 2: return make_pop16(src);
-		case 4: return make_pop32(src);
-		case 8: return make_pop64(src);
+		case 1: return make_pop8(dst);
+		case 2: return make_pop16(dst);
+		case 4: return make_pop32(dst);
+		case 8: return make_pop64(dst);
 		default: assert(!"Invalid pop bit count");
 		}
 		throw std::runtime_error("Bytecode Generation Error: Invalid pop bit count");

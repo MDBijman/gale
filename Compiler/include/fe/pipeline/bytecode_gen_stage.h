@@ -2,6 +2,7 @@
 #include "fe/data/core_ast.h"
 #include "fe/data/bytecode.h"
 #include "utils/memory/data_store.h"
+#include "fe/pipeline/core_stack_analysis.h"
 #include <unordered_map>
 #include <bitset>
 
@@ -19,35 +20,28 @@ namespace fe::vm
 		std::bitset<64> used_registers;
 
 		std::unordered_map<std::string, core_ast::label> functions;
-		core_ast::label next_function_label = { 0 };
-		core_ast::label new_function_label() 
-		{
-			auto copy = next_function_label;
-			next_function_label.id++;
-			return copy;
-		}
 
-		std::unordered_map<uint8_t, uint8_t> var_to_reg;
+		core_ast::label next_label;
 
 	public:
-		std::vector<reg> clear_temp_registers();
-		void set_temp_registers(std::vector<reg>);
-		reg alloc_temp_register();
-		void dealloc_temp_register(reg r);
+		code_gen_state(core_ast::label first_label);
 
-		std::vector<reg> clear_saved_registers();
+		core_ast::function_data current_scope;
+
+		// Size of frame, if this number of bytes are popped then the next item on the stack is the return adress
+		uint32_t curr_frame_size = 0;
+
+		std::vector<reg> clear_registers();
 		void set_saved_registers(std::vector<reg>);
-		reg alloc_saved_register();
-		void dealloc_saved_register(reg r);
+		reg alloc_register();
+		void dealloc_register(reg r);
 
 		void link_node_chunk(node_id, uint8_t);
 		uint8_t chunk_of(node_id);
 
-		void set_var_reg(uint8_t var, uint8_t reg);
-		reg get_var_reg(uint8_t var);
-		void dealloc_var(uint8_t var);
+		core_ast::label get_function_label(const std::string& name);
 
-		core_ast::label function_label(std::string name);
+		std::unordered_map<uint32_t, core_ast::stack_analysis_result> analyzed_functions;
 	};
 
 	struct code_gen_result

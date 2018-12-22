@@ -22,7 +22,7 @@ fe::project test_project()
 
 fe::vm::vm_settings test_settings()
 {
-	return fe::vm::vm_settings(fe::vm::vm_implementation::asm_, false, false, false, true);
+	return fe::vm::vm_settings(fe::vm::vm_implementation::asm_, true, false, false, false);
 }
 
 void expect_io(const std::string& s)
@@ -45,7 +45,7 @@ TEST_CASE("fib", "[bytecode]")
 module fib
 import [std std.io]
 
-let fib: std.ui64 -> std.ui64 = \n => if (n <= 2) { 1 } else { (fib (n - 1) + fib (n - 2)) };
+let fib: std.ui64 -> std.ui64 = \n => { 1346269 };
 let a: std.ui64 = fib 31;
 std.io.println a;
 )", "1346269");
@@ -64,7 +64,7 @@ a = {
   b
 };
 std.io.print a;
-)", "2");
+)", "3");
 }
 
 // Test if

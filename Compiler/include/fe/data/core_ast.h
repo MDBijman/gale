@@ -26,6 +26,7 @@ namespace fe::core_ast
 		STACK_DEALLOC,
 
 		VARIABLE,
+		PARAM,
 
 		FUNCTION,
 		FUNCTION_CALL,
@@ -75,13 +76,15 @@ namespace fe::core_ast
 
 	class ast
 	{
+		friend class ast_helper;
+
 		memory::dynamic_store<node> nodes;
 		memory::dynamic_store<function_data> function_data_store;
 		memory::dynamic_store<function_call_data> function_call_data_store;
 		memory::dynamic_store<label> label_store;
 		memory::dynamic_store<size> size_store;
+		memory::dynamic_store<var_data> var_store;
 		memory::dynamic_store<return_data> return_data_store;
-		memory::dynamic_store<scope_data> scope_store;
 		constants_store constants;
 
 		node_id root;
@@ -112,11 +115,57 @@ namespace fe::core_ast
 		template<> function_call_data& get_data<function_call_data>(data_index i) { return function_call_data_store.get_at(i); }
 		template<> label& get_data<label>(data_index i) { return label_store.get_at(i); }
 		template<> size& get_data<size>(data_index i) { return size_store.get_at(i); }
+		template<> var_data& get_data<var_data>(data_index i) { return var_store.get_at(i); }
 		template<> return_data& get_data<return_data>(data_index i) { return return_data_store.get_at(i); }
-		template<> scope_data& get_data<scope_data>(data_index i) { return scope_store.get_at(i); }
 
 	private:
 		std::optional<data_index> create_node_data(node_type t);
 	};
 
+	class ast_helper
+	{
+		ast& a;
+
+	public:
+		ast_helper(ast& a) : a(a) {}
+
+		template<typename F>
+		void for_all_t(core_ast::node_type t, F f)
+		{
+			for (auto i = 0; i < a.nodes.size(); i++)
+			{
+				if (a.nodes.is_occupied(i) && a.nodes.get_at(i).kind == t)
+				{
+					f(a.nodes.get_at(i));
+				}
+			}
+		}
+
+		template<typename F>
+		void for_all(F f)
+		{
+			for (auto i = 0; i < a.nodes.size(); i++)
+			{
+				if (a.nodes.is_occupied(i))
+				{
+					f(a.nodes.get_at(i));
+				}
+			}
+		}
+
+		template<typename F>
+		std::optional<node_id> find_if(F f)
+		{
+			for (auto i = 0; i < a.nodes.size(); i++)
+			{
+				if (a.nodes.is_occupied(i) && a.nodes.get_at(i).kind == t)
+				{
+					if (f(a.nodes.get_at(i))) return a.nodes.get_at(i).id;
+				}
+			}
+			return std::nullopt;
+		}
+
+
+	};
 }

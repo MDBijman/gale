@@ -989,17 +989,11 @@ call_ui64 LABEL NEAR PTR WORD
 
 	; simulate call
 
-	; save frame pointer
-	mov rbx, QWORD PTR [r13 + 61*8]
-	push rbx
 	; push the next op so we return and continue execution after this op
 	mov rbx, r8
 	add rbx, 10
 	push rbx
 
-	; set new frame pointer
-	mov QWORD PTR [r13 + 61*8], rsp
-	
 	; update ip to function entry location
 	add r8, rax
 
@@ -1013,8 +1007,6 @@ ret_ui8 LABEL NEAR PTR WORD
 	and r9, 0ffh
 
 	pop r8
-	pop rbx
-	mov QWORD PTR [r13 + 61*8], rbx
 	add rsp, r9
 
 	DISPATCH
