@@ -75,12 +75,12 @@ namespace fe::core_ast
 		case node_type::STACK_ALLOC:
 		case node_type::MOVE: 
 		case node_type::POP:
-		case node_type::VARIABLE:
 			return size_store.create();
+		case node_type::VARIABLE:
+		case node_type::PARAM:
+			return var_store.create();
 		case node_type::RET:
 			return return_data_store.create();
-		case node_type::BLOCK:
-			return scope_store.create();
 		default: return std::nullopt;
 		}
 	}

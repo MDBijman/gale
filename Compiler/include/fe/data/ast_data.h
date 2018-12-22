@@ -2,6 +2,7 @@
 #include <vector>
 #include <optional>
 #include <string>
+#include <assert.h>
 
 namespace fe::types { struct type; }
 
@@ -23,6 +24,22 @@ namespace fe
 	};
 
 	enum class number_type { UI8, I8, UI16, I16, UI32, I32, UI64, I64 };
+
+	constexpr size_t number_size(number_type t)
+	{
+		switch (t)
+		{
+		case number_type::UI8: return 1;
+		case number_type::I8: return 1;
+		case number_type::UI16: return 2;
+		case number_type::I16: return 2;
+		case number_type::UI32: return 4;
+		case number_type::I32: return 4;
+		case number_type::UI64: return 8;
+		case number_type::I64: return 8;
+		default: assert(!"Invalid number type"); return 0;
+		}
+	}
 
 	struct number
 	{
@@ -56,6 +73,7 @@ namespace fe::ext_ast
 		std::vector<size_t> offsets;
 
 		node_id type_node = no_node;
+		bool is_parameter = false;
 
 		// The index in function of an identifier is equal to the index of the register that is used to store the address
 		// The address of the nth declared variable in a function is stored in the nth register
@@ -168,41 +186,41 @@ namespace fe::core_ast
 		return l.id == r.id;
 	}
 
-	struct size
+	struct var_data
 	{
-		size_t val;
+		uint32_t offset = 0, size = 0;
 	};
 
-	struct stack_alloc
+	struct size
 	{
-		size_t size, location_reg;
+		size_t val = std::numeric_limits<size_t>::max();
+
+		bool valid()
+		{
+			return val != std::numeric_limits<size_t>::max();
+		}
 	};
 
 	struct return_data
 	{
-		size_t in_size, out_size;
+		return_data() : size(0) {}
+		return_data(size_t size) : size(size) {}
+		size_t size;
 	};
 
 	struct function_data
 	{
 		function_data() {}
+		function_data(std::string name, size_t in, size_t out, uint32_t var_size) : name(name), in_size(in), out_size(out), locals_size(var_size) {}
 		std::string name;
 		size_t in_size, out_size;
-		uint32_t label;
+		uint32_t locals_size;
 	};
 
 	struct function_call_data
 	{
 		function_call_data() {}
 		std::string name;
-	};
-
-	struct scope_data
-	{
-		scope_data() {}
-
-		int variable_count = 0;
-		int total_size = 0;
 	};
 }
 

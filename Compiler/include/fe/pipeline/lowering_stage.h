@@ -7,5 +7,5 @@ namespace fe::ext_ast
 	struct lowering_context;
 	struct lowering_result;
 	core_ast::ast lower(ast& ast);
-	lowering_result lower(node& n, ast& ast, core_ast::ast& new_ast, lowering_context&);
+	lowering_result lower(node_id parent, node& n, ast& ast, core_ast::ast& new_ast, lowering_context&);
 }
