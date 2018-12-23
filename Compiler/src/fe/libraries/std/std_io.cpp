@@ -7,14 +7,14 @@ static std::unique_ptr<fe::stdlib::io::iostream> io;
 
 extern "C" int fe_print(uint64_t* regs, uint8_t* stack)
 {
-	io->send_stdout(std::to_string(regs[0]));
-	return 0;
+	io->send_stdout(std::to_string(reinterpret_cast<uint64_t*>(stack)[0]));
+	return 8;
 }
 
 extern "C" int fe_println(uint64_t* regs, uint8_t* stack)
 {
-	io->send_stdout(std::to_string(regs[0]));
-	return 0;
+	io->send_stdout(std::to_string(reinterpret_cast<uint64_t*>(stack)[0]));
+	return 8;
 }
 
 extern "C" int fe_time(uint64_t* regs, uint8_t* stack)

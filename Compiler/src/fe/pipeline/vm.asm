@@ -1018,36 +1018,18 @@ call_native_ui64 LABEL NEAR PTR WORD
 	mov rbx, [native_functions]
 	mov rax, [rbx + rax*8]
 
-	mov rcx, OFFSET registers
+	; save r8 in non-volatile and restore after
+	mov r14, r8
+	; push right to left, stack pointer then register pointer
+	mov rcx, r13
 	mov rdx, rsp
-
-	push r8
-	push r9
-	sub rsp, 16
+	sub rsp, 32
 	call rax
-	add rsp, 16
-	pop r9
-	pop r8
+	add rsp, 32
+	mov r8, r14
 
-	cmp rax, 0
-	je _after
+	add rsp, rax
 
-	cmp rax, 1
-	inc rsp
-	je _after
-
-	cmp rax, 2
-	add rsp, 1
-	je _after
-
-	cmp rax, 4
-	add rsp, 2
-	je _after
-
-	cmp rax, 8
-	add rsp, 4
-
-	_after:
 	add r8, 10
 	DISPATCH
 ; END call native ui64
