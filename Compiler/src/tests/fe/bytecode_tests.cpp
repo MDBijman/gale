@@ -22,7 +22,7 @@ fe::project test_project()
 
 fe::vm::vm_settings test_settings()
 {
-	return fe::vm::vm_settings(fe::vm::vm_implementation::asm_, true, false, false, false);
+	return fe::vm::vm_settings(fe::vm::vm_implementation::asm_, false, false, false, false);
 }
 
 void expect_io(const std::string& s)
@@ -45,7 +45,7 @@ TEST_CASE("fib", "[bytecode]")
 module fib
 import [std std.io]
 
-let fib: std.ui64 -> std.ui64 = \n => { 1346269 };
+let fib: std.ui64 -> std.ui64 = \n => if (n <= 2) { 1 } else { (fib (n - 1) + fib (n - 2)) };
 let a: std.ui64 = fib 31;
 std.io.println a;
 )", "1346269");
@@ -94,22 +94,22 @@ std.io.print b;
 )", "23");
 }
 
-//// Test multiple variables in scope
-//TEST_CASE("multiple vars", "[bytecode]")
-//{
-//	run_with_expectation(R"(
-//module fib
-//import [std std.io]
-//
-//let x: std.ui64 = {
-//	let a: std.ui64 = 1;
-//	let b: std.ui64 = 2;
-//	let c: std.ui64 = a + b;
-//	c
-//};
-//std.io.print x;
-//)", "3");
-//}
+// Test multiple variables in scope
+TEST_CASE("multiple vars", "[bytecode]")
+{
+	run_with_expectation(R"(
+module fib
+import [std std.io]
+
+let x: std.ui64 = {
+	let a: std.ui64 = 1;
+	let b: std.ui64 = 2;
+	let c: std.ui64 = a + b;
+	c
+};
+std.io.print x;
+)", "3");
+}
 
 //TEST_CASE("tuple", "[bytecode]")
 //{
@@ -171,17 +171,4 @@ TEST_CASE("instructions", "[bytecode]")
 	REQUIRE(res.registers[sp_reg] == 0);
 	REQUIRE(res.registers[5] == 250);
 	REQUIRE(res.registers[2] == 120);
-}
-
-TEST_CASE("number", "[bytecode]")
-{
-	using namespace fe::vm;
-	auto ast = fe::core_ast::ast(fe::core_ast::node_type::BLOCK);
-	auto root = ast.root_id();
-	auto num = ast.create_node(fe::core_ast::node_type::NUMBER, root);
-	auto& num_node = ast.get_node(num);
-	ast.get_data<fe::number>(*num_node.data_index).value = 10;
-
-	auto res = interpret(link(generate_bytecode(ast)));
-	REQUIRE(res.registers[sp_reg] == 0);
 }

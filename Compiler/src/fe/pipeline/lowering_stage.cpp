@@ -99,18 +99,27 @@ namespace fe::ext_ast
 		// b
 		auto& id_node = ext_ast.get_node(children[0]);
 		assert(id_node.kind == ext_ast::node_type::IDENTIFIER);
-		auto var_id = ext_ast.get_data<ext_ast::identifier>(ext_ast.get_node((*ext_ast
+		auto& id_data = ext_ast.get_data<ext_ast::identifier>(ext_ast.get_node((*ext_ast
 			.get_name_scope(id_node.name_scope_id)
 			.resolve_variable(ext_ast.get_data<identifier>(id_node.data_index).segments[0], ext_ast.name_scope_cb()))
-			.declaration_node).data_index).index_in_function;
+			.declaration_node).data_index);
 
-		assert(!"check if param");
-		// d
-		auto pop = new_ast.create_node(core_ast::node_type::POP, p);
-		new_ast.get_data<core_ast::size>(*new_ast.get_node(pop).data_index).val = rhs.allocated_stack_space;
+		auto var_id = id_data.index_in_function;
+		auto is_param = id_data.is_parameter;
 
-		auto to = new_ast.create_node(core_ast::node_type::VARIABLE, pop);
-		new_ast.get_node_data<core_ast::var_data>(to) = { context.get_offset(var_id), context.get_size(var_id) };
+		if (is_param)
+		{
+			assert(!"check if param");
+		}
+		else
+		{
+			// d
+			auto pop = new_ast.create_node(core_ast::node_type::POP, p);
+			new_ast.get_data<core_ast::size>(*new_ast.get_node(pop).data_index).val = rhs.allocated_stack_space;
+
+			auto to = new_ast.create_node(core_ast::node_type::VARIABLE, pop);
+			new_ast.get_node_data<core_ast::var_data>(to) = { context.get_offset(var_id), context.get_size(var_id) };
+		}
 
 		return lowering_result();
 	}
@@ -595,7 +604,7 @@ namespace fe::ext_ast
 		// If we hadnt set stack_bytes to 1, then we have a number operator
 		if (stack_bytes == 0)
 		{
-			stack_bytes = lhs.allocated_stack_space > rhs.allocated_stack_space 
+			stack_bytes = lhs.allocated_stack_space > rhs.allocated_stack_space
 				? lhs.allocated_stack_space
 				: rhs.allocated_stack_space;
 		}
@@ -667,8 +676,8 @@ namespace fe::ext_ast
 		new_ast.get_node_data<core_ast::function_data>(main).locals_size = context.curr_fn_context.total_var_size;
 
 		auto ret = new_ast.create_node(core_ast::node_type::RET, block);
-		auto num = new_ast.create_node(core_ast::node_type::NUMBER, ret);
-		new_ast.get_node_data<number>(num) = number{ 0, number_type::UI8 };
+		new_ast.get_node_data<core_ast::return_data>(ret) = {0};
+		auto num = new_ast.create_node(core_ast::node_type::TUPLE, ret);
 
 
 		return new_ast;

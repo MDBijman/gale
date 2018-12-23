@@ -39,11 +39,13 @@ namespace fe::core_ast
 		{
 		case node_type::NOP: break;
 		case node_type::NUMBER: {
+			res.pre_node_stack_sizes[n] = predecessor_size(n, ast, res);
 			res.node_stack_sizes[n] = predecessor_size(n, ast, res) + number_size(ast.get_node_data<number>(n).type);
 			break;
 		}
 		case node_type::STRING: { assert(!"nyi"); break; }
 		case node_type::BOOLEAN:{
+			res.pre_node_stack_sizes[n] = predecessor_size(n, ast, res);
 			res.node_stack_sizes[n] = predecessor_size(n, ast, res) + 1;
 			break;
 		}
@@ -51,44 +53,55 @@ namespace fe::core_ast
 		case node_type::BLOCK:
 		case node_type::TUPLE: {
 			auto before_size =  predecessor_size(n, ast, res);
+			res.pre_node_stack_sizes[n] = before_size;
 			auto& node = ast.get_node(n);
 			for (auto& child : node.children)
 			{
 				analyze_stack(child, ast, res);
 			}
-			res.node_stack_sizes[n] = res.node_stack_sizes[node.children.back()]; 
+			if(node.children.size() == 0)
+				res.node_stack_sizes[n] = before_size; 
+			else
+				res.node_stack_sizes[n] = res.node_stack_sizes[node.children.back()]; 
 			break;
 		}
 		case node_type::FUNCTION_CALL: {
+			res.pre_node_stack_sizes[n] = predecessor_size(n, ast, res);
 			res.node_stack_sizes[n] = predecessor_size(n, ast, res) + *ast.get_node(n).size;
 			analyze_stack(ast.get_node(n).children[0], ast, res);
 			break;
 		}
 		case node_type::REFERENCE: { assert(!"nyi"); break; }
 		case node_type::RET: {
+			res.pre_node_stack_sizes[n] = predecessor_size(n, ast, res);
 			res.node_stack_sizes[n] = predecessor_size(n, ast, res) - ast.get_node_data<return_data>(n).size;
 			analyze_stack(ast.get_node(n).children[0], ast, res);
 			break;
 		}
 		case node_type::MOVE: {
+			res.pre_node_stack_sizes[n] = predecessor_size(n, ast, res);
 			auto first_child = ast.get_node(n).children[0];
 			res.node_stack_sizes[n] = predecessor_size(n, ast, res) + ast.get_node_data<var_data>(first_child).size;
 			break;
 		}
 		case node_type::STACK_ALLOC: {
+			res.pre_node_stack_sizes[n] = predecessor_size(n, ast, res);
 			res.node_stack_sizes[n] = predecessor_size(n, ast, res) + ast.get_node_data<size>(n).val;
 			break;
 		}
 		case node_type::STACK_DEALLOC: {
+			res.pre_node_stack_sizes[n] = predecessor_size(n, ast, res);
 			res.node_stack_sizes[n] = predecessor_size(n, ast, res) - ast.get_node_data<size>(n).val;
 			break;
 		}
 		case node_type::JMP: {
+			res.pre_node_stack_sizes[n] = predecessor_size(n, ast, res);
 			res.node_stack_sizes[n] = predecessor_size(n, ast, res);
 			break;
 		}
 		case node_type::JZ:
 		case node_type::JNZ: {
+			res.pre_node_stack_sizes[n] = predecessor_size(n, ast, res);
 			res.node_stack_sizes[n] = predecessor_size(n, ast, res) - 1;
 			break;
 		}
@@ -119,14 +132,19 @@ namespace fe::core_ast
 					if (jmp_it != end && n_it != end) { assert(jmp_it->second == n_it->second); }
 				}
 			});
+
+			res.pre_node_stack_sizes[n] = predecessor_size(n, ast, res);
 			break;
 		}
 		case node_type::POP: {
-			res.node_stack_sizes[n] = predecessor_size(n, ast, res) + ast.get_node_data<size>(n).val;
+			res.pre_node_stack_sizes[n] = predecessor_size(n, ast, res);
+			res.node_stack_sizes[n] = predecessor_size(n, ast, res) - ast.get_node_data<size>(n).val;
 			break;
 		}
 		default: {
 			if (is_binary_op(node.kind)) {
+				res.pre_node_stack_sizes[n] = predecessor_size(n, ast, res);
+
 				analyze_stack(ast.get_node(n).children[0], ast, res);
 				analyze_stack(ast.get_node(n).children[1], ast, res);
 				switch (node.kind)

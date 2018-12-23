@@ -7,6 +7,7 @@ namespace fe::core_ast
 	struct stack_analysis_result
 	{
 		std::unordered_map<node_id, uint32_t> node_stack_sizes;
+		std::unordered_map<node_id, uint32_t> pre_node_stack_sizes;
 	};
 
 	// Analyze stack size of function node and its children

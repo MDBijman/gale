@@ -428,7 +428,7 @@ namespace fe::vm
 			auto src_tmp = i.alloc_register();
 			auto r = bc.add_instructions(
 				make_mv_reg_sp(src_tmp),
-				make_add(src_tmp, src_tmp, byte(i.curr_frame_size - v_target.offset - v_target.size)),
+				make_add(src_tmp, src_tmp, byte(i.analyzed_functions[i.chunk_of(n)].pre_node_stack_sizes[n] - /*todo skip over params*/ 8 - v_target.offset - v_target.size)),
 				make_mv_reg_loc(v_target.size, val_tmp, src_tmp),
 				make_push(v_target.size, val_tmp)
 			);
@@ -445,7 +445,7 @@ namespace fe::vm
 			auto src_tmp = i.alloc_register();
 			auto r = bc.add_instructions(
 				make_mv_reg_sp(src_tmp),
-				make_add(src_tmp, src_tmp, byte(i.analyzed_functions[i.chunk_of(n)].node_stack_sizes[n] - 2*v_target.size)),
+				make_add(src_tmp, src_tmp, byte(i.analyzed_functions[i.chunk_of(n)].pre_node_stack_sizes[n] - v_target.offset - v_target.size)),
 				make_mv_reg_loc(v_target.size, val_tmp, src_tmp),
 				make_push(v_target.size, val_tmp)
 			);
@@ -640,7 +640,7 @@ namespace fe::vm
 			auto tgt_tmp = i.alloc_register();
 			auto r = bc.add_instructions(
 				make_mv_reg_sp(tgt_tmp),
-				make_add(tgt_tmp, tgt_tmp, byte(i.curr_frame_size - v_target.offset - v_target.size)),
+				make_add(tgt_tmp, tgt_tmp, byte(i.analyzed_functions[i.chunk_of(n)].pre_node_stack_sizes[n] - /*todo skip over params*/ 8 - v_target.offset - v_target.size)),
 				make_pop(size.val, val_tmp),
 				make_mv_loc_reg(size.val, tgt_tmp, val_tmp)
 			);
@@ -656,7 +656,7 @@ namespace fe::vm
 			auto tgt_tmp = i.alloc_register();
 			auto r = bc.add_instructions(
 				make_mv_reg_sp(tgt_tmp),
-				make_add(tgt_tmp, tgt_tmp, byte(i.curr_frame_size + 8 /* return adress size */ + v_target.offset)),
+				make_add(tgt_tmp, tgt_tmp, byte(i.analyzed_functions[i.chunk_of(n)].pre_node_stack_sizes[n] - v_target.offset - v_target.size)),
 				make_pop(size.val, val_tmp),
 				make_mv_loc_reg(size.val, tgt_tmp, val_tmp)
 			);
