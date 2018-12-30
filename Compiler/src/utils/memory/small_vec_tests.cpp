@@ -30,4 +30,36 @@ TEST_CASE("small vector", "[memory]")
 		REQUIRE(sv.at(2) == 3);
 		REQUIRE(sv.at(3) == 4);
 	}
+
+	SECTION("iterator")
+	{
+		sv.push_back(1);
+		sv.push_back(2);
+		sv.push_back(3);
+
+		auto it = sv.begin();
+		REQUIRE(*it == 1);
+		it++;
+		REQUIRE(*it == 2);
+		it++;
+		REQUIRE(*it == 3);
+		it++;
+		REQUIRE(it == sv.end());
+	}
+
+	SECTION("reverse iterator")
+	{
+		sv.push_back(3);
+		sv.push_back(2);
+		sv.push_back(1);
+
+		auto it = sv.rbegin();
+		REQUIRE(*it == 1);
+		it++;
+		REQUIRE(*it == 2);
+		it++;
+		REQUIRE(*it == 3);
+		it++;
+		REQUIRE(it == sv.rend());
+	}
 }
