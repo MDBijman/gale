@@ -134,7 +134,7 @@ namespace fe::ext_ast
 		for (auto child : children)
 		{
 			auto res = lower(tuple, ast.get_node(child), ast, new_ast, context);
-			stack_size = res.allocated_stack_space;
+			stack_size += res.allocated_stack_space;
 		}
 
 		return lowering_result(location_type::stack, stack_size);
@@ -317,11 +317,6 @@ namespace fe::ext_ast
 			.resolve_variable(id, ast.type_scope_cb()))
 			.type
 			.calculate_size();
-		auto offset = (*ast
-			.get_type_scope(n.type_scope_id)
-			.resolve_variable(id.root_identifier(), ast.type_scope_cb()))
-			.type
-			.calculate_offset(id.offsets);
 		auto& id_data = ast.get_data<identifier>(ast.get_node((*ast
 			.get_name_scope(n.name_scope_id)
 			.resolve_variable(id.root_identifier(), ast.name_scope_cb())).declaration_node)
@@ -478,7 +473,37 @@ namespace fe::ext_ast
 		// Tuple declaration
 		else if (lhs_node.kind == node_type::IDENTIFIER_TUPLE)
 		{
-			assert(!"identifier tuple lowering nyi");
+			// Tuple declarations are implemented by declaring n seperate variables and popping each individually off the stack.
+			// Popping happens from right-to-left since the value of the rightmost id/variable is at the top of the stack.
+
+			auto& ids = ast.children_of(lhs_node);
+			std::vector<variable_index> var_idxs;
+			for (auto it = ids.begin(); it != ids.end(); it++)
+			{
+				auto& node = ast.get_node(*it);
+				auto& id = ast.get_data<identifier>(node.data_index);
+				assert(node.kind == node_type::IDENTIFIER);
+				auto& identifier_data = ast.get_data<ext_ast::identifier>(ast.get_node(*it).data_index);
+
+				auto size = ast
+					.get_type_scope(node.type_scope_id)
+					.resolve_variable(id, ast.type_scope_cb())->type.calculate_size();
+
+				auto var_idx = context.alloc_variable(size);
+				identifier_data.index_in_function = var_idx;
+				var_idxs.push_back(var_idx);
+			}
+
+			for (auto it = var_idxs.rbegin(); it != var_idxs.rend(); it++)
+			{
+				// Pop value into result variable
+				auto pop = new_ast.create_node(core_ast::node_type::POP, p);
+				new_ast.get_node_data<core_ast::size>(pop).val = context.get_size(*it);
+				auto r = new_ast.create_node(core_ast::node_type::VARIABLE, pop);
+				new_ast.get_node_data<core_ast::var_data>(r) = { context.get_offset(*it), context.get_size(*it) };
+			}
+
+			return lowering_result();
 		}
 
 		assert(!"error");
@@ -676,7 +701,7 @@ namespace fe::ext_ast
 		new_ast.get_node_data<core_ast::function_data>(main).locals_size = context.curr_fn_context.total_var_size;
 
 		auto ret = new_ast.create_node(core_ast::node_type::RET, block);
-		new_ast.get_node_data<core_ast::return_data>(ret) = {0};
+		new_ast.get_node_data<core_ast::return_data>(ret) = { 0 };
 		auto num = new_ast.create_node(core_ast::node_type::TUPLE, ret);
 
 
