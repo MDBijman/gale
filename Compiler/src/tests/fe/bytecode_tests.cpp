@@ -96,7 +96,7 @@ std.io.print b;
 }
 
 // Test multiple variables in scope
-TEST_CASE("multiple vars", "[bytecode]")
+TEST_CASE("vars in block exp", "[bytecode]")
 {
 	run_with_expectation(R"(
 module fib
@@ -112,7 +112,7 @@ std.io.print x;
 )", "3");
 }
 
-TEST_CASE("tuple", "[bytecode]")
+TEST_CASE("tuple with 2 elems", "[bytecode]")
 {
 	run_with_expectation(R"(
 module test
@@ -122,6 +122,18 @@ let a : (std.ui64, std.ui64) = (3, 5);
 let (b, c): (std.ui64, std.ui64) = a;
 std.io.print b;
 )", "3");
+}
+
+TEST_CASE("tuple with 3 elems", "[bytecode]")
+{
+	run_with_expectation(R"(
+module test
+import [std std.io]
+
+let a : (std.ui64, std.ui64, std.ui64) = (3, 5, 7);
+let (b, c, d): (std.ui64, std.ui64, std.ui64) = a;
+std.io.print d;
+)", "7");
 }
 
 TEST_CASE("vm modules", "[bytecode]")
