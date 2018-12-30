@@ -28,9 +28,6 @@ namespace fe::vm
 
 		core_ast::function_data current_scope;
 
-		// Size of frame, if this number of bytes are popped then the next item on the stack is the return adress
-		uint32_t curr_frame_size = 0;
-
 		std::vector<reg> clear_registers();
 		void set_saved_registers(std::vector<reg>);
 		reg alloc_register();
@@ -47,10 +44,8 @@ namespace fe::vm
 	struct code_gen_result
 	{
 		code_gen_result();
-		code_gen_result(int64_t res_size, far_lbl code_loc, uint32_t code_size);
+		code_gen_result(int64_t res_size);
 		int64_t result_size;
-		far_lbl code_location;
-		uint32_t code_size;
 	};
 
 	class program;
