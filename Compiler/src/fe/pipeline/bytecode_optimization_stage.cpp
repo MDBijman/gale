@@ -15,7 +15,7 @@ namespace fe::vm
 			|| optimize_single_ops(e, dg, s)
 			|| remove_dependantless_instructions(e, dg));
 
-		if (s.print_bytecode)
+		if (true)
 		{
 			auto& funs = e.get_code();
 			for (int i = 0; i < funs.size(); i++)
@@ -61,8 +61,6 @@ namespace fe::vm
 
 				std::cout << out;
 			}
-
-			std::cout << "Full code size: " << e.get_code().size() << " bytes\n";
 		}
 	}
 
@@ -201,12 +199,26 @@ namespace fe::vm
 					latest_writes[dst.val] = i;
 					break;
 				}
+				case op_kind::MV_REG_SP: {
+					reg dst = current_instruction[1].val;
+
+					if (!latest_push_ops.empty())
+					{
+						local_graph.dependencies.push_back(dependency{ i, latest_push_ops.top() });
+					}
+					latest_writes[dst.val] = i;
+					break;
+				}
 				case op_kind::JRNZ_REG_I32:
 				case op_kind::JRZ_REG_I32: {
 					reg src = current_instruction[1].val;
 
 					latest_push_ops = {};
 					local_graph.dependencies.push_back(dependency{ i, latest_writes[src.val] });
+					break;
+				}
+				case op_kind::LBL_UI32: {
+					latest_push_ops = {};
 					break;
 				}
 				case op_kind::CALL_UI64: {
@@ -862,5 +874,6 @@ namespace fe::vm
 		}
 
 		e.code.data().resize(e.code.data().size() - nops_passed);
+		std::cout << "executable size: " << e.code.data().size() << std::endl;
 	}
 }

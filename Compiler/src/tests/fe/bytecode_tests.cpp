@@ -38,6 +38,7 @@ void run_with_expectation(const std::string& code, const std::string& out)
 	test_project().eval(code, test_settings());
 }
 
+
 // Test fib
 TEST_CASE("fib", "[bytecode]")
 {
@@ -111,19 +112,17 @@ std.io.print x;
 )", "3");
 }
 
-//TEST_CASE("tuple", "[bytecode]")
-//{
-//	run_with_expectation(R"(
-//module test
-//import [std std.io]
-//
-//let _1 : _ = (3, 5);
-//let a : _ = x[0];
-//let b : _ = x[1];
-//let (a, b): (std.ui64, std.ui64) = (3, 5);
-//std.io.print a;
-//)", "3");
-//}
+TEST_CASE("tuple", "[bytecode]")
+{
+	run_with_expectation(R"(
+module test
+import [std std.io]
+
+let a : (std.ui64, std.ui64) = (3, 5);
+let (b, c): (std.ui64, std.ui64) = a;
+std.io.print b;
+)", "3");
+}
 
 TEST_CASE("vm modules", "[bytecode]")
 {
