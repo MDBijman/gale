@@ -39,13 +39,15 @@ namespace fe::vm
 		core_ast::label get_function_label(const std::string& name);
 
 		std::unordered_map<uint32_t, core_ast::stack_analysis_result> analyzed_functions;
+
+		uint32_t node_pre_stack_size(uint32_t function_id, uint32_t node_id);
+		uint32_t node_post_stack_size(uint32_t function_id, uint32_t node_id);
+		uint32_t node_diff_stack_size(uint32_t function_id, uint32_t node_id);
 	};
 
 	struct code_gen_result
 	{
 		code_gen_result();
-		code_gen_result(int64_t res_size);
-		int64_t result_size;
 	};
 
 	class program;
