@@ -61,6 +61,11 @@ namespace memory
 			occupieds.reserve(count);
 		}
 
+		size_t size()
+		{
+			return data.size();
+		}
+
 		template<typename... Ts> index create(Ts... args)
 		{
 			if (is_full)

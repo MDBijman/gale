@@ -87,7 +87,7 @@ int main(int argc, char** argv)
 				}
 				auto& code = std::get<std::string>(file_or_error);
 
-				proj.eval(code, fe::vm::vm_settings(fe::vm::vm_implementation::asm_, false, false, false));
+				proj.eval(code, fe::vm::vm_settings(fe::vm::vm_implementation::asm_, false, false, false, true));
 			}
 		}
 		catch (const lexing::error& e)

@@ -428,7 +428,7 @@ namespace fe::vm
 		{
 			near_lbl l(instructions.size());
 			for (int i = 0; i < C; i++) instructions.push_back(in[i]);
-			return std::make_pair(l, in.size());
+			return std::make_pair(l, static_cast<uint32_t>(in.size()));
 		}
 
 		// Adds the vector of bytes to the end of this bytecode, returning the address of the first byte

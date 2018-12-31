@@ -10,84 +10,130 @@
 #include "fe/libraries/std/std_assert.h"
 #include "tests/test_utils.h"
 
+// Some small helpers
 
-TEST_CASE("assert true", "[bytecode]")
-{
-	auto code = R"delim(
-module fib
-import [std std.io std.assert]
-		)delim";
-
-	using namespace fe;
-	project p{ pipeline() };
-	p.add_module(stdlib::typedefs::load());
-	p.add_module(stdlib::assert::load());
-	p.add_module(stdlib::io::load());
-	REQUIRE_NOTHROW(p.eval(code, vm::vm_settings()));
+fe::project test_project()
+{ 
+	fe::project p{ fe::pipeline() };
+	p.add_module(fe::stdlib::typedefs::load());
+	p.add_module(fe::stdlib::io::load());
+	return p;
 }
 
+fe::vm::vm_settings test_settings()
+{
+	return fe::vm::vm_settings(fe::vm::vm_implementation::asm_, false, false, false, false);
+}
+
+void expect_io(const std::string& s)
+{
+	fe::stdlib::io::set_iostream(std::make_unique<testing::test_iostream>(s));
+}
+
+// Wraps helpers
+
+void run_with_expectation(const std::string& code, const std::string& out)
+{
+	expect_io(out);
+	test_project().eval(code, test_settings());
+}
+
+
+// Test fib
 TEST_CASE("fib", "[bytecode]")
 {
-	auto code = R"delim(
+	run_with_expectation(R"(
 module fib
 import [std std.io]
 
 let fib: std.ui64 -> std.ui64 = \n => if (n <= 2) { 1 } else { (fib (n - 1) + fib (n - 2)) };
 let a: std.ui64 = fib 31;
 std.io.println a;
-
-)delim";
-
-	using namespace fe::types;
-	fe::project p{ fe::pipeline() };
-	p.add_module(fe::stdlib::typedefs::load());
-	p.add_module(fe::stdlib::io::load());
-	auto before = std::chrono::high_resolution_clock::now();
-
-	fe::stdlib::io::set_iostream(std::make_unique<testing::test_iostream>("1346269"));
-	p.eval(code, fe::vm::vm_settings(fe::vm::vm_implementation::asm_, false , false, false));
-	auto after = std::chrono::high_resolution_clock::now();
-	auto time = std::chrono::duration<double, std::milli>(after - before).count();
-	std::cout << time << std::endl;
+)", "1346269");
 }
 
+// Test single scope
 TEST_CASE("scope", "[bytecode]")
 {
-	auto code = R"delim(
+	run_with_expectation(R"(
 module fib
 import [std std.io]
 
 let a: std.ui64 = 1;
-a = 2;
+a = {
+  let b: std.ui64 = 3;
+  b
+};
 std.io.print a;
-)delim";
-
-	using namespace fe::types;
-	fe::project p{ fe::pipeline() };
-	p.add_module(fe::stdlib::typedefs::load());
-	p.add_module(fe::stdlib::assert::load());
-	p.add_module(fe::stdlib::io::load());
-	fe::stdlib::io::set_iostream(std::make_unique<testing::test_iostream>("2"));
-	p.eval(code, fe::vm::vm_settings(fe::vm::vm_implementation::asm_, false, false, false));
-	fe::stdlib::io::set_iostream(std::make_unique<fe::stdlib::io::iostream>());
+)", "3");
 }
+
+// Test if
 TEST_CASE("if", "[bytecode]")
 {
-	auto code = R"delim(
+	run_with_expectation(R"(
 module fib
 import [std std.io]
 
 let a: std.ui64 = 1;
 if (true) { a = 2; } else { a = 3; };
 std.io.print a;
-		)delim";
+)", "2");
+}
 
-	using namespace fe::types;
-	fe::project p{ fe::pipeline() };
-	p.add_module(fe::stdlib::typedefs::load());
-	p.add_module(fe::stdlib::io::load());
-	fe::stdlib::io::set_iostream(std::make_unique<testing::test_iostream>("2"));
-	p.eval(code, fe::vm::vm_settings(fe::vm::vm_implementation::asm_, true, true, false));
+// Test recursive function call
+TEST_CASE("function", "[bytecode]")
+{
+	run_with_expectation(R"(
+module test
+import [std std.io]
+
+let test: std.ui64 -> std.ui64 = \n => if (n == 1) { n } else { (test (n - 1)) + n };
+let a: std.ui64 = test 6;
+let b: std.ui64 = a + 2;
+std.io.print b;
+)", "23");
+}
+
+// Test multiple variables in scope
+TEST_CASE("vars in block exp", "[bytecode]")
+{
+	run_with_expectation(R"(
+module fib
+import [std std.io]
+
+let x: std.ui64 = {
+	let a: std.ui64 = 1;
+	let b: std.ui64 = 2;
+	let c: std.ui64 = a + b;
+	c
+};
+std.io.print x;
+)", "3");
+}
+
+TEST_CASE("tuple with 2 elems", "[bytecode]")
+{
+	run_with_expectation(R"(
+module test
+import [std std.io]
+
+let a : (std.ui64, std.ui64) = (3, 5);
+let (b, c): (std.ui64, std.ui64) = a;
+std.io.print b;
+)", "3");
+}
+
+TEST_CASE("tuple with 3 elems", "[bytecode]")
+{
+	run_with_expectation(R"(
+module test
+import [std std.io]
+
+let a : (std.ui64, std.ui64, std.ui64) = (3, 5, 7);
+let (b, c, d): (std.ui64, std.ui64, std.ui64) = a;
+std.io.print d;
+)", "7");
 }
 
 TEST_CASE("vm modules", "[bytecode]")
@@ -101,10 +147,7 @@ let test: std.ui64 = lib.get_ten ();
 std.io.print test;
 )delim";
 
-	fe::project p{ fe::pipeline() };
-
-	p.add_module(fe::stdlib::typedefs::load());
-	p.add_module(fe::stdlib::io::load());
+	auto p = test_project();
 	p.add_module(fe::module_builder()
 		.set_name({ "lib" })
 		.add_function(
@@ -114,30 +157,11 @@ std.io.print test;
 			fe::types::unique_type(new fe::types::function_type(fe::types::product_type(), fe::types::ui64()))
 		).build());
 
-	fe::stdlib::io::set_iostream(std::make_unique<testing::test_iostream>("10"));
-	auto state = p.eval(code, fe::vm::vm_settings());
+	expect_io("10");
+	auto state = p.eval(code, test_settings());
 	REQUIRE(state.registers[ret_reg] == 10);
 }
 
-TEST_CASE("function", "[bytecode]")
-{
-	using namespace fe::vm;
-	auto code = R"delim(
-module test
-import [std std.io]
-
-let test: std.ui64 -> std.ui64 = \n => if (n == 1) { n } else { (test (n - 1)) + n };
-let a: std.ui64 = test 6;
-let b: std.ui64 = a + 2;
-std.io.print b;
-)delim";
-
-	fe::project p{ fe::pipeline() };
-	p.add_module(fe::stdlib::typedefs::load());
-	p.add_module(fe::stdlib::io::load());
-	fe::stdlib::io::set_iostream(std::make_unique<fe::stdlib::io::iostream>());
-	p.eval(code, fe::vm::vm_settings(fe::vm::vm_implementation::asm_, true, false, false));
-}
 
 TEST_CASE("instructions", "[bytecode]")
 {
@@ -158,17 +182,4 @@ TEST_CASE("instructions", "[bytecode]")
 	REQUIRE(res.registers[sp_reg] == 0);
 	REQUIRE(res.registers[5] == 250);
 	REQUIRE(res.registers[2] == 120);
-}
-
-TEST_CASE("number", "[bytecode]")
-{
-	using namespace fe::vm;
-	auto ast = fe::core_ast::ast(fe::core_ast::node_type::BLOCK);
-	auto root = ast.root_id();
-	auto num = ast.create_node(fe::core_ast::node_type::NUMBER, root);
-	auto& num_node = ast.get_node(num);
-	ast.get_data<fe::number>(*num_node.data_index).value = 10;
-
-	auto res = interpret(link(generate_bytecode(ast)));
-	REQUIRE(res.registers[sp_reg] == 0);
 }
