@@ -728,12 +728,12 @@ namespace fe::ext_ast
 		auto& id_data = ast.get_data<identifier>(id_node.data_index);
 		auto res = scope.resolve_variable(id_data, ast.type_scope_cb());
 		assert(res);
-		auto& id_type = res->type;
+		auto id_type = std::unique_ptr<types::type>((*res).type.copy());
 
 		auto& value_node = ast.get_node(children[1]);
-		auto value_type = typeof(value_node, ast, type_constraints({ equality_constraint(id_type) }));
+		auto value_type = typeof(value_node, ast, type_constraints({ equality_constraint(*id_type) }));
 
-		assert(id_type == &*value_type);
+		assert(*id_type == &*value_type);
 	}
 
 	void typecheck_reference(node& n, ast& ast)

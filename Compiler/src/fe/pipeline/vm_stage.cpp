@@ -294,6 +294,8 @@ namespace fe::vm
 					std::cout << " " << std::to_string((op + j)->val);
 				}
 				std::cout << "\n";
+
+				if (byte_to_op(op->val) == op_kind::RET_UI8) std::cout << "\n";
 			}
 		}
 

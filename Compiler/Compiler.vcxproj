@@ -153,6 +153,7 @@
     <ClCompile Include="src\fe\pipeline\lowering_stage.cpp" />
     <ClCompile Include="src\fe\pipeline\parser_stage.cpp" />
     <ClCompile Include="src\fe\pipeline\resolution_stage.cpp" />
+    <ClCompile Include="src\fe\pipeline\core_stack_analysis.cpp" />
     <ClCompile Include="src\fe\pipeline\typechecker_stage.cpp" />
     <ClCompile Include="src\fe\pipeline\vm_stage.cpp" />
     <ClCompile Include="src\main.cpp" />
@@ -189,6 +190,7 @@
     <ClInclude Include="include\fe\modes\repl.h" />
     <ClInclude Include="include\fe\pipeline\bytecode_gen_stage.h" />
     <ClInclude Include="include\fe\pipeline\bytecode_optimization_stage.h" />
+    <ClInclude Include="include\fe\pipeline\core_stack_analysis.h" />
     <ClInclude Include="include\fe\pipeline\error.h" />
     <ClInclude Include="include\fe\pipeline\lexer_stage.h" />
     <ClInclude Include="include\fe\pipeline\linker_stage.h" />

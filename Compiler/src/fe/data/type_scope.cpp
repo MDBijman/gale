@@ -106,7 +106,9 @@ namespace fe::ext_ast
 			if (!parent)
 				throw typecheck_error{ "Scope distance > 0 but no parent scope" };
 
-			auto parent_lookup = cb(*parent)->resolve_type(id, cb);
+			auto id_copy = id;
+			(*id_copy.scope_distance)--;
+			auto parent_lookup = cb(*parent)->resolve_type(id_copy, cb);
 
 			if (!parent_lookup) 
 				return std::nullopt;

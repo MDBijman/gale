@@ -130,6 +130,7 @@ namespace memory
 		}
 
 		using iterator = T*;
+		using reverse_iterator = std::reverse_iterator<T*>;
 
 		iterator begin()
 		{
@@ -145,6 +146,16 @@ namespace memory
 				return &content.stack_data[size_];
 			else
 				return &content.heap_data[size_];
+		}
+
+		reverse_iterator rbegin()
+		{
+			return std::make_reverse_iterator(end());
+		}
+
+		reverse_iterator rend()
+		{
+			return std::make_reverse_iterator(begin());
 		}
 	};
 }
