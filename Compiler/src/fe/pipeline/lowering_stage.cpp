@@ -240,7 +240,28 @@ namespace fe::ext_ast
 		assert(n.kind == node_type::WHILE_LOOP);
 		auto& children = ast.children_of(n);
 		assert(children.size() == 2);
-		assert(!"nyi while");
+
+		auto lbl_test_id = context.new_label();
+		auto lbl_after_id = context.new_label();
+
+		// Label before test
+		auto lbl_test = new_ast.create_node(core_ast::node_type::LABEL, p);
+		new_ast.get_node_data<core_ast::label>(lbl_test).id = lbl_test_id;
+
+		// Generate test and jmp after
+		lower(p, ast.get_node(children[0]), ast, new_ast, context);
+		auto jmp = new_ast.create_node(core_ast::node_type::JZ, p);
+		new_ast.get_node_data<core_ast::label>(jmp).id = lbl_after_id;
+
+		// Generate body and jmp back
+		lower(p, ast.get_node(children[1]), ast, new_ast, context);
+		auto jmp_test = new_ast.create_node(core_ast::node_type::JMP, p);
+		new_ast.get_node_data<core_ast::label>(jmp_test).id = lbl_test_id;
+
+		// Label after
+		auto lbl_after = new_ast.create_node(core_ast::node_type::LABEL, p);
+		new_ast.get_node_data<core_ast::label>(lbl_after).id = lbl_after_id;
+
 		return lowering_result();
 	}
 
