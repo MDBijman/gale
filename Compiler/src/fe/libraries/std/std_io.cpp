@@ -13,7 +13,7 @@ extern "C" int fe_print(uint64_t* regs, uint8_t* stack)
 
 extern "C" int fe_println(uint64_t* regs, uint8_t* stack)
 {
-	io->send_stdout(std::to_string(reinterpret_cast<uint64_t*>(stack)[0]));
+	io->send_stdout(std::to_string(reinterpret_cast<uint64_t*>(stack)[0]) + "\n");
 	return 8;
 }
 

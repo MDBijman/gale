@@ -148,7 +148,7 @@ namespace lexing
 		case '<': // <= <
 			advance(range);
 			if (*range.first == '=') { advance(range); return token_kind::LTEQ; }
-			else return token_kind::EQUALS;
+			else return token_kind::LEFT_ANGLE_BRACKET;
 		case '>': // >= =
 			advance(range);
 			if (*range.first == '=') { advance(range); return token_kind::GTEQ; }

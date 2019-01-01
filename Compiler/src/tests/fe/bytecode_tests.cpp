@@ -49,7 +49,7 @@ import [std std.io]
 let fib: std.ui64 -> std.ui64 = \n => if (n <= 2) { 1 } else { (fib (n - 1) + fib (n - 2)) };
 let a: std.ui64 = fib 31;
 std.io.println a;
-)", "1346269");
+)", "1346269\n");
 }
 
 // Test single scope
@@ -136,15 +136,45 @@ std.io.print d;
 )", "7");
 }
 
-TEST_CASE("array", "[bytecode]")
+TEST_CASE("array elem", "[bytecode]")
 {
 	run_with_expectation(R"(
 module test
 import [std std.io]
 
 let a : [std.ui64; 3] = [1, 2, 3];
-std.io.print a[0];
+std.io.print (a!!0);
 )", "1");
+}
+
+TEST_CASE("array elem2", "[bytecode]")
+{
+	run_with_expectation(R"(
+module test
+import [std std.io]
+
+let a : [std.ui64; 3] = [1, 2, 3];
+std.io.print (a!!1);
+)", "2");
+}
+
+
+TEST_CASE("euler1", "[bytecode]")
+{
+	run_with_expectation(R"(
+module test
+import [std std.io]
+
+let sum : std.ui64 = 0;
+let i : std.ui64 = 1;
+while (i < 1000) {
+	if ((i % 3) == 0 || (i % 5) == 0) {
+		sum = sum + i;
+	};
+	i = i + 1;
+};
+std.io.println sum;
+)", "233168\n");
 }
 
 TEST_CASE("vm modules", "[bytecode]")
