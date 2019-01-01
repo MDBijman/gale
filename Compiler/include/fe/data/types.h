@@ -206,8 +206,8 @@ namespace fe
 		struct array_type : public type, private detail::comparable<array_type, type>, private detail::copyable<array_type, type>
 		{
 			array_type();
-			array_type(unique_type t);
-			array_type(type& t);
+			array_type(unique_type t, size_t count);
+			array_type(type& t, size_t count);
 
 			// Move
 			array_type(array_type&& other);
@@ -222,7 +222,7 @@ namespace fe
 			type* copy() const override { return copyable::copy(*this); }
 			size_t calculate_size() const override
 			{
-				return 4;
+				return count * element_type->calculate_size();
 			}
 			size_t calculate_offset(const std::vector<size_t>& offsets, size_t curr = 0) const override
 			{
@@ -230,6 +230,7 @@ namespace fe
 				return 0;
 			}
 
+			size_t count;
 			unique_type element_type;
 		};
 
