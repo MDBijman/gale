@@ -185,7 +185,9 @@ div_reg_reg_reg LABEL NEAR PTR WORD
 	and r9, 0ffh
 
 	mov rax, [r13 + rax*8]
-	idiv QWORD PTR [r13 + r9*8]
+	; div uses rax:rdx so make sure rdx is clears
+	xor rdx, rdx
+	div QWORD PTR [r13 + r9*8]
 	mov [r13 + rbx*8], rax
 
 	add r8, 5
@@ -210,7 +212,9 @@ mod_reg_reg_reg LABEL NEAR PTR WORD
 	and r9, 0ffh
 
 	mov rax, [r13 + rax*8]
-	idiv QWORD PTR [r13 + r9*8]
+	; div uses rax:rdx so make sure rdx is clears
+	xor rdx, rdx
+	div QWORD PTR [r13 + r9*8]
 	mov [r13 + rbx*8], rdx
 
 	add r8, 5
@@ -882,7 +886,8 @@ pop8_reg LABEL NEAR PTR WORD
 	
 	mov bl, [rsp]
 	inc rsp
-	mov BYTE PTR [r13 + rax*8], bl
+	movsx rbx, bl
+	mov QWORD PTR [r13 + rax*8], rbx
 
 	add r8, 3
 	DISPATCH
@@ -896,7 +901,8 @@ pop16_reg LABEL NEAR PTR WORD
 	mov al, r9b
 	
 	pop bx
-	mov WORD PTR [r13 + rax*8], bx
+	movsx rbx, bx
+	mov QWORD PTR [r13 + rax*8], rbx
 
 	add r8, 3
 	DISPATCH
@@ -911,7 +917,8 @@ pop32_reg LABEL NEAR PTR WORD
 	
 	mov ebx, [rsp]
 	add rsp, 4
-	mov DWORD PTR [r13 + rax*8], ebx
+	movsxd rbx, ebx
+	mov QWORD PTR [r13 + rax*8], rbx
 
 	add r8, 3
 	DISPATCH
