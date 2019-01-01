@@ -136,6 +136,17 @@ std.io.print d;
 )", "7");
 }
 
+TEST_CASE("array", "[bytecode]")
+{
+	run_with_expectation(R"(
+module test
+import [std std.io]
+
+let a : [std.ui64; 3] = [1, 2, 3];
+std.io.print a[0];
+)", "1");
+}
+
 TEST_CASE("vm modules", "[bytecode]")
 {
 	using namespace fe::vm;
