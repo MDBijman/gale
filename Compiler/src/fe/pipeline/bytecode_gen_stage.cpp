@@ -690,8 +690,9 @@ namespace fe::vm
 		core_ast::label max_lbl{ 0 };
 		h.for_all_t(core_ast::node_type::LABEL, [&max_lbl, &ast](core_ast::node& node) {
 			auto& data = ast.get_node_data<core_ast::label>(node);
-			if (data.id > max_lbl.id) max_lbl.id = data.id + 1;
+			if (data.id > max_lbl.id) max_lbl.id = data.id;
 		});
+		max_lbl.id++;
 
 		// Meta information about intersection between core_ast and bytecode e.g. ast to chunk mapping etc.
 		code_gen_state i(max_lbl);
