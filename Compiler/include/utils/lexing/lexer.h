@@ -49,6 +49,8 @@ namespace lexing
 		BACKSLASH,
 		AND,
 		OR,
+		NOT,
+		ARRAY_ACCESS,
 		COMMA,
 		SEMICOLON,
 		TYPE_KEYWORD,
@@ -122,7 +124,7 @@ namespace lexing
 			while (*range.first != '\"') advance(range);
 			advance(range);
 			return token_kind::WORD;
-		case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
+		case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9':
 			number:
 			advance(range);
 			while (*range.first >= '0' && *range.first <= '9') advance(range);
@@ -159,6 +161,10 @@ namespace lexing
 			advance(range);
 			if (*range.first == '&') { advance(range); return token_kind::AND; }
 			return token_kind::ERROR;
+		case '!': 
+			advance(range); 
+			if (*range.first == '!') { advance(range); return token_kind::ARRAY_ACCESS; }
+			return token_kind::NOT;
 		case ',': advance(range); return token_kind::COMMA;
 		case ';': advance(range); return token_kind::SEMICOLON;
 		case '+': advance(range); return token_kind::PLUS;

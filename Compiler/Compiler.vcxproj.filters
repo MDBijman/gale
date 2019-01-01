@@ -86,7 +86,7 @@
     <None Include="snippets\syntax\statements.fe">
       <Filter>Resource Files\snippets\syntax</Filter>
     </None>
-    <None Include="snippets\tests\fib.fe">
+    <None Include="snippets\tests\array.fe">
       <Filter>Resource Files\snippets\tests</Filter>
     </None>
   </ItemGroup>

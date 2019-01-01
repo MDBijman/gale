@@ -46,11 +46,21 @@ namespace fe::ext_ast
 			return false;
 		}
 
-		std::optional<conversion_constraint> element(size_t i)
+		std::optional<conversion_constraint> tuple_sub_constraint(size_t i)
 		{
 			if (auto product = dynamic_cast<types::product_type*>(&to))
 			{
 				return conversion_constraint(*product->product.at(i));
+			}
+
+			return std::nullopt;
+		}
+
+		std::optional<conversion_constraint> array_sub_constraint()
+		{
+			if (auto arr = dynamic_cast<types::array_type*>(&to))
+			{
+				return conversion_constraint(*arr->element_type);
 			}
 
 			return std::nullopt;
@@ -76,11 +86,21 @@ namespace fe::ext_ast
 			return (to == &t);
 		}
 
-		std::optional<equality_constraint> element(size_t i)
+		std::optional<equality_constraint> tuple_sub_constraint(size_t i)
 		{
 			if (auto product = dynamic_cast<types::product_type*>(&to))
 			{
 				return equality_constraint(*product->product.at(i));
+			}
+
+			return std::nullopt;
+		}
+
+		std::optional<equality_constraint> array_sub_constraint()
+		{
+			if (auto arr = dynamic_cast<types::array_type*>(&to))
+			{
+				return equality_constraint(*arr->element_type);
 			}
 
 			return std::nullopt;
@@ -115,14 +135,32 @@ namespace fe::ext_ast
 			return true;
 		}
 
-		std::optional<type_constraints> element(size_t i)
+		std::optional<type_constraints> tuple_sub_constraints(size_t i)
 		{
 			std::vector<type_constraint> sub_constraints;
 
 			for (auto& constraint : constraints)
 			{
 				auto sub = std::visit(([i](auto& x) -> std::optional<type_constraint> { 
-					auto sub = x.element(i);
+					auto sub = x.tuple_sub_constraint(i);
+					if (!sub) return std::nullopt;
+					else return type_constraint(*sub); 
+				}), constraint);
+				if(sub) sub_constraints.push_back(std::move(*sub));
+				else return std::nullopt;
+			}
+
+			return type_constraints(std::move(sub_constraints));
+		}
+
+		std::optional<type_constraints> array_sub_constraints()
+		{
+			std::vector<type_constraint> sub_constraints;
+
+			for (auto& constraint : constraints)
+			{
+				auto sub = std::visit(([](auto& x) -> std::optional<type_constraint> { 
+					auto sub = x.array_sub_constraint();
 					if (!sub) return std::nullopt;
 					else return type_constraint(*sub); 
 				}), constraint);

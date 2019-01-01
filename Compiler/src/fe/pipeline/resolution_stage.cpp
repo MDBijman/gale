@@ -363,6 +363,17 @@ namespace fe::ext_ast
 		resolve(ast.get_node(children[0]), ast);
 		resolve(ast.get_node(children[1]), ast);
 	}
+	
+	void resolve_array_access(node& n, ast& ast)
+	{
+		assert(n.kind == node_type::ARRAY_ACCESS);
+		auto& children = ast.children_of(n);
+		assert(children.size() == 2);
+		copy_parent_scope(n, ast);
+
+		resolve(ast.get_node(children[0]), ast);
+		resolve(ast.get_node(children[1]), ast);
+	}
 
 	void resolve_type_definition(node& n, ast& ast)
 	{
@@ -466,11 +477,10 @@ namespace fe::ext_ast
 	{
 		assert(n.kind == node_type::ARRAY_VALUE);
 		auto& children = ast.children_of(n);
-		assert(children.size() == 1);
 		copy_parent_scope(n, ast);
 
-		auto& child_node = ast.get_node(children[0]);
-		resolve(child_node, ast);
+		for (auto& child : children)
+			resolve(ast.get_node(child), ast);
 	}
 
 	void resolve_type_atom(node& n, ast& ast)
@@ -504,6 +514,16 @@ namespace fe::ext_ast
 		resolve(ast.get_node(children[1]), ast);
 	}
 
+	void resolve_array_type(node& n, ast& ast)
+	{
+		assert(n.kind == node_type::ARRAY_TYPE);
+		auto& children = ast.children_of(n);
+		assert(children.size() == 2);
+		copy_parent_scope(n, ast);
+
+		resolve(ast.get_node(children[0]), ast);
+	}
+
 	void resolve_binary_op(node& n, ast& ast)
 	{
 		assert(ext_ast::is_binary_op(n.kind));
@@ -532,6 +552,7 @@ namespace fe::ext_ast
 		case node_type::MATCH:             resolve_match(n, ast);            break;
 		case node_type::IDENTIFIER:        resolve_id(n, ast);               break;
 		case node_type::FUNCTION_CALL:     resolve_function_call(n, ast);    break;
+		case node_type::ARRAY_ACCESS:      resolve_array_access(n, ast);     break;
 		case node_type::TYPE_DEFINITION:   resolve_type_definition(n, ast);  break;
 		case node_type::DECLARATION:       resolve_declaration(n, ast);      break;
 		case node_type::REFERENCE:         resolve_reference(n, ast);        break;
@@ -539,6 +560,7 @@ namespace fe::ext_ast
 		case node_type::TYPE_ATOM:         resolve_type_atom(n, ast);        break;
 		case node_type::TYPE_TUPLE:        resolve_type_tuple(n, ast);       break;
 		case node_type::FUNCTION_TYPE:     resolve_function_type(n, ast);    break;
+		case node_type::ARRAY_TYPE:        resolve_array_type(n, ast);       break;
 		case node_type::STRING:            copy_parent_scope(n, ast);        break;
 		case node_type::BOOLEAN:           copy_parent_scope(n, ast);        break;
 		case node_type::NUMBER:            copy_parent_scope(n, ast);        break;

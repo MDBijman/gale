@@ -50,64 +50,64 @@ namespace fe::ext_ast
 
 		if (tc.satisfied_by(types::i8()))
 		{
-			assert(number_data.value > std::numeric_limits<int8_t>::min());
-			assert(number_data.value < std::numeric_limits<int8_t>::max());
+			assert(number_data.value >= std::numeric_limits<int8_t>::min());
+			assert(number_data.value <= std::numeric_limits<int8_t>::max());
 			number_data.type = number_type::I8;
 			return types::unique_type(new types::i8());
 		}
 
 		if (tc.satisfied_by(types::ui8()))
 		{
-			assert(number_data.value > std::numeric_limits<uint8_t>::min());
-			assert(number_data.value < std::numeric_limits<uint8_t>::max());
+			assert(number_data.value >= std::numeric_limits<uint8_t>::min());
+			assert(number_data.value <= std::numeric_limits<uint8_t>::max());
 			number_data.type = number_type::UI8;
 			return types::unique_type(new types::ui8());
 		}
 
 		if (tc.satisfied_by(types::i16()))
 		{
-			assert(number_data.value > std::numeric_limits<int16_t>::min());
-			assert(number_data.value < std::numeric_limits<int16_t>::max());
+			assert(number_data.value >= std::numeric_limits<int16_t>::min());
+			assert(number_data.value <= std::numeric_limits<int16_t>::max());
 			number_data.type = number_type::I16;
 			return types::unique_type(new types::i16());
 		}
 
 		if (tc.satisfied_by(types::ui16()))
 		{
-			assert(number_data.value > std::numeric_limits<uint16_t>::min());
-			assert(number_data.value < std::numeric_limits<uint16_t>::max());
+			assert(number_data.value >= std::numeric_limits<uint16_t>::min());
+			assert(number_data.value <= std::numeric_limits<uint16_t>::max());
 			number_data.type = number_type::UI16;
 			return types::unique_type(new types::ui16());
 		}
 
 		if (tc.satisfied_by(types::i32()))
 		{
-			assert(number_data.value > std::numeric_limits<int32_t>::min());
-			assert(number_data.value < std::numeric_limits<int32_t>::max());
+			assert(number_data.value >= std::numeric_limits<int32_t>::min());
+			assert(number_data.value <= std::numeric_limits<int32_t>::max());
 			number_data.type = number_type::I32;
 			return types::unique_type(new types::i32());
 		}
 
 		if (tc.satisfied_by(types::ui32()))
 		{
-			assert(number_data.value > std::numeric_limits<int32_t>::min());
-			assert(number_data.value < std::numeric_limits<int32_t>::max());
+			assert(number_data.value >= std::numeric_limits<int32_t>::min());
+			assert(number_data.value <= std::numeric_limits<int32_t>::max());
 			number_data.type = number_type::UI32;
 			return types::unique_type(new types::ui32());
 		}
 
 		if (tc.satisfied_by(types::i64()))
 		{
-			assert(number_data.value > std::numeric_limits<int64_t>::min());
-			assert(number_data.value < std::numeric_limits<int64_t>::max());
+			assert(number_data.value >= std::numeric_limits<int64_t>::min());
+			assert(number_data.value <= std::numeric_limits<int64_t>::max());
 			number_data.type = number_type::I64;
 			return types::unique_type(new types::i64());
 		}
 
 		if (tc.satisfied_by(types::ui64()))
 		{
-			assert(number_data.value > std::numeric_limits<uint64_t>::min());
-			assert(number_data.value < std::numeric_limits<uint64_t>::max());
+			assert(number_data.value >= std::numeric_limits<uint64_t>::min());
+			assert(number_data.value <= std::numeric_limits<uint64_t>::max());
 			number_data.type = number_type::UI64;
 			return types::unique_type(new types::ui64());
 		}
@@ -156,7 +156,7 @@ namespace fe::ext_ast
 		for (auto child : children)
 		{
 			auto& child_node = ast.get_node(child);
-			auto sub_constraint = tc.element(index);
+			auto sub_constraint = tc.tuple_sub_constraints(index);
 			if (!sub_constraint) throw typecheck_error{ 
 				"tuple value type cannot match constraint " + tc.operator std::string()
 				+ "\nsubconstraints with index " + std::to_string(index) + " do not exist"
@@ -171,6 +171,38 @@ namespace fe::ext_ast
 			+ " does not match constraints\n" + tc.operator std::string() };
 
 		return res;
+	}
+
+	types::unique_type typeof_array_value(node& n, ast& ast, type_constraints tc)
+	{
+		assert(n.kind == node_type::ARRAY_VALUE);
+		auto& children = ast.children_of(n);
+		if (children.size() > 0)
+		{
+			auto element_constraints = tc.array_sub_constraints();
+			if (!element_constraints) throw typecheck_error{
+				"array value type cannot match constraint " + tc.operator std::string()
+				+ "\nsubconstraints do not exist"
+			};
+
+			auto t1 = typeof(ast.get_node(children[0]), ast, *element_constraints);
+			for (auto it = children.begin() + 1; it != children.end(); it++)
+			{
+				auto& child_node = ast.get_node(*it);
+				typeof(child_node, ast, *element_constraints);
+			}
+
+			auto arr_type = types::array_type(*t1, children.size());
+			if (!tc.satisfied_by(arr_type)) throw typecheck_error{
+				"array value type does not satisfy constraints " + tc.operator std::string()
+			};
+			return t1;
+		}
+		else
+		{
+			assert(!"todo");
+			// #todo set type to void
+		}
 	}
 
 	types::unique_type typeof_function_call(node& n, ast& ast, type_constraints tc)
@@ -188,10 +220,32 @@ namespace fe::ext_ast
 		auto arg_type = typeof(arg_node, ast, type_constraints({ equality_constraint(*function_type->from) }));
 
 		if (!tc.satisfied_by(*function_type->to))
-			throw typecheck_error{ "function call type " + function_type->to->operator std::string() 
+			throw typecheck_error{ "function call type " + function_type->to->operator std::string()
 			+ " does not match constraints\n" + tc.operator std::string() };
 
 		return std::move(function_type->to);
+	}
+
+	types::unique_type typeof_array_access(node& n, ast& ast, type_constraints tc)
+	{
+		assert(n.kind == node_type::ARRAY_ACCESS);
+		auto& children = ast.children_of(n);
+		assert(children.size() == 2);
+		copy_parent_scope(n, ast);
+
+		auto& subj_node = ast.get_node(children[0]);
+		auto res = typeof(subj_node, ast, type_constraints());
+		auto array_type = dynamic_cast<types::array_type*>(res.get());
+
+		auto& idx_node = ast.get_node(children[1]);
+		types::unique_type is_num(new types::ui64);
+		auto idx_type = typeof(idx_node, ast, type_constraints({ equality_constraint(*is_num.get()) }));
+
+		if (!tc.satisfied_by(*array_type->element_type))
+			throw typecheck_error{ "array access type " + array_type->element_type->operator std::string()
+			+ " does not match constraints\n" + tc.operator std::string() };
+
+		return types::unique_type(array_type->element_type->copy());
 	}
 
 	types::unique_type typeof_block(node& n, ast& ast, type_constraints tc)
@@ -394,15 +448,36 @@ namespace fe::ext_ast
 		assert(children.size() == 2);
 
 		auto& from_node = ast.get_node(children[0]);
-		auto& from_constraint = tc.element(0).value_or(type_constraints());
+		// #todo use type constraints
+		auto& from_constraint = type_constraints();
 		auto& from_type = typeof(from_node, ast, from_constraint);
 
 		auto& to_node = ast.get_node(children[1]);
-		auto& to_constraint = tc.element(1).value_or(type_constraints());
+		// #todo use type constraints
+		auto& to_constraint = type_constraints();
 		auto& to_type = typeof(to_node, ast, to_constraint);
 
 		return types::unique_type(new types::function_type(std::move(from_type), std::move(to_type)));
 	}
+
+	types::unique_type typeof_array_type(node& n, ast& ast, type_constraints tc)
+	{
+		assert(n.kind == node_type::ARRAY_TYPE);
+		copy_parent_scope(n, ast);
+		auto& children = ast.children_of(n);
+		assert(children.size() == 2);
+
+		auto& elem_node = ast.get_node(children[0]);
+		auto& elem_type = typeof(elem_node, ast, type_constraints());
+
+		auto& idx_node = ast.get_node(children[1]);
+		types::unique_type is_num(new types::ui64);
+		auto& idx_type = typeof(idx_node, ast, type_constraints({ equality_constraint(*is_num) }));
+		auto num = ast.get_data<number>(idx_node.data_index).value;
+
+		return types::unique_type(new types::array_type(std::move(elem_type), num));
+	}
+
 
 	void declare_assignable(node& assignable, ast& ast, types::type& t)
 	{
@@ -566,8 +641,6 @@ namespace fe::ext_ast
 			throw typecheck_error{ "Function param type " + param_type->operator std::string()
 				+ " does not satisfy constraints " + constraint.operator std::string() };
 	}
-
-
 
 	void typecheck_block(node& n, ast& ast)
 	{
@@ -747,25 +820,6 @@ namespace fe::ext_ast
 		// #todo set this type to reference type
 	}
 
-	void typecheck_array_value(node& n, ast& ast)
-	{
-		assert(n.kind == node_type::ARRAY_VALUE);
-		auto& children = ast.children_of(n);
-		if (children.size() > 0)
-		{
-			for (auto child : children)
-			{
-				auto& child_node = ast.get_node(child);
-				typecheck(child_node, ast);
-				// #todo check all types are same
-			}
-		}
-		else
-		{
-			// #todo set type to void
-		}
-	}
-
 	void typecheck_while_loop(node& n, ast& ast)
 	{
 		assert(n.kind == node_type::WHILE_LOOP);
@@ -821,7 +875,6 @@ namespace fe::ext_ast
 		case node_type::DECLARATION:       typecheck_declaration(n, ast);       break;
 		case node_type::ASSIGNMENT:        typecheck_assignment(n, ast);        break;
 		case node_type::REFERENCE:         typecheck_reference(n, ast);         break;
-		case node_type::ARRAY_VALUE:       typecheck_array_value(n, ast);       break;
 		case node_type::WHILE_LOOP:        typecheck_while_loop(n, ast);        break;
 		case node_type::IF_STATEMENT:      typecheck_if_statement(n, ast);      break;
 			// expression as statement
@@ -840,14 +893,17 @@ namespace fe::ext_ast
 		case node_type::NUMBER:          return typeof_number(n, ast, tc);
 		case node_type::BOOLEAN:         return typeof_boolean(n, ast, tc);
 		case node_type::STRING:          return typeof_string(n, ast, tc);
+		case node_type::ARRAY_VALUE:     return typeof_array_value(n, ast, tc);
 		case node_type::TUPLE:           return typeof_tuple(n, ast, tc);
 		case node_type::FUNCTION_CALL:   return typeof_function_call(n, ast, tc);
+		case node_type::ARRAY_ACCESS:    return typeof_array_access(n, ast, tc);
 		case node_type::BLOCK:           return typeof_block(n, ast, tc);
 		case node_type::BLOCK_RESULT:    return typeof_block_result(n, ast, tc);
 		case node_type::TYPE_ATOM:       return typeof_type_atom(n, ast, tc);
 		case node_type::RECORD_ELEMENT:  return typeof_record_element(n, ast, tc);
 		case node_type::RECORD:          return typeof_record(n, ast, tc);
 		case node_type::FUNCTION_TYPE:   return typeof_function_type(n, ast, tc);
+		case node_type::ARRAY_TYPE:      return typeof_array_type(n, ast, tc);
 		case node_type::FUNCTION:        return typeof_function(n, ast, tc);
 		case node_type::TYPE_TUPLE:      return typeof_type_tuple(n, ast, tc);
 		case node_type::MATCH_BRANCH:    return typeof_match_branch(n, ast, tc);

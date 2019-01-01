@@ -1,4 +1,5 @@
 #include "fe/data/types.h"
+#include <string>
 
 namespace fe
 {
@@ -6,31 +7,33 @@ namespace fe
 	{
 		// Array
 
-		array_type::array_type() : element_type(new unset()) {}
-		array_type::array_type(unique_type t) : element_type(std::move(t)) {}
-		array_type::array_type(type& t) : element_type(t.copy()) {}
+		array_type::array_type() : element_type(new unset()), count(0) {}
+		array_type::array_type(unique_type t, size_t count) : element_type(std::move(t)), count(count) {}
+		array_type::array_type(type& t, size_t count) : element_type(t.copy()), count(count) {}
 
 		// Move
 
-		array_type::array_type(array_type&& other) : element_type(std::move(other.element_type)) {}
+		array_type::array_type(array_type&& other) : element_type(std::move(other.element_type)), count(other.count) {}
 		array_type& array_type::operator=(array_type&& other)
 		{
 			this->element_type = std::move(other.element_type);
+			this->count = other.count;
 			return *this;
 		}
 
 		// Copy
 
-		array_type::array_type(const array_type& other) : element_type(other.element_type->copy()) {}
+		array_type::array_type(const array_type& other) : element_type(other.element_type->copy()), count(other.count) {}
 		array_type& array_type::operator=(const array_type& other)
 		{
 			this->element_type.reset(other.element_type->copy());
+			this->count = other.count;
 			return *this;
 		}
 
 		array_type::operator std::string() const
 		{
-			return "[" + std::string(*element_type) + "]";
+			return "[" + std::string(*element_type) + "; " + std::to_string(count) + "]";
 		}
 
 
@@ -239,7 +242,7 @@ namespace fe
 
 		bool operator==(const array_type& one, const array_type& two)
 		{
-			return one.element_type == two.element_type;
+			return (*one.element_type == two.element_type.get()) && (one.count == two.count);
 		}
 
 		bool operator==(const reference_type& one, const reference_type& two)

@@ -50,6 +50,7 @@ namespace recursive_descent
 	fe::node_id parse_operation(tree& t, token_stream_reader& ts);
 	fe::node_id parse_statement(tree& t, token_stream_reader& ts);
 	fe::node_id parse_type_operation(tree& t, token_stream_reader& ts);
+	fe::node_id parse_number(tree& t, token_stream_reader& ts);
 
 
 	std::vector<std::string> split_on(std::string id, char split_on)
@@ -124,8 +125,10 @@ namespace recursive_descent
 		auto array_type_id = t.create_node(fe::ext_ast::node_type::ARRAY_TYPE);
 
 		ts.consume(token_kind::LEFT_SQUARE_BRACKET);
-		ts.consume(token_kind::RIGHT_SQUARE_BRACKET);
 		link_child_parent(parse_type_operation(t, ts), array_type_id, t);
+		ts.consume(token_kind::SEMICOLON);
+		link_child_parent(parse_number(t, ts), array_type_id, t);
+		ts.consume(token_kind::RIGHT_SQUARE_BRACKET);
 
 		return array_type_id;
 	}
@@ -355,6 +358,7 @@ namespace recursive_descent
 			ts.consume(token_kind::COMMA);
 			link_child_parent(parse_operation(t, ts), array_value_id, t);
 		}
+		ts.consume(token_kind::RIGHT_SQUARE_BRACKET);
 		return array_value_id;
 	}
 
@@ -512,10 +516,26 @@ namespace recursive_descent
 		return identifier_id;
 	}
 
+	fe::node_id parse_array_access(tree& t, token_stream_reader& ts)
+	{
+		auto lhs_id = parse_function_call(t, ts);
+
+		if (ts.peek().value != token_kind::ARRAY_ACCESS)
+			return lhs_id;
+
+		ts.consume(token_kind::ARRAY_ACCESS);
+
+		auto access_id = t.create_node(fe::ext_ast::node_type::ARRAY_ACCESS);
+
+		link_child_parent(lhs_id, access_id, t);
+		link_child_parent(parse_array_access(t, ts), access_id, t);
+		return access_id;
+	}
+
 	fe::node_id parse_reference(tree& t, token_stream_reader& ts)
 	{
 		if (ts.peek().value != token_kind::REF_KEYWORD)
-			return parse_function_call(t, ts);
+			return parse_array_access(t, ts);
 
 		auto reference_id = t.create_node(fe::ext_ast::node_type::REFERENCE);
 
