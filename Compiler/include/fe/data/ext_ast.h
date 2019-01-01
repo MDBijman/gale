@@ -72,6 +72,8 @@ namespace fe::ext_ast
 		GREATER_OR_EQ,
 		LESS_THAN,
 		LESS_OR_EQ,
+		// Array
+		ARRAY_ACCESS
 	};
 
 	constexpr bool is_binary_op(node_type kind)

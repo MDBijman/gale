@@ -56,9 +56,8 @@ namespace fe::core_ast
 			res.pre_node_stack_sizes[n] = before_size;
 			auto& node = ast.get_node(n);
 			for (auto& child : node.children)
-			{
 				analyze_stack(child, ast, res);
-			}
+
 			if(node.children.size() == 0)
 				res.node_stack_sizes[n] = before_size; 
 			else
@@ -68,7 +67,8 @@ namespace fe::core_ast
 		case node_type::FUNCTION_CALL: {
 			res.pre_node_stack_sizes[n] = predecessor_size(n, ast, res);
 			res.node_stack_sizes[n] = predecessor_size(n, ast, res) + *ast.get_node(n).size;
-			analyze_stack(ast.get_node(n).children[0], ast, res);
+			for (auto& child : node.children)
+				analyze_stack(child, ast, res);
 			break;
 		}
 		case node_type::REFERENCE: { assert(!"nyi"); break; }
@@ -167,6 +167,10 @@ namespace fe::core_ast
 					res.node_stack_sizes[n] = predecessor_size(n, ast, res) + 1;
 					break;
 				}
+			}
+			else
+			{
+				assert(!"Cannot calculate stack size");
 			}
 		}
 		}

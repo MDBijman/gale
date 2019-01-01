@@ -18,7 +18,6 @@ namespace fe::core_ast
 		STRING,
 		BOOLEAN,
 		TUPLE,
-		ARRAY,
 
 		POP,
 		MOVE,
@@ -26,6 +25,7 @@ namespace fe::core_ast
 		STACK_DEALLOC,
 
 		VARIABLE,
+		DYNAMIC_VARIABLE,
 		PARAM,
 
 		FUNCTION,

@@ -77,6 +77,7 @@ namespace fe::core_ast
 		case node_type::POP:
 			return size_store.create();
 		case node_type::VARIABLE:
+		case node_type::DYNAMIC_VARIABLE:
 		case node_type::PARAM:
 			return var_store.create();
 		case node_type::RET:

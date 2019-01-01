@@ -409,6 +409,52 @@ namespace fe::ext_ast
 		return lowering_result(location_type::stack, size);
 	}
 
+	lowering_result lower_array_access(node_id p, node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
+	{
+		assert(n.kind == node_type::ARRAY_ACCESS);
+		auto& children = ast.children_of(n);
+		assert(children.size() == 2);
+
+		// Literal of element size
+		auto& id_node = ast.get_node(children[0]);
+		auto type = ast.get_type_scope(id_node.type_scope_id).resolve_variable(ast.get_data<identifier>(id_node.data_index), ast.type_scope_cb());
+		auto as_array = dynamic_cast<types::array_type*>(&type->type);
+		size_t element_size = as_array->element_type->calculate_size();
+
+		assert(id_node.kind == ext_ast::node_type::IDENTIFIER);
+		auto& id_data = ast.get_data<ext_ast::identifier>(ast.get_node((*ast
+			.get_name_scope(id_node.name_scope_id)
+			.resolve_variable(ast.get_data<identifier>(id_node.data_index).segments[0], ast.name_scope_cb()))
+			.declaration_node).data_index);
+
+		auto var_id = id_data.index_in_function;
+		auto is_param = id_data.is_parameter;
+
+		if (is_param)
+		{
+			assert(!"check if param");
+		}
+		else
+		{
+			// Multiply index with element size to get actual location
+			auto mul_node = new_ast.create_node(core_ast::node_type::MUL, p);
+			// Index
+			auto idx_node = lower(mul_node, ast.get_node(children[1]), ast, new_ast, context);
+			auto num_node = new_ast.create_node(core_ast::node_type::NUMBER, mul_node);
+			new_ast.get_node_data<number>(num_node) = { static_cast<int64_t>(element_size), number_type::UI64 };
+
+			auto move = new_ast.create_node(core_ast::node_type::MOVE, p);
+			auto from = new_ast.create_node(core_ast::node_type::DYNAMIC_VARIABLE, move);
+			new_ast.get_node_data<core_ast::var_data>(from) = { context.get_offset(var_id), static_cast<uint32_t>(element_size) };
+
+			auto to = new_ast.create_node(core_ast::node_type::STACK_ALLOC, move);
+			new_ast.get_data<core_ast::size>(*new_ast.get_node(to).data_index).val = context.get_size(var_id);
+
+		}
+
+		return lowering_result();
+	}
+
 	lowering_result lower_module_declaration(node_id p, node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
 	{
 		assert(n.kind == node_type::MODULE_DECLARATION);
@@ -654,6 +700,7 @@ namespace fe::ext_ast
 		case node_type::BOOLEAN:            return lower_boolean(p, n, ast, new_ast, context);              break;
 		case node_type::NUMBER:             return lower_number(p, n, ast, new_ast, context);               break;
 		case node_type::FUNCTION_CALL:      return lower_function_call(p, n, ast, new_ast, context);        break;
+		case node_type::ARRAY_ACCESS:       return lower_array_access(p, n, ast, new_ast, context);         break;
 		case node_type::MODULE_DECLARATION: return lower_module_declaration(p, n, ast, new_ast, context);   break;
 		case node_type::IMPORT_DECLARATION: return lower_import_declaration(p, n, ast, new_ast, context);   break;
 		case node_type::EXPORT_STMT:        return lower_export_stmt(p, n, ast, new_ast, context);          break;

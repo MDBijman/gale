@@ -68,6 +68,8 @@ int main(int argc, char** argv)
 			// std assert
 			proj.add_module(fe::stdlib::assert::load());
 
+			fe::stdlib::io::set_iostream(std::make_unique<fe::stdlib::io::iostream>());
+
 			auto project_path = std::experimental::filesystem::path(argv[2]);
 			std::cout << "Project folder: " << project_path << "\n";
 
@@ -87,7 +89,7 @@ int main(int argc, char** argv)
 				}
 				auto& code = std::get<std::string>(file_or_error);
 
-				proj.eval(code, fe::vm::vm_settings(fe::vm::vm_implementation::asm_, false, false, false, true));
+				proj.eval(code, fe::vm::vm_settings(fe::vm::vm_implementation::asm_, false, false, false, false));
 			}
 		}
 		catch (const lexing::error& e)
