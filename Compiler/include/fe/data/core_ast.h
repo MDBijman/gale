@@ -18,6 +18,7 @@ namespace fe::core_ast
 		STRING,
 		BOOLEAN,
 		TUPLE,
+		SUM,
 
 		POP,
 		MOVE,

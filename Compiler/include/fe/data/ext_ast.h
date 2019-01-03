@@ -55,6 +55,7 @@ namespace fe::ext_ast
 		FUNCTION_TYPE,
 		REFERENCE_TYPE,
 		ARRAY_TYPE,
+		SUM_TYPE,
 
 		//// Operators
 		// Logical

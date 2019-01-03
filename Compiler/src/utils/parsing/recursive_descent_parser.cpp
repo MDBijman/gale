@@ -50,8 +50,8 @@ namespace recursive_descent
 	fe::node_id parse_operation(tree& t, token_stream_reader& ts);
 	fe::node_id parse_statement(tree& t, token_stream_reader& ts);
 	fe::node_id parse_type_operation(tree& t, token_stream_reader& ts);
+	fe::node_id parse_sum_type(tree& t, token_stream_reader& ts);
 	fe::node_id parse_number(tree& t, token_stream_reader& ts);
-
 
 	std::vector<std::string> split_on(std::string id, char split_on)
 	{
@@ -125,7 +125,7 @@ namespace recursive_descent
 		auto array_type_id = t.create_node(fe::ext_ast::node_type::ARRAY_TYPE);
 
 		ts.consume(token_kind::LEFT_SQUARE_BRACKET);
-		link_child_parent(parse_type_operation(t, ts), array_type_id, t);
+		link_child_parent(parse_sum_type(t, ts), array_type_id, t);
 		ts.consume(token_kind::SEMICOLON);
 		link_child_parent(parse_number(t, ts), array_type_id, t);
 		ts.consume(token_kind::RIGHT_SQUARE_BRACKET);
@@ -138,11 +138,11 @@ namespace recursive_descent
 		auto type_tuple_id = t.create_node(fe::ext_ast::node_type::TYPE_TUPLE);
 
 		ts.consume(token_kind::LEFT_BRACKET);
-		link_child_parent(parse_type_operation(t, ts), type_tuple_id, t);
+		link_child_parent(parse_sum_type(t, ts), type_tuple_id, t);
 		while (ts.peek().value == token_kind::COMMA)
 		{
 			ts.consume(token_kind::COMMA);
-			link_child_parent(parse_type_operation(t, ts), type_tuple_id, t);
+			link_child_parent(parse_sum_type(t, ts), type_tuple_id, t);
 		}
 		ts.consume(token_kind::RIGHT_BRACKET);
 
@@ -159,31 +159,86 @@ namespace recursive_descent
 			link_child_parent(parse_identifier(t, ts), type_atom_id, t);
 			return type_atom_id;
 		}
-		else if (next.value == token_kind::LEFT_BRACKET) return parse_type_tuple(t, ts);
-		else throw error{ "Expected identifier or left_bracket" };
+		else if (next.value == token_kind::LEFT_BRACKET)
+		{
+			return parse_type_tuple(t, ts);
+		}
+		else
+		{
+			throw error{ "Expected identifier or left_bracket" };
+		}
 	}
 
 	fe::node_id parse_type_operation(tree& t, token_stream_reader& ts)
 	{
 		auto next = ts.peek();
-		if (next.value == token_kind::REF_KEYWORD)         return parse_reference_type(t, ts);
-		else if (next.value == token_kind::LEFT_SQUARE_BRACKET) return parse_array_type(t, ts);
+		if (next.value == token_kind::REF_KEYWORD)
+		{
+			return parse_reference_type(t, ts);
+		}
+		else if (next.value == token_kind::LEFT_SQUARE_BRACKET)
+		{
+			return parse_array_type(t, ts);
+		}
 		else
 		{
 			auto expression = parse_type_expression(t, ts);
+
 			next = ts.peek();
 			if (next.value == token_kind::RIGHT_ARROW)
 			{
 				auto function_type_id = t.create_node(fe::ext_ast::node_type::FUNCTION_TYPE);
-
 				link_child_parent(expression, function_type_id, t);
+
 				ts.consume(token_kind::RIGHT_ARROW);
 				link_child_parent(parse_type_operation(t, ts), function_type_id, t);
 
 				return function_type_id;
 			}
-			else return expression;
+			else
+			{
+				return expression;
+			}
 		}
+	}
+
+	fe::node_id parse_sum_type(tree& t, token_stream_reader& ts)
+	{
+		auto next = ts.peek();
+		if (next.value != token_kind::IDENTIFIER)
+			return parse_type_operation(t, ts);
+
+		auto id = parse_identifier(t, ts);
+
+		// Type atom
+		next = ts.peek();
+		if (next.value != token_kind::COLON)
+		{
+			auto atom = t.create_node(fe::ext_ast::node_type::TYPE_ATOM);
+			link_child_parent(id, atom, t);
+			return atom;
+		}
+
+		ts.consume(token_kind::COLON);
+
+		// Else return sum type
+		auto sum = t.create_node(fe::ext_ast::node_type::SUM_TYPE);
+
+		link_child_parent(id, sum, t);
+		link_child_parent(parse_type_operation(t, ts), sum, t);
+
+		while (ts.peek().value == token_kind::VERTICAL_LINE)
+		{
+			ts.consume(token_kind::VERTICAL_LINE);
+
+			auto next_id = parse_identifier(t, ts);
+			link_child_parent(next_id, sum, t);
+			ts.consume(token_kind::COLON);
+			auto next_op = parse_type_operation(t, ts);
+			link_child_parent(next_op, sum, t);
+		}
+
+		return sum;
 	}
 
 	fe::node_id parse_record_element(tree& t, token_stream_reader& ts)
@@ -192,7 +247,7 @@ namespace recursive_descent
 
 		link_child_parent(parse_identifier(t, ts), record_element_id, t);
 		ts.consume(token_kind::COLON);
-		link_child_parent(parse_type_operation(t, ts), record_element_id, t);
+		link_child_parent(parse_sum_type(t, ts), record_element_id, t);
 
 		return record_element_id;
 	}
@@ -258,7 +313,7 @@ namespace recursive_descent
 		ts.consume(token_kind::LET_KEYWORD);
 		link_child_parent(parse_assignable(t, ts), declaration_id, t);
 		ts.consume(token_kind::COLON);
-		link_child_parent(parse_type_operation(t, ts), declaration_id, t);
+		link_child_parent(parse_sum_type(t, ts), declaration_id, t);
 		ts.consume(token_kind::EQUALS);
 		link_child_parent(parse_operation(t, ts), declaration_id, t);
 
@@ -830,7 +885,7 @@ namespace recursive_descent
 
 	std::variant<tree, error> parse(std::vector<lexing::token>& in)
 	{
-		tree t(fe::ext_ast::ast_allocation_hints{3000012,1000006,0,0,1000006,0,0,1000002});
+		tree t(fe::ext_ast::ast_allocation_hints{ 3000012,1000006,0,0,1000006,0,0,1000002 });
 
 		try
 		{

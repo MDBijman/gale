@@ -88,6 +88,8 @@ namespace fe::vm
 
 namespace fe::vm
 {
+
+	constexpr size_t RETURN_ADDRESS_SIZE = 8;
 }
 
 namespace fe::vm
@@ -315,10 +317,10 @@ namespace fe::vm
 
 		// Perform call
 		assert(node.size);
-		assert(*node.size <= 8);
 		bc.add_instruction(make_call_ui64(func_label.id));
 
 		// Restore temporary registers
+		assert(registers_to_save.size() == 0); // temp
 		for (auto it = registers_to_save.rbegin(); it != registers_to_save.rend(); it++)
 		{
 			bc.add_instruction(make_pop64(it->val));
@@ -327,7 +329,7 @@ namespace fe::vm
 		// Set saved register to be as before so they get saved during before next function call
 		i.set_saved_registers(registers_to_save);
 
-		if (*node.size > 0)
+		if (*node.size > 0 && *node.size <= 8)
 		{
 			// Push result of function call onto stack
 			bc.add_instruction(make_push(*node.size, vm::ret_reg));
@@ -372,14 +374,17 @@ namespace fe::vm
 
 		near_lbl loc(-1);
 
-		if (from.kind == core_ast::node_type::VARIABLE || from.kind == core_ast::node_type::DYNAMIC_VARIABLE
+		if ((from.kind == core_ast::node_type::VARIABLE || from.kind == core_ast::node_type::DYNAMIC_VARIABLE
+			|| from.kind == core_ast::node_type::PARAM)
 			&& to.kind == core_ast::node_type::STACK_ALLOC)
 		{
 			auto v_target = ast.get_node_data<core_ast::var_data>(from);
 			auto val_tmp = i.alloc_register();
 			auto src_tmp = i.alloc_register();
 
-			auto size = v_target.size;
+			auto offset_in_var = v_target.size - move_size.val;
+
+			auto size = static_cast<uint32_t>(move_size.val);
 			auto next_move_size = std::clamp(size, uint32_t(0), uint32_t(8));
 
 			bc.add_instruction(
@@ -398,43 +403,34 @@ namespace fe::vm
 				i.dealloc_register(offset_reg);
 			}
 
+			// Variables are placed on the stack after the return address
+			byte stack_offset = from.kind == core_ast::node_type::VARIABLE
+				? byte(i.node_pre_stack_size(i.chunk_of(n), n) - RETURN_ADDRESS_SIZE - v_target.offset - size + offset_in_var)
+				: byte(i.node_pre_stack_size(i.chunk_of(n), n) - v_target.offset - v_target.size + offset_in_var);
+
 			bc.add_instructions(
-				make_add(src_tmp, src_tmp, byte(i.node_pre_stack_size(f_id, n) - /*todo skip over params*/ 8 - v_target.offset - next_move_size)),
+				make_add(src_tmp, src_tmp, stack_offset),
 				make_mv_reg_loc(next_move_size, val_tmp, src_tmp),
 				make_push(next_move_size, val_tmp)
 			);
 
 			size -= next_move_size;
 			assert(size >= 0);
+			auto last_move_size = next_move_size;
 			next_move_size = std::clamp(size, uint32_t(0), uint32_t(8));
 			while (next_move_size > 0)
 			{
 				bc.add_instructions(
-					make_sub(src_tmp, src_tmp, byte(next_move_size)),
+					make_sub(src_tmp, src_tmp, byte(last_move_size)),
 					make_mv_reg_loc(next_move_size, val_tmp, src_tmp),
 					make_push(next_move_size, val_tmp)
 				);
 
 				size -= next_move_size;
 				assert(size >= 0);
+				last_move_size = next_move_size;
 				next_move_size = std::clamp(size, uint32_t(0), uint32_t(8));
 			}
-
-			i.dealloc_register(src_tmp);
-			i.dealloc_register(val_tmp);
-		}
-		else if (from.kind == core_ast::node_type::PARAM && to.kind == core_ast::node_type::STACK_ALLOC)
-		{
-			assert(move_size.val > 0 && move_size.val <= 8);
-			auto v_target = ast.get_node_data<core_ast::var_data>(from);
-			auto val_tmp = i.alloc_register();
-			auto src_tmp = i.alloc_register();
-			auto r = bc.add_instructions(
-				make_mv_reg_sp(src_tmp),
-				make_add(src_tmp, src_tmp, byte(i.node_pre_stack_size(f_id, n) - v_target.offset - v_target.size)),
-				make_mv_reg_loc(v_target.size, val_tmp, src_tmp),
-				make_push(v_target.size, val_tmp)
-			);
 
 			i.dealloc_register(src_tmp);
 			i.dealloc_register(val_tmp);
@@ -588,60 +584,53 @@ namespace fe::vm
 		link_to_parent_chunk(n, ast, i);
 		auto& bc = p.get_function(i.chunk_of(n)).get_bytecode();
 		auto& node = ast.get_node(n);
-		auto& size = ast.get_node_data<core_ast::size>(node);
+		auto& data_size = ast.get_node_data<core_ast::size>(node);
 
 		near_lbl location = 0;
 
 		auto& target = ast.get_node(node.children[0]);
 		switch (target.kind)
 		{
-		case core_ast::node_type::VARIABLE: {
+		case core_ast::node_type::VARIABLE:
+		case core_ast::node_type::PARAM: {
 			auto v_target = ast.get_node_data<core_ast::var_data>(target);
 			auto val_tmp = i.alloc_register();
 			auto tgt_tmp = i.alloc_register();
 
-			auto size = v_target.size;
+			auto offset_in_var = v_target.size - data_size.val;
+
+			auto size = static_cast<uint32_t>(data_size.val);
 			auto next_move_size = std::clamp(size, uint32_t(0), uint32_t(8));
+
+			byte stack_offset = target.kind == core_ast::node_type::VARIABLE
+				? byte(i.node_pre_stack_size(i.chunk_of(n), n) - i.current_scope.in_size - RETURN_ADDRESS_SIZE - v_target.offset - size + offset_in_var)
+				: byte(i.node_pre_stack_size(i.chunk_of(n), n) - v_target.offset - v_target.size + offset_in_var);
 
 			auto r = bc.add_instructions(
 				make_mv_reg_sp(tgt_tmp),
-				make_add(tgt_tmp, tgt_tmp, byte(i.analyzed_functions[i.chunk_of(n)].pre_node_stack_sizes[n]
-					- /*todo skip over params*/ 8 - v_target.offset - size)),
+				make_add(tgt_tmp, tgt_tmp, stack_offset),
 				make_pop(next_move_size, val_tmp),
 				make_mv_loc_reg(next_move_size, tgt_tmp, val_tmp)
 			);
 
 			size -= next_move_size;
 			assert(size >= 0);
+			auto last_move_size = next_move_size;
 			next_move_size = std::clamp(size, uint32_t(0), uint32_t(8));
 			while (next_move_size > 0)
 			{
 				r = bc.add_instructions(
-					make_add(tgt_tmp, tgt_tmp, byte(next_move_size)),
+					make_add(tgt_tmp, tgt_tmp, byte(last_move_size)),
 					make_pop(next_move_size, val_tmp),
 					make_mv_loc_reg(next_move_size, tgt_tmp, val_tmp)
 				);
 
 				size -= next_move_size;
 				assert(size >= 0);
+				last_move_size = next_move_size;
 				next_move_size = std::clamp(size, uint32_t(0), uint32_t(8));
 			}
 
-			i.dealloc_register(tgt_tmp);
-			i.dealloc_register(val_tmp);
-			break;
-		}
-		case core_ast::node_type::PARAM: {
-			assert(size.val <= 8);
-			auto v_target = ast.get_node_data<core_ast::var_data>(target);
-			auto val_tmp = i.alloc_register();
-			auto tgt_tmp = i.alloc_register();
-			auto r = bc.add_instructions(
-				make_mv_reg_sp(tgt_tmp),
-				make_add(tgt_tmp, tgt_tmp, byte(i.analyzed_functions[i.chunk_of(n)].pre_node_stack_sizes[n] - v_target.offset - v_target.size)),
-				make_pop(size.val, val_tmp),
-				make_mv_loc_reg(size.val, tgt_tmp, val_tmp)
-			);
 			i.dealloc_register(tgt_tmp);
 			i.dealloc_register(val_tmp);
 			break;

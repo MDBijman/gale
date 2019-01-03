@@ -86,8 +86,42 @@ namespace fe
 				// optimize
 				pl.optimize_program(bytecode);
 			}
+	
+			{
+				auto& e = bytecode;
+				auto& funs = e.get_code();
+				for (int i = 0; i < funs.size(); i++)
+				{
+					auto& fun = funs[i];
+					if (!fun.is_bytecode()) continue;
+					auto& bc = fun.get_bytecode();
 
+					std::cout << "\n" << fun.get_name() << "\n";
+					std::string out;
+					size_t ip = 0;
+					while (bc.has_instruction(ip))
+					{
+						auto in = bc.get_instruction<10>(ip);
+						if (vm::byte_to_op(in[0].val) == vm::op_kind::NOP)
+						{
+							ip++; continue;
+						}
+
+						out += std::to_string(ip) + ": ";
+						out += vm::op_to_string(vm::byte_to_op(in[0].val)) + " ";
+						for (int i = 1; i < vm::op_size(vm::byte_to_op(in[0].val)); i++)
+							out += std::to_string(in[i].val) + " ";
+
+						out += "\n";
+						ip += vm::op_size(vm::byte_to_op(in[0].val));
+					}
+
+					std::cout << out;
+				}
+			}
 			auto executable = pl.link(bytecode);
+
+		
 
 			// optimize
 			pl.optimize_executable(executable);
