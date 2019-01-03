@@ -810,6 +810,7 @@ namespace fe::ext_ast
 		case node_type::ARRAY_VALUE:        return lower_array_value(p, n, ast, new_ast, context);          break;
 		default:
 			if (ext_ast::is_binary_op(n.kind)) return lower_binary_op(p, n, ast, new_ast, context);
+			if (ext_ast::is_type_node(n.kind)) return lowering_result();
 
 			assert(!"Node type not lowerable");
 			throw std::runtime_error("Fatal Error - Node type not lowerable");
