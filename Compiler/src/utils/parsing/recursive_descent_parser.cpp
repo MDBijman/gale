@@ -204,28 +204,17 @@ namespace recursive_descent
 
 	fe::node_id parse_sum_type(tree& t, token_stream_reader& ts)
 	{
-		auto next = ts.peek();
-		if (next.value != token_kind::IDENTIFIER)
+		auto maybe_colon = ts.peek(1);
+		if (maybe_colon.value != token_kind::COLON)
 			return parse_type_operation(t, ts);
 
-		auto id = parse_identifier(t, ts);
-
-		// Type atom
-		next = ts.peek();
-		if (next.value != token_kind::COLON)
-		{
-			auto atom = t.create_node(fe::ext_ast::node_type::TYPE_ATOM);
-			link_child_parent(id, atom, t);
-			return atom;
-		}
-
-		ts.consume(token_kind::COLON);
-
-		// Else return sum type
 		auto sum = t.create_node(fe::ext_ast::node_type::SUM_TYPE);
 
+		auto id = parse_identifier(t, ts);
 		link_child_parent(id, sum, t);
-		link_child_parent(parse_type_operation(t, ts), sum, t);
+		ts.consume(token_kind::COLON);
+		auto op = parse_type_operation(t, ts);
+		link_child_parent(op, sum, t);
 
 		while (ts.peek().value == token_kind::VERTICAL_LINE)
 		{

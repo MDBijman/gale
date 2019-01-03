@@ -93,6 +93,16 @@ namespace fe::ext_ast
 			|| kind == node_type::OR);
 	}
 
+	constexpr bool is_type_node(node_type kind)
+	{
+		return (kind == node_type::TYPE_ATOM
+			|| kind == node_type::FUNCTION_TYPE
+			|| kind == node_type::TYPE_TUPLE
+			|| kind == node_type::REFERENCE_TYPE
+			|| kind == node_type::ARRAY_TYPE
+			|| kind == node_type::SUM_TYPE);
+	}
+
 	constexpr bool is_terminal_node(node_type kind)
 	{
 		return (kind == node_type::IDENTIFIER
