@@ -415,19 +415,25 @@ namespace fe::ext_ast
 
 		auto& name = ast.get_data<identifier>(ast.get_node(children[0]).data_index);
 		assert(name.offsets.size() == 0);
-		new_ast.get_data<core_ast::function_call_data>(*new_ast.get_node(fun_id).data_index).name = name.mangle();
+		new_ast.get_node_data<core_ast::function_call_data>(fun_id).name = name.mangle();
+
+		auto output_size = ast
+			.get_type_scope(n.type_scope_id)
+			.resolve_variable(name, ast.type_scope_cb())
+			->type.calculate_size();
+
+		// If we output via a pointer we generate space the size of the output on the stack
+		if (output_size > 8)
+		{
+			auto alloc = new_ast.create_node(core_ast::node_type::STACK_ALLOC, fun_id);
+			new_ast.get_node_data<core_ast::size>(alloc).val = output_size;
+		}
 
 		auto param = lower(fun_id, ast.get_node(children[1]), ast, new_ast, context);
 
-		// #robustness? check if size < int64_t::max
-		auto size = (*ast
-			.get_type_scope(ast.get_node(children[0]).type_scope_id)
-			.resolve_variable(ast.get_data<identifier>(ast.get_node(children[0]).data_index), ast.type_scope_cb()))
-			.type.calculate_size();
+		new_ast.get_node(fun_id).size = output_size;
 
-		new_ast.get_node(fun_id).size = size;
-
-		return lowering_result(location_type::stack, size);
+		return lowering_result(location_type::stack, output_size);
 	}
 
 	lowering_result lower_array_access(node_id p, node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
@@ -503,6 +509,9 @@ namespace fe::ext_ast
 
 		auto& lhs_node = ast.get_node(children[0]);
 
+		auto& type_node = ast.get_node(children[1]);
+		lower(p, type_node, ast, new_ast, context);
+
 		auto& rhs_node = ast.get_node(children[2]);
 		auto rhs = lower(p, rhs_node, ast, new_ast, context);
 
@@ -526,14 +535,15 @@ namespace fe::ext_ast
 		else if (lhs_node.kind == node_type::IDENTIFIER)
 		{
 			auto& identifier_data = ast.get_data<ext_ast::identifier>(lhs_node.data_index);
-			auto var_id = context.alloc_variable(rhs.allocated_stack_space);
+			uint32_t variable_size = static_cast<uint32_t>(rhs.allocated_stack_space);
+			auto var_id = context.alloc_variable(variable_size);
 			identifier_data.index_in_function = var_id;
 
 			// Pop value into result variable
 			auto pop = new_ast.create_node(core_ast::node_type::POP, p);
-			new_ast.get_node_data<core_ast::size>(pop).val = rhs.allocated_stack_space;
+			new_ast.get_node_data<core_ast::size>(pop).val = variable_size;
 			auto r = new_ast.create_node(core_ast::node_type::VARIABLE, pop);
-			new_ast.get_node_data<core_ast::var_data>(r) = { context.get_offset(var_id), context.get_size(var_id) };
+			new_ast.get_node_data<core_ast::var_data>(r) = { context.get_offset(var_id), variable_size };
 
 			return lowering_result();
 		}
@@ -627,6 +637,72 @@ namespace fe::ext_ast
 	lowering_result lower_type_atom(node_id p, node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
 	{
 		assert(n.kind == node_type::TYPE_ATOM);
+		return lowering_result();
+	}
+
+	lowering_result lower_sum_type(node_id p, node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
+	{
+		assert(n.kind == node_type::SUM_TYPE);
+		auto& children = ast.children_of(n);
+
+
+		for (int i = 0; i < children.size(); i += 2)
+		{
+			auto& node = ast.get_node(children[i]);
+			identifier& id = ast.get_data<identifier>(node.data_index);
+
+			auto lookup = ast
+				.get_type_scope(n.type_scope_id)
+				.resolve_variable(id, ast.type_scope_cb());
+
+			auto in_size = dynamic_cast<types::sum_type*>(
+				dynamic_cast<types::product_type*>(
+					dynamic_cast<types::function_type*>(&lookup->type)->to.get()
+					)->product.at(1).get()
+				)->sum.at(i/2)->calculate_size();
+			auto out_size = 1 + lookup->type.calculate_size();
+
+			// Create function
+
+			auto fn = new_ast.create_node(core_ast::node_type::FUNCTION, p);
+			auto& fn_data = new_ast.get_data<core_ast::function_data>(*new_ast.get_node(fn).data_index);
+			fn_data.in_size = in_size + out_size;
+			fn_data.out_size = 0; /*output is written to space allocated by caller*/
+			fn_data.name = id.segments[0];
+			fn_data.locals_size = 0;
+
+			// This var is not cleared by the return because it contains the function output
+			auto out_var = context.alloc_param(out_size);
+			auto input_var = context.alloc_param(in_size);
+
+			auto ret = new_ast.create_node(core_ast::node_type::RET, fn);
+			new_ast.get_data<core_ast::return_data>(*new_ast.get_node(ret).data_index).size = in_size;
+			auto block = new_ast.create_node(core_ast::node_type::BLOCK, ret);
+
+			{
+				auto tag = new_ast.create_node(core_ast::node_type::NUMBER, block);
+				new_ast.get_node_data<number>(tag) = { i / 2, number_type::UI8 };
+
+				auto move = new_ast.create_node(core_ast::node_type::MOVE, block);
+				new_ast.get_node_data<core_ast::size>(move).val = in_size;
+
+				// Resolve source (param at offset 0)
+				auto from = new_ast.create_node(core_ast::node_type::PARAM, move);
+				new_ast.get_node_data<core_ast::var_data>(from) = { context.get_offset(input_var), context.get_size(input_var) };
+
+				// Resolve target (stack)
+				auto to = new_ast.create_node(core_ast::node_type::STACK_ALLOC, move);
+				new_ast.get_node_data<core_ast::size>(to).val = in_size;
+
+				auto pop = new_ast.create_node(core_ast::node_type::POP, block);
+				new_ast.get_node_data<core_ast::size>(pop).val = in_size + 1;
+
+				// out location is before params
+				auto target = new_ast.create_node(core_ast::node_type::PARAM, pop);
+				new_ast.get_node_data<core_ast::var_data>(target) = { context.get_offset(out_var), context.get_size(out_var) };
+			}
+		}
+
 		return lowering_result();
 	}
 
@@ -729,6 +805,7 @@ namespace fe::ext_ast
 		case node_type::RECORD:             return lower_record(p, n, ast, new_ast, context);               break;
 		case node_type::TYPE_DEFINITION:    return lower_type_definition(p, n, ast, new_ast, context);      break;
 		case node_type::TYPE_ATOM:          return lower_type_atom(p, n, ast, new_ast, context);            break;
+		case node_type::SUM_TYPE:           return lower_sum_type(p, n, ast, new_ast, context);             break;
 		case node_type::REFERENCE:          return lower_reference(p, n, ast, new_ast, context);            break;
 		case node_type::ARRAY_VALUE:        return lower_array_value(p, n, ast, new_ast, context);          break;
 		default:

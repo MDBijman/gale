@@ -524,6 +524,27 @@ namespace fe::ext_ast
 		resolve(ast.get_node(children[0]), ast);
 	}
 
+	void resolve_sum_type(node& n, ast& ast)
+	{
+		assert(n.kind == node_type::SUM_TYPE);
+		auto& children = ast.children_of(n);
+		assert(children.size() >= 2);
+		copy_parent_scope(n, ast);
+
+		for (auto i = 0; i < children.size(); i += 2)
+			resolve(ast.get_node(children[i + 1]), ast);
+
+		for (auto i = 0; i < children.size(); i += 2)
+		{
+			auto& scope = ast.get_name_scope(n.name_scope_id);
+
+			auto& id_data = ast.get_data<identifier>(ast.get_node(children[i]).data_index);
+			assert(id_data.segments.size() == 1);
+
+			scope.define_type(id_data.segments[0], children[i + 1]);
+		}
+	}
+
 	void resolve_binary_op(node& n, ast& ast)
 	{
 		assert(ext_ast::is_binary_op(n.kind));
@@ -561,6 +582,7 @@ namespace fe::ext_ast
 		case node_type::TYPE_TUPLE:        resolve_type_tuple(n, ast);       break;
 		case node_type::FUNCTION_TYPE:     resolve_function_type(n, ast);    break;
 		case node_type::ARRAY_TYPE:        resolve_array_type(n, ast);       break;
+		case node_type::SUM_TYPE:          resolve_sum_type(n, ast);         break;
 		case node_type::STRING:            copy_parent_scope(n, ast);        break;
 		case node_type::BOOLEAN:           copy_parent_scope(n, ast);        break;
 		case node_type::NUMBER:            copy_parent_scope(n, ast);        break;

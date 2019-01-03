@@ -478,6 +478,44 @@ namespace fe::ext_ast
 		return types::unique_type(new types::array_type(std::move(elem_type), num));
 	}
 
+	types::unique_type typeof_sum_type(node& n, ast& ast, type_constraints tc)
+	{
+		assert(n.kind == node_type::SUM_TYPE);
+		copy_parent_scope(n, ast);
+		auto& children = ast.children_of(n);
+		assert(children.size() >= 2);
+
+		std::vector<types::unique_type> types;
+		for (int i = 0; i < children.size(); i += 2)
+		{
+			auto& child = ast.get_node(children[i + 1]);
+			auto child_type = typeof(child, ast, type_constraints());
+			types.push_back(std::move(child_type));
+		}
+		types::sum_type as_sum(std::move(types));
+
+		// Sum values have an additional tag
+		std::vector<types::unique_type> product;
+		product.push_back(types::unique_type(new types::ui8()));
+		product.push_back(types::unique_type(as_sum.copy()));
+		auto with_tag_type = types::product_type(std::move(product));
+
+		for (int i = 0; i < children.size(); i += 2)
+		{
+			auto& id_child = ast.get_node(children[i]);
+			auto& scope = ast.get_type_scope(id_child.type_scope_id);
+			auto& id_data = ast.get_data<identifier>(id_child.data_index);
+			scope.define_type(id_data.segments[0], types::unique_type(with_tag_type.copy()));
+
+			auto function_type = types::unique_type(new types::function_type(
+				types::unique_type(as_sum.sum.at(i / 2)->copy()),
+				types::unique_type(with_tag_type.copy())
+			));
+			scope.set_type(id_data.segments[0], std::move(function_type));
+		}
+
+		return types::unique_type(with_tag_type.copy());
+	}
 
 	void declare_assignable(node& assignable, ast& ast, types::type& t)
 	{
@@ -904,6 +942,7 @@ namespace fe::ext_ast
 		case node_type::RECORD:          return typeof_record(n, ast, tc);
 		case node_type::FUNCTION_TYPE:   return typeof_function_type(n, ast, tc);
 		case node_type::ARRAY_TYPE:      return typeof_array_type(n, ast, tc);
+		case node_type::SUM_TYPE:        return typeof_sum_type(n, ast, tc);
 		case node_type::FUNCTION:        return typeof_function(n, ast, tc);
 		case node_type::TYPE_TUPLE:      return typeof_type_tuple(n, ast, tc);
 		case node_type::MATCH_BRANCH:    return typeof_match_branch(n, ast, tc);

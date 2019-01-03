@@ -158,7 +158,6 @@ std.io.print (a!!1);
 )", "2");
 }
 
-
 TEST_CASE("euler1", "[bytecode]")
 {
 	run_with_expectation(R"(
@@ -175,6 +174,16 @@ while (i < 1000) {
 };
 std.io.println sum;
 )", "233168\n");
+}
+
+TEST_CASE("sum type", "[bytecode]")
+{
+	run_with_expectation(R"(
+module test
+import [std std.io]
+
+let sum : std.ui64 | std.bool | (std.ui64, std.ui64) = 1;
+)", "");
 }
 
 TEST_CASE("vm modules", "[bytecode]")

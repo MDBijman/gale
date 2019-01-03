@@ -19,9 +19,9 @@ namespace lexing
 		EPSILON,
 		END_OF_INPUT,
 		ERROR,
-		NEW_LINE,
-
+		
 		IDENTIFIER,
+		TYPE_IDENTIFIER,
 		WORD,
 		NUMBER,
 		RIGHT_ARROW,

@@ -190,13 +190,13 @@ namespace fe
 		// Copy
 		function_type::function_type(const function_type& other)
 		{
-			from = types::make_unique(*other.from.get());
-			to = types::make_unique(*other.to.get());
+			from = types::make_unique(*other.from);
+			to = types::make_unique(*other.to);
 		}
 		function_type& function_type::operator=(const function_type& other)
 		{
-			this->from = types::make_unique(*other.from.get());
-			this->to = types::make_unique(*other.to.get());
+			this->from = types::make_unique(*other.from);
+			this->to = types::make_unique(*other.to);
 			return *this;
 		}
 
@@ -208,6 +208,38 @@ namespace fe
 			return r;
 		}
 
+		// Nominal Type
+
+		//nominal_type::nominal_type(unique_type inner) : inner(std::move(inner)) {}
+		//nominal_type::nominal_type(const type& inner) : inner(inner.copy()) {}
+
+		//// Move
+		//nominal_type::nominal_type(nominal_type&& other) :
+		//	inner(std::move(other.inner)) {}
+		//nominal_type& nominal_type::operator=(nominal_type&& other)
+		//{
+		//	this->inner = std::move(other.inner);
+		//	return *this;
+		//}
+
+		//// Copy
+
+		//nominal_type::nominal_type(const nominal_type& other) :
+		//	inner(other.inner->copy()) {}
+		//nominal_type& nominal_type::operator=(const nominal_type& other)
+		//{
+		//	this->inner = types::make_unique(*other.inner);
+		//	return *this;
+		//}
+
+		//nominal_type::operator std::string() const
+		//{
+		//	std::string r = "nominal_type(";
+		//	r += inner->operator std::string();
+		//	r += ")";
+		//	return r;
+		//}
+
 
 		// Operators
 
@@ -217,7 +249,7 @@ namespace fe
 
 			for (unsigned int i = 0; i < one.sum.size(); i++)
 			{
-				if (!(one.sum.at(i) == two.sum.at(i))) return false;
+				if (!(*one.sum.at(i) == two.sum.at(i).get())) return false;
 			}
 
 			return true;
@@ -249,5 +281,10 @@ namespace fe
 		{
 			return *one.referred_type == two.referred_type.get();
 		}
+
+		//bool operator==(const nominal_type& one, const nominal_type& two)
+		//{
+		//	return *one.inner == two.inner.get();
+		//}
 	}
 }
