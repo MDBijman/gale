@@ -306,7 +306,7 @@ namespace fe::ext_ast
 
 	types::unique_type typeof_type_atom(node& n, ast& ast, type_constraints tc)
 	{
-		assert(n.kind == node_type::TYPE_ATOM);
+		assert(n.kind == node_type::ATOM_TYPE);
 		auto& children = ast.children_of(n);
 		assert(children.size() == 1);
 		copy_parent_scope(n, ast);
@@ -407,7 +407,7 @@ namespace fe::ext_ast
 
 
 		auto& type_atom_child = ast.get_node(children[1]);
-		assert(type_atom_child.kind == node_type::TYPE_ATOM);
+		assert(type_atom_child.kind == node_type::ATOM_TYPE);
 		auto t = typeof(type_atom_child, ast);
 
 		if (!tc.satisfied_by(*t))
@@ -574,7 +574,7 @@ namespace fe::ext_ast
 
 	types::unique_type typeof_type_tuple(node& n, ast& ast, type_constraints tc)
 	{
-		assert(n.kind == node_type::TYPE_TUPLE);
+		assert(n.kind == node_type::TUPLE_TYPE);
 		copy_parent_scope(n, ast);
 		std::vector<types::unique_type> types;
 		auto& children = ast.children_of(n);
@@ -937,14 +937,14 @@ namespace fe::ext_ast
 		case node_type::ARRAY_ACCESS:    return typeof_array_access(n, ast, tc);
 		case node_type::BLOCK:           return typeof_block(n, ast, tc);
 		case node_type::BLOCK_RESULT:    return typeof_block_result(n, ast, tc);
-		case node_type::TYPE_ATOM:       return typeof_type_atom(n, ast, tc);
+		case node_type::ATOM_TYPE:       return typeof_type_atom(n, ast, tc);
 		case node_type::RECORD_ELEMENT:  return typeof_record_element(n, ast, tc);
 		case node_type::RECORD:          return typeof_record(n, ast, tc);
 		case node_type::FUNCTION_TYPE:   return typeof_function_type(n, ast, tc);
 		case node_type::ARRAY_TYPE:      return typeof_array_type(n, ast, tc);
 		case node_type::SUM_TYPE:        return typeof_sum_type(n, ast, tc);
 		case node_type::FUNCTION:        return typeof_function(n, ast, tc);
-		case node_type::TYPE_TUPLE:      return typeof_type_tuple(n, ast, tc);
+		case node_type::TUPLE_TYPE:      return typeof_type_tuple(n, ast, tc);
 		case node_type::MATCH_BRANCH:    return typeof_match_branch(n, ast, tc);
 		case node_type::MATCH:           return typeof_match(n, ast, tc);
 		case node_type::IF_STATEMENT:    return typeof_if_expr(n, ast, tc);

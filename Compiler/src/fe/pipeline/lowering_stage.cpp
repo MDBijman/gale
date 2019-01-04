@@ -637,7 +637,7 @@ namespace fe::ext_ast
 
 	lowering_result lower_type_atom(node_id p, node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
 	{
-		assert(n.kind == node_type::TYPE_ATOM);
+		assert(n.kind == node_type::ATOM_TYPE);
 		return lowering_result();
 	}
 
@@ -805,7 +805,7 @@ namespace fe::ext_ast
 		case node_type::DECLARATION:        return lower_declaration(p, n, ast, new_ast, context);          break;
 		case node_type::RECORD:             return lower_record(p, n, ast, new_ast, context);               break;
 		case node_type::TYPE_DEFINITION:    return lower_type_definition(p, n, ast, new_ast, context);      break;
-		case node_type::TYPE_ATOM:          return lower_type_atom(p, n, ast, new_ast, context);            break;
+		case node_type::ATOM_TYPE:          return lower_type_atom(p, n, ast, new_ast, context);            break;
 		case node_type::SUM_TYPE:           return lower_sum_type(p, n, ast, new_ast, context);             break;
 		case node_type::REFERENCE:          return lower_reference(p, n, ast, new_ast, context);            break;
 		case node_type::ARRAY_VALUE:        return lower_array_value(p, n, ast, new_ast, context);          break;
