@@ -135,7 +135,7 @@ namespace recursive_descent
 
 	fe::node_id parse_type_tuple(tree& t, token_stream_reader& ts)
 	{
-		auto type_tuple_id = t.create_node(fe::ext_ast::node_type::TYPE_TUPLE);
+		auto type_tuple_id = t.create_node(fe::ext_ast::node_type::TUPLE_TYPE);
 
 		ts.consume(token_kind::LEFT_BRACKET);
 		link_child_parent(parse_sum_type(t, ts), type_tuple_id, t);
@@ -155,7 +155,7 @@ namespace recursive_descent
 
 		if (next.value == token_kind::IDENTIFIER)
 		{
-			auto type_atom_id = t.create_node(fe::ext_ast::node_type::TYPE_ATOM);
+			auto type_atom_id = t.create_node(fe::ext_ast::node_type::ATOM_TYPE);
 			link_child_parent(parse_identifier(t, ts), type_atom_id, t);
 			return type_atom_id;
 		}

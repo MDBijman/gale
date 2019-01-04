@@ -72,7 +72,7 @@ namespace fe::ext_ast
 	// #todo make this regular resolve?
 	void declare_type_atom(node& n, ast& ast)
 	{
-		assert(n.kind == node_type::TYPE_ATOM);
+		assert(n.kind == node_type::ATOM_TYPE);
 		auto& children = ast.children_of(n);
 		assert(children.size() == 1);
 		copy_parent_scope(n, ast);
@@ -233,7 +233,7 @@ namespace fe::ext_ast
 
 			return std::nullopt;
 		}
-		else if (type_node.kind == node_type::TYPE_ATOM)
+		else if (type_node.kind == node_type::ATOM_TYPE)
 		{
 			auto& children = ast.children_of(type_node);
 			assert(id.size() > 0);
@@ -283,7 +283,7 @@ namespace fe::ext_ast
 			else
 				return children[0];
 		}
-		else if (type_node.kind == node_type::TYPE_ATOM)
+		else if (type_node.kind == node_type::ATOM_TYPE)
 		{
 			if (offsets.size() > 0)
 			{
@@ -297,7 +297,7 @@ namespace fe::ext_ast
 				return type_node.id;
 			}
 		}
-		else if (type_node.kind == node_type::TYPE_TUPLE)
+		else if (type_node.kind == node_type::TUPLE_TYPE)
 		{
 			auto first_offset = *offsets.begin();
 			auto new_offsets = std::vector<size_t>(offsets.begin() + 1, offsets.end());
@@ -485,7 +485,7 @@ namespace fe::ext_ast
 
 	void resolve_type_atom(node& n, ast& ast)
 	{
-		assert(n.kind == node_type::TYPE_ATOM);
+		assert(n.kind == node_type::ATOM_TYPE);
 		auto& children = ast.children_of(n);
 		assert(children.size() == 1);
 		copy_parent_scope(n, ast);
@@ -494,7 +494,7 @@ namespace fe::ext_ast
 
 	void resolve_type_tuple(node& n, ast& ast)
 	{
-		assert(n.kind == node_type::TYPE_TUPLE);
+		assert(n.kind == node_type::TUPLE_TYPE);
 		auto& children = ast.children_of(n);
 		copy_parent_scope(n, ast);
 		for (auto& child : children)
@@ -578,8 +578,8 @@ namespace fe::ext_ast
 		case node_type::DECLARATION:       resolve_declaration(n, ast);      break;
 		case node_type::REFERENCE:         resolve_reference(n, ast);        break;
 		case node_type::ARRAY_VALUE:       resolve_array_value(n, ast);      break;
-		case node_type::TYPE_ATOM:         resolve_type_atom(n, ast);        break;
-		case node_type::TYPE_TUPLE:        resolve_type_tuple(n, ast);       break;
+		case node_type::ATOM_TYPE:         resolve_type_atom(n, ast);        break;
+		case node_type::TUPLE_TYPE:        resolve_type_tuple(n, ast);       break;
 		case node_type::FUNCTION_TYPE:     resolve_function_type(n, ast);    break;
 		case node_type::ARRAY_TYPE:        resolve_array_type(n, ast);       break;
 		case node_type::SUM_TYPE:          resolve_sum_type(n, ast);         break;
