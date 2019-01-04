@@ -471,8 +471,9 @@ namespace fe::ext_ast
 			new_ast.get_node_data<number>(num_node) = { static_cast<int64_t>(element_size), number_type::UI64 };
 
 			auto move = new_ast.create_node(core_ast::node_type::MOVE, p);
+			new_ast.get_node_data<core_ast::size>(move).val = element_size;
 			auto from = new_ast.create_node(core_ast::node_type::DYNAMIC_VARIABLE, move);
-			new_ast.get_node_data<core_ast::var_data>(from) = { context.get_offset(var_id), static_cast<uint32_t>(element_size) };
+			new_ast.get_node_data<core_ast::var_data>(from) = { context.get_offset(var_id), context.get_size(var_id) };
 
 			auto to = new_ast.create_node(core_ast::node_type::STACK_ALLOC, move);
 			new_ast.get_data<core_ast::size>(*new_ast.get_node(to).data_index).val = context.get_size(var_id);

@@ -382,8 +382,6 @@ namespace fe::vm
 			auto val_tmp = i.alloc_register();
 			auto src_tmp = i.alloc_register();
 
-			auto offset_in_var = v_target.size - move_size.val;
-
 			auto size = static_cast<uint32_t>(move_size.val);
 			auto next_move_size = std::clamp(size, uint32_t(0), uint32_t(8));
 
@@ -403,10 +401,12 @@ namespace fe::vm
 				i.dealloc_register(offset_reg);
 			}
 
+			auto total_frame_size = i.node_pre_stack_size(i.chunk_of(n), n);
+
 			// Variables are placed on the stack after the return address
-			byte stack_offset = from.kind == core_ast::node_type::VARIABLE
-				? byte(i.node_pre_stack_size(i.chunk_of(n), n) - RETURN_ADDRESS_SIZE - v_target.offset - size + offset_in_var)
-				: byte(i.node_pre_stack_size(i.chunk_of(n), n) - v_target.offset - v_target.size + offset_in_var);
+			byte stack_offset = from.kind == core_ast::node_type::VARIABLE || from.kind == core_ast::node_type::DYNAMIC_VARIABLE
+				? byte(total_frame_size - i.current_scope.in_size - RETURN_ADDRESS_SIZE - v_target.offset - next_move_size)
+				: byte(total_frame_size - v_target.offset - next_move_size);
 
 			bc.add_instructions(
 				make_add(src_tmp, src_tmp, stack_offset),
@@ -597,14 +597,12 @@ namespace fe::vm
 			auto val_tmp = i.alloc_register();
 			auto tgt_tmp = i.alloc_register();
 
-			auto offset_in_var = v_target.size - data_size.val;
-
 			auto size = static_cast<uint32_t>(data_size.val);
 			auto next_move_size = std::clamp(size, uint32_t(0), uint32_t(8));
 
-			byte stack_offset = target.kind == core_ast::node_type::VARIABLE
-				? byte(i.node_pre_stack_size(i.chunk_of(n), n) - i.current_scope.in_size - RETURN_ADDRESS_SIZE - v_target.offset - size + offset_in_var)
-				: byte(i.node_pre_stack_size(i.chunk_of(n), n) - v_target.offset - v_target.size + offset_in_var);
+			byte stack_offset = target.kind == core_ast::node_type::VARIABLE || target.kind == core_ast::node_type::DYNAMIC_VARIABLE
+				? byte(i.node_pre_stack_size(i.chunk_of(n), n) - i.current_scope.in_size - RETURN_ADDRESS_SIZE - v_target.offset - size)
+				: byte(i.node_pre_stack_size(i.chunk_of(n), n) - v_target.offset - v_target.size);
 
 			auto r = bc.add_instructions(
 				make_mv_reg_sp(tgt_tmp),

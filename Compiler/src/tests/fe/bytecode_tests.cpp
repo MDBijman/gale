@@ -182,7 +182,7 @@ TEST_CASE("sum type", "[bytecode]")
 module test
 import [std std.io]
 
-let sum : std.ui64 | std.bool | (std.ui64, std.ui64) = 1;
+let sum : Num: std.ui64 | Bool: std.bool | Pair: (std.ui64, std.ui64) = Num 2;
 )", "");
 }
 
