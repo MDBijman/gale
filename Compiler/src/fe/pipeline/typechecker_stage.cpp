@@ -722,15 +722,9 @@ namespace fe::ext_ast
 		auto& id_node = ast.get_node(children[0]);
 		auto res = typeof(id_node, ast);
 		auto function_type = dynamic_cast<types::function_type*>(res.get());
-		auto& from_type = *function_type->from;
 
 		auto& param_node = ast.get_node(children[1]);
-		auto param_type = typeof(param_node, ast);
-
-		auto constraint = type_constraints({ equality_constraint(from_type) });
-		if (!constraint.satisfied_by(*param_type))
-			throw typecheck_error{ "Function param type " + param_type->operator std::string()
-				+ " does not satisfy constraints " + constraint.operator std::string() };
+		auto param_type = typeof(param_node, ast, type_constraints({ equality_constraint(*function_type->from) }));
 	}
 
 	void typecheck_block(node& n, ast& ast)

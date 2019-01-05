@@ -400,6 +400,9 @@ namespace fe::ext_ast
 		auto after_node = new_ast.create_node(core_ast::node_type::LABEL, p);
 		new_ast.get_node_data<core_ast::label>(after_node).id = lbl_after;
 
+		auto dealloc = new_ast.create_node(core_ast::node_type::STACK_DEALLOC, p);
+		new_ast.get_node_data<core_ast::size>(dealloc).val = expression_size;
+
 
 		return lowering_result();
 	}
@@ -685,6 +688,8 @@ namespace fe::ext_ast
 			.resolve_variable(name_data, ast.type_scope_cb()))
 			.type.calculate_size();
 
+		// #todo replace current fn context!
+
 		auto fn = new_ast.create_node(core_ast::node_type::FUNCTION, p);
 		auto& fn_data = new_ast.get_data<core_ast::function_data>(*new_ast.get_node(fn).data_index);
 		fn_data.in_size = size;
@@ -725,6 +730,7 @@ namespace fe::ext_ast
 		assert(n.kind == node_type::SUM_TYPE);
 		auto& children = ast.children_of(n);
 
+		auto fn_context = context.curr_fn_context;
 
 		for (int i = 0; i < children.size(); i += 2)
 		{
@@ -750,6 +756,7 @@ namespace fe::ext_ast
 			fn_data.out_size = 0; /*output is written to space allocated by caller*/
 			fn_data.name = id.segments[0];
 			fn_data.locals_size = 0;
+			context.curr_fn_context = function_context();
 
 			// This var is not cleared by the return because it contains the function output
 			auto out_var = context.alloc_param(out_size);
@@ -782,6 +789,8 @@ namespace fe::ext_ast
 				new_ast.get_node_data<core_ast::var_data>(target) = { context.get_offset(out_var), context.get_size(out_var) };
 			}
 		}
+
+		context.curr_fn_context = fn_context;
 
 		return lowering_result();
 	}
