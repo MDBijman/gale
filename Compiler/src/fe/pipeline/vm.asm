@@ -889,6 +889,9 @@ pop8_reg LABEL NEAR PTR WORD
 	movsx rbx, bl
 	mov QWORD PTR [r13 + rax*8], rbx
 
+	; for debugging, zero popped stack memory
+	mov BYTE PTR [rsp - 1], 0cch
+
 	add r8, 3
 	DISPATCH
 ; END pop8 reg
@@ -933,6 +936,10 @@ pop64_reg LABEL NEAR PTR WORD
 	
 	pop rbx
 	mov QWORD PTR [r13 + rax*8], rbx
+
+	; for debugging, zero popped stack memory
+	mov DWORD PTR [rsp - 8], 0cccccccch
+	mov DWORD PTR [rsp - 4], 0cccccccch
 
 	add r8, 3
 	DISPATCH
@@ -1062,6 +1069,8 @@ sdealloc_ui8 LABEL NEAR PTR
 	shr r9, 16
 	and r9, 0ffh
 	add rsp, r9
+
+	mov BYTE PTR [rsp - 1], 0cch
 
 	add r8, 3
 	DISPATCH

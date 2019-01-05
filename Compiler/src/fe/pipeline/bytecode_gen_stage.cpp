@@ -421,7 +421,7 @@ namespace fe::vm
 			while (next_move_size > 0)
 			{
 				bc.add_instructions(
-					make_sub(src_tmp, src_tmp, byte(last_move_size)),
+					make_sub(src_tmp, src_tmp, byte(next_move_size)),
 					make_mv_reg_loc(next_move_size, val_tmp, src_tmp),
 					make_push(next_move_size, val_tmp)
 				);
