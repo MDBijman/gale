@@ -78,6 +78,7 @@ namespace fe::core_ast
 			return size_store.create();
 		case node_type::VARIABLE:
 		case node_type::DYNAMIC_VARIABLE:
+		case node_type::STACK_DATA:
 		case node_type::PARAM:
 			return var_store.create();
 		case node_type::RET:

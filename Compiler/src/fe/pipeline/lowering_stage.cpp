@@ -147,12 +147,10 @@ namespace fe::ext_ast
 		new_ast.get_node(block).size = 0;
 		auto& children = ast.children_of(n);
 
-		lowering_context nested_context = context;
-
 		for (auto it = children.begin(); it != children.end(); it++)
 		{
 			auto& n = ast.get_node(*it);
-			auto res = lower(block, n, ast, new_ast, nested_context);
+			auto res = lower(block, n, ast, new_ast, context);
 
 			if (n.kind == node_type::BLOCK_RESULT)
 			{
@@ -166,9 +164,6 @@ namespace fe::ext_ast
 				new_ast.get_data<core_ast::size>(*new_ast.get_node(dealloc).data_index).val = res.allocated_stack_space;
 			}
 		}
-
-		context.next_label = nested_context.next_label;
-		context.curr_fn_context.total_var_size += nested_context.curr_fn_context.total_var_size;
 
 		return lowering_result(location_type::stack, *new_ast.get_node(block).size);
 	}
@@ -316,12 +311,96 @@ namespace fe::ext_ast
 		return lowering_result(location_type::stack, size);
 	}
 
+	void generate_pattern_test(node_id p, node& n, ast& ast, core_ast::ast& new_ast, size_t offset, types::type& curr_type)
+	{
+		switch (n.kind)
+		{
+		case node_type::FUNCTION_CALL: {
+			auto& id_node = ast.get_node(ast.get_children(n.children_id)[0]);
+			auto& id = ast.get_data<identifier>(id_node.data_index);
+
+			auto eq = new_ast.create_node(core_ast::node_type::EQ, p);
+
+			// Push dynamic tag bit onto the stack
+			auto move = new_ast.create_node(core_ast::node_type::MOVE, eq);
+			new_ast.get_node_data<core_ast::size>(move).val = 1;
+			auto sd = new_ast.create_node(core_ast::node_type::STACK_DATA, move);
+			new_ast.get_node_data<core_ast::var_data>(sd) = { static_cast<uint32_t>(offset), 1 };
+			new_ast.create_node(core_ast::node_type::STACK_ALLOC, move);
+
+			// Push static tag bit onto the stack
+			auto tag = dynamic_cast<types::sum_type*>(&curr_type)->index_of(id.full);
+			auto num = new_ast.create_node(core_ast::node_type::NUMBER, eq);
+			new_ast.get_node_data<number>(num) = { static_cast<uint32_t>(tag), number_type::UI8 };
+
+			break;
+		}
+		case node_type::IDENTIFIER: {
+			assert(!"todo");
+			break;
+		}
+		case node_type::TUPLE: {
+			assert(!"todo");
+			break;
+		}
+		case node_type::NUMBER:
+		case node_type::BOOLEAN:
+			assert(!"todo");
+			break;
+		default:
+			assert(!"Invalid pattern");
+			break;
+		}
+	}
+
 	lowering_result lower_match(node_id p, node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
 	{
 		assert(n.kind == node_type::MATCH);
 		auto& children = ast.children_of(n);
+		assert(children.size() >= 2);
 
-		assert(!"nyi match");
+		auto expression_node = ast.get_node(children[0]);
+		assert(expression_node.kind == node_type::IDENTIFIER);
+		lower(p, expression_node, ast, new_ast, context);
+
+		auto& expression_type = ast.get_type_scope(expression_node.type_scope_id).resolve_variable(
+			ast.get_data<identifier>(expression_node.data_index),
+			ast.type_scope_cb())
+			->type;
+		auto& sum_type = *dynamic_cast<types::product_type*>(&expression_type)->product[1].get();
+		auto expression_size = expression_type.calculate_size();
+
+		auto lbl_after = context.new_label();
+
+		for (auto i = 1; i < children.size(); i++)
+		{
+			auto branch = ast.get_node(children[i]);
+			assert(branch.kind == node_type::MATCH_BRANCH);
+			auto& branch_children = ast.get_children(branch.children_id);
+			assert(branch_children.size() == 2);
+
+			auto lbl_false_test = context.new_label();
+
+			auto& pattern = ast.get_node(branch_children[0]);
+			generate_pattern_test(p, pattern, ast, new_ast, expression_size, sum_type);
+
+			auto jump = new_ast.create_node(core_ast::node_type::JZ, p);
+			new_ast.get_node_data<core_ast::label>(jump).id = lbl_false_test;
+
+			auto& body = ast.get_node(branch_children[1]);
+			lower(p, body, ast, new_ast, context);
+
+			auto skip_rest = new_ast.create_node(core_ast::node_type::JMP, p);
+			new_ast.get_node_data<core_ast::label>(skip_rest).id = lbl_after;
+
+			auto lbl_node = new_ast.create_node(core_ast::node_type::LABEL, p);
+			new_ast.get_node_data<core_ast::label>(lbl_node).id = lbl_false_test;
+		}
+
+		auto after_node = new_ast.create_node(core_ast::node_type::LABEL, p);
+		new_ast.get_node_data<core_ast::label>(after_node).id = lbl_after;
+
+
 		return lowering_result();
 	}
 
@@ -660,8 +739,8 @@ namespace fe::ext_ast
 				dynamic_cast<types::product_type*>(
 					dynamic_cast<types::function_type*>(&lookup->type)->to.get()
 					)->product.at(1).get()
-				)->sum.at(i/2)->calculate_size();
-			auto out_size = 1 + lookup->type.calculate_size();
+				)->sum.at(i / 2)->calculate_size();
+			auto out_size = lookup->type.calculate_size();
 
 			// Create function
 

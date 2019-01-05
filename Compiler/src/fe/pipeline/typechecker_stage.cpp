@@ -488,9 +488,11 @@ namespace fe::ext_ast
 		std::vector<types::unique_type> types;
 		for (int i = 0; i < children.size(); i += 2)
 		{
+			auto& id = ast.get_node(children[i]);
+			auto& id_data = ast.get_data<identifier>(id.data_index);
 			auto& child = ast.get_node(children[i + 1]);
 			auto child_type = typeof(child, ast, type_constraints());
-			types.push_back(std::move(child_type));
+			types.push_back(types::unique_type(new types::nominal_type(id_data.full, std::move(child_type))));
 		}
 		types::sum_type as_sum(std::move(types));
 
@@ -508,7 +510,7 @@ namespace fe::ext_ast
 			scope.define_type(id_data.segments[0], types::unique_type(with_tag_type.copy()));
 
 			auto function_type = types::unique_type(new types::function_type(
-				types::unique_type(as_sum.sum.at(i / 2)->copy()),
+				types::unique_type(dynamic_cast<types::nominal_type*>(as_sum.sum.at(i / 2).get())->inner->copy()),
 				types::unique_type(with_tag_type.copy())
 			));
 			scope.set_type(id_data.segments[0], std::move(function_type));
@@ -585,16 +587,63 @@ namespace fe::ext_ast
 		return types::unique_type(new types::product_type(std::move(types)));
 	}
 
-	types::unique_type typeof_match_branch(node& n, ast& ast, type_constraints tc)
+	void typecheck_pattern(node& n, ast& ast, types::type& curr)
+	{
+		copy_parent_scope(n, ast);
+		auto& scope = ast.get_type_scope(n.name_scope_id);
+
+		switch (n.kind)
+		{
+		case node_type::FUNCTION_CALL: {
+			auto& id = ast.get_node(ast.get_children(n.children_id)[0]);
+			auto& name = ast.get_data<identifier>(id.data_index);
+			auto& t = scope.resolve_type(name, ast.type_scope_cb())->type;
+			auto& sum_type = *dynamic_cast<types::sum_type*>(dynamic_cast<types::product_type*>(&t)->product[1].get());
+			assert(sum_type == curr);
+
+			types::type* inner = nullptr;
+			for (auto i = 0; i < sum_type.sum.size(); i++)
+			{
+				auto nominal_type = dynamic_cast<types::nominal_type*>(sum_type.sum[i].get());
+				if (name.full == nominal_type->name)
+					inner = nominal_type->inner.get();
+			}
+			assert(inner != nullptr);
+
+			auto& param = ast.get_node(ast.get_children(n.children_id)[1]);
+			typecheck_pattern(param, ast, *inner);
+			break;
+		}
+		case node_type::IDENTIFIER: {
+			auto& name = ast.get_data<identifier>(n.data_index).segments[0];
+			scope.set_type(name, types::unique_type(curr.copy()));
+			break;
+		}
+		case node_type::TUPLE: {
+			auto as_product = dynamic_cast<types::product_type*>(&curr);
+			auto& children = ast.get_children(n.children_id);
+			for(auto i = 0; i < children.size(); i++)
+				typecheck_pattern(ast.get_node(children[i]), ast, *as_product->product[i]);
+			break;
+		}
+		case node_type::NUMBER:
+		case node_type::BOOLEAN:
+			break;
+		default:
+			assert(!"Invalid pattern");
+			break;
+		}
+	}
+
+	types::unique_type typeof_match_branch(node& n, ast& ast, types::type& subj, type_constraints tc)
 	{
 		assert(n.kind == node_type::MATCH_BRANCH);
 		auto& children = ast.children_of(n);
 		assert(children.size() == 2);
-		copy_parent_scope(n, ast);
+		n.type_scope_id = ast.create_type_scope(ast.get_node(n.parent_id).type_scope_id);
 
 		auto& test_node = ast.get_node(children[0]);
-		auto required_test_type = types::boolean();
-		auto test_type = typeof(test_node, ast, type_constraints({ equality_constraint(required_test_type) }));
+		typecheck_pattern(test_node, ast, subj);
 
 		auto& code_node = ast.get_node(children[1]);
 		auto code_type = typeof(code_node, ast);
@@ -612,8 +661,12 @@ namespace fe::ext_ast
 
 		if (children.size() <= 1) throw typecheck_error{ "Match must contain at least one branch" };
 
+		auto& subject = ast.get_node(children[0]);
+		types::unique_type subject_type = typeof(subject, ast);
+		types::type& structure = *dynamic_cast<types::product_type*>(subject_type.get())->product[1];
+
 		auto& first_branch = ast.get_node(children[1]);
-		types::unique_type first_type = typeof(first_branch, ast);
+		types::unique_type first_type = typeof_match_branch(first_branch, ast, structure, type_constraints());
 
 		if (!tc.satisfied_by(*first_type))
 			throw typecheck_error{ "Match expression type " + first_type->operator std::string()
@@ -622,7 +675,7 @@ namespace fe::ext_ast
 		for (auto i = 2; i < children.size(); i++)
 		{
 			auto& branch_node = ast.get_node(children[i]);
-			auto branch_type = typeof(branch_node, ast, type_constraints({ equality_constraint(*first_type) }));
+			auto branch_type = typeof_match_branch(branch_node, ast, structure, type_constraints({ equality_constraint(*first_type) }));
 		}
 		return first_type;
 	}
@@ -945,7 +998,6 @@ namespace fe::ext_ast
 		case node_type::SUM_TYPE:        return typeof_sum_type(n, ast, tc);
 		case node_type::FUNCTION:        return typeof_function(n, ast, tc);
 		case node_type::TUPLE_TYPE:      return typeof_type_tuple(n, ast, tc);
-		case node_type::MATCH_BRANCH:    return typeof_match_branch(n, ast, tc);
 		case node_type::MATCH:           return typeof_match(n, ast, tc);
 		case node_type::IF_STATEMENT:    return typeof_if_expr(n, ast, tc);
 		default:
