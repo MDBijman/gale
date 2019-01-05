@@ -21,7 +21,6 @@ namespace lexing
 		ERROR,
 		
 		IDENTIFIER,
-		TYPE_IDENTIFIER,
 		WORD,
 		NUMBER,
 		RIGHT_ARROW,

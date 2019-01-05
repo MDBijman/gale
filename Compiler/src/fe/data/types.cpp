@@ -118,6 +118,15 @@ namespace fe
 			return r;
 		}
 
+		size_t sum_type::index_of(std::string name)
+		{
+			for (int i = 0; i < sum.size(); i++)
+			{
+				if (dynamic_cast<nominal_type*>(sum[i].get())->name == name) return i;
+			}
+			assert(!"Type name is not in this sum type");
+		}
+
 		// Product
 
 		product_type::product_type() {}
@@ -210,35 +219,37 @@ namespace fe
 
 		// Nominal Type
 
-		//nominal_type::nominal_type(unique_type inner) : inner(std::move(inner)) {}
-		//nominal_type::nominal_type(const type& inner) : inner(inner.copy()) {}
+		nominal_type::nominal_type(std::string name, unique_type inner) : name(name), inner(std::move(inner)) {}
+		nominal_type::nominal_type(std::string name, const type& inner) : name(name), inner(inner.copy()) {}
 
-		//// Move
-		//nominal_type::nominal_type(nominal_type&& other) :
-		//	inner(std::move(other.inner)) {}
-		//nominal_type& nominal_type::operator=(nominal_type&& other)
-		//{
-		//	this->inner = std::move(other.inner);
-		//	return *this;
-		//}
+		// Move
+		nominal_type::nominal_type(nominal_type&& other) :
+			name(std::move(other.name)), inner(std::move(other.inner)) {}
+		nominal_type& nominal_type::operator=(nominal_type&& other)
+		{
+			this->name = std::move(other.name);
+			this->inner = std::move(other.inner);
+			return *this;
+		}
 
-		//// Copy
+		// Copy
 
-		//nominal_type::nominal_type(const nominal_type& other) :
-		//	inner(other.inner->copy()) {}
-		//nominal_type& nominal_type::operator=(const nominal_type& other)
-		//{
-		//	this->inner = types::make_unique(*other.inner);
-		//	return *this;
-		//}
+		nominal_type::nominal_type(const nominal_type& other) :
+			name(other.name), inner(other.inner->copy()) {}
+		nominal_type& nominal_type::operator=(const nominal_type& other)
+		{
+			this->name = other.name;
+			this->inner = types::make_unique(*other.inner);
+			return *this;
+		}
 
-		//nominal_type::operator std::string() const
-		//{
-		//	std::string r = "nominal_type(";
-		//	r += inner->operator std::string();
-		//	r += ")";
-		//	return r;
-		//}
+		nominal_type::operator std::string() const
+		{
+			std::string r = this->name + "(";
+			r += inner->operator std::string();
+			r += ")";
+			return r;
+		}
 
 
 		// Operators
@@ -282,9 +293,9 @@ namespace fe
 			return *one.referred_type == two.referred_type.get();
 		}
 
-		//bool operator==(const nominal_type& one, const nominal_type& two)
-		//{
-		//	return *one.inner == two.inner.get();
-		//}
+		bool operator==(const nominal_type& one, const nominal_type& two)
+		{
+			return (*one.inner == two.inner.get()) && (one.name == two.name);
+		}
 	}
 }

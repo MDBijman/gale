@@ -87,7 +87,7 @@ namespace fe
 				pl.optimize_program(bytecode);
 			}
 	
-			/*{
+			{
 				auto& e = bytecode;
 				auto& funs = e.get_code();
 				for (int i = 0; i < funs.size(); i++)
@@ -118,7 +118,7 @@ namespace fe
 
 					std::cout << out;
 				}
-			}*/
+			}
 			auto executable = pl.link(bytecode);
 
 		

@@ -383,9 +383,9 @@ eq_reg_reg_reg LABEL NEAR PTR WORD
 
 	mov r9, [r13 + r9*8]
 	mov rax, [r13 + rax*8]
-	; default move 0 into rbx
+	; default move 0 into rdx
 	mov rdx, 0
-	; conditional move 1 into rbx
+	; conditional move 1 into rdx
 	mov rcx, 1
 	cmp rax, r9
 	cmove rdx, rcx

@@ -183,7 +183,13 @@ module test
 import [std std.io]
 
 let sum : Num: std.ui64 | Bool: std.bool | Pair: (std.ui64, std.ui64) = Num 2;
-)", "");
+sum match {
+	| Num x -> { std.io.println x; }
+	| Bool x -> { std.io.println x; }
+	| Pair x -> { std.io.println 1; }
+};
+
+)", "2");
 }
 
 TEST_CASE("vm modules", "[bytecode]")

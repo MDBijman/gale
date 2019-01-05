@@ -375,7 +375,7 @@ namespace fe::vm
 		near_lbl loc(-1);
 
 		if ((from.kind == core_ast::node_type::VARIABLE || from.kind == core_ast::node_type::DYNAMIC_VARIABLE
-			|| from.kind == core_ast::node_type::PARAM)
+			|| from.kind == core_ast::node_type::PARAM || from.kind == core_ast::node_type::STACK_DATA)
 			&& to.kind == core_ast::node_type::STACK_ALLOC)
 		{
 			auto v_target = ast.get_node_data<core_ast::var_data>(from);
@@ -602,7 +602,7 @@ namespace fe::vm
 
 			byte stack_offset = target.kind == core_ast::node_type::VARIABLE || target.kind == core_ast::node_type::DYNAMIC_VARIABLE
 				? byte(i.node_pre_stack_size(i.chunk_of(n), n) - i.current_scope.in_size - RETURN_ADDRESS_SIZE - v_target.offset - size)
-				: byte(i.node_pre_stack_size(i.chunk_of(n), n) - v_target.offset - v_target.size);
+				: byte(i.node_pre_stack_size(i.chunk_of(n), n) - v_target.offset - size);
 
 			auto r = bc.add_instructions(
 				make_mv_reg_sp(tgt_tmp),

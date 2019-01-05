@@ -153,14 +153,49 @@ namespace fe::ext_ast
 			resolve(ast.get_node(child), ast);
 	}
 
+	void resolve_pattern(node& n, ast& ast)
+	{
+		copy_parent_scope(n, ast);
+		auto& scope = ast.get_name_scope(n.name_scope_id);
+
+		switch (n.kind)
+		{
+		case node_type::FUNCTION_CALL: {
+			auto& id = ast.get_node(ast.get_children(n.children_id)[0]);
+			auto& name = ast.get_data<identifier>(id.data_index);
+			name.scope_distance = scope.resolve_type(name.segments[0], ast.name_scope_cb())->scope_distance;
+
+			auto& param = ast.get_node(ast.get_children(n.children_id)[1]);
+			resolve_pattern(param, ast);
+			break;
+		}
+		case node_type::IDENTIFIER: {
+			auto& name = ast.get_data<identifier>(n.data_index).segments[0];
+			scope.declare_variable(name, n.id);
+			scope.define_variable(name);
+			break;
+		}
+		case node_type::TUPLE:
+			for (auto& child : ast.get_children(n.children_id))
+				resolve_pattern(ast.get_node(child), ast);
+			break;
+		case node_type::NUMBER:
+		case node_type::BOOLEAN:
+			break;
+		default:
+			assert(!"Invalid pattern");
+			break;
+		}
+	}
+
 	void resolve_match_branch(node& n, ast& ast)
 	{
 		assert(n.kind == node_type::MATCH_BRANCH);
 		auto& children = ast.children_of(n);
 		assert(children.size() == 2);
-		copy_parent_scope(n, ast);
+		n.name_scope_id = ast.create_name_scope(ast.get_node(n.parent_id).name_scope_id);
 
-		resolve(ast.get_node(children[0]), ast);
+		resolve_pattern(ast.get_node(children[0]), ast);
 		resolve(ast.get_node(children[1]), ast);
 	}
 
@@ -185,7 +220,7 @@ namespace fe::ext_ast
 		if (type_node.kind == node_type::IDENTIFIER)
 		{
 			auto& id_data = ast.get_data<identifier>(type_node.data_index);
-			auto& res = scope.resolve_type({ id_data.segments.begin(), id_data.segments.end() - 1 }, 
+			auto& res = scope.resolve_type({ id_data.segments.begin(), id_data.segments.end() - 1 },
 				*id_data.segments.rbegin(), ast.name_scope_cb());
 			assert(res);
 			auto& referenced_type_node = ast.get_node(res->declaration_node);
@@ -363,7 +398,7 @@ namespace fe::ext_ast
 		resolve(ast.get_node(children[0]), ast);
 		resolve(ast.get_node(children[1]), ast);
 	}
-	
+
 	void resolve_array_access(node& n, ast& ast)
 	{
 		assert(n.kind == node_type::ARRAY_ACCESS);
