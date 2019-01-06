@@ -237,7 +237,6 @@ namespace fe::ext_ast
 
 		// Parent scope
 		std::optional<scope_index> parent;
-
 		types::type& resolve_offsets(const std::vector<size_t>& offsets, types::type* t, size_t cur = 0);
 
 	public:
