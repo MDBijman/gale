@@ -67,81 +67,36 @@ namespace fe::ext_ast
 
 	struct identifier
 	{
-		name full;
-		module_name segments;
+		std::string name;
+		std::vector<std::string> module_path;
+		std::string full;
+
 		std::optional<std::size_t> scope_distance;
-		std::vector<size_t> offsets;
 
 		node_id type_node = no_node;
 		bool is_parameter = false;
 
 		// The index in function of an identifier is equal to the index of the register that is used to store the address
 		// The address of the nth declared variable in a function is stored in the nth register
-		uint32_t index_in_function = static_cast<uint32_t>(-1);
+		uint32_t index_in_function = std::numeric_limits<uint32_t>::max();
 		int32_t offset_from_fp = std::numeric_limits<int32_t>::max();
-
-		identifier without_first_segment() const
-		{
-			auto begin = offsets.size() == 0 ? offsets.begin() : offsets.begin() + 1;
-			return identifier{
-				full,
-				std::vector<std::string>(segments.begin() + 1, segments.end()),
-				scope_distance,
-				std::vector<size_t>(begin, offsets.end()),
-			};
-		}
-
-		identifier without_last_segment() const
-		{
-			auto end = offsets.size() == 0 ? offsets.end() : offsets.end() - 1;
-			return identifier{
-				full,
-				std::vector<std::string>(segments.begin(), segments.end() - 1),
-				scope_distance,
-				std::vector<size_t>(offsets.begin(), end)
-			};
-		}
-
-		identifier root_identifier() const
-		{
-			return identifier{
-				segments[0],
-				{ segments[0] },
-				scope_distance,
-				{}
-			};
-		}
-
-		std::vector<std::string> copy_name() const
-		{
-			std::vector<std::string> out;
-			for (auto seg : segments) out.push_back(std::string(seg));
-			return out;
-		}
 
 		operator std::string() const
 		{
 			return std::string(full);
 		}
 
-		std::string mangle() const
+		std::vector<std::string> full_path() const
 		{
-			std::string res;
-			int64_t segments = this->segments.size(), offsets = this->offsets.size();
-
-			for (int i = 0; i < segments - offsets - 2; i++)
-				res += this->segments[i] + ".";
-
-			if(this->segments.size() > this->offsets.size() + 1)
-				res += this->segments[segments - offsets - 2] + "@";
-			res += this->segments[segments - offsets - 1];
-			return res;
+			auto path = module_path;
+			path.push_back(name);
+			return path;
 		}
 	};
 
 	inline bool operator==(const identifier& a, const identifier& b)
 	{
-		return (a.segments == b.segments) && (a.scope_distance == b.scope_distance);
+		return (a.full == b.full) && (a.scope_distance == b.scope_distance);
 	}
 }
 
@@ -163,12 +118,9 @@ namespace std
 		size_t operator()(const fe::ext_ast::identifier& o) const
 		{
 			size_t h = 0;
-			for (const auto& s : o.segments)
-				h ^= hash<string>()(s);
+			h ^= hash<string>()(o.full);
 			if (o.scope_distance)
 				h ^= hash<size_t>()(o.scope_distance.value());
-			for (const auto& s : o.offsets)
-				h ^= hash<size_t>()(s);
 			return h;
 		}
 	};

@@ -82,7 +82,9 @@ namespace recursive_descent
 		assert(next.value == lexing::token_kind::IDENTIFIER);
 		auto id = t.create_node(fe::ext_ast::node_type::IDENTIFIER);
 
-		t.get_data<fe::ext_ast::identifier>(t.get_node(id).data_index).segments = split_on(std::string(next.text), '.');
+		auto module_name = split_on(std::string(next.text), '.');
+		t.get_data<fe::ext_ast::identifier>(t.get_node(id).data_index).name = module_name.back();
+		t.get_data<fe::ext_ast::identifier>(t.get_node(id).data_index).module_path = std::vector<std::string>(module_name.begin(), module_name.end() - 1);
 		t.get_data<fe::ext_ast::identifier>(t.get_node(id).data_index).full = next.text;
 		return id;
 	}
@@ -230,33 +232,6 @@ namespace recursive_descent
 		return sum;
 	}
 
-	fe::node_id parse_record_element(tree& t, token_stream_reader& ts)
-	{
-		auto record_element_id = t.create_node(fe::ext_ast::node_type::RECORD_ELEMENT);
-
-		link_child_parent(parse_identifier(t, ts), record_element_id, t);
-		ts.consume(token_kind::COLON);
-		link_child_parent(parse_sum_type(t, ts), record_element_id, t);
-
-		return record_element_id;
-	}
-
-	fe::node_id parse_record(tree& t, token_stream_reader& ts)
-	{
-		auto record_id = t.create_node(fe::ext_ast::node_type::RECORD);
-
-		ts.consume(token_kind::LEFT_BRACKET);
-		link_child_parent(parse_record_element(t, ts), record_id, t);
-		while (ts.peek().value == token_kind::COMMA)
-		{
-			ts.consume(token_kind::COMMA);
-			link_child_parent(parse_record_element(t, ts), record_id, t);
-		}
-		ts.consume(token_kind::RIGHT_BRACKET);
-
-		return record_id;
-	}
-
 	fe::node_id parse_type_definition(tree& t, token_stream_reader& ts)
 	{
 		auto type_definition_id = t.create_node(fe::ext_ast::node_type::TYPE_DEFINITION);
@@ -264,7 +239,7 @@ namespace recursive_descent
 		ts.consume(token_kind::TYPE_KEYWORD);
 		link_child_parent(parse_identifier(t, ts), type_definition_id, t);
 		ts.consume(token_kind::EQUALS);
-		link_child_parent(parse_record(t, ts), type_definition_id, t);
+		link_child_parent(parse_sum_type(t, ts), type_definition_id, t);
 
 		return type_definition_id;
 	}
