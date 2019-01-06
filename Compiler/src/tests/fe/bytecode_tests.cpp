@@ -136,7 +136,7 @@ std.io.print d;
 )", "7");
 }
 
-TEST_CASE("array elem", "[bytecode]")
+TEST_CASE("first array elem", "[bytecode]")
 {
 	run_with_expectation(R"(
 module test
@@ -147,7 +147,7 @@ std.io.print (a!!0);
 )", "1");
 }
 
-TEST_CASE("array elem2", "[bytecode]")
+TEST_CASE("second array elem", "[bytecode]")
 {
 	run_with_expectation(R"(
 module test
@@ -158,7 +158,7 @@ std.io.print (a!!1);
 )", "2");
 }
 
-TEST_CASE("euler1", "[bytecode]")
+TEST_CASE("euler problem 1", "[bytecode]")
 {
 	run_with_expectation(R"(
 module test
@@ -176,20 +176,111 @@ std.io.println sum;
 )", "233168\n");
 }
 
-TEST_CASE("sum type", "[bytecode]")
+TEST_CASE("sum type int", "[bytecode]")
 {
 	run_with_expectation(R"(
 module test
 import [std std.io]
 
-let sum : Num: std.ui64 | Bool: std.bool | Pair: (std.ui64, std.ui64) = Num 2;
+let sum : Num: std.ui64 | Bool: std.bool = Num 2;
+
 sum match {
-	| Num x -> { std.io.println x; }
-	| Bool x -> { std.io.println x; }
-	| Pair x -> { std.io.println 1; }
+	| Bool x -> { std.io.print 1; }
+	| Num x -> { std.io.print 2; }
 };
 
 )", "2");
+}
+
+TEST_CASE("sum type bool", "[bytecode]")
+{
+	run_with_expectation(R"(
+module test
+import [std std.io]
+
+let sum : Num: std.ui64 | Bool: std.bool = Bool true;
+
+sum match {
+	| Bool x -> { std.io.print 1; }
+	| Num x -> { std.io.print 2; }
+};
+
+)", "1");
+}
+
+TEST_CASE("vars in function", "[bytecode]")
+{
+	run_with_expectation(R"(
+module test
+import [std std.io]
+
+let add_one: std.ui64 -> std.ui64 = \n => {
+	let x: std.ui64 = 1;
+	x + n
+};
+
+std.io.print (add_one 5);
+)", "6");
+}
+
+TEST_CASE("assign param", "[bytecode]")
+{
+	run_with_expectation(R"(
+module test
+import [std std.io]
+
+let add_one: std.ui64 -> std.ui64 = \n => {
+	n = n + 1;
+	n
+};
+
+std.io.print (add_one 5);
+)", "6");
+}
+
+TEST_CASE("first elem of array parameter", "[bytecode]")
+{
+	run_with_expectation(R"(
+module test
+import [std std.io]
+
+let y: [std.ui64; 3] = [1,2,3];
+
+let first: [std.ui64; 3] -> std.ui64 = \arr => (arr!!0);
+
+std.io.print (first y);
+
+)", "1");
+}
+
+TEST_CASE("second elem of array parameter", "[bytecode]")
+{
+	run_with_expectation(R"(
+module test
+import [std std.io]
+
+let y: [std.ui64; 3] = [1,2,3];
+
+let second: [std.ui64; 3] -> std.ui64 = \arr => (arr!!1);
+
+std.io.print (second y);
+
+)", "2");
+}
+
+TEST_CASE("third elem of array parameter", "[bytecode]")
+{
+	run_with_expectation(R"(
+module test
+import [std std.io]
+
+let y: [std.ui64; 3] = [1,2,3];
+
+let third: [std.ui64; 3] -> std.ui64 = \arr => (arr!!2);
+
+std.io.print (third y);
+
+)", "3");
 }
 
 TEST_CASE("vm modules", "[bytecode]")

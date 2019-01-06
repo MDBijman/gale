@@ -81,8 +81,12 @@ namespace fe::core_ast
 		}
 		case node_type::MOVE: {
 			res.pre_node_stack_sizes[n] = predecessor_size(n, ast, res);
-			auto first_child = ast.get_node(n).children[0];
-			res.node_stack_sizes[n] = predecessor_size(n, ast, res) + ast.get_node_data<var_data>(first_child).size;
+			auto first_child = ast.get_node(ast.get_node(n).children[0]);
+			// Dynamic access pops an 8 byte value off the stack for indexing
+			if(first_child.kind == node_type::DYNAMIC_PARAM || first_child.kind == node_type::DYNAMIC_VARIABLE)
+				res.node_stack_sizes[n] = predecessor_size(n, ast, res) - 8 + ast.get_node_data<size>(n).val;
+			else
+				res.node_stack_sizes[n] = predecessor_size(n, ast, res) + ast.get_node_data<size>(n).val;
 			break;
 		}
 		case node_type::STACK_ALLOC: {

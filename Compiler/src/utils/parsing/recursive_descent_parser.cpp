@@ -163,6 +163,10 @@ namespace recursive_descent
 		{
 			return parse_type_tuple(t, ts);
 		}
+		else if (next.value == token_kind::LEFT_SQUARE_BRACKET)
+		{
+			return parse_array_type(t, ts);
+		}
 		else
 		{
 			throw error{ "Expected identifier or left_bracket" };
@@ -175,10 +179,6 @@ namespace recursive_descent
 		if (next.value == token_kind::REF_KEYWORD)
 		{
 			return parse_reference_type(t, ts);
-		}
-		else if (next.value == token_kind::LEFT_SQUARE_BRACKET)
-		{
-			return parse_array_type(t, ts);
 		}
 		else
 		{

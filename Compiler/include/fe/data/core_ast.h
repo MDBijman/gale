@@ -26,6 +26,7 @@ namespace fe::core_ast
 		STACK_DEALLOC,
 
 		PARAM,
+		DYNAMIC_PARAM,
 		VARIABLE,
 		DYNAMIC_VARIABLE,
 		STACK_DATA,
