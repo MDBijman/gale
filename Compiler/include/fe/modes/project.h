@@ -37,19 +37,19 @@ namespace fe
 			{
 				for (const ext_ast::identifier& imp : *imports)
 				{
-					auto pos = modules.find(imp.copy_name());
+					auto pos = modules.find(imp.full_path());
 					if (pos == modules.end())
 						throw other_error{ "Cannot find module: " + imp.operator std::string() };
 
 					auto module_name_scope = e_ast.create_name_scope();
 					e_ast.get_name_scope(module_name_scope).merge(pos->second.names);
 					e_ast.get_name_scope(root_node.name_scope_id)
-						.add_module(imp.segments, module_name_scope);
+						.add_module(imp.full_path(), module_name_scope);
 
 					auto module_type_scope = e_ast.create_type_scope();
 					e_ast.get_type_scope(module_type_scope).merge(pos->second.types);
 					e_ast.get_type_scope(root_node.type_scope_id)
-						.add_module(imp.segments, module_type_scope);
+						.add_module(imp.full_path(), module_type_scope);
 				}
 			}
 
@@ -67,13 +67,13 @@ namespace fe
 			{
 				for (const ext_ast::identifier& imp : *imports)
 				{
-					auto pos = modules.find(imp.copy_name());
+					auto pos = modules.find(imp.full_path());
 					if (pos == modules.end())
 						throw other_error{ "Cannot find module: " + imp.operator std::string() };
 
 					for (auto c : pos->second.code)
 					{
-						auto full_name = imp.full + "@" + c.get_name();
+						auto full_name = imp.full + "." + c.get_name();
 						bytecode.add_function(c.is_bytecode() ?
 							vm::function(full_name, c.get_bytecode()) :
 							vm::function(full_name, c.get_native_function_ptr()));

@@ -16,25 +16,6 @@ namespace fe::ext_ast
 		}
 	}
 
-	types::type& type_scope::resolve_offsets(const std::vector<size_t>& offsets, types::type* t, size_t cur)
-	{
-		if (cur < offsets.size())
-		{
-			if (types::product_type* as_product = dynamic_cast<types::product_type*>(t))
-			{
-				return resolve_offsets(offsets, as_product->product.at(offsets.at(cur)).get(), cur + 1);
-			}
-			else
-			{
-				throw typecheck_error{ "Cannot access field in non-product type" };
-			}
-		}
-		else
-		{
-			return *t;
-		}
-	}
-
 	void type_scope::clear()
 	{
 		this->variables.clear();
@@ -59,32 +40,40 @@ namespace fe::ext_ast
 
 	std::optional<type_scope::var_lookup> type_scope::resolve_variable(const identifier& id, get_scope_cb cb)
 	{
-		if (auto pos = variables.find(id.segments[0]); pos != variables.end())
+		// Search in parent scope if non-zero scope distance
+		if (*id.scope_distance > 0)
 		{
-			return var_lookup{ std::distance(variables.begin(), pos), resolve_offsets(id.offsets, pos->second.get()) };
-		}
+			if (!parent)
+				throw typecheck_error{ "Scope distance > 0 but no parent scope" };
 
-		for (auto i = 0; i < id.segments.size() - 1; i++)
-		{
-			auto module_name = std::vector<std::string>(id.segments.begin(), id.segments.begin() + i + 1);
+			identifier new_id = id;
+			(*new_id.scope_distance)--;
 
-			auto pos = modules.find(module_name);
-			if (pos == modules.end()) continue;
-
-			identifier new_id;
-			new_id.segments = std::vector<std::string>(id.segments.begin() + i + 1, id.segments.end());
-
-			if (auto module_lookup = cb(pos->second)->resolve_variable(new_id, cb); module_lookup)
-				return module_lookup;
-		}
-
-		if (parent)
-		{
-			if (auto parent_lookup = cb(*parent)->resolve_variable(id, cb); parent_lookup)
+			if (auto parent_lookup = cb(*parent)->resolve_variable(new_id, cb); parent_lookup)
 			{
 				parent_lookup->scope_distance++;
 				return parent_lookup;
 			}
+		}
+
+		if (id.module_path.size() > 0)
+		{
+			auto pos = modules.find(id.module_path);
+			if (pos == modules.end())
+				return std::nullopt;
+
+			identifier new_id = id;
+			new_id.module_path = {};
+
+			if (auto module_lookup = cb(pos->second)->resolve_variable(new_id, cb); module_lookup)
+			{
+				return module_lookup;
+			}
+		}
+
+		if (auto pos = variables.find(id.name); pos != variables.end())
+		{
+			return var_lookup{ std::distance(variables.begin(), pos), *pos->second.get() };
 		}
 
 		return std::nullopt;
@@ -106,37 +95,34 @@ namespace fe::ext_ast
 			if (!parent)
 				throw typecheck_error{ "Scope distance > 0 but no parent scope" };
 
-			auto id_copy = id;
-			(*id_copy.scope_distance)--;
-			auto parent_lookup = cb(*parent)->resolve_type(id_copy, cb);
+			identifier new_id = id;
+			(*new_id.scope_distance)--;
 
-			if (!parent_lookup) 
+			if (auto parent_lookup = cb(*parent)->resolve_type(new_id, cb); parent_lookup)
+			{
+				parent_lookup->scope_distance++;
+				return parent_lookup;
+			}
+		}
+
+		if (id.module_path.size() > 0)
+		{
+			auto pos = modules.find(id.module_path);
+			if (pos == modules.end())
 				return std::nullopt;
 
-			parent_lookup->scope_distance++;
-			return parent_lookup;
-		}
+			identifier new_id = id;
+			new_id.module_path = {};
 
-		// Search in this scope
-		if (auto pos = types.find(id.segments[0]); pos != types.end())
-		{
-			return type_lookup{ std::distance(types.begin(), pos), *pos->second };
-		}
-
-		// Search in modules
-		for (auto i = 1; i < id.segments.size(); i++)
-		{
-			auto module_name = std::vector<std::string>(id.segments.begin(), id.segments.begin() + i);
-
-			if (auto pos = modules.find(module_name); pos != modules.end())
+			if (auto module_lookup = cb(pos->second)->resolve_type(new_id, cb); module_lookup)
 			{
-				identifier new_id;
-				new_id.scope_distance = 0;
-				new_id.segments = std::vector<std::string>(id.segments.begin() + i, id.segments.end());
-
-				if (auto module_lookup = cb(pos->second)->resolve_type(new_id, cb); module_lookup)
-					return module_lookup;
+				return module_lookup;
 			}
+		}
+
+		if (auto pos = types.find(id.name); pos != types.end())
+		{
+			return type_lookup{ std::distance(types.begin(), pos), *pos->second.get() };
 		}
 
 		return std::nullopt;
