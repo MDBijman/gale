@@ -215,6 +215,8 @@ namespace fe::vm
 		// Register function
 		auto& func_data = ast.get_data<core_ast::function_data>(*node.data_index);
 		p.get_function(id).get_name() = func_data.name;
+		auto function_scope = i.current_scope;
+		i.current_scope = func_data;
 
 		// We haven't used any registers yet so clear them so they don't get saved
 		i.clear_registers();
@@ -232,6 +234,8 @@ namespace fe::vm
 
 		// Set locals dealloc
 		p.get_function(id).get_bytecode().set_instruction(epilogue_padding_loc.ip, make_sdealloc_ui8(func_data.locals_size));
+
+		i.current_scope = function_scope;
 	}
 
 	void generate_tuple(node_id n, core_ast::ast& ast, program& p, code_gen_state& info)
@@ -375,7 +379,8 @@ namespace fe::vm
 		near_lbl loc(-1);
 
 		if ((from.kind == core_ast::node_type::VARIABLE || from.kind == core_ast::node_type::DYNAMIC_VARIABLE
-			|| from.kind == core_ast::node_type::PARAM || from.kind == core_ast::node_type::STACK_DATA)
+			|| from.kind == core_ast::node_type::PARAM || from.kind == core_ast::node_type::DYNAMIC_PARAM
+			|| from.kind == core_ast::node_type::STACK_DATA)
 			&& to.kind == core_ast::node_type::STACK_ALLOC)
 		{
 			auto v_target = ast.get_node_data<core_ast::var_data>(from);
@@ -389,7 +394,7 @@ namespace fe::vm
 				make_mv_reg_sp(src_tmp)
 			);
 
-			if (from.kind == core_ast::node_type::DYNAMIC_VARIABLE)
+			if (from.kind == core_ast::node_type::DYNAMIC_VARIABLE || from.kind == core_ast::node_type::DYNAMIC_PARAM)
 			{
 				auto offset_reg = i.alloc_register();
 
@@ -591,7 +596,9 @@ namespace fe::vm
 		auto& target = ast.get_node(node.children[0]);
 		switch (target.kind)
 		{
+		case core_ast::node_type::DYNAMIC_VARIABLE:
 		case core_ast::node_type::VARIABLE:
+		case core_ast::node_type::DYNAMIC_PARAM:
 		case core_ast::node_type::PARAM: {
 			auto v_target = ast.get_node_data<core_ast::var_data>(target);
 			auto val_tmp = i.alloc_register();

@@ -87,6 +87,7 @@ namespace fe
 				pl.optimize_program(bytecode);
 			}
 	
+			if(s.print_code)
 			{
 				auto& e = bytecode;
 				auto& funs = e.get_code();

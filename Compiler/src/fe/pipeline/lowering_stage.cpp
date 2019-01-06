@@ -107,19 +107,12 @@ namespace fe::ext_ast
 		auto var_id = id_data.index_in_function;
 		auto is_param = id_data.is_parameter;
 
-		if (is_param)
-		{
-			assert(!"check if param");
-		}
-		else
-		{
-			// d
-			auto pop = new_ast.create_node(core_ast::node_type::POP, p);
-			new_ast.get_data<core_ast::size>(*new_ast.get_node(pop).data_index).val = context.get_size(var_id);
+		// d
+		auto pop = new_ast.create_node(core_ast::node_type::POP, p);
+		new_ast.get_data<core_ast::size>(*new_ast.get_node(pop).data_index).val = context.get_size(var_id);
 
-			auto to = new_ast.create_node(core_ast::node_type::VARIABLE, pop);
-			new_ast.get_node_data<core_ast::var_data>(to) = { context.get_offset(var_id), context.get_size(var_id) };
-		}
+		auto to = new_ast.create_node(is_param ? core_ast::node_type::PARAM : core_ast::node_type::VARIABLE, pop);
+		new_ast.get_node_data<core_ast::var_data>(to) = { context.get_offset(var_id), context.get_size(var_id) };
 
 		return lowering_result();
 	}
@@ -210,7 +203,7 @@ namespace fe::ext_ast
 		else throw std::runtime_error("Error: parameter node type invalid");
 
 		auto ret = new_ast.create_node(core_ast::node_type::RET, function_id);
-		new_ast.get_data<core_ast::return_data>(*new_ast.get_node(ret).data_index) = core_ast::return_data{ in_size };
+		new_ast.get_node_data<core_ast::return_data>(ret) = core_ast::return_data{ in_size };
 
 		auto block = new_ast.create_node(core_ast::node_type::BLOCK, ret);
 
@@ -220,7 +213,6 @@ namespace fe::ext_ast
 
 		assert(new_body.location == location_type::stack);
 		new_ast.get_node(block).size = new_body.allocated_stack_space;
-		new_ast.get_node_data<core_ast::return_data>(ret).size = new_body.allocated_stack_space;
 
 		new_ast.get_node_data<core_ast::function_data>(function_id).locals_size = context.curr_fn_context.total_var_size;
 
@@ -539,30 +531,22 @@ namespace fe::ext_ast
 		auto var_id = id_data.index_in_function;
 		auto is_param = id_data.is_parameter;
 
-		if (is_param)
-		{
-			assert(!"check if param");
-		}
-		else
-		{
-			// Multiply index with element size to get actual location
-			auto mul_node = new_ast.create_node(core_ast::node_type::MUL, p);
-			// Index
-			auto idx_node = lower(mul_node, ast.get_node(children[1]), ast, new_ast, context);
-			auto num_node = new_ast.create_node(core_ast::node_type::NUMBER, mul_node);
-			new_ast.get_node_data<number>(num_node) = { static_cast<int64_t>(element_size), number_type::UI64 };
+		// Multiply index with element size to get actual location
+		auto mul_node = new_ast.create_node(core_ast::node_type::MUL, p);
+		// Index
+		auto idx_node = lower(mul_node, ast.get_node(children[1]), ast, new_ast, context);
+		auto num_node = new_ast.create_node(core_ast::node_type::NUMBER, mul_node);
+		new_ast.get_node_data<number>(num_node) = { static_cast<int64_t>(element_size), number_type::UI64 };
 
-			auto move = new_ast.create_node(core_ast::node_type::MOVE, p);
-			new_ast.get_node_data<core_ast::size>(move).val = element_size;
-			auto from = new_ast.create_node(core_ast::node_type::DYNAMIC_VARIABLE, move);
-			new_ast.get_node_data<core_ast::var_data>(from) = { context.get_offset(var_id), context.get_size(var_id) };
+		auto move = new_ast.create_node(core_ast::node_type::MOVE, p);
+		new_ast.get_node_data<core_ast::size>(move).val = element_size;
+		auto from = new_ast.create_node(is_param ? core_ast::node_type::DYNAMIC_PARAM : core_ast::node_type::DYNAMIC_VARIABLE, move);
+		new_ast.get_node_data<core_ast::var_data>(from) = { context.get_offset(var_id), context.get_size(var_id) };
 
-			auto to = new_ast.create_node(core_ast::node_type::STACK_ALLOC, move);
-			new_ast.get_data<core_ast::size>(*new_ast.get_node(to).data_index).val = context.get_size(var_id);
+		auto to = new_ast.create_node(core_ast::node_type::STACK_ALLOC, move);
+		new_ast.get_data<core_ast::size>(*new_ast.get_node(to).data_index).val = context.get_size(var_id);
 
-		}
-
-		return lowering_result();
+		return lowering_result(location_type::stack, element_size);
 	}
 
 	lowering_result lower_module_declaration(node_id p, node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)

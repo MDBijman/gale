@@ -23,8 +23,10 @@ namespace fe::ext_ast
 		auto& scope = ast.get_name_scope(n.name_scope_id);
 
 		auto& lhs_node = ast.get_node(children[0]);
+		copy_parent_scope(lhs_node, ast);
 		auto& lhs_data = ast.get_data<identifier>(lhs_node.data_index);
 		assert(lhs_data.segments.size() == 1);
+		
 		auto res = scope.resolve_variable(lhs_data.segments[0], ast.name_scope_cb());
 		assert(res);
 		lhs_data.scope_distance = res->scope_distance;

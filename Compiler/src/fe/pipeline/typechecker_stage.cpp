@@ -536,7 +536,7 @@ namespace fe::ext_ast
 			auto& children = ast.children_of(assignable);
 			for (auto& child : children)
 			{
-				auto& data = ast.get_data<identifier>(assignable.data_index);
+				auto& data = ast.get_data<identifier>(ast.get_node(child).data_index);
 				// #todo with better constraint solving this will be cleaner
 				ast.get_type_scope(assignable.type_scope_id).set_type(data.full,
 					types::unique_type(tuple_t->product[i]->copy()));
