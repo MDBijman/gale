@@ -208,6 +208,22 @@ sum match {
 )", "1");
 }
 
+TEST_CASE("binding variable in match", "[bytecode]")
+{
+	run_with_expectation(R"(
+module test
+import [std std.io]
+
+let sum : Num: std.ui64 | Bool: std.bool = Num 3;
+
+sum match {
+	| Bool x -> { std.io.print 1; }
+	| Num x -> { std.io.print x; }
+};
+
+)", "3");
+}
+
 TEST_CASE("vars in function", "[bytecode]")
 {
 	run_with_expectation(R"(
