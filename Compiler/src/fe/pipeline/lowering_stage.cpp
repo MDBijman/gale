@@ -101,7 +101,7 @@ namespace fe::ext_ast
 		assert(id_node.kind == ext_ast::node_type::IDENTIFIER);
 		auto& id_data = ext_ast.get_data<ext_ast::identifier>(ext_ast.get_node((*ext_ast
 			.get_name_scope(id_node.name_scope_id)
-			.resolve_variable(ext_ast.get_data<identifier>(id_node.data_index).segments[0], ext_ast.name_scope_cb()))
+			.resolve_variable(ext_ast.get_data<identifier>(id_node.data_index).name, ext_ast.name_scope_cb()))
 			.declaration_node).data_index);
 
 		auto var_id = id_data.index_in_function;
@@ -414,7 +414,7 @@ namespace fe::ext_ast
 			.calculate_size();
 		auto& id_data = ast.get_data<identifier>(ast.get_node((*ast
 			.get_name_scope(n.name_scope_id)
-			.resolve_variable(id.root_identifier(), ast.name_scope_cb())).declaration_node)
+			.resolve_variable(id, ast.name_scope_cb())).declaration_node)
 			.data_index);
 
 		auto read = new_ast.create_node(core_ast::node_type::MOVE, p);
@@ -488,8 +488,7 @@ namespace fe::ext_ast
 		auto fun_id = new_ast.create_node(core_ast::node_type::FUNCTION_CALL, p);
 
 		auto& name = ast.get_data<identifier>(ast.get_node(children[0]).data_index);
-		assert(name.offsets.size() == 0);
-		new_ast.get_node_data<core_ast::function_call_data>(fun_id).name = name.mangle();
+		new_ast.get_node_data<core_ast::function_call_data>(fun_id).name = name.full;
 
 		auto output_size = ast
 			.get_type_scope(n.type_scope_id)
@@ -525,7 +524,7 @@ namespace fe::ext_ast
 		assert(id_node.kind == ext_ast::node_type::IDENTIFIER);
 		auto& id_data = ast.get_data<ext_ast::identifier>(ast.get_node((*ast
 			.get_name_scope(id_node.name_scope_id)
-			.resolve_variable(ast.get_data<identifier>(id_node.data_index).segments[0], ast.name_scope_cb()))
+			.resolve_variable(ast.get_data<identifier>(id_node.data_index).name, ast.name_scope_cb()))
 			.declaration_node).data_index);
 
 		auto var_id = id_data.index_in_function;
@@ -653,12 +652,6 @@ namespace fe::ext_ast
 		assert(!"error");
 	}
 
-	lowering_result lower_record(node_id p, node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
-	{
-		assert(n.kind == node_type::RECORD);
-		return lowering_result();
-	}
-
 	lowering_result lower_type_definition(node_id p, node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
 	{
 		assert(n.kind == node_type::TYPE_DEFINITION);
@@ -678,7 +671,7 @@ namespace fe::ext_ast
 		auto& fn_data = new_ast.get_data<core_ast::function_data>(*new_ast.get_node(fn).data_index);
 		fn_data.in_size = size;
 		fn_data.out_size = size;
-		fn_data.name = name_data.segments[0];
+		fn_data.name = name_data.name;
 		assert(size <= 8);
 
 		auto input_var = context.alloc_variable(size);
@@ -738,7 +731,7 @@ namespace fe::ext_ast
 			auto& fn_data = new_ast.get_data<core_ast::function_data>(*new_ast.get_node(fn).data_index);
 			fn_data.in_size = in_size + out_size;
 			fn_data.out_size = 0; /*output is written to space allocated by caller*/
-			fn_data.name = id.segments[0];
+			fn_data.name = id.name;
 			fn_data.locals_size = 0;
 			context.curr_fn_context = function_context();
 
@@ -875,7 +868,6 @@ namespace fe::ext_ast
 		case node_type::IMPORT_DECLARATION: return lower_import_declaration(p, n, ast, new_ast, context);   break;
 		case node_type::EXPORT_STMT:        return lower_export_stmt(p, n, ast, new_ast, context);          break;
 		case node_type::DECLARATION:        return lower_declaration(p, n, ast, new_ast, context);          break;
-		case node_type::RECORD:             return lower_record(p, n, ast, new_ast, context);               break;
 		case node_type::TYPE_DEFINITION:    return lower_type_definition(p, n, ast, new_ast, context);      break;
 		case node_type::ATOM_TYPE:          return lower_type_atom(p, n, ast, new_ast, context);            break;
 		case node_type::SUM_TYPE:           return lower_sum_type(p, n, ast, new_ast, context);             break;

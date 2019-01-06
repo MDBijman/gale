@@ -43,10 +43,8 @@ namespace fe::ext_ast
 		BOOLEAN,
 		NUMBER,
 
-		// Type declarations
+		// Declarations
 		TYPE_DEFINITION,
-		RECORD,
-		RECORD_ELEMENT,
 		IDENTIFIER_TUPLE,
 
 		// Type expressions
