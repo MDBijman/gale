@@ -71,6 +71,8 @@ namespace fe::core_ast
 		case node_type::JZ:
 		case node_type::LABEL:
 			return label_store.create();
+		case node_type::STACK_LABEL:
+			return stack_label_store.create();
 		case node_type::STACK_DEALLOC:
 		case node_type::STACK_ALLOC:
 		case node_type::MOVE: 
