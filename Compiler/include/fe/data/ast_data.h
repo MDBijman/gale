@@ -133,6 +133,11 @@ namespace fe::core_ast
 		uint32_t id;
 	};
 
+	struct stack_label
+	{
+		uint32_t id;
+	};
+
 	inline bool operator==(const label& l, const label& r)
 	{
 		return l.id == r.id;
