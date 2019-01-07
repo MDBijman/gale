@@ -31,11 +31,11 @@ namespace fe::ext_ast
 
 	using variable_index = uint32_t;
 	using label_index = uint32_t;
+	using stack_label_index = uint32_t;
 
 	struct function_context
 	{
-		variable_index next_variable = 0;
-		variable_index next_param = 0;
+		variable_index next_idx = 0;
 		int total_var_size = 0;
 		int total_param_size = 0;
 
@@ -43,7 +43,7 @@ namespace fe::ext_ast
 
 		variable_index alloc_variable(int size)
 		{
-			auto var_id = next_variable++;
+			auto var_id = next_idx++;
 			var_positions.insert({ var_id, { total_var_size, size } });
 			total_var_size += size;
 			return var_id;
@@ -51,10 +51,17 @@ namespace fe::ext_ast
 
 		variable_index alloc_param(int size)
 		{
-			auto var_id = next_param++;
+			auto var_id = next_idx++;
 			var_positions.insert({ var_id, { total_param_size, size } });
 			total_param_size += size;
 			return var_id;
+		}
+
+		stack_label_index next_sl_idx = 0;
+
+		stack_label_index new_stack_label()
+		{
+			return next_sl_idx++;
 		}
 	};
 
@@ -66,8 +73,9 @@ namespace fe::ext_ast
 
 		variable_index alloc_variable(int size) { return curr_fn_context.alloc_variable(size); }
 		variable_index alloc_param(int size) { return curr_fn_context.alloc_param(size); }
-		variable_index get_offset(variable_index id) { return curr_fn_context.var_positions[id].first; }
-		variable_index get_size(variable_index id) { return curr_fn_context.var_positions[id].second; }
+		variable_index get_offset(variable_index id) { return curr_fn_context.var_positions.at(id).first; }
+		variable_index get_size(variable_index id) { return curr_fn_context.var_positions.at(id).second; }
+		stack_label_index new_stack_label() { return curr_fn_context.new_stack_label(); }
 
 		label_index new_label() { return next_label++; }
 	};
@@ -303,7 +311,7 @@ namespace fe::ext_ast
 		return lowering_result(location_type::stack, size);
 	}
 
-	void generate_pattern_test(node_id p, node& n, ast& ast, core_ast::ast& new_ast, size_t offset, types::type& curr_type)
+	void generate_pattern_test(node_id p, node& n, ast& ast, core_ast::ast& new_ast, stack_label_index sl, size_t offset, types::type& curr_type)
 	{
 		switch (n.kind)
 		{
@@ -351,6 +359,12 @@ namespace fe::ext_ast
 		auto& children = ast.children_of(n);
 		assert(children.size() >= 2);
 
+		// Create stack label for bindings within patterns
+		auto stack_lbl = new_ast.create_node(core_ast::node_type::STACK_LABEL, p);
+		auto stack_lbl_idx = context.new_stack_label();
+		new_ast.get_node_data<core_ast::stack_label>(stack_lbl).id = stack_lbl_idx;
+
+		// Lower subject
 		auto expression_node = ast.get_node(children[0]);
 		assert(expression_node.kind == node_type::IDENTIFIER);
 		lower(p, expression_node, ast, new_ast, context);
@@ -364,6 +378,7 @@ namespace fe::ext_ast
 
 		auto lbl_after = context.new_label();
 
+		// Lower branches
 		for (auto i = 1; i < children.size(); i++)
 		{
 			auto branch = ast.get_node(children[i]);
@@ -374,7 +389,7 @@ namespace fe::ext_ast
 			auto lbl_false_test = context.new_label();
 
 			auto& pattern = ast.get_node(branch_children[0]);
-			generate_pattern_test(p, pattern, ast, new_ast, expression_size, sum_type);
+			generate_pattern_test(p, pattern, ast, new_ast, stack_lbl_idx, expression_size, sum_type);
 
 			auto jump = new_ast.create_node(core_ast::node_type::JZ, p);
 			new_ast.get_node_data<core_ast::label>(jump).id = lbl_false_test;
