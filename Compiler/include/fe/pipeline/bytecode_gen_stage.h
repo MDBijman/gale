@@ -19,7 +19,11 @@ namespace fe::vm
 		// Bitfield with 64 entries, one for each register, 1 indicates register is allocated
 		std::bitset<64> used_registers;
 
+		// Mapping from function names to code labels
 		std::unordered_map<std::string, core_ast::label> functions;
+
+		// Mapping from stack label to the frame size at its location in the ast
+		std::unordered_map<uint32_t, uint32_t> stack_label_sizes;
 
 		core_ast::label next_label;
 
@@ -43,6 +47,9 @@ namespace fe::vm
 		uint32_t node_pre_stack_size(uint32_t function_id, uint32_t node_id);
 		uint32_t node_post_stack_size(uint32_t function_id, uint32_t node_id);
 		uint32_t node_diff_stack_size(uint32_t function_id, uint32_t node_id);
+
+		void set_stack_label_size(uint32_t stack_label, uint32_t size);
+		uint32_t get_stack_label_size(uint32_t stack_label);
 	};
 
 	struct code_gen_result

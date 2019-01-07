@@ -21,7 +21,7 @@ namespace fe::core_ast
 		SUM,
 
 		POP,
-		MOVE,
+		PUSH,
 		STACK_ALLOC,
 		STACK_DEALLOC,
 

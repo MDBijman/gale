@@ -322,11 +322,10 @@ namespace fe::ext_ast
 			auto eq = new_ast.create_node(core_ast::node_type::EQ, p);
 
 			// Push dynamic tag bit onto the stack
-			auto move = new_ast.create_node(core_ast::node_type::MOVE, eq);
+			auto move = new_ast.create_node(core_ast::node_type::PUSH, eq);
 			new_ast.get_node_data<core_ast::size>(move).val = 1;
 			auto sd = new_ast.create_node(core_ast::node_type::STACK_DATA, move);
 			new_ast.get_node_data<core_ast::var_data>(sd) = { static_cast<uint32_t>(offset), 1 };
-			new_ast.create_node(core_ast::node_type::STACK_ALLOC, move);
 
 			// Push static tag bit onto the stack
 			auto tag = dynamic_cast<types::sum_type*>(&curr_type)->index_of(id.full);
@@ -432,16 +431,12 @@ namespace fe::ext_ast
 			.resolve_variable(id, ast.name_scope_cb())).declaration_node)
 			.data_index);
 
-		auto read = new_ast.create_node(core_ast::node_type::MOVE, p);
+		auto read = new_ast.create_node(core_ast::node_type::PUSH, p);
 		new_ast.get_data<core_ast::size>(*new_ast.get_node(read).data_index).val = size;
 
-		// First child resolves source address
+		// Resolves source address
 		auto param_ref = new_ast.create_node(id_data.is_parameter ? core_ast::node_type::PARAM : core_ast::node_type::VARIABLE, read);
 		new_ast.get_node_data<core_ast::var_data>(param_ref) = { context.get_offset(id_data.index_in_function), context.get_size(id_data.index_in_function) };
-
-		// Second child resolves target address
-		auto alloc = new_ast.create_node(core_ast::node_type::STACK_ALLOC, read);
-		new_ast.get_data<core_ast::size>(*new_ast.get_node(alloc).data_index).val = size;
 
 		return lowering_result(location_type::stack, size);
 	}
@@ -552,13 +547,11 @@ namespace fe::ext_ast
 		auto num_node = new_ast.create_node(core_ast::node_type::NUMBER, mul_node);
 		new_ast.get_node_data<number>(num_node) = { static_cast<int64_t>(element_size), number_type::UI64 };
 
-		auto move = new_ast.create_node(core_ast::node_type::MOVE, p);
+		auto move = new_ast.create_node(core_ast::node_type::PUSH, p);
 		new_ast.get_node_data<core_ast::size>(move).val = element_size;
+
 		auto from = new_ast.create_node(is_param ? core_ast::node_type::DYNAMIC_PARAM : core_ast::node_type::DYNAMIC_VARIABLE, move);
 		new_ast.get_node_data<core_ast::var_data>(from) = { context.get_offset(var_id), context.get_size(var_id) };
-
-		auto to = new_ast.create_node(core_ast::node_type::STACK_ALLOC, move);
-		new_ast.get_data<core_ast::size>(*new_ast.get_node(to).data_index).val = context.get_size(var_id);
 
 		return lowering_result(location_type::stack, element_size);
 	}
@@ -696,16 +689,12 @@ namespace fe::ext_ast
 		new_ast.get_node(ret).size = size;
 
 		{
-			auto move = new_ast.create_node(core_ast::node_type::MOVE, ret);
+			auto move = new_ast.create_node(core_ast::node_type::PUSH, ret);
 			new_ast.get_data<core_ast::size>(*new_ast.get_node(move).data_index).val = size;
 
 			// Resolve source (param at offset 0)
 			auto from = new_ast.create_node(core_ast::node_type::VARIABLE, move);
 			new_ast.get_node_data<core_ast::var_data>(from) = { context.get_offset(input_var), context.get_size(input_var) };
-
-			// Resolve target (stack)
-			auto to = new_ast.create_node(core_ast::node_type::STACK_ALLOC, move);
-			new_ast.get_node_data<core_ast::size>(to).val = size;
 		}
 
 		return lowering_result();
@@ -762,16 +751,12 @@ namespace fe::ext_ast
 				auto tag = new_ast.create_node(core_ast::node_type::NUMBER, block);
 				new_ast.get_node_data<number>(tag) = { i / 2, number_type::UI8 };
 
-				auto move = new_ast.create_node(core_ast::node_type::MOVE, block);
+				auto move = new_ast.create_node(core_ast::node_type::PUSH, block);
 				new_ast.get_node_data<core_ast::size>(move).val = in_size;
 
 				// Resolve source (param at offset 0)
 				auto from = new_ast.create_node(core_ast::node_type::PARAM, move);
 				new_ast.get_node_data<core_ast::var_data>(from) = { context.get_offset(input_var), context.get_size(input_var) };
-
-				// Resolve target (stack)
-				auto to = new_ast.create_node(core_ast::node_type::STACK_ALLOC, move);
-				new_ast.get_node_data<core_ast::size>(to).val = in_size;
 
 				auto pop = new_ast.create_node(core_ast::node_type::POP, block);
 				new_ast.get_node_data<core_ast::size>(pop).val = in_size + 1;
