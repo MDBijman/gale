@@ -75,7 +75,7 @@ namespace fe::core_ast
 			return stack_label_store.create();
 		case node_type::STACK_DEALLOC:
 		case node_type::STACK_ALLOC:
-		case node_type::MOVE: 
+		case node_type::PUSH: 
 		case node_type::POP:
 			return size_store.create();
 		case node_type::VARIABLE:
