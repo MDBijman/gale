@@ -79,7 +79,7 @@ namespace fe::core_ast
 			analyze_stack(ast.get_node(n).children[0], ast, res);
 			break;
 		}
-		case node_type::MOVE: {
+		case node_type::PUSH: {
 			res.pre_node_stack_sizes[n] = predecessor_size(n, ast, res);
 			auto first_child = ast.get_node(ast.get_node(n).children[0]);
 			// Dynamic access pops an 8 byte value off the stack for indexing
@@ -144,6 +144,11 @@ namespace fe::core_ast
 		case node_type::POP: {
 			res.pre_node_stack_sizes[n] = predecessor_size(n, ast, res);
 			res.node_stack_sizes[n] = predecessor_size(n, ast, res) - ast.get_node_data<size>(n).val;
+			break;
+		}
+		case node_type::STACK_LABEL: {
+			res.pre_node_stack_sizes[n] = predecessor_size(n, ast, res);
+			res.node_stack_sizes[n] = predecessor_size(n, ast, res);
 			break;
 		}
 		default: {

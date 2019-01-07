@@ -21,7 +21,7 @@ namespace fe::core_ast
 		SUM,
 
 		POP,
-		MOVE,
+		PUSH,
 		STACK_ALLOC,
 		STACK_DEALLOC,
 
@@ -30,6 +30,7 @@ namespace fe::core_ast
 		VARIABLE,
 		DYNAMIC_VARIABLE,
 		STACK_DATA,
+		STACK_LABEL,
 
 		FUNCTION,
 		FUNCTION_CALL,
@@ -85,6 +86,7 @@ namespace fe::core_ast
 		memory::dynamic_store<function_data> function_data_store;
 		memory::dynamic_store<function_call_data> function_call_data_store;
 		memory::dynamic_store<label> label_store;
+		memory::dynamic_store<stack_label> stack_label_store;
 		memory::dynamic_store<size> size_store;
 		memory::dynamic_store<var_data> var_store;
 		memory::dynamic_store<return_data> return_data_store;
@@ -117,6 +119,7 @@ namespace fe::core_ast
 		template<> function_data& get_data<function_data>(data_index i) { return function_data_store.get_at(i); }
 		template<> function_call_data& get_data<function_call_data>(data_index i) { return function_call_data_store.get_at(i); }
 		template<> label& get_data<label>(data_index i) { return label_store.get_at(i); }
+		template<> stack_label& get_data<stack_label>(data_index i) { return stack_label_store.get_at(i); }
 		template<> size& get_data<size>(data_index i) { return size_store.get_at(i); }
 		template<> var_data& get_data<var_data>(data_index i) { return var_store.get_at(i); }
 		template<> return_data& get_data<return_data>(data_index i) { return return_data_store.get_at(i); }
