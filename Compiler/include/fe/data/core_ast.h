@@ -14,17 +14,21 @@ namespace fe::core_ast
 	{
 		NOP,
 
+		// Values
 		NUMBER,
 		STRING,
 		BOOLEAN,
 		TUPLE,
 		SUM,
+		REFERENCE,
 
+		// Stack manipulation
 		POP,
 		PUSH,
 		STACK_ALLOC,
 		STACK_DEALLOC,
 
+		// Stack manipulation descriptors
 		PARAM,
 		DYNAMIC_PARAM,
 		VARIABLE,
@@ -32,18 +36,20 @@ namespace fe::core_ast
 		STACK_DATA,
 		STACK_LABEL,
 
+		// Functions and scopes
 		FUNCTION,
 		FUNCTION_CALL,
 		RET,
-
 		BLOCK,
+
+		// Control flow
 		LABEL,
 		JMP, JNZ, JZ,
-		REFERENCE,
 
-		// logic ops
+		// Logic ops
 		LT, GT, LEQ, GEQ, EQ, NEQ, AND, OR,
-		// arithmetic ops
+
+		// Arithmetic ops
 		ADD, SUB, MUL, DIV, MOD, NEG
 	};
 

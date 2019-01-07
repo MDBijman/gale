@@ -562,17 +562,19 @@ namespace fe::vm
 
 		auto total_frame_size = i.node_pre_stack_size(i.chunk_of(n), n);
 
-		// Variables are placed on the stack after the return address
+		// Variables are located below the return adress, parameters above
 		byte stack_offset = from.kind == core_ast::node_type::VARIABLE || from.kind == core_ast::node_type::DYNAMIC_VARIABLE
 			? byte(total_frame_size - i.current_scope.in_size - RETURN_ADDRESS_SIZE - v_target.offset - next_push_size)
 			: byte(total_frame_size - v_target.offset - next_push_size);
 
+		// First push, initializes the tgt_tmp register with the correct adress 
 		bc.add_instructions(
 			make_add(src_tmp, src_tmp, stack_offset),
 			make_mv_reg_loc(next_push_size, val_tmp, src_tmp),
 			make_push(next_push_size, val_tmp)
 		);
 
+		// Rest of pushes
 		size -= next_push_size;
 		assert(size >= 0);
 		next_push_size = std::clamp(size, uint32_t(0), uint32_t(8));
@@ -614,10 +616,12 @@ namespace fe::vm
 		auto size = static_cast<uint32_t>(data_size.val);
 		auto next_pop_size = std::clamp(size, uint32_t(0), uint32_t(8));
 
+		// Variables are located below the return adress, parameters above
 		byte stack_offset = from.kind == core_ast::node_type::VARIABLE || from.kind == core_ast::node_type::DYNAMIC_VARIABLE
 			? byte(i.node_pre_stack_size(i.chunk_of(n), n) - i.current_scope.in_size - RETURN_ADDRESS_SIZE - v_target.offset - size)
 			: byte(i.node_pre_stack_size(i.chunk_of(n), n) - v_target.offset - size);
 
+		// First pop, initializes the tgt_tmp register with the correct adress 
 		auto r = bc.add_instructions(
 			make_mv_reg_sp(tgt_tmp),
 			make_add(tgt_tmp, tgt_tmp, stack_offset),
@@ -625,6 +629,7 @@ namespace fe::vm
 			make_mv_loc_reg(next_pop_size, tgt_tmp, val_tmp)
 		);
 
+		// Rest of pops
 		size -= next_pop_size;
 		assert(size >= 0);
 		auto last_pop_size = next_pop_size;
