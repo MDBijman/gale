@@ -15,6 +15,7 @@ namespace fe::stdlib::io
 	};
 
 	void set_iostream(std::unique_ptr<iostream> new_io);
+	iostream& get_iostream();
 
 	static module load()
 	{

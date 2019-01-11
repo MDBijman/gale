@@ -68,18 +68,21 @@ namespace fe::ext_ast
 	struct identifier
 	{
 		std::string name;
+
 		std::vector<std::string> module_path;
+
 		std::string full;
 
 		std::optional<std::size_t> scope_distance;
 
 		node_id type_node = no_node;
+
 		bool is_parameter = false;
 
-		// The index in function of an identifier is equal to the index of the register that is used to store the address
-		// The address of the nth declared variable in a function is stored in the nth register
+		// The index in function of an identifier is equal to the index of the identifier in the stack of local variables.
 		uint32_t index_in_function = std::numeric_limits<uint32_t>::max();
-		int32_t offset_from_fp = std::numeric_limits<int32_t>::max();
+
+		std::optional<std::pair<uint32_t, int32_t>> referenced_stack_label;
 
 		operator std::string() const
 		{
@@ -136,6 +139,12 @@ namespace fe::core_ast
 	struct stack_label
 	{
 		uint32_t id;
+	};
+
+	struct relative_offset
+	{
+		uint32_t label_id;
+		int32_t offset;
 	};
 
 	inline bool operator==(const label& l, const label& r)

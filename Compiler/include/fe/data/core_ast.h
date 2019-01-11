@@ -33,7 +33,8 @@ namespace fe::core_ast
 		DYNAMIC_PARAM,
 		VARIABLE,
 		DYNAMIC_VARIABLE,
-		STACK_DATA,
+		STATIC_OFFSET,
+		RELATIVE_OFFSET,
 		STACK_LABEL,
 
 		// Functions and scopes
@@ -92,6 +93,7 @@ namespace fe::core_ast
 		memory::dynamic_store<function_data> function_data_store;
 		memory::dynamic_store<function_call_data> function_call_data_store;
 		memory::dynamic_store<label> label_store;
+		memory::dynamic_store<relative_offset> relative_offset_store;
 		memory::dynamic_store<stack_label> stack_label_store;
 		memory::dynamic_store<size> size_store;
 		memory::dynamic_store<var_data> var_store;
@@ -125,6 +127,7 @@ namespace fe::core_ast
 		template<> function_data& get_data<function_data>(data_index i) { return function_data_store.get_at(i); }
 		template<> function_call_data& get_data<function_call_data>(data_index i) { return function_call_data_store.get_at(i); }
 		template<> label& get_data<label>(data_index i) { return label_store.get_at(i); }
+		template<> relative_offset& get_data<relative_offset>(data_index i) { return relative_offset_store.get_at(i); }
 		template<> stack_label& get_data<stack_label>(data_index i) { return stack_label_store.get_at(i); }
 		template<> size& get_data<size>(data_index i) { return size_store.get_at(i); }
 		template<> var_data& get_data<var_data>(data_index i) { return var_store.get_at(i); }
