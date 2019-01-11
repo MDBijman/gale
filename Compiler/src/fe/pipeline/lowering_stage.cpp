@@ -205,8 +205,18 @@ namespace fe::ext_ast
 		}
 		else if (param_node.kind == node_type::IDENTIFIER_TUPLE)
 		{
-			assert(!"nyi");
-			// #todo generate set each identifier of the tuple to value of the rhs
+			for (auto& id : ast.get_children(param_node.children_id))
+			{
+				auto& id_node = ast.get_node(id);
+				auto param_size = (*ast
+					.get_type_scope(id_node.type_scope_id)
+					.resolve_variable(ast.get_data<identifier>(id_node.data_index), ast.type_scope_cb()))
+					.type.calculate_size();
+				auto var_id = context.alloc_param(param_size);
+				ast.get_data<ext_ast::identifier>(id_node.data_index).index_in_function = var_id;
+				ast.get_data<ext_ast::identifier>(id_node.data_index).is_parameter = true;
+				in_size += param_size;
+			}
 		}
 		else throw std::runtime_error("Error: parameter node type invalid");
 
@@ -311,12 +321,13 @@ namespace fe::ext_ast
 		return lowering_result(location_type::stack, size);
 	}
 
-	void generate_pattern_test(node_id p, node& n, ast& ast, core_ast::ast& new_ast, stack_label_index sl, size_t offset, types::type& curr_type)
+	void generate_pattern_test(node_id p, node& n, ast& ast, core_ast::ast& new_ast, stack_label_index sl, int32_t offset, types::type& curr_type, lowering_context& context)
 	{
 		switch (n.kind)
 		{
 		case node_type::FUNCTION_CALL: {
-			auto& id_node = ast.get_node(ast.get_children(n.children_id)[0]);
+			auto& children = ast.get_children(n.children_id);
+			auto& id_node = ast.get_node(children[0]);
 			auto& id = ast.get_data<identifier>(id_node.data_index);
 
 			auto eq = new_ast.create_node(core_ast::node_type::EQ, p);
@@ -324,18 +335,31 @@ namespace fe::ext_ast
 			// Push dynamic tag bit onto the stack
 			auto move = new_ast.create_node(core_ast::node_type::PUSH, eq);
 			new_ast.get_node_data<core_ast::size>(move).val = 1;
-			auto sd = new_ast.create_node(core_ast::node_type::STACK_DATA, move);
-			new_ast.get_node_data<core_ast::var_data>(sd) = { static_cast<uint32_t>(offset), 1 };
+			auto sd = new_ast.create_node(core_ast::node_type::RELATIVE_OFFSET, move);
+			new_ast.get_node_data<core_ast::relative_offset>(sd) = { 0, -1 };
 
 			// Push static tag bit onto the stack
 			auto tag = dynamic_cast<types::sum_type*>(&curr_type)->index_of(id.full);
 			auto num = new_ast.create_node(core_ast::node_type::NUMBER, eq);
 			new_ast.get_node_data<number>(num) = { static_cast<uint32_t>(tag), number_type::UI8 };
 
+			auto& exact_type = dynamic_cast<types::sum_type*>(&curr_type)->sum.at(tag);
+			auto& inner = *dynamic_cast<types::nominal_type*>(exact_type.get())->inner;
+
+			for (int i = 1; i < children.size(); i++)
+			{
+				generate_pattern_test(p, ast.get_node(children[i]), ast, new_ast, sl, offset - 1, inner, context);
+			}
 			break;
 		}
 		case node_type::IDENTIFIER: {
-			assert(!"todo");
+			auto& id = ast.get_data<identifier>(n.data_index);
+			auto size = (*ast
+				.get_type_scope(n.type_scope_id)
+				.resolve_variable(id, ast.type_scope_cb()))
+				.type
+				.calculate_size();
+			id.referenced_stack_label = { sl, offset - size };
 			break;
 		}
 		case node_type::TUPLE: {
@@ -388,7 +412,7 @@ namespace fe::ext_ast
 			auto lbl_false_test = context.new_label();
 
 			auto& pattern = ast.get_node(branch_children[0]);
-			generate_pattern_test(p, pattern, ast, new_ast, stack_lbl_idx, expression_size, sum_type);
+			generate_pattern_test(p, pattern, ast, new_ast, stack_lbl_idx, 0, sum_type, context);
 
 			auto jump = new_ast.create_node(core_ast::node_type::JZ, p);
 			new_ast.get_node_data<core_ast::label>(jump).id = lbl_false_test;
@@ -434,9 +458,18 @@ namespace fe::ext_ast
 		auto read = new_ast.create_node(core_ast::node_type::PUSH, p);
 		new_ast.get_data<core_ast::size>(*new_ast.get_node(read).data_index).val = size;
 
-		// Resolves source address
-		auto param_ref = new_ast.create_node(id_data.is_parameter ? core_ast::node_type::PARAM : core_ast::node_type::VARIABLE, read);
-		new_ast.get_node_data<core_ast::var_data>(param_ref) = { context.get_offset(id_data.index_in_function), context.get_size(id_data.index_in_function) };
+		if (id_data.referenced_stack_label.has_value())
+		{
+			// Resolves source address
+			auto param_ref = new_ast.create_node(core_ast::node_type::RELATIVE_OFFSET, read);
+			new_ast.get_node_data<core_ast::relative_offset>(param_ref) = { id_data.referenced_stack_label->first, id_data.referenced_stack_label->second };
+		}
+		else
+		{
+			// Resolves source address
+			auto param_ref = new_ast.create_node(id_data.is_parameter ? core_ast::node_type::PARAM : core_ast::node_type::VARIABLE, read);
+			new_ast.get_node_data<core_ast::var_data>(param_ref) = { context.get_offset(id_data.index_in_function), context.get_size(id_data.index_in_function) };
+		}
 
 		return lowering_result(location_type::stack, size);
 	}
@@ -832,8 +865,10 @@ namespace fe::ext_ast
 
 		// #todo and or short circuiting
 
-		auto lhs = lower(new_node, ast.get_node(children[0]), ast, new_ast, context);
-		auto rhs = lower(new_node, ast.get_node(children[1]), ast, new_ast, context);
+		auto lhs_block = new_ast.create_node(core_ast::node_type::BLOCK, new_node);
+		auto lhs = lower(lhs_block, ast.get_node(children[0]), ast, new_ast, context);
+		auto rhs_block = new_ast.create_node(core_ast::node_type::BLOCK, new_node);
+		auto rhs = lower(rhs_block, ast.get_node(children[1]), ast, new_ast, context);
 
 		// If we hadnt set stack_bytes to 1, then we have a number operator
 		if (stack_bytes == 0)

@@ -35,7 +35,7 @@ namespace fe::ext_ast
 
 		auto t = types::unique_type(res->type.copy());
 		if (!tc.satisfied_by(*t))
-			throw typecheck_error{ id.operator std::string() + " does not match constraints\n" + tc.operator std::string() };
+			throw typecheck_error{ "Identifier " + id.operator std::string() + " does not match constraints\n" + tc.operator std::string() };
 
 		return t;
 	}
@@ -167,8 +167,8 @@ namespace fe::ext_ast
 		}
 
 		if (!tc.satisfied_by(*res))
-			throw typecheck_error{ "product " + res->operator std::string() 
-			+ " does not match constraints\n" + tc.operator std::string() };
+			throw typecheck_error{ "Tuple " + res->operator std::string() 
+			+ " does not match constraints " + tc.operator std::string() };
 
 		return res;
 	}
@@ -177,6 +177,8 @@ namespace fe::ext_ast
 	{
 		assert(n.kind == node_type::ARRAY_VALUE);
 		auto& children = ast.children_of(n);
+		copy_parent_scope(n, ast);
+
 		if (children.size() > 0)
 		{
 			auto element_constraints = tc.array_sub_constraints();
@@ -196,7 +198,7 @@ namespace fe::ext_ast
 			if (!tc.satisfied_by(arr_type)) throw typecheck_error{
 				"array value type does not satisfy constraints " + tc.operator std::string()
 			};
-			return t1;
+			return types::unique_type(arr_type.copy());
 		}
 		else
 		{
@@ -494,6 +496,7 @@ namespace fe::ext_ast
 			auto& children = ast.children_of(assignable);
 			for (auto& child : children)
 			{
+				copy_parent_scope(ast.get_node(child), ast);
 				auto& data = ast.get_data<identifier>(ast.get_node(child).data_index);
 				// #todo with better constraint solving this will be cleaner
 				ast.get_type_scope(assignable.type_scope_id).set_type(data.full,

@@ -464,6 +464,7 @@ namespace fe::vm
 		auto f_id = i.chunk_of(n);
 		auto& bc = p.get_function(f_id).get_bytecode();
 		auto& children = ast.children_of(n);
+		assert(children.size() == 2);
 
 		// children bytecode should leave 2 values on stack
 		generate_bytecode(children[0], ast, p, i);
@@ -535,9 +536,8 @@ namespace fe::vm
 
 		assert(from.kind == core_ast::node_type::VARIABLE || from.kind == core_ast::node_type::DYNAMIC_VARIABLE
 			|| from.kind == core_ast::node_type::PARAM || from.kind == core_ast::node_type::DYNAMIC_PARAM
-			|| from.kind == core_ast::node_type::STACK_DATA);
+			|| from.kind == core_ast::node_type::STATIC_OFFSET || from.kind == core_ast::node_type::RELATIVE_OFFSET);
 
-		auto v_target = ast.get_node_data<core_ast::var_data>(from);
 		auto val_tmp = i.alloc_register();
 		auto src_tmp = i.alloc_register();
 
@@ -562,10 +562,28 @@ namespace fe::vm
 
 		auto total_frame_size = i.node_pre_stack_size(i.chunk_of(n), n);
 
+		byte stack_offset;
+
 		// Variables are located below the return adress, parameters above
-		byte stack_offset = from.kind == core_ast::node_type::VARIABLE || from.kind == core_ast::node_type::DYNAMIC_VARIABLE
-			? byte(total_frame_size - i.current_scope.in_size - RETURN_ADDRESS_SIZE - v_target.offset - next_push_size)
-			: byte(total_frame_size - v_target.offset - next_push_size);
+		if (from.kind == core_ast::node_type::VARIABLE || from.kind == core_ast::node_type::DYNAMIC_VARIABLE)
+		{
+			auto& var = ast.get_node_data<core_ast::var_data>(from);
+			stack_offset = byte(total_frame_size - i.current_scope.in_size - RETURN_ADDRESS_SIZE - var.offset - next_push_size);
+		}
+		else if (from.kind == core_ast::node_type::PARAM || from.kind == core_ast::node_type::DYNAMIC_PARAM)
+		{
+			auto& var = ast.get_node_data<core_ast::var_data>(from);
+			stack_offset = byte(total_frame_size - var.offset - next_push_size);
+		}
+		else if (from.kind == core_ast::node_type::RELATIVE_OFFSET)
+		{
+			auto& label = ast.get_node_data<core_ast::relative_offset>(from);
+			stack_offset = byte(total_frame_size - i.get_stack_label_size(label.label_id) + label.offset);
+		}
+		else
+		{
+			assert(!"Unknown from kind");
+		}
 
 		// First push, initializes the tgt_tmp register with the correct adress 
 		bc.add_instructions(

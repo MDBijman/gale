@@ -503,7 +503,7 @@ namespace recursive_descent
 		else if (next == token_kind::FALSE_KEYWORD) return parse_false(t, ts);
 		else if (next == token_kind::IF_KEYWORD) return parse_if_expr(t, ts);
 		else if (next == token_kind::BACKSLASH) return parse_function(t, ts);
-		else throw error{ "Expression error" };
+		else throw error{ std::string("Error parsing expression: ") + std::string(ts.peek().text) };
 	}
 
 	fe::node_id parse_function_call(tree& t, token_stream_reader& ts)
