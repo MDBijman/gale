@@ -200,6 +200,13 @@ namespace fe
 				return 0;
 			}
 
+			types::type& operator[](int i)
+			{
+				return *sum[i];
+			}
+
+			size_t index_of(std::string name);
+
 			std::vector<unique_type> sum;
 		};
 
@@ -328,6 +335,34 @@ namespace fe
 			unique_type from, to;
 		};
 
+		struct nominal_type : public type, private detail::comparable<nominal_type, type>, private detail::copyable<nominal_type, type>
+		{
+			nominal_type(std::string name, unique_type inner);
+			nominal_type(std::string name, const type& inner);
+
+			// Move
+			nominal_type(nominal_type&& other);
+			nominal_type& operator=(nominal_type&& other);
+
+			// Copy
+			nominal_type(const nominal_type& other);
+			nominal_type& operator=(const nominal_type& other);
+
+			operator std::string() const override;
+			bool operator==(type* other) const override { return comparable::operator==(other); }
+			type* copy() const override { return copyable::copy(*this); }
+			size_t calculate_size() const override
+			{
+				return inner->calculate_size();
+			}
+			size_t calculate_offset(const std::vector<size_t>& offsets, size_t curr = 0) const override
+			{
+				return inner->calculate_offset(offsets, curr);
+			}
+
+			unique_type inner;
+			std::string name;
+		};
 
 		// Helper methods
 
@@ -352,5 +387,7 @@ namespace fe
 		bool operator==(const array_type& one, const array_type& two);
 
 		bool operator==(const reference_type& one, const reference_type& two);
+
+		bool operator==(const nominal_type& one, const nominal_type& two);
 	}
 }

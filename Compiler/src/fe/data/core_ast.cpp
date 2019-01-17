@@ -71,14 +71,20 @@ namespace fe::core_ast
 		case node_type::JZ:
 		case node_type::LABEL:
 			return label_store.create();
+		case node_type::RELATIVE_OFFSET:
+			return relative_offset_store.create();
+		case node_type::STACK_LABEL:
+			return stack_label_store.create();
 		case node_type::STACK_DEALLOC:
 		case node_type::STACK_ALLOC:
-		case node_type::MOVE: 
+		case node_type::PUSH: 
 		case node_type::POP:
 			return size_store.create();
 		case node_type::VARIABLE:
 		case node_type::DYNAMIC_VARIABLE:
+		case node_type::STATIC_OFFSET:
 		case node_type::PARAM:
+		case node_type::DYNAMIC_PARAM:
 			return var_store.create();
 		case node_type::RET:
 			return return_data_store.create();

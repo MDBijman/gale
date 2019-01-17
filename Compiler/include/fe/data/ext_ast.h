@@ -43,18 +43,17 @@ namespace fe::ext_ast
 		BOOLEAN,
 		NUMBER,
 
-		// Type declarations
+		// Declarations
 		TYPE_DEFINITION,
-		RECORD,
-		RECORD_ELEMENT,
 		IDENTIFIER_TUPLE,
 
 		// Type expressions
-		TYPE_TUPLE,
-		TYPE_ATOM,
+		TUPLE_TYPE,
+		ATOM_TYPE,
 		FUNCTION_TYPE,
 		REFERENCE_TYPE,
 		ARRAY_TYPE,
+		SUM_TYPE,
 
 		//// Operators
 		// Logical
@@ -90,6 +89,16 @@ namespace fe::ext_ast
 			|| kind == node_type::LESS_THAN
 			|| kind == node_type::AND
 			|| kind == node_type::OR);
+	}
+
+	constexpr bool is_type_node(node_type kind)
+	{
+		return (kind == node_type::ATOM_TYPE
+			|| kind == node_type::FUNCTION_TYPE
+			|| kind == node_type::TUPLE_TYPE
+			|| kind == node_type::REFERENCE_TYPE
+			|| kind == node_type::ARRAY_TYPE
+			|| kind == node_type::SUM_TYPE);
 	}
 
 	constexpr bool is_terminal_node(node_type kind)

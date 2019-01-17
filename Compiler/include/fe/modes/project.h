@@ -37,19 +37,19 @@ namespace fe
 			{
 				for (const ext_ast::identifier& imp : *imports)
 				{
-					auto pos = modules.find(imp.copy_name());
+					auto pos = modules.find(imp.full_path());
 					if (pos == modules.end())
 						throw other_error{ "Cannot find module: " + imp.operator std::string() };
 
 					auto module_name_scope = e_ast.create_name_scope();
 					e_ast.get_name_scope(module_name_scope).merge(pos->second.names);
 					e_ast.get_name_scope(root_node.name_scope_id)
-						.add_module(imp.segments, module_name_scope);
+						.add_module(imp.full_path(), module_name_scope);
 
 					auto module_type_scope = e_ast.create_type_scope();
 					e_ast.get_type_scope(module_type_scope).merge(pos->second.types);
 					e_ast.get_type_scope(root_node.type_scope_id)
-						.add_module(imp.segments, module_type_scope);
+						.add_module(imp.full_path(), module_type_scope);
 				}
 			}
 
@@ -67,13 +67,13 @@ namespace fe
 			{
 				for (const ext_ast::identifier& imp : *imports)
 				{
-					auto pos = modules.find(imp.copy_name());
+					auto pos = modules.find(imp.full_path());
 					if (pos == modules.end())
 						throw other_error{ "Cannot find module: " + imp.operator std::string() };
 
 					for (auto c : pos->second.code)
 					{
-						auto full_name = imp.full + "@" + c.get_name();
+						auto full_name = imp.full + "." + c.get_name();
 						bytecode.add_function(c.is_bytecode() ?
 							vm::function(full_name, c.get_bytecode()) :
 							vm::function(full_name, c.get_native_function_ptr()));
@@ -86,8 +86,43 @@ namespace fe
 				// optimize
 				pl.optimize_program(bytecode);
 			}
+	
+			if(s.print_code)
+			{
+				auto& e = bytecode;
+				auto& funs = e.get_code();
+				for (int i = 0; i < funs.size(); i++)
+				{
+					auto& fun = funs[i];
+					if (!fun.is_bytecode()) continue;
+					auto& bc = fun.get_bytecode();
 
+					std::cout << "\n" << fun.get_name() << "\n";
+					std::string out;
+					size_t ip = 0;
+					while (bc.has_instruction(ip))
+					{
+						auto in = bc.get_instruction<10>(ip);
+						if (vm::byte_to_op(in[0].val) == vm::op_kind::NOP)
+						{
+							ip++; continue;
+						}
+
+						out += std::to_string(ip) + ": ";
+						out += vm::op_to_string(vm::byte_to_op(in[0].val)) + " ";
+						for (int i = 1; i < vm::op_size(vm::byte_to_op(in[0].val)); i++)
+							out += std::to_string(in[i].val) + " ";
+
+						out += "\n";
+						ip += vm::op_size(vm::byte_to_op(in[0].val));
+					}
+
+					std::cout << out;
+				}
+			}
 			auto executable = pl.link(bytecode);
+
+		
 
 			// optimize
 			pl.optimize_executable(executable);

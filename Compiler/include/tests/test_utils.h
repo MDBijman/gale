@@ -15,15 +15,20 @@ namespace testing
 	class test_iostream : public fe::stdlib::io::iostream
 	{
 		std::string should_print;
-		bool has_printed;
+		bool has_printed_;
 	public:
-		test_iostream(std::string s) : should_print(s), has_printed(false) {}
+		test_iostream(std::string s) : should_print(s), has_printed_(false) {}
+
+		bool has_printed()
+		{
+			return has_printed_;
+		}
 
 		virtual void send_stdout(const std::string& s)
 		{
-			if (has_printed) throw test_failure{ "", s };
+			if (has_printed_) throw test_failure{ "", s };
 			if (s != should_print) throw test_failure{ should_print, s };
-			has_printed = true;
+			has_printed_ = true;
 		}
 	};
 }
