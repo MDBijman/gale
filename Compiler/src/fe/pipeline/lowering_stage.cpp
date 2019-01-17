@@ -321,7 +321,13 @@ namespace fe::ext_ast
 		return lowering_result(location_type::stack, size);
 	}
 
-	void generate_pattern_test(node_id p, node& n, ast& ast, core_ast::ast& new_ast, stack_label_index sl, int32_t offset, types::type& curr_type, lowering_context& context)
+	/*
+	* Always returns the size of the tested input.
+	* Returns a node id if the ast generated has a boolean result indicating a match.
+	* If false, no bool is left, and a match should be assumed.
+	* E.g. the pattern "| _ ->" does not require any testing.
+	*/
+	std::pair<std::optional<node_id>, int32_t> generate_pattern_test(node& n, ast& ast, core_ast::ast& new_ast, stack_label_index sl, int32_t offset, types::type& curr_type, lowering_context& context)
 	{
 		switch (n.kind)
 		{
@@ -330,13 +336,13 @@ namespace fe::ext_ast
 			auto& id_node = ast.get_node(children[0]);
 			auto& id = ast.get_data<identifier>(id_node.data_index);
 
-			auto eq = new_ast.create_node(core_ast::node_type::EQ, p);
+			auto eq = new_ast.create_node(core_ast::node_type::EQ);
 
 			// Push dynamic tag bit onto the stack
 			auto move = new_ast.create_node(core_ast::node_type::PUSH, eq);
 			new_ast.get_node_data<core_ast::size>(move).val = 1;
 			auto sd = new_ast.create_node(core_ast::node_type::RELATIVE_OFFSET, move);
-			new_ast.get_node_data<core_ast::relative_offset>(sd) = { 0, -1 };
+			new_ast.get_node_data<core_ast::relative_offset>(sd) = { sl, -1 }; // #fixme account for offset
 
 			// Push static tag bit onto the stack
 			auto tag = dynamic_cast<types::sum_type*>(&curr_type)->index_of(id.full);
@@ -346,11 +352,17 @@ namespace fe::ext_ast
 			auto& exact_type = dynamic_cast<types::sum_type*>(&curr_type)->sum.at(tag);
 			auto& inner = *dynamic_cast<types::nominal_type*>(exact_type.get())->inner;
 
-			for (int i = 1; i < children.size(); i++)
+			assert(children.size() == 2);
+			auto param_test = generate_pattern_test(ast.get_node(children[1]), ast, new_ast, sl, offset - 1, inner, context);
+			if (param_test.first)
 			{
-				generate_pattern_test(p, ast.get_node(children[i]), ast, new_ast, sl, offset - 1, inner, context);
+				auto and = new_ast.create_node(core_ast::node_type::AND);
+				new_ast.link_child_parent(eq, and);
+				new_ast.link_child_parent(*param_test.first, and);
+				return std::pair(and, 1 + param_test.second);
 			}
-			break;
+
+			return std::pair(eq, 1 + param_test.second);
 		}
 		case node_type::IDENTIFIER: {
 			auto& id = ast.get_data<identifier>(n.data_index);
@@ -360,16 +372,77 @@ namespace fe::ext_ast
 				.type
 				.calculate_size();
 			id.referenced_stack_label = { sl, offset - size };
-			break;
+			return std::pair(std::nullopt, size);
 		}
 		case node_type::TUPLE: {
-			assert(!"todo");
+			auto& children = ast.get_children(n.children_id);
+			auto& product = dynamic_cast<types::product_type*>(&curr_type)->product;
+			if (children.size() == 0) return std::pair(std::nullopt, 0);
+
+			std::optional<node_id> root;
+			int32_t size_sum = 0;
+			for (int i = 0; i < children.size(); i++)
+			{
+				auto pattern_test = generate_pattern_test(ast.get_node(children[i]), ast, new_ast, sl, offset - size_sum, *product[i], context);
+				size_sum += pattern_test.second;
+				if (pattern_test.first)
+				{
+					if (!root)
+					{
+						root = pattern_test.first;
+					}
+					else
+					{
+						auto and = new_ast.create_node(core_ast::node_type::AND);
+						new_ast.link_child_parent(*root, and);
+						new_ast.link_child_parent(*pattern_test.first, and);
+						root = and;
+					}
+				}
+				
+			}
+			return std::pair(root, size_sum);
 			break;
 		}
-		case node_type::NUMBER:
-		case node_type::BOOLEAN:
-			assert(!"todo");
+		case node_type::NUMBER: {
+			auto& num = ast.get_data<number>(n.data_index);
+
+			int32_t num_byte_size = number_size(num.type);
+
+			auto eq = new_ast.create_node(core_ast::node_type::EQ);
+
+			// Push dynamic tag bit onto the stack
+			auto move = new_ast.create_node(core_ast::node_type::PUSH, eq);
+			new_ast.get_node_data<core_ast::size>(move).val = num_byte_size;
+			auto sd = new_ast.create_node(core_ast::node_type::RELATIVE_OFFSET, move);
+			new_ast.get_node_data<core_ast::relative_offset>(sd) = { sl, offset - num_byte_size };
+
+			// Create number
+			auto new_num = new_ast.create_node(core_ast::node_type::NUMBER, eq);
+			new_ast.get_node_data<number>(new_num) = { num.value, num.type };
+
+			return std::pair(eq, num_byte_size);
 			break;
+		}
+		case node_type::BOOLEAN: {
+			auto& bool_data = ast.get_data<boolean>(n.data_index);
+			int32_t size = 1;
+
+			auto eq = new_ast.create_node(core_ast::node_type::EQ);
+
+			// Push dynamic tag bit onto the stack
+			auto move = new_ast.create_node(core_ast::node_type::PUSH, eq);
+			new_ast.get_node_data<core_ast::size>(move).val = size;
+			auto sd = new_ast.create_node(core_ast::node_type::RELATIVE_OFFSET, move);
+			new_ast.get_node_data<core_ast::relative_offset>(sd) = { sl, offset - size };
+
+			// Create number
+			auto new_bool = new_ast.create_node(core_ast::node_type::BOOLEAN, eq);
+			new_ast.get_node_data<boolean>(new_bool) = { bool_data.value };
+
+			return std::pair(eq, size);
+			break;
+		}
 		default:
 			assert(!"Invalid pattern");
 			break;
@@ -412,7 +485,9 @@ namespace fe::ext_ast
 			auto lbl_false_test = context.new_label();
 
 			auto& pattern = ast.get_node(branch_children[0]);
-			generate_pattern_test(p, pattern, ast, new_ast, stack_lbl_idx, 0, sum_type, context);
+			auto pat_id = generate_pattern_test(pattern, ast, new_ast, stack_lbl_idx, 0, sum_type, context);
+			assert(pat_id.first);
+			new_ast.link_child_parent(*pat_id.first, p);
 
 			auto jump = new_ast.create_node(core_ast::node_type::JZ, p);
 			new_ast.get_node_data<core_ast::label>(jump).id = lbl_false_test;

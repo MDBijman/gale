@@ -587,7 +587,11 @@ namespace fe::ext_ast
 				typecheck_pattern(ast.get_node(children[i]), ast, *as_product->product[i]);
 			break;
 		}
-		case node_type::NUMBER:
+		case node_type::NUMBER: {
+			auto& num = ast.get_data<number>(n.data_index);
+			typeof_number(n, ast, type_constraints({ equality_constraint(curr) }));
+			break;
+		}
 		case node_type::BOOLEAN:
 			break;
 		default:
