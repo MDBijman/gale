@@ -2,6 +2,7 @@
 #include <unordered_map>
 #include <string>
 #include <functional>
+#include <optional>
 
 #include "fe/data/types.h"
 #include "fe/data/ast_data.h"
@@ -32,17 +33,6 @@ namespace fe::ext_ast
 				}
 			}
 
-			// Sum type
-			{
-				if (auto lhs = dynamic_cast<types::sum_type*>(&t))
-				{
-					for (auto& lhs_elem : lhs->sum)
-					{
-						if (conversion_constraint(*lhs_elem).satisfied_by(t)) return true;
-					}
-				}
-			}
-
 			return false;
 		}
 
@@ -61,6 +51,16 @@ namespace fe::ext_ast
 			if (auto arr = dynamic_cast<types::array_type*>(&to))
 			{
 				return conversion_constraint(*arr->element_type);
+			}
+
+			return std::nullopt;
+		}
+
+		std::optional<conversion_constraint> sum_sub_constraint(size_t i)
+		{
+			if (auto sum = dynamic_cast<types::sum_type*>(&to))
+			{
+				return conversion_constraint(*sum->sum.at(i));
 			}
 
 			return std::nullopt;
@@ -101,6 +101,16 @@ namespace fe::ext_ast
 			if (auto arr = dynamic_cast<types::array_type*>(&to))
 			{
 				return equality_constraint(*arr->element_type);
+			}
+
+			return std::nullopt;
+		}
+
+		std::optional<equality_constraint> sum_sub_constraint(size_t i)
+		{
+			if (auto sum = dynamic_cast<types::sum_type*>(&to))
+			{
+				return equality_constraint(*sum->sum.at(i));
 			}
 
 			return std::nullopt;
@@ -171,6 +181,24 @@ namespace fe::ext_ast
 			return type_constraints(std::move(sub_constraints));
 		}
 
+		std::optional<type_constraints> sum_sub_constraints(size_t i)
+		{
+			std::vector<type_constraint> sub_constraints;
+
+			for (auto& constraint : constraints)
+			{
+				auto sub = std::visit(([i](auto& x) -> std::optional<type_constraint> { 
+					auto sub = x.sum_sub_constraint(i);
+					if (!sub) return std::nullopt;
+					else return type_constraint(*sub); 
+				}), constraint);
+				if(sub) sub_constraints.push_back(std::move(*sub));
+				else return std::nullopt;
+			}
+
+			return type_constraints(std::move(sub_constraints));
+		}
+
 		operator std::string() const
 		{
 			std::string o = "type_constraints (";
@@ -209,7 +237,6 @@ namespace fe::ext_ast
 
 		// Parent scope
 		std::optional<scope_index> parent;
-
 		types::type& resolve_offsets(const std::vector<size_t>& offsets, types::type* t, size_t cur = 0);
 
 	public:

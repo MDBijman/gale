@@ -3,8 +3,7 @@
 #include <array>
 #include <variant>
 #include <assert.h>
-#include <functional>
-#include <map>
+#include <unordered_map>
 
 namespace fe::vm
 {

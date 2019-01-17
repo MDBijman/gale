@@ -383,9 +383,9 @@ eq_reg_reg_reg LABEL NEAR PTR WORD
 
 	mov r9, [r13 + r9*8]
 	mov rax, [r13 + rax*8]
-	; default move 0 into rbx
+	; default move 0 into rdx
 	mov rdx, 0
-	; conditional move 1 into rbx
+	; conditional move 1 into rdx
 	mov rcx, 1
 	cmp rax, r9
 	cmove rdx, rcx
@@ -889,6 +889,9 @@ pop8_reg LABEL NEAR PTR WORD
 	movsx rbx, bl
 	mov QWORD PTR [r13 + rax*8], rbx
 
+	; for debugging, zero popped stack memory
+	mov BYTE PTR [rsp - 1], 0cch
+
 	add r8, 3
 	DISPATCH
 ; END pop8 reg
@@ -933,6 +936,10 @@ pop64_reg LABEL NEAR PTR WORD
 	
 	pop rbx
 	mov QWORD PTR [r13 + rax*8], rbx
+
+	; for debugging, zero popped stack memory
+	mov DWORD PTR [rsp - 8], 0cccccccch
+	mov DWORD PTR [rsp - 4], 0cccccccch
 
 	add r8, 3
 	DISPATCH
@@ -1062,6 +1069,8 @@ sdealloc_ui8 LABEL NEAR PTR
 	shr r9, 16
 	and r9, 0ffh
 	add rsp, r9
+
+	mov BYTE PTR [rsp - 1], 0cch
 
 	add r8, 3
 	DISPATCH

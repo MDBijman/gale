@@ -118,6 +118,15 @@ namespace fe
 			return r;
 		}
 
+		size_t sum_type::index_of(std::string name)
+		{
+			for (int i = 0; i < sum.size(); i++)
+			{
+				if (dynamic_cast<nominal_type*>(sum[i].get())->name == name) return i;
+			}
+			assert(!"Type name is not in this sum type");
+		}
+
 		// Product
 
 		product_type::product_type() {}
@@ -190,13 +199,13 @@ namespace fe
 		// Copy
 		function_type::function_type(const function_type& other)
 		{
-			from = types::make_unique(*other.from.get());
-			to = types::make_unique(*other.to.get());
+			from = types::make_unique(*other.from);
+			to = types::make_unique(*other.to);
 		}
 		function_type& function_type::operator=(const function_type& other)
 		{
-			this->from = types::make_unique(*other.from.get());
-			this->to = types::make_unique(*other.to.get());
+			this->from = types::make_unique(*other.from);
+			this->to = types::make_unique(*other.to);
 			return *this;
 		}
 
@@ -205,6 +214,40 @@ namespace fe
 			std::string r = std::string(*from);
 			r.append(" -> ");
 			r.append(std::string(*to));
+			return r;
+		}
+
+		// Nominal Type
+
+		nominal_type::nominal_type(std::string name, unique_type inner) : name(name), inner(std::move(inner)) {}
+		nominal_type::nominal_type(std::string name, const type& inner) : name(name), inner(inner.copy()) {}
+
+		// Move
+		nominal_type::nominal_type(nominal_type&& other) :
+			name(std::move(other.name)), inner(std::move(other.inner)) {}
+		nominal_type& nominal_type::operator=(nominal_type&& other)
+		{
+			this->name = std::move(other.name);
+			this->inner = std::move(other.inner);
+			return *this;
+		}
+
+		// Copy
+
+		nominal_type::nominal_type(const nominal_type& other) :
+			name(other.name), inner(other.inner->copy()) {}
+		nominal_type& nominal_type::operator=(const nominal_type& other)
+		{
+			this->name = other.name;
+			this->inner = types::make_unique(*other.inner);
+			return *this;
+		}
+
+		nominal_type::operator std::string() const
+		{
+			std::string r = this->name + "(";
+			r += inner->operator std::string();
+			r += ")";
 			return r;
 		}
 
@@ -217,7 +260,7 @@ namespace fe
 
 			for (unsigned int i = 0; i < one.sum.size(); i++)
 			{
-				if (!(one.sum.at(i) == two.sum.at(i))) return false;
+				if (!(*one.sum.at(i) == two.sum.at(i).get())) return false;
 			}
 
 			return true;
@@ -248,6 +291,11 @@ namespace fe
 		bool operator==(const reference_type& one, const reference_type& two)
 		{
 			return *one.referred_type == two.referred_type.get();
+		}
+
+		bool operator==(const nominal_type& one, const nominal_type& two)
+		{
+			return (*one.inner == two.inner.get()) && (one.name == two.name);
 		}
 	}
 }

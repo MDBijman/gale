@@ -39,4 +39,8 @@ namespace fe::stdlib::io
 	{
 		::io = std::move(new_io);
 	}
+	iostream& get_iostream()
+	{
+		return *::io;
+	}
 }

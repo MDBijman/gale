@@ -283,22 +283,6 @@ namespace fe::vm
 	{
 		const byte* first_instruction = e.code.get_instruction(near_lbl(0));
 
-		if (s.print_code)
-		{
-			for (byte* op : e)
-			{
-				auto size = op_size(byte_to_op(op->val));
-				std::cout << op_to_string(byte_to_op(op->val));
-				for (int j = 1; j < size; j++)
-				{
-					std::cout << " " << std::to_string((op + j)->val);
-				}
-				std::cout << "\n";
-
-				if (byte_to_op(op->val) == op_kind::RET_UI8) std::cout << "\n";
-			}
-		}
-
 		auto before = std::chrono::high_resolution_clock::now();
 		machine_state res;
 

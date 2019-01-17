@@ -19,8 +19,7 @@ namespace lexing
 		EPSILON,
 		END_OF_INPUT,
 		ERROR,
-		NEW_LINE,
-
+		
 		IDENTIFIER,
 		WORD,
 		NUMBER,
@@ -152,7 +151,7 @@ namespace lexing
 		case '>': // >= =
 			advance(range);
 			if (*range.first == '=') { advance(range); return token_kind::GTEQ; }
-			else return token_kind::EQUALS;
+			else return token_kind::RIGHT_ANGLE_BRACKET;
 		case '|': // || |
 			advance(range);
 			if (*range.first == '|') { advance(range); return token_kind::OR; }
