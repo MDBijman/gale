@@ -849,7 +849,7 @@ namespace recursive_descent
 
 	std::variant<tree, error> parse(std::vector<lexing::token>& in)
 	{
-		tree t(fe::ext_ast::ast_allocation_hints{ 3000012,1000006,0,0,1000006,0,0,1000002 });
+		tree t; 
 
 		try
 		{

@@ -22,7 +22,7 @@ fe::project test_project()
 
 fe::vm::vm_settings test_settings()
 {
-	return fe::vm::vm_settings(fe::vm::vm_implementation::asm_, false, false, false, false);
+	return fe::vm::vm_settings(fe::vm::vm_implementation::asm_, false , false, false, false);
 }
 
 void expect_io(const std::string& s)
@@ -192,25 +192,33 @@ std.io.print (fib ([1, 2], 2, 4000000));
 )", "4613732");
 };
 
-TEST_CASE("euler problem 3", "[bytecode]")
-{
-	run_with_expectation(R"(
-module test
-import [std std.io]
+/*
+Feature needed: ! operator
+*/
 
-let upper: std.ui64 = 600851475142;
-let curr: std.ui64 = upper / 2;
+//TEST_CASE("euler problem 3", "[bytecode]")
+//{
+//	run_with_expectation(R"(
+//module test
+//import [std std.io]
+//
+//let upper: std.ui64 = 600851475142;
+//let curr: std.ui64 = upper / 2;
+//
+//while(curr > 1) {
+//	if(upper % curr == 0) {
+//		std.io.print curr;
+//	}
+//
+//	upper = upper - 1;
+//};
+//
+//)", "");
+//}
 
-while(curr > 1) {
-	if(upper % curr == 0) {
-		std.io.print curr;
-	}
 
-	upper = upper - 1;
-};
 
-)", "");
-}
+
 
 // Sum types
 
@@ -261,6 +269,89 @@ sum match {
 };
 
 )", "3");
+}
+
+TEST_CASE("sum type destruct pair", "[bytecode]")
+{
+	run_with_expectation(R"(
+module test
+import [std std.io]
+
+let sum : Num: std.ui64 | Bool: std.bool | Pair: (std.ui64, std.ui64) = Pair (3, 4);
+
+sum match {
+	| Bool x -> { std.io.print 1; }
+	| Num x -> { std.io.print 2; }
+	| Pair (x, y) -> { std.io.print (x + y); }
+};
+
+)", "7");
+}
+
+TEST_CASE("sum type match num value", "[bytecode]")
+{
+	run_with_expectation(R"(
+module test
+import [std std.io]
+
+let sum : Num: std.ui64 | Bool: std.bool | Pair: (std.ui64, std.ui64) = Num 3;
+
+sum match {
+	| Num 3 -> { std.io.print 3; }
+	| Num x -> { std.io.print 1; }
+};
+
+)", "3");
+}
+
+TEST_CASE("sum type match tuple value", "[bytecode]")
+{
+	run_with_expectation(R"(
+module test
+import [std std.io]
+
+let sum : Num: std.ui64 | Bool: std.bool | Pair: (std.ui64, std.ui64) = Pair (3, 5);
+
+sum match {
+	| Pair (x, 4) -> { std.io.print x; }
+	| Pair (3, y) -> { std.io.print y; }
+};
+
+)", "5");
+}
+
+TEST_CASE("sum type match bool value", "[bytecode]")
+{
+	run_with_expectation(R"(
+module test
+import [std std.io]
+
+let sum : Num: std.ui64 | Bool: std.bool | Pair: (std.ui64, std.ui64) = Bool true;
+
+sum match {
+	| Num 3 -> { std.io.print 0; }
+	| Bool true -> { std.io.print 1; }
+	| Bool false -> { std.io.print 2; }
+};
+
+)", "1");
+}
+
+TEST_CASE("sum type match bool value2", "[bytecode]")
+{
+	run_with_expectation(R"(
+module test
+import [std std.io]
+
+let sum : Num: std.ui64 | Bool: std.bool | Pair: (std.ui64, std.ui64) = Bool false;
+
+sum match {
+	| Num 3 -> { std.io.print 0; }
+	| Bool true -> { std.io.print 1; }
+	| Bool false -> { std.io.print 2; }
+};
+
+)", "2");
 }
 
 // Sum type/matching

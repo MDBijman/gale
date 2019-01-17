@@ -1,5 +1,6 @@
 #pragma once
 #include "fe/data/bytecode.h"
+#include <unordered_map>
 
 namespace fe::vm
 {
