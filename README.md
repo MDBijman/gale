@@ -4,9 +4,10 @@ A small lexer/parser/compiler project to learn about programming language design
 Current Features
  - Control flow: if-else, while 
  - Scoping, typing, name resolution
- - Sum types and pProduct types
+ - Sum types and product types
  - Arrays
  - Logical and arithmetic operators
+ - Simple io
 
 Planned Features
  - Typeclasses
