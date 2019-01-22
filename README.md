@@ -14,6 +14,10 @@ Planned Features
  - Generics
  - FFI
  
+## Implementation
+
+The implementation of the different pipeline stages can be found in Compiler/{src, include}/fe/pipeline. 
+ 
 ## Snippets
 
 Simple control flow
