@@ -1,7 +1,18 @@
-# language
-A small lexer/parser/interpreter project
+# Language
+A small lexer/parser/compiler project to learn about programming language design and implementation. The design of the language is inspired mainly by Haskell and C++. The goal is to be fast and expressive. 
 
+Current Features
+ - Control flow: if-else, while 
+ - Scoping, typing, name resolution
+ - Sum types and pProduct types
+ - Arrays
+ - Logical and arithmetic operators
 
+Planned Features
+ - Typeclasses
+ - Generics
+ - FFI
+ 
 ## Snippets
 
 Simple control flow
