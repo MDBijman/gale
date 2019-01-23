@@ -59,6 +59,7 @@ namespace fe::ext_ast
 		// Logical
 		AND,
 		OR,
+		NOT,
 		// Math
 		ADDITION,
 		SUBTRACTION,
@@ -89,6 +90,11 @@ namespace fe::ext_ast
 			|| kind == node_type::LESS_THAN
 			|| kind == node_type::AND
 			|| kind == node_type::OR);
+	}
+
+	constexpr bool is_unary_op(node_type kind)
+	{
+		return (kind == node_type::NOT);
 	}
 
 	constexpr bool is_type_node(node_type kind)

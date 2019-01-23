@@ -520,6 +520,30 @@ namespace fe::vm
 		bc.add_instruction(make_push(res_size, vm::ret_reg));
 	}
 
+	void generate_unary_op(node_id n, core_ast::ast& ast, program& p, code_gen_state& i)
+	{
+		link_to_parent_chunk(n, ast, i);
+		auto f_id = i.chunk_of(n);
+		auto& bc = p.get_function(f_id).get_bytecode();
+		auto& children = ast.children_of(n);
+		auto& node = ast.get_node(n);
+		assert(children.size() == 1);
+
+		assert(node.kind == core_ast::node_type::NOT);
+
+		// children bytecode should leave 1 value on stack
+		generate_bytecode(children[0], ast, p, i);
+		auto child_size = i.node_diff_stack_size(f_id, children[0]);
+
+		auto r_res = i.alloc_register();
+		bc.add_instructions(make_pop(child_size, r_res));
+		bc.add_instruction(make_xor(vm::ret_reg, r_res, 1)); 
+		i.dealloc_register(r_res);
+
+		uint8_t res_size = 1;
+		bc.add_instruction(make_push(res_size, vm::ret_reg));
+	}
+
 	void generate_push(node_id n, core_ast::ast& ast, program& p, code_gen_state& i)
 	{
 		link_to_parent_chunk(n, ast, i);
@@ -696,6 +720,7 @@ namespace fe::vm
 		case core_ast::node_type::NOP: return;
 		default:
 			if (core_ast::is_binary_op(node.kind)) return generate_binary_op(n, ast, p, i);
+			if (core_ast::is_unary_op(node.kind)) return generate_unary_op(n, ast, p, i);
 			throw std::runtime_error("Error in bytecode gen. stage: unknown node type");
 		}
 	}

@@ -37,6 +37,7 @@ namespace fe::vm
 		case op_kind::AND_REG_REG_REG: return "and_reg_reg_reg";
 		case op_kind::AND_REG_REG_UI8: return "and_reg_reg_ui8";
 		case op_kind::OR_REG_REG_REG: return "or_reg_reg_reg";
+		case op_kind::XOR_REG_REG_UI8: return "xor_reg_reg_ui8";
 		case op_kind::MV_REG_SP: return "mv_reg_sp";
 		case op_kind::MV_REG_IP: return "mv_reg_ip";
 		case op_kind::MV_REG_UI8: return "mv_reg_ui8";
@@ -284,6 +285,10 @@ namespace fe::vm
 	bytes<4> make_neq(reg dest, reg a, reg b)
 	{
 		return bytes<4>{ op_to_byte(op_kind::NEQ_REG_REG_REG), dest.val, a.val, b.val };
+	}
+	bytes<4> make_xor(reg dest, reg a, int8_t b)
+	{
+		return bytes<4>{ op_to_byte(op_kind::XOR_REG_REG_UI8), dest.val, a.val, byte(b) };
 	}
 	bytes<2> make_mv_reg_sp(reg dest)
 	{

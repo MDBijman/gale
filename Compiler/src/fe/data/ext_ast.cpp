@@ -148,7 +148,6 @@ namespace fe::ext_ast
 		case node_type::STRING:     return static_cast<data_index>(constants.create<string>());
 		case node_type::BOOLEAN:    return static_cast<data_index>(constants.create<boolean>());
 		default:
-			if (is_binary_op(t)) return static_cast<data_index>(constants.create<string>());
 			return no_data;
 		}
 	}
