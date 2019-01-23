@@ -493,6 +493,28 @@ or_reg_reg_reg LABEL NEAR PTR WORD
 	DISPATCH
 ; END or reg reg reg 
 
+; BEGIN xor reg reg ui8
+xor_reg_reg_ui8 LABEL NEAR PTR WORD
+	; al contains target
+	shr r9, 16
+	xor rax, rax
+	mov al, r9b
+	; bl contains source
+	shr r9, 8
+	xor rbx, rbx
+	mov bl, r9b
+	; r9 contains literal
+	shr r9, 8
+	and r9, 0ffh
+
+	mov rcx, QWORD PTR [r13 + rbx*8]
+	xor rcx, r9
+	mov QWORD PTR [r13 + rax*8], rcx
+
+	add r8, 5
+	DISPATCH
+; END xor reg reg ui8
+
 ; BEGIN mv reg sp
 mv_reg_sp LABEL NEAR PTR WORD
 	shr r9, 16
@@ -1203,7 +1225,11 @@ lea rcx, or_reg_reg_reg
 sub rcx, rbx
 mov [rax + rdx*2], cx
 
-; todo remove
+inc rdx
+lea rcx, xor_reg_reg_ui8
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
 inc rdx
 lea rcx, mv_reg_sp
 sub rcx, rbx

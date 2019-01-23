@@ -178,6 +178,13 @@ namespace fe::core_ast
 					break;
 				}
 			}
+			else if (is_unary_op(node.kind))
+			{
+				res.pre_node_stack_sizes[n] = predecessor_size(n, ast, res);
+				analyze_stack(ast.get_node(n).children[0], ast, res);
+				assert(node.kind == core_ast::node_type::NOT);
+				res.node_stack_sizes[n] = predecessor_size(n, ast, res) + 1;
+			}
 			else
 			{
 				assert(!"Cannot calculate stack size");

@@ -57,6 +57,8 @@ namespace fe::vm
 		AND_REG_REG_UI8,
 		// reg[b0] <- reg[b1] | reg[b2]
 		OR_REG_REG_REG,
+		// reg[b0] <- reg[b1] ^ b2
+		XOR_REG_REG_UI8,
 
 		/*
 		* Control
@@ -145,6 +147,7 @@ namespace fe::vm
 		case op_kind::AND_REG_REG_REG: return 4;
 		case op_kind::AND_REG_REG_UI8: return 4;
 		case op_kind::OR_REG_REG_REG: return 4;
+		case op_kind::XOR_REG_REG_UI8: return 4;
 		case op_kind::MV_REG_SP: return 2;
 		case op_kind::MV_REG_IP: return 2;
 		case op_kind::MV_REG_UI8: return 3;
@@ -276,6 +279,7 @@ namespace fe::vm
 	bytes<4> make_lte(reg dest, reg a, byte b);
 	bytes<4> make_eq(reg dest, reg a, reg b);
 	bytes<4> make_neq(reg dest, reg a, reg b);
+	bytes<4> make_xor(reg dest, reg a, int8_t b);
 	bytes<2> make_mv_reg_sp(reg dest);
 	bytes<3> make_mv_reg_ui8(reg dest, uint8_t a);
 	bytes<4> make_mv_reg_ui16(reg dest, uint16_t a);

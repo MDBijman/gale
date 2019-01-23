@@ -333,8 +333,6 @@ namespace fe::ext_ast
 		assert(children.size() == 2);
 		copy_parent_scope(n, ast);
 
-		auto& type_signature = ast.get_data<string>(n.data_index);
-
 		auto& lhs_node = ast.get_node(children[0]);
 		auto& rhs_node = ast.get_node(children[1]);
 
@@ -372,32 +370,38 @@ namespace fe::ext_ast
 			throw std::runtime_error("Typeof for binary op not implemented");
 		}
 
-		switch (n.kind)
-		{
-		case node_type::ADDITION:       type_signature.value = "add";  break;
-		case node_type::SUBTRACTION:    type_signature.value = "sub";  break;
-		case node_type::MULTIPLICATION: type_signature.value = "mul";  break;
-		case node_type::DIVISION:       type_signature.value = "div";  break;
-		case node_type::MODULO:         type_signature.value = "mod";  break;
-		case node_type::EQUALITY:       type_signature.value = "eq";   break;
-		case node_type::GREATER_OR_EQ:  type_signature.value = "gte";  break;
-		case node_type::GREATER_THAN:   type_signature.value = "gt";   break;
-		case node_type::LESS_OR_EQ:     type_signature.value = "lte";  break;
-		case node_type::LESS_THAN:      type_signature.value = "lt";   break;
-		case node_type::AND:            type_signature.value = "and";   break;
-		case node_type::OR:             type_signature.value = "or";   break;
-		default: throw std::runtime_error("Node type not implemented");
-		}
-		type_signature.value += " ";
-		type_signature.value +=
-			"(" + lhs_type->operator std::string() + ", " + rhs_type->operator std::string() + ")";
-		type_signature.value += " -> ";
-		type_signature.value += res_type->operator std::string();
-
 		if (!tc.satisfied_by(*res_type))
 			throw typecheck_error{ "binary op type " + res_type->operator std::string()
 			+ " does not match constraints\n" + tc.operator std::string() };
 		return res_type;
+	}
+
+	types::unique_type typeof_unary_op(node& n, ast& ast, type_constraints tc)
+	{
+		assert(ext_ast::is_unary_op(n.kind));
+		auto& children = ast.children_of(n);
+		assert(children.size() == 1);
+		copy_parent_scope(n, ast);
+
+		auto& child = ast.get_node(children[0]);
+
+		types::unique_type child_type;
+
+		switch (n.kind)
+		{
+		case node_type::NOT:
+		{
+			child_type = typeof(child, ast, tc);
+			break;
+		}
+		default:
+			throw std::runtime_error("Typeof for unary op not implemented");
+		}
+
+		if (!tc.satisfied_by(*child_type))
+			throw typecheck_error{ "unary op type " + child_type->operator std::string()
+			+ " does not match constraints\n" + tc.operator std::string() };
+		return child_type;
 	}
 
 	types::unique_type typeof_function_type(node& n, ast& ast, type_constraints tc)
@@ -915,6 +919,7 @@ namespace fe::ext_ast
 		case node_type::IF_STATEMENT:    return typeof_if_expr(n, ast, tc);
 		default:
 			if (ext_ast::is_binary_op(n.kind)) return typeof_binary_op(n, ast, tc);
+			if (ext_ast::is_unary_op(n.kind)) return typeof_unary_op(n, ast, tc);
 
 			assert(!"This node cannot be typeofed");
 			throw std::runtime_error("Internal Error: Node cannot be typeofed");

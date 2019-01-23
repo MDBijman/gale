@@ -912,8 +912,6 @@ namespace fe::ext_ast
 		assert(ext_ast::is_binary_op(n.kind));
 		auto& children = ast.children_of(n);
 		assert(children.size() == 2);
-		assert(n.data_index != no_data);
-
 
 		core_ast::node_type new_node_type;
 		// By default the number of stack bytes is the largest of the two operands
@@ -931,27 +929,116 @@ namespace fe::ext_ast
 		case node_type::GREATER_THAN:   new_node_type = core_ast::node_type::GT;  stack_bytes = 1; break;
 		case node_type::LESS_OR_EQ:     new_node_type = core_ast::node_type::LEQ; stack_bytes = 1; break;
 		case node_type::LESS_THAN:      new_node_type = core_ast::node_type::LT;  stack_bytes = 1; break;
-		case node_type::AND:            new_node_type = core_ast::node_type::AND; break;
-		case node_type::OR:             new_node_type = core_ast::node_type::OR;  break;
+		case node_type::AND:            new_node_type = core_ast::node_type::AND; stack_bytes = 1; break;
+		case node_type::OR:             new_node_type = core_ast::node_type::OR;  stack_bytes = 1; break;
 		default: throw lower_error{ "Unknown binary op" };
 		}
 
 		auto new_node = new_ast.create_node(new_node_type, p);
 
-		// #todo and or short circuiting
+		// #todo or short circuiting
 
-		auto lhs_block = new_ast.create_node(core_ast::node_type::BLOCK, new_node);
-		auto lhs = lower(lhs_block, ast.get_node(children[0]), ast, new_ast, context);
-		auto rhs_block = new_ast.create_node(core_ast::node_type::BLOCK, new_node);
-		auto rhs = lower(rhs_block, ast.get_node(children[1]), ast, new_ast, context);
-
-		// If we hadnt set stack_bytes to 1, then we have a number operator
-		if (stack_bytes == 0)
+		// AND short circuiting
+		if (n.kind == node_type::AND)
 		{
-			stack_bytes = lhs.allocated_stack_space > rhs.allocated_stack_space
-				? lhs.allocated_stack_space
-				: rhs.allocated_stack_space;
+			auto short_circuit_lbl = context.new_label();
+			auto finish_lbl = context.new_label();
+
+			// Generate LHS expression
+			auto lhs_block = new_ast.create_node(core_ast::node_type::BLOCK, new_node);
+			auto lhs = lower(lhs_block, ast.get_node(children[0]), ast, new_ast, context);
+
+			// If the result was false, jump over the RHS expression and push a 0
+			auto jump = new_ast.create_node(core_ast::node_type::JZ, lhs_block);
+			new_ast.get_node_data<core_ast::label>(jump).id = short_circuit_lbl;
+			auto push_true = new_ast.create_node(core_ast::node_type::BOOLEAN, lhs_block);
+			new_ast.get_node_data<boolean>(push_true).value = true;
+
+			// If the result was true, evaluate RHS and && results together and jump to finish
+			auto rhs_block = new_ast.create_node(core_ast::node_type::BLOCK, new_node);
+			auto rhs = lower(rhs_block, ast.get_node(children[1]), ast, new_ast, context);
+			auto jump_finish = new_ast.create_node(core_ast::node_type::JMP, rhs_block);
+			new_ast.get_node_data<core_ast::label>(jump_finish).id = finish_lbl;
+
+			// If we short circuited, we push a 0 since it was consumed by the jump
+			auto jump_target = new_ast.create_node(core_ast::node_type::LABEL, rhs_block);
+			new_ast.get_node_data<core_ast::label>(jump_target).id = short_circuit_lbl;
+			// Push false twice since the && is generated in bytecode later, this is slightly inefficient
+			auto push_false = new_ast.create_node(core_ast::node_type::BOOLEAN, rhs_block);
+			new_ast.get_node_data<boolean>(push_false).value = false;
+			auto push_false_again = new_ast.create_node(core_ast::node_type::BOOLEAN, rhs_block);
+			new_ast.get_node_data<boolean>(push_false_again).value = false;
+
+			auto finish_target = new_ast.create_node(core_ast::node_type::LABEL, rhs_block);
+			new_ast.get_node_data<core_ast::label>(finish_target).id = finish_lbl;
 		}
+		// OR short circuiting
+		else if (n.kind == node_type::OR)
+		{
+			auto short_circuit_lbl = context.new_label();
+			auto finish_lbl = context.new_label();
+
+			// Generate LHS expression
+			auto lhs_block = new_ast.create_node(core_ast::node_type::BLOCK, new_node);
+			auto lhs = lower(lhs_block, ast.get_node(children[0]), ast, new_ast, context);
+
+			// If the result was true, jump over the RHS expression and push a 1
+			auto jump = new_ast.create_node(core_ast::node_type::JNZ, lhs_block);
+			new_ast.get_node_data<core_ast::label>(jump).id = short_circuit_lbl;
+			auto push_true = new_ast.create_node(core_ast::node_type::BOOLEAN, lhs_block);
+			new_ast.get_node_data<boolean>(push_true).value = false;
+
+			// If the result was false, evaluate RHS and || results together and jump to finish
+			auto rhs_block = new_ast.create_node(core_ast::node_type::BLOCK, new_node);
+			auto rhs = lower(rhs_block, ast.get_node(children[1]), ast, new_ast, context);
+			auto jump_finish = new_ast.create_node(core_ast::node_type::JMP, rhs_block);
+			new_ast.get_node_data<core_ast::label>(jump_finish).id = finish_lbl;
+
+			// If we short circuited, we push a 1 since it was consumed by the jump
+			auto jump_target = new_ast.create_node(core_ast::node_type::LABEL, rhs_block);
+			new_ast.get_node_data<core_ast::label>(jump_target).id = short_circuit_lbl;
+			// Push true twice since the || is generated in bytecode later, this is slightly inefficient
+			auto push_false = new_ast.create_node(core_ast::node_type::BOOLEAN, rhs_block);
+			new_ast.get_node_data<boolean>(push_false).value = true;
+			auto push_false_again = new_ast.create_node(core_ast::node_type::BOOLEAN, rhs_block);
+			new_ast.get_node_data<boolean>(push_false_again).value = true;
+
+			auto finish_target = new_ast.create_node(core_ast::node_type::LABEL, rhs_block);
+			new_ast.get_node_data<core_ast::label>(finish_target).id = finish_lbl;
+		}
+		else
+		{
+			auto lhs_block = new_ast.create_node(core_ast::node_type::BLOCK, new_node);
+			auto lhs = lower(lhs_block, ast.get_node(children[0]), ast, new_ast, context);
+			auto rhs_block = new_ast.create_node(core_ast::node_type::BLOCK, new_node);
+			auto rhs = lower(rhs_block, ast.get_node(children[1]), ast, new_ast, context);
+
+			// If we hadnt set stack_bytes to 1, then we have a number operator
+			if (stack_bytes == 0)
+			{
+				stack_bytes = lhs.allocated_stack_space > rhs.allocated_stack_space
+					? lhs.allocated_stack_space
+					: rhs.allocated_stack_space;
+			}
+		}
+		return lowering_result(location_type::stack, stack_bytes);
+	}
+
+	lowering_result lower_unary_op(node_id p, node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)
+	{
+		assert(ext_ast::is_unary_op(n.kind));
+		auto& children = ast.children_of(n);
+		assert(children.size() == 1);
+
+		assert(n.kind == ext_ast::node_type::NOT);
+
+		core_ast::node_type new_node_type = core_ast::node_type::NOT;
+		// Can only apply to boolean result, so a single byte
+		int32_t stack_bytes = 1;
+
+		auto new_node = new_ast.create_node(new_node_type, p);
+		auto child_block = new_ast.create_node(core_ast::node_type::BLOCK, new_node);
+		auto child = lower(child_block, ast.get_node(children[0]), ast, new_ast, context);
 
 		return lowering_result(location_type::stack, stack_bytes);
 	}
@@ -985,6 +1072,7 @@ namespace fe::ext_ast
 		case node_type::ARRAY_VALUE:        return lower_array_value(p, n, ast, new_ast, context);          break;
 		default:
 			if (ext_ast::is_binary_op(n.kind)) return lower_binary_op(p, n, ast, new_ast, context);
+			if (ext_ast::is_unary_op(n.kind)) return lower_unary_op(p, n, ast, new_ast, context);
 			if (ext_ast::is_type_node(n.kind)) return lowering_result();
 
 			assert(!"Node type not lowerable");
