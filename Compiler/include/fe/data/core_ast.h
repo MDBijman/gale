@@ -48,7 +48,7 @@ namespace fe::core_ast
 		JMP, JNZ, JZ,
 
 		// Logic ops
-		LT, GT, LEQ, GEQ, EQ, NEQ, AND, OR,
+		LT, GT, LEQ, GEQ, EQ, NEQ, AND, OR, NOT,
 
 		// Arithmetic ops
 		ADD, SUB, MUL, DIV, MOD, NEG
@@ -69,6 +69,11 @@ namespace fe::core_ast
 			|| kind == node_type::MUL
 			|| kind == node_type::DIV
 			|| kind == node_type::MOD);
+	}
+
+	constexpr bool is_unary_op(node_type kind)
+	{
+		return (kind == node_type::NOT);
 	}
 
 	struct node

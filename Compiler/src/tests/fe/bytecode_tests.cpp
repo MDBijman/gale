@@ -60,6 +60,75 @@ std.io.println a;
 )", "1346269\n");
 }
 
+// Operators
+
+
+TEST_CASE("mod", "[bytecode]")
+{
+	run_with_expectation(R"(
+module fib
+import [std std.io]
+let a: std.ui64 = 300425737568;
+let b: std.ui64 = 2;
+let c: std.ui64 = a % b;
+if(c == 0) {
+	std.io.print 0;
+} else {
+	std.io.print 1;
+};
+)", "0");
+}
+
+TEST_CASE("mod2", "[bytecode]")
+{
+	run_with_expectation(R"(
+module fib
+import [std std.io]
+let a: std.ui64 = 300425737567;
+let b: std.ui64 = 689219;
+let c: std.ui64 = a % b;
+if(c == 0) {
+	std.io.print 0;
+} else {
+	std.io.print 1;
+};
+)", "0");
+}
+
+TEST_CASE("and short circuit", "[bytecode]")
+{
+	run_with_expectation(R"(
+module fib
+import [std std.io]
+let a: std.ui64 = 1;
+let b: std.ui64 = 2;
+let is_false: std.ui64 -> std.bool = \n => { false };
+let side_effect: std.ui64 -> std.bool = \n => { std.io.println 3; true };
+if(is_false a && side_effect b) {
+	std.io.print 0;
+} else {
+	std.io.print 1;
+};
+)", "1");
+}
+
+TEST_CASE("or short circuit", "[bytecode]")
+{
+	run_with_expectation(R"(
+module fib
+import [std std.io]
+let a: std.ui64 = 1;
+let b: std.ui64 = 2;
+let is_true: std.ui64 -> std.bool = \n => { true };
+let side_effect: std.ui64 -> std.bool = \n => { std.io.println 3; true };
+if(is_true a || side_effect b) {
+	std.io.print 1;
+} else {
+	std.io.print 0;
+};
+)", "1");
+}
+
 // Scoping
 
 TEST_CASE("scope", "[bytecode]")
@@ -106,6 +175,22 @@ if (true) { a = 2; } else { a = 3; };
 std.io.print a;
 )", "2");
 }
+
+// While
+
+TEST_CASE("while", "[bytecode]")
+{
+	run_with_expectation(R"(
+module fib
+import [std std.io]
+
+let a: std.ui64 = 5;
+while (a > 2) { a = a - 1; };
+std.io.print a;
+)", "2");
+}
+
+
 
 // Recursion
 
@@ -192,33 +277,26 @@ std.io.print (fib ([1, 2], 2, 4000000));
 )", "4613732");
 };
 
-/*
-Feature needed: ! operator
-*/
+TEST_CASE("euler problem 3", "[bytecode]")
+{
+	run_with_expectation(R"(
+module test
+import [std std.io]
 
-//TEST_CASE("euler problem 3", "[bytecode]")
-//{
-//	run_with_expectation(R"(
-//module test
-//import [std std.io]
-//
-//let upper: std.ui64 = 600851475142;
-//let curr: std.ui64 = upper / 2;
-//
-//while(curr > 1) {
-//	if(upper % curr == 0) {
-//		std.io.print curr;
-//	}
-//
-//	upper = upper - 1;
-//};
-//
-//)", "");
-//}
+let number: std.ui64 = 600851475143;
+let divisor: std.ui64 = 2;
 
+while (divisor < number) {
+	if(number % divisor == 0) {
+		number = number / divisor;
+	} else {
+		divisor = divisor + 1;
+	};
+};
 
-
-
+std.io.println number;
+)", "6857\n");
+}
 
 // Sum types
 

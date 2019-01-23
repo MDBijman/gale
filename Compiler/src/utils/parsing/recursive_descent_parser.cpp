@@ -460,6 +460,15 @@ namespace recursive_descent
 		return function_id;
 	}
 
+	fe::node_id parse_not(tree& t, token_stream_reader& ts)
+	{
+		ts.consume(token_kind::NOT);
+		auto not = t.create_node(fe::ext_ast::node_type::NOT);
+		auto n = parse_expression(t, ts);
+		link_child_parent(n, not, t);
+		return not;
+	}
+
 	fe::node_id parse_expression(tree& t, token_stream_reader& ts)
 	{
 		auto next = ts.peek().value;
@@ -503,6 +512,7 @@ namespace recursive_descent
 		else if (next == token_kind::FALSE_KEYWORD) return parse_false(t, ts);
 		else if (next == token_kind::IF_KEYWORD) return parse_if_expr(t, ts);
 		else if (next == token_kind::BACKSLASH) return parse_function(t, ts);
+		else if (next == token_kind::NOT) return parse_not(t, ts);
 		else throw error{ std::string("Error parsing expression: ") + std::string(ts.peek().text) };
 	}
 
