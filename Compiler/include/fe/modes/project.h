@@ -122,8 +122,6 @@ namespace fe
 			}
 			auto executable = pl.link(bytecode);
 
-		
-
 			// optimize
 			pl.optimize_executable(executable);
 

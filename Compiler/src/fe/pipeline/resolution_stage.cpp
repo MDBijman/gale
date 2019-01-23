@@ -469,6 +469,17 @@ namespace fe::ext_ast
 		resolve(rhs_node, ast);
 	}
 
+	void resolve_unary_op(node& n, ast& ast)
+	{
+		assert(ext_ast::is_unary_op(n.kind));
+		auto& children = ast.children_of(n);
+		assert(children.size() == 1);
+		copy_parent_scope(n, ast);
+
+		auto& child = ast.get_node(children[0]);
+		resolve(child, ast);
+	}
+
 	void resolve(node& n, ast& ast)
 	{
 		switch (n.kind)
@@ -501,6 +512,7 @@ namespace fe::ext_ast
 		case node_type::IMPORT_DECLARATION: break;
 		default:
 			if (ext_ast::is_binary_op(n.kind)) { resolve_binary_op(n, ast); return; }
+			if (ext_ast::is_unary_op(n.kind)) { resolve_unary_op(n, ast); return; }
 
 			assert(!"Node type not resolvable");
 			throw std::runtime_error("Node type not resolvable");
