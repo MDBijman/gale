@@ -68,7 +68,7 @@ std.io.print (second y);
 
 Fib
 ```
-let fib: std.ui64 -> std.ui64 = \n => if (n <= 2) { 1 } else { (fib (n - 1) + fib (n - 2)) };
+let fib: std.ui64 -> std.ui64 = \n => if (n <= 2) { 1 } else { fib (n - 1) + fib (n - 2) };
 let a: std.ui64 = fib 31;
 std.io.println a;
 ```
