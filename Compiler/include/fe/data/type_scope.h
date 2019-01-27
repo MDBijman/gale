@@ -124,7 +124,7 @@ namespace fe::ext_ast
 
 	using type_constraint = std::variant<conversion_constraint, equality_constraint>;
 
-	const auto to_string = [](const auto& x) -> std::string { return x.operator std::string(); };
+	const auto constraint_to_string = [](const auto& x) -> std::string { return x.operator std::string(); };
 
 	class type_constraints
 	{
@@ -204,7 +204,7 @@ namespace fe::ext_ast
 			std::string o = "type_constraints (";
 			for (auto& constraint : constraints)
 			{
-				o += std::visit(to_string, constraint);
+				o += std::visit(constraint_to_string, constraint);
 			}
 			return o + ")";
 		}
