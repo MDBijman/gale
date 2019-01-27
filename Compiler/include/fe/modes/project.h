@@ -7,6 +7,7 @@
 #include "fe/libraries/std/std_io.h"
 #include "fe/libraries/std/std_types.h"
 #include "utils/reading/reader.h"
+#include "fe/pipeline/pretty_print_stage.h"
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -26,6 +27,8 @@ namespace fe
 		vm::machine_state eval(const std::string& code, vm::vm_settings s)
 		{
 			auto e_ast = pl.parse(code);
+
+			std::cout << ext_ast::pretty_print(e_ast) << "\n";
 
 			auto& root_node = e_ast.get_node(e_ast.root_id());
 			root_node.type_scope_id = e_ast.create_type_scope();
