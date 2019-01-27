@@ -7,6 +7,7 @@
 #include "fe/libraries/std/std_io.h"
 #include "fe/libraries/std/std_types.h"
 #include "utils/reading/reader.h"
+#include "fe/pipeline/pretty_print_stage.h"
 #include <string>
 #include <vector>
 #include <unordered_map>
