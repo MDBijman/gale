@@ -36,18 +36,18 @@ Sum types and match expressions
 let val: Num: std.ui64 | Bool: std.bool = Num 3;
 
 val match {
-	| Bool x -> { std.io.print "bool"; }
-	| Num x -> { std.io.print x; }
+    | Bool x -> { std.io.print "bool"; }
+    | Num x -> { std.io.print x; }
 };
 ```
 
 Nested scoping
 ```
 let x: std.ui64 = {
-	let a: std.ui64 = 1;
-	let b: std.ui64 = 2;
-	let c: std.ui64 = a + b;
-	c
+    let a: std.ui64 = 1;
+    let b: std.ui64 = 2;
+    let c: std.ui64 = a + b;
+    c
 };
 std.io.print x
 ```
