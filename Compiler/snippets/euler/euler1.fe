@@ -1,25 +1,12 @@
-module euler1
+module test
 import [std std.io]
 
-std.io.println "Euler 1";
-let before: std.i64 = std.io.time ();
-
-let sum: std.i32 = 0;
-let x: std.i32 = 1000;
-
-while (x > 1) {
-	x = x - 1;
-
-	let y: std.i32 = x % 5;
-	let z: std.i32 = x % 3;
-
-	if (y == 0 || z == 0) {
-		sum = sum + x;
+let sum : std.ui64 = 0;
+let i : std.ui64 = 1;
+while (i < 1000) {
+	if ((i % 3) == 0 || (i % 5) == 0) {
+		sum = sum + i;
 	};
+	i = i + 1;
 };
-
-std.io.println std.to_string sum;
-
-let after: std.i64 = std.io.time ();
-std.io.print std.to_string ((std.to_f32 (after - before)) / (std.to_f32 1000000));
-std.io.println " ms";
+std.io.println sum;
