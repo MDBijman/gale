@@ -61,7 +61,9 @@ namespace fe::ext_ast
 	{
 		switch (n.kind)
 		{
-		case node_type::IDENTIFIER: return ast.get_data<ext_ast::identifier>(n.data_index).full;
+		case node_type::IDENTIFIER: return "\"" + ast.get_data<ext_ast::identifier>(n.data_index).full + "\"";
+		case node_type::NUMBER: return std::to_string(ast.get_data<number>(n.data_index).value);
+		case node_type::BOOLEAN: return std::to_string(ast.get_data<boolean>(n.data_index).value);
 		default: return "";
 		}
 
@@ -81,16 +83,13 @@ namespace fe::ext_ast
 				acc += ", ";
 			}
 
-			if (ast.get_children(node.children_id).size() == 0)
-			{
-				acc += "\"";
-				acc += data_to_string(node, ast);
-				acc += "\"";
-			}
-
 			// Remove the ', ' after the last element
 			acc.pop_back();
 			acc.pop_back();
+		}
+		else
+		{
+			acc += data_to_string(node, ast);
 		}
 		acc += ")";
 	}
