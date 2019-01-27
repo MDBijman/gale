@@ -187,6 +187,9 @@
     <ClCompile Include="src\fe\pipeline\core_stack_analysis.cpp">
       <Filter>Source Files\fe\pipeline</Filter>
     </ClCompile>
+    <ClCompile Include="src\fe\pipeline\pretty_print_stage.cpp">
+      <Filter>Source Files\fe\pipeline</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\fe\data\core_ast.h">
@@ -295,6 +298,9 @@
       <Filter>Source Files\fe\pipeline</Filter>
     </ClInclude>
     <ClInclude Include="include\fe\pipeline\core_stack_analysis.h">
+      <Filter>Source Files\fe\pipeline</Filter>
+    </ClInclude>
+    <ClInclude Include="include\fe\pipeline\pretty_print_stage.h">
       <Filter>Source Files\fe\pipeline</Filter>
     </ClInclude>
   </ItemGroup>

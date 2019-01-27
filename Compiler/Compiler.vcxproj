@@ -152,6 +152,7 @@
     <ClCompile Include="src\fe\pipeline\linker_stage.cpp" />
     <ClCompile Include="src\fe\pipeline\lowering_stage.cpp" />
     <ClCompile Include="src\fe\pipeline\parser_stage.cpp" />
+    <ClCompile Include="src\fe\pipeline\pretty_print_stage.cpp" />
     <ClCompile Include="src\fe\pipeline\resolution_stage.cpp" />
     <ClCompile Include="src\fe\pipeline\core_stack_analysis.cpp" />
     <ClCompile Include="src\fe\pipeline\typechecker_stage.cpp" />
@@ -197,6 +198,7 @@
     <ClInclude Include="include\fe\pipeline\lowering_stage.h" />
     <ClInclude Include="include\fe\pipeline\parser_stage.h" />
     <ClInclude Include="include\fe\pipeline\pipeline.h" />
+    <ClInclude Include="include\fe\pipeline\pretty_print_stage.h" />
     <ClInclude Include="include\fe\pipeline\resolution_stage.h" />
     <ClInclude Include="include\fe\pipeline\typechecker_stage.h" />
     <ClInclude Include="include\fe\pipeline\vm_stage.h" />
