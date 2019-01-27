@@ -1,24 +1,17 @@
-module euler2
+module test
 import [std std.io]
 
-std.io.println "";
-std.io.println "Euler 2";
-let before: std.i64 = std.io.time ();
+let start: [std.ui64; 2] = [1, 2];
 
-let prev: std.i32 = 1;
-let cur: std.i32 = 1;
-let sum: std.i32 = 0;
-
-while (cur <= 4000000) {
-	if (cur % 2 == 0) { sum = sum + cur; };
-
-	let tmp: std.i32 = prev;
-	prev = cur;
-	cur = tmp + cur;
+let fib: ([std.ui64; 2], std.ui64, std.ui64) -> std.ui64 = \(arr, acc, max) => {
+	let next: std.ui64 = (arr!!0) + (arr!!1);
+	if (next > max)	{
+		acc
+	} else {
+		let next_arr: [std.ui64; 2] = [arr!!1, next];
+		if (next % 2 == 0) { acc = acc + next; };
+		fib (next_arr, acc, max)
+	}
 };
 
-std.io.println std.to_string sum;
-
-let after: std.i64 = std.io.time ();
-std.io.print std.to_string ((std.to_f32 (after - before)) / (std.to_f32 1000000));
-std.io.println " ms";
+std.io.print (fib ([1, 2], 2, 4000000));
