@@ -1,8 +1,6 @@
 #include "fe/pipeline/pipeline.h"
 #include "fe/modes/project.h"
-#include "fe/modes/repl.h"
 #include "utils/memory/small_vector.h"
-#include "fe/libraries/std/std_assert.h"
 
 #define CATCH_CONFIG_RUNNER
 #define CATCH_CONFIG_FAST_COMPILE
@@ -15,7 +13,7 @@ int main(int argc, char** argv)
 {
 	auto mode = argc > 1 ? std::string(argv[1]) : "help";
 
-	auto possible_modes = { "test", "project", "help", "repl", "exit", "other" };
+	auto possible_modes = { "test", "project", "help", "exit", "other" };
 
 	if (argc == 2 && (std::find(possible_modes.begin(), possible_modes.end(), mode) == possible_modes.end()))
 	{
@@ -25,14 +23,7 @@ int main(int argc, char** argv)
 	}
 
 	auto pipeline = fe::pipeline();
-
-	if (mode == "repl")
-	{
-		auto repl = fe::repl(std::move(pipeline));
-		repl.run();
-		return 0;
-	}
-	else if (mode == "test")
+	if (mode == "test")
 	{
 		std::vector<char*> commands;
 		commands.push_back(argv[0]);
@@ -59,16 +50,8 @@ int main(int argc, char** argv)
 			}
 
 			fe::project proj(std::move(pipeline));
-			// std io
-			proj.add_module(fe::stdlib::io::load());
-			// std ui
-			proj.add_module(fe::stdlib::ui::load());
 			// std types
 			proj.add_module(fe::stdlib::typedefs::load());
-			// std assert
-			proj.add_module(fe::stdlib::assert::load());
-
-			fe::stdlib::io::set_iostream(std::make_unique<fe::stdlib::io::iostream>());
 
 			auto project_path = std::experimental::filesystem::path(argv[2]);
 			std::cout << "Project folder: " << project_path << "\n";
@@ -79,7 +62,7 @@ int main(int argc, char** argv)
 				auto path = item.path();
 				if (path.filename().extension() != ".fe") continue;
 
-				std::cout << "\nInterpreting file " << path.filename() << "\n";
+				std::cout << "\nCompiling file " << path.filename() << "\n";
 
 				auto file_or_error = utils::files::read_file(path.string());
 				if (std::holds_alternative<std::exception>(file_or_error))
@@ -89,7 +72,7 @@ int main(int argc, char** argv)
 				}
 				auto& code = std::get<std::string>(file_or_error);
 
-				proj.eval(code, fe::vm::vm_settings(fe::vm::vm_implementation::asm_, true, false, false, false));
+				proj.compile_to_file("test", code, fe::project_settings(false, false, false, false));
 			}
 		}
 		catch (const lexing::error& e)

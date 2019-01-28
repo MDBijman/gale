@@ -7,7 +7,13 @@
 
 namespace fe::vm
 {
-	struct machine_state;
+	constexpr size_t stack_size = 2*8192;
+	constexpr size_t register_count = 64;
+	constexpr uint8_t
+		ip_reg = register_count - 1,
+		sp_reg = register_count - 2,
+		fp_reg = register_count - 3,
+		ret_reg = register_count - 4;
 
 	enum class op_kind : uint8_t
 	{
@@ -120,13 +126,19 @@ namespace fe::vm
 		SDEALLOC_UI8
 	};
 
+	// Returns the byte representation of the given kind
 	uint8_t op_to_byte(op_kind);
+	// Returns the kind (enum) representation of the given byte
 	op_kind byte_to_op(uint8_t);
+	// Returns a string representation of the given kind
 	std::string op_to_string(op_kind);
+	// Returns a kind (enum) parsed from the given string
+	op_kind string_to_op(const std::string&);
 
 	// Returns max uint8_t value on error
 	constexpr uint8_t op_size(op_kind o)
 	{
+		// Cannot be put in cpp file because of constexpr
 		switch (o)
 		{
 		case op_kind::NOP: return 1;
@@ -195,6 +207,7 @@ namespace fe::vm
 	// Compile time op size struct
 	template<op_kind Op> struct ct_op_size { static constexpr uint8_t value = op_size(Op); };
 
+	// A byte is, as the name suggests, a single byte of a bytecode object
 	struct byte
 	{
 		byte() : val(0) {}
@@ -207,6 +220,7 @@ namespace fe::vm
 	inline byte operator%(const byte& a, const byte& b) { return byte(a.val % b.val); }
 	inline bool operator>(const byte& a, const byte& b) { return (a.val > b.val); }
 
+	// A reg is an index corresponding to a register
 	struct reg
 	{
 		reg(uint8_t v) : val(v) {}
@@ -214,7 +228,9 @@ namespace fe::vm
 	};
 	inline bool operator==(const reg& a, const reg& b) { return a.val == b.val; }
 
+	// Return true if the op writes to the given register
 	bool writes_to(const byte* op, reg r);
+	// Return true if the op reads from the given register
 	bool reads_from(const byte* op, reg r);
 
 	template<int C>
@@ -228,6 +244,7 @@ namespace fe::vm
 		return out;
 	}
 
+	// Helper functions for creating bytecode literals
 	bytes<8> make_i64(int64_t);
 	int64_t read_i64(const uint8_t*);
 	int64_t read_i64(bytes<8>);
@@ -325,8 +342,7 @@ namespace fe::vm
 	bytes<2> make_sdealloc_ui8(uint8_t size);
 	bytes<1> make_exit();
 
-	// far_lbl is used to refer to an instruction and the chunk it is a part of
-
+	// A far_lbl is used to refer to an instruction and the bytecode chunk it is a part of
 	struct far_lbl
 	{
 		far_lbl() : chunk_id(0), ip(0) {}
@@ -339,8 +355,7 @@ namespace fe::vm
 		}
 	};
 
-	// near_lbl is used to refer to an instruction within a chunk of bytecode
-
+	// A near_lbl is used to refer to an instruction within a single bytecode
 	struct near_lbl
 	{
 		near_lbl(uint64_t i) : ip(i) {}
@@ -349,6 +364,7 @@ namespace fe::vm
 	inline near_lbl operator+(const near_lbl& a, const near_lbl& b) { return near_lbl(a.ip + b.ip); }
 	inline near_lbl operator-(const near_lbl& a, const near_lbl& b) { return near_lbl(a.ip - b.ip); }
 
+	// A bytecode object is a linear vector of instructions that can be executed.
 	class bytecode
 	{
 	public:
@@ -359,69 +375,40 @@ namespace fe::vm
 			std::vector<byte>& data;
 			uint64_t i;
 
-			iterator(std::vector<byte>& c) : i(0), data(c) {}
-			iterator(std::vector<byte>& c, uint64_t i) : i(i), data(c) {}
+			iterator(std::vector<byte>& c);
+			iterator(std::vector<byte>& c, uint64_t i);
 
 		public:
-			using value_type = byte*;
+			using value_type = byte * ;
 			using reference = value_type;
-			using pointer = byte**;
+			using pointer = byte * *;
 			using iterator_category = std::input_iterator_tag;
 			using difference_type = int;
 
-			iterator(const iterator& o) : i(o.i), data(o.data) {}
-			iterator& operator=(const iterator& o)
-			{
-				data = o.data;
-				i = o.i;
-				return *this;
-			}
-			iterator add_unsafe(uint64_t offset)
-			{
-				i += offset;
-				return *this;
-			}
+			iterator(const iterator& o);
+			iterator& operator=(const iterator& o);
+			iterator add_unsafe(uint64_t offset);
 			// postfix
-			iterator operator++(int)
-			{
-				i += op_size(byte_to_op(data[i].val));
-				return *this;
-			}
+			iterator operator++(int);
 			// prefix
-			iterator& operator++()
-			{
-				i += op_size(byte_to_op(data[i].val));
-				return *this;
-			}
-			bool operator==(const iterator& o)
-			{
-				return (i == o.i) && (&data != &o.data);
-			}
-			bool operator!=(const iterator& o)
-			{
-				return (i != o.i) || (&data != &o.data);
-			}
-			byte* operator*()
-			{
-				return &data[i];
-			}
-			byte* operator->()
-			{
-				return this->operator*();
-			}
+			iterator& operator++();
+			bool operator==(const iterator& o);
+			bool operator!=(const iterator& o);
+			byte* operator*();
+			byte* operator->();
 		};
 
 	private:
 		std::vector<byte> instructions;
 
 	public:
-		bytecode() {}
-		bytecode(std::vector<byte> bs) : instructions(bs) {}
+		bytecode();
+		bytecode(std::vector<byte> bs);
 
 		// Adds the bytes to this bytecode at the given address
 		template<int C> near_lbl add_instruction(near_lbl l, bytes<C> in)
 		{
-			for (int i = 0; i < C; i++) 
+			for (int i = 0; i < C; i++)
 				instructions.insert(instructions.begin() + l.ip + i, in[i]);
 			return l;
 		}
@@ -442,10 +429,7 @@ namespace fe::vm
 			return std::make_pair(l, (Cs + ... + 0));
 		}
 
-		const byte* get_instruction(near_lbl l) const
-		{
-			return &(instructions[l.ip]);
-		}
+		const byte* get_instruction(near_lbl l) const;
 
 		// Returns the C bytes starting at the given address, padded with op_kind::ERR bytes
 		template<int C> bytes<C> get_instruction(near_lbl l) const
@@ -461,42 +445,25 @@ namespace fe::vm
 			for (int i = 0; i < C; i++) instructions[l.ip + i] = b[i];
 		}
 
-		byte* operator[](uint64_t index)
-		{
-			return &instructions[index];
-		}
+		byte* operator[](uint64_t index);
 
-		void append(bytecode& other)
-		{
-			instructions.insert(instructions.end(), other.data().begin(), other.data().end());
-		}
+		void append(bytecode& other);
 
 		// Returns true if the given address maps to an instruction
 		bool has_instruction(near_lbl) const;
 
 		operator std::string() const;
 
-		size_t size() const
-		{
-			return instructions.size();
-		}
+		size_t size() const;
 
-		std::vector<byte>& data()
-		{
-			return this->instructions;
-		}
+		std::vector<byte>& data();
 
-		iterator begin()
-		{
-			return iterator(instructions);
-		}
+		iterator begin();
 
-		iterator end()
-		{
-			return iterator(instructions, instructions.size());
-		}
+		iterator end();
 	};
 
+	// A helper class for building a bytecode
 	class bytecode_builder
 	{
 		bytecode bc;
@@ -517,10 +484,7 @@ namespace fe::vm
 			return *this;
 		}
 
-		bytecode build()
-		{
-			return bc;
-		}
+		bytecode build();
 	};
 
 	using native_function_ptr = int(*)(uint64_t*, uint8_t*);
@@ -528,7 +492,8 @@ namespace fe::vm
 	using name = std::string;
 	using symbols = std::unordered_map<uint32_t, name>;
 
-	// A bytecode object with a name, referenced in other bytecode by the name
+	// A bytecode object/native function with a name, referenced in other bytecode by the name
+	// A function object also contains a map of external functions referenced by name
 	class function
 	{
 		name signature;
@@ -536,21 +501,24 @@ namespace fe::vm
 		symbols externals;
 
 	public:
-		function(name n, bytecode c, symbols s) : signature(n), code(c), externals(s) {}
-		function(name n, bytecode c) : signature(n), code(c) {}
-		function(name n, native_function_ptr c, symbols s) : signature(n), code(c), externals(s) {}
-		function(name n, native_function_ptr c) : signature(n), code(c) {}
-		function() {}
+		function(name n, bytecode c, symbols s);
+		function(name n, bytecode c);
+		function(name n, native_function_ptr c, symbols s);
+		function(name n, native_function_ptr c);
+		function();
 
-		name& get_name() { return signature; }
-		symbols& get_symbols() { return externals; }
-		bool is_bytecode() { return std::holds_alternative<bytecode>(code); }
-		bool is_native() { return std::holds_alternative<native_function_ptr>(code); }
-		bytecode& get_bytecode() { return std::get<bytecode>(code); }
-		native_function_ptr get_native_function_ptr() { return std::get<native_function_ptr>(code); }
+		name& get_name();
+		symbols& get_symbols();
+		bool is_bytecode();
+		bool is_native();
+		bytecode& get_bytecode();
+		native_function_ptr get_native_function_ptr();
 	};
+
+	// A function id is a unique id for a function
 	using function_id = uint16_t;
 
+	// A program is a set of functions that can call each other.
 	class program
 	{
 		std::vector<function> code;
@@ -563,15 +531,9 @@ namespace fe::vm
 		function& get_function(name);
 		size_t function_count();
 
+		void insert_padding(far_lbl loc, uint8_t size);
 
-		void insert_padding(far_lbl loc, uint8_t size)
-		{
-			if (size == 0) return;
-			auto& bc = code.at(loc.chunk_id).get_bytecode().data();
-			bc.insert(bc.begin() + loc.ip, size, byte(0));
-		}
-
-		std::vector<function>& get_code() { return code; }
+		std::vector<function>& get_code();
 
 		template<int C> bytes<C> operator[](far_lbl l)
 		{
@@ -581,14 +543,14 @@ namespace fe::vm
 		std::string to_string();
 	};
 
-
+	// An executable is a single monolithic bytecode object combined with a set of native functions.
 	class executable
 	{
 	public:
 		bytecode code;
 		std::vector<native_function_ptr> native_functions;
 
-		executable(bytecode code, std::vector<native_function_ptr> nc) : code(code), native_functions(nc) {}
+		executable(bytecode code, std::vector<native_function_ptr> nc);
 
 		template<int C> bytes<C> get_instruction(uint64_t loc)
 		{
@@ -597,22 +559,20 @@ namespace fe::vm
 
 		std::string to_string();
 
-		bytecode::iterator begin() { return code.begin(); }
-		bytecode::iterator end() { return code.end(); }
-		byte* operator[](uint64_t i)
-		{
-			return &code.data()[i];
-		}
+		bytecode::iterator begin();
+		bytecode::iterator end();
+		byte* operator[](uint64_t i);
 	};
 
+	// A direct threaded executable is a platform dependent executable where op_kinds in the bytecode are replaced with
+	// offsets in the interpreter code.
 	class direct_threaded_executable
 	{
 	public:
 		bytecode code;
 		std::vector<native_function_ptr> native_functions;
 
-		direct_threaded_executable(bytecode code, std::vector<native_function_ptr> nc) 
-			: code(code), native_functions(nc) {}
+		direct_threaded_executable(bytecode code, std::vector<native_function_ptr> nc);
 	};
 }
 

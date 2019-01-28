@@ -45,9 +45,6 @@
     <Filter Include="Source Files\fe\libraries\std">
       <UniqueIdentifier>{12f383be-618f-4276-9927-7c0765a055ef}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\fe\libraries\language">
-      <UniqueIdentifier>{09b0ec37-1ac6-44ad-979b-d7325c3f8c20}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Resource Files\snippets">
       <UniqueIdentifier>{9e9feb0e-a547-4a57-bd90-2ebc58caa34c}</UniqueIdentifier>
     </Filter>
@@ -71,6 +68,15 @@
     </Filter>
     <Filter Include="Source Files\tests\utils\memory">
       <UniqueIdentifier>{e1e60ca3-9c26-450f-b419-d2a90ddd2bd6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Common">
+      <UniqueIdentifier>{d06d4161-e338-4893-88a4-c48919f7268c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Common\fe">
+      <UniqueIdentifier>{8479755b-a9ce-4ef8-8f26-1819bb3adbbd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Common\fe\data">
+      <UniqueIdentifier>{d04daaea-2a34-4323-8e51-62902ff3d773}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -103,9 +109,6 @@
     <ClCompile Include="src\fe\pipeline\typechecker_stage.cpp">
       <Filter>Source Files\fe\pipeline</Filter>
     </ClCompile>
-    <ClCompile Include="src\tests\fe\name_resolution_tests.cpp">
-      <Filter>Source Files\tests\fe</Filter>
-    </ClCompile>
     <ClCompile Include="src\fe\language_definition.cpp">
       <Filter>Source Files\fe</Filter>
     </ClCompile>
@@ -127,38 +130,14 @@
     <ClCompile Include="src\tests\utils\performance_tests.cpp">
       <Filter>Source Files\tests\utils</Filter>
     </ClCompile>
-    <ClCompile Include="src\tests\fe\typechecking_tests.cpp">
-      <Filter>Source Files\tests\fe</Filter>
-    </ClCompile>
     <ClCompile Include="src\utils\parsing\recursive_descent_parser.cpp">
       <Filter>Source Files\utils\parsing</Filter>
     </ClCompile>
     <ClCompile Include="src\utils\memory\small_vec_tests.cpp">
       <Filter>Source Files\tests\utils\memory</Filter>
     </ClCompile>
-    <ClCompile Include="src\fe\data\bytecode.cpp">
-      <Filter>Source Files\fe\data</Filter>
-    </ClCompile>
-    <ClCompile Include="src\fe\pipeline\vm_stage.cpp">
-      <Filter>Source Files\fe\pipeline</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tests\fe\bytecode_tests.cpp">
-      <Filter>Source Files\tests\fe</Filter>
-    </ClCompile>
     <ClCompile Include="src\fe\pipeline\bytecode_gen_stage.cpp">
       <Filter>Source Files\fe\pipeline</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tests\fe\literal_inference_tests.cpp">
-      <Filter>Source Files\tests\fe</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tests\fe\comparison_tests.cpp">
-      <Filter>Source Files\tests\fe</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tests\fe\destructuring_tests.cpp">
-      <Filter>Source Files\tests\fe</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tests\fe\bytecode_gen_tests.cpp">
-      <Filter>Source Files\tests\fe</Filter>
     </ClCompile>
     <ClCompile Include="src\fe\pipeline\linker_stage.cpp">
       <Filter>Source Files\fe\pipeline</Filter>
@@ -175,19 +154,16 @@
     <ClCompile Include="src\fe\pipeline\bytecode_optimization_stage.cpp">
       <Filter>Source Files\fe\pipeline</Filter>
     </ClCompile>
-    <ClCompile Include="src\tests\fe\program_tests.cpp">
-      <Filter>Source Files\tests\fe</Filter>
-    </ClCompile>
-    <ClCompile Include="src\fe\libraries\std\std_io.cpp">
-      <Filter>Source Files\fe\libraries\std</Filter>
-    </ClCompile>
-    <ClCompile Include="src\fe\libraries\std\std_assert.cpp">
-      <Filter>Source Files\fe\libraries\std</Filter>
-    </ClCompile>
     <ClCompile Include="src\fe\pipeline\core_stack_analysis.cpp">
       <Filter>Source Files\fe\pipeline</Filter>
     </ClCompile>
     <ClCompile Include="src\fe\pipeline\pretty_print_stage.cpp">
+      <Filter>Source Files\fe\pipeline</Filter>
+    </ClCompile>
+    <ClCompile Include="..\common\fe\data\bytecode.cpp">
+      <Filter>Common\fe\data</Filter>
+    </ClCompile>
+    <ClCompile Include="src\fe\pipeline\bytecode_printing_stage.cpp">
       <Filter>Source Files\fe\pipeline</Filter>
     </ClCompile>
   </ItemGroup>
@@ -199,9 +175,6 @@
       <Filter>Source Files\fe\data</Filter>
     </ClInclude>
     <ClInclude Include="include\fe\modes\project.h">
-      <Filter>Source Files\fe\modes</Filter>
-    </ClInclude>
-    <ClInclude Include="include\fe\modes\repl.h">
       <Filter>Source Files\fe\modes</Filter>
     </ClInclude>
     <ClInclude Include="include\fe\pipeline\error.h">
@@ -221,9 +194,6 @@
     </ClInclude>
     <ClInclude Include="include\fe\language_definition.h">
       <Filter>Source Files\fe</Filter>
-    </ClInclude>
-    <ClInclude Include="include\fe\libraries\std\std_ui.h">
-      <Filter>Source Files\fe\libraries\std</Filter>
     </ClInclude>
     <ClInclude Include="include\fe\libraries\std\std_types.h">
       <Filter>Source Files\fe\libraries\std</Filter>
@@ -249,9 +219,6 @@
     <ClInclude Include="include\fe\data\ext_ast.h">
       <Filter>Source Files\fe\data</Filter>
     </ClInclude>
-    <ClInclude Include="include\tests\test_utils.h">
-      <Filter>Source Files\tests</Filter>
-    </ClInclude>
     <ClInclude Include="include\utils\memory\data_store.h">
       <Filter>Source Files\utils\memory</Filter>
     </ClInclude>
@@ -276,23 +243,11 @@
     <ClInclude Include="include\fe\data\module.h">
       <Filter>Source Files\fe\data</Filter>
     </ClInclude>
-    <ClInclude Include="include\fe\libraries\std\std_io.h">
-      <Filter>Source Files\fe\libraries\std</Filter>
-    </ClInclude>
-    <ClInclude Include="include\fe\data\bytecode.h">
-      <Filter>Source Files\fe\data</Filter>
-    </ClInclude>
     <ClInclude Include="include\fe\pipeline\bytecode_gen_stage.h">
-      <Filter>Source Files\fe\pipeline</Filter>
-    </ClInclude>
-    <ClInclude Include="include\fe\pipeline\vm_stage.h">
       <Filter>Source Files\fe\pipeline</Filter>
     </ClInclude>
     <ClInclude Include="include\fe\pipeline\linker_stage.h">
       <Filter>Source Files\fe\pipeline</Filter>
-    </ClInclude>
-    <ClInclude Include="include\fe\libraries\std\std_assert.h">
-      <Filter>Source Files\fe\libraries\std</Filter>
     </ClInclude>
     <ClInclude Include="include\fe\pipeline\bytecode_optimization_stage.h">
       <Filter>Source Files\fe\pipeline</Filter>
@@ -303,10 +258,11 @@
     <ClInclude Include="include\fe\pipeline\pretty_print_stage.h">
       <Filter>Source Files\fe\pipeline</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <MASM Include="src\fe\pipeline\vm.asm">
+    <ClInclude Include="..\common\fe\data\bytecode.h">
+      <Filter>Common\fe\data</Filter>
+    </ClInclude>
+    <ClInclude Include="include\fe\pipeline\bytecode_printing_stage.h">
       <Filter>Source Files\fe\pipeline</Filter>
-    </MASM>
+    </ClInclude>
   </ItemGroup>
 </Project>

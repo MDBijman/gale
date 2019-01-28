@@ -1,5 +1,6 @@
 .vs/
 x64/
 Release/
+out/
 *.aps
 *.args.json

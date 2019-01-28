@@ -1,5 +1,5 @@
 module test
-import [std std.io]
+import [std]
 
 let number: std.ui64 = 600851475143;
 let divisor: std.ui64 = 2;
@@ -12,4 +12,3 @@ while (divisor < number) {
 	};
 };
 
-std.io.println number;
