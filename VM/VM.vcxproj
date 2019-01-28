@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -20,10 +20,9 @@
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
-    <ProjectGuid>{A08F4F80-CD33-4855-9834-FCBD0D8DE5D3}</ProjectGuid>
-    <RootNamespace>Language</RootNamespace>
+    <ProjectGuid>{188171B2-0BB5-473B-9078-5733436D19F9}</ProjectGuid>
+    <RootNamespace>VM</RootNamespace>
     <WindowsTargetPlatformVersion>10.0.15063.0</WindowsTargetPlatformVersion>
-    <ProjectName>Compiler</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -72,24 +71,22 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup />
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
-      <Optimization>Disabled</Optimization>
-      <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(ProjectDir)lib;$(ProjectDir)include;$(SolutionDir)common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <LanguageStandard>stdcpplatest</LanguageStandard>
-      <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
-    </ClCompile>
-  </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(ProjectDir)lib;$(ProjectDir)include;$(SolutionDir)common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)src;$(SolutionDir)common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
-      <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>$(ProjectDir)src;$(SolutionDir)common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -99,14 +96,12 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(ProjectDir)lib;$(ProjectDir)include;$(SolutionDir)common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)src;$(SolutionDir)common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
-      <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <Profile>true</Profile>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -116,82 +111,29 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>$(ProjectDir)lib;$(ProjectDir)include;$(SolutionDir)common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)src;$(SolutionDir)common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
-      <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
-      <PreprocessToFile>false</PreprocessToFile>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <Profile>true</Profile>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <None Include="snippets\euler\euler1.fe" />
-    <None Include="snippets\euler\euler2.fe" />
-    <None Include="snippets\euler\euler3.fe" />
-    <None Include="snippets\syntax\statements.fe" />
-    <None Include="snippets\tests\array.fe" />
+    <MASM Include="src\vm.asm">
+      <FileType>Document</FileType>
+    </MASM>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\common\fe\data\bytecode.cpp" />
-    <ClCompile Include="src\fe\data\core_ast.cpp" />
-    <ClCompile Include="src\fe\data\ext_ast.cpp" />
-    <ClCompile Include="src\fe\data\name_scope.cpp" />
-    <ClCompile Include="src\fe\data\types.cpp" />
-    <ClCompile Include="src\fe\data\type_scope.cpp" />
-    <ClCompile Include="src\fe\language_definition.cpp" />
-    <ClCompile Include="src\fe\pipeline\bytecode_gen_stage.cpp" />
-    <ClCompile Include="src\fe\pipeline\bytecode_optimization_stage.cpp" />
-    <ClCompile Include="src\fe\pipeline\bytecode_printing_stage.cpp" />
-    <ClCompile Include="src\fe\pipeline\linker_stage.cpp" />
-    <ClCompile Include="src\fe\pipeline\lowering_stage.cpp" />
-    <ClCompile Include="src\fe\pipeline\parser_stage.cpp" />
-    <ClCompile Include="src\fe\pipeline\pretty_print_stage.cpp" />
-    <ClCompile Include="src\fe\pipeline\resolution_stage.cpp" />
-    <ClCompile Include="src\fe\pipeline\core_stack_analysis.cpp" />
-    <ClCompile Include="src\fe\pipeline\typechecker_stage.cpp" />
+    <ClCompile Include="src\bytecode_parser.cpp" />
     <ClCompile Include="src\main.cpp" />
-    <ClCompile Include="src\tests\fe\lowering_tests.cpp" />
-    <ClCompile Include="src\tests\utils\performance_tests.cpp" />
-    <ClCompile Include="src\utils\memory\small_vec_tests.cpp" />
-    <ClCompile Include="src\utils\parsing\recursive_descent_parser.cpp" />
-    <ClCompile Include="src\utils\reading\reader.cpp" />
+    <ClCompile Include="src\vm_stage.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\common\fe\data\bytecode.h" />
-    <ClInclude Include="include\fe\data\constants_store.h" />
-    <ClInclude Include="include\fe\data\core_ast.h" />
-    <ClInclude Include="include\fe\data\ext_ast.h" />
-    <ClInclude Include="include\fe\data\ast_data.h" />
-    <ClInclude Include="include\fe\data\module.h" />
-    <ClInclude Include="include\fe\data\types.h" />
-    <ClInclude Include="include\fe\data\name_scope.h" />
-    <ClInclude Include="include\fe\data\type_scope.h" />
-    <ClInclude Include="include\fe\language_definition.h" />
-    <ClInclude Include="include\fe\libraries\std\std_types.h" />
-    <ClInclude Include="include\fe\modes\project.h" />
-    <ClInclude Include="include\fe\pipeline\bytecode_gen_stage.h" />
-    <ClInclude Include="include\fe\pipeline\bytecode_optimization_stage.h" />
-    <ClInclude Include="include\fe\pipeline\bytecode_printing_stage.h" />
-    <ClInclude Include="include\fe\pipeline\core_stack_analysis.h" />
-    <ClInclude Include="include\fe\pipeline\error.h" />
-    <ClInclude Include="include\fe\pipeline\lexer_stage.h" />
-    <ClInclude Include="include\fe\pipeline\linker_stage.h" />
-    <ClInclude Include="include\fe\pipeline\lowering_stage.h" />
-    <ClInclude Include="include\fe\pipeline\parser_stage.h" />
-    <ClInclude Include="include\fe\pipeline\pipeline.h" />
-    <ClInclude Include="include\fe\pipeline\pretty_print_stage.h" />
-    <ClInclude Include="include\fe\pipeline\resolution_stage.h" />
-    <ClInclude Include="include\fe\pipeline\typechecker_stage.h" />
-    <ClInclude Include="include\utils\algorithms\tree_traversal.h" />
-    <ClInclude Include="include\utils\lexing\lexer.h" />
-    <ClInclude Include="include\utils\memory\data_store.h" />
-    <ClInclude Include="include\utils\memory\pipe.h" />
-    <ClInclude Include="include\utils\memory\small_vector.h" />
-    <ClInclude Include="include\utils\parsing\recursive_descent_parser.h" />
-    <ClInclude Include="include\utils\reading\reader.h" />
+    <ClInclude Include="src\bytecode_parser.h" />
+    <ClInclude Include="src\vm_stage.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
