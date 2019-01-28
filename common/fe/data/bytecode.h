@@ -4,6 +4,7 @@
 #include <variant>
 #include <assert.h>
 #include <unordered_map>
+#include "fe/vm/runtime_info.h"
 
 namespace fe::vm
 {
@@ -487,8 +488,6 @@ namespace fe::vm
 		bytecode build();
 	};
 
-	using native_function_ptr = int(*)(uint64_t*, uint8_t*);
-
 	using name = std::string;
 	using symbols = std::unordered_map<uint32_t, name>;
 
@@ -497,14 +496,14 @@ namespace fe::vm
 	class function
 	{
 		name signature;
-		std::variant<bytecode, native_function_ptr> code;
+		std::variant<bytecode, native_function_id> code;
 		symbols externals;
 
 	public:
 		function(name n, bytecode c, symbols s);
 		function(name n, bytecode c);
-		function(name n, native_function_ptr c, symbols s);
-		function(name n, native_function_ptr c);
+		function(name n, native_function_id c, symbols s);
+		function(name n, native_function_id c);
 		function();
 
 		name& get_name();
@@ -512,7 +511,7 @@ namespace fe::vm
 		bool is_bytecode();
 		bool is_native();
 		bytecode& get_bytecode();
-		native_function_ptr get_native_function_ptr();
+		native_function_id get_native_function_id();
 	};
 
 	// A function id is a unique id for a function
@@ -548,9 +547,8 @@ namespace fe::vm
 	{
 	public:
 		bytecode code;
-		std::vector<native_function_ptr> native_functions;
 
-		executable(bytecode code, std::vector<native_function_ptr> nc);
+		executable(bytecode code);
 
 		template<int C> bytes<C> get_instruction(uint64_t loc)
 		{
@@ -569,10 +567,9 @@ namespace fe::vm
 	class direct_threaded_executable
 	{
 	public:
-		bytecode code;
-		std::vector<native_function_ptr> native_functions;
+		direct_threaded_executable(bytecode code);
 
-		direct_threaded_executable(bytecode code, std::vector<native_function_ptr> nc);
+		bytecode code;
 	};
 }
 

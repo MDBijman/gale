@@ -714,16 +714,16 @@ namespace fe::vm
 
 	function::function(name n, bytecode c, symbols s) : signature(n), code(c), externals(s) {}
 	function::function(name n, bytecode c) : signature(n), code(c) {}
-	function::function(name n, native_function_ptr c, symbols s) : signature(n), code(c), externals(s) {}
-	function::function(name n, native_function_ptr c) : signature(n), code(c) {}
+	function::function(name n, native_function_id c, symbols s) : signature(n), code(c), externals(s) {}
+	function::function(name n, native_function_id c) : signature(n), code(c) {}
 	function::function() {}
 
 	name& function::get_name() { return signature; }
 	symbols& function::get_symbols() { return externals; }
 	bool function::is_bytecode() { return std::holds_alternative<bytecode>(code); }
-	bool function::is_native() { return std::holds_alternative<native_function_ptr>(code); }
+	bool function::is_native() { return std::holds_alternative<native_function_id>(code); }
 	bytecode& function::get_bytecode() { return std::get<bytecode>(code); }
-	native_function_ptr function::get_native_function_ptr() { return std::get<native_function_ptr>(code); }
+	native_function_id function::get_native_function_id() { return std::get<native_function_id>(code); }
 
 	/*
 	* Program
@@ -780,7 +780,7 @@ namespace fe::vm
 	* Executable
 	*/
 
-	executable::executable(bytecode code, std::vector<native_function_ptr> nc) : code(code), native_functions(nc) {}
+	executable::executable(bytecode code) : code(code) {}
 
 	std::string executable::to_string()
 	{
@@ -798,6 +798,5 @@ namespace fe::vm
 	* Direct Threaded Executable
 	*/
 
-	direct_threaded_executable::direct_threaded_executable(bytecode code, std::vector<native_function_ptr> nc)
-		: code(code), native_functions(nc) {}
+	direct_threaded_executable::direct_threaded_executable(bytecode code) : code(code) {}
 }

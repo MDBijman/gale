@@ -5,10 +5,6 @@
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
-    <Filter Include="Resource Files">
-      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
-      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
-    </Filter>
     <Filter Include="Source Files\fe">
       <UniqueIdentifier>{201a128b-a669-4f6f-8bb8-dc3f1f7a921c}</UniqueIdentifier>
     </Filter>
@@ -45,18 +41,6 @@
     <Filter Include="Source Files\fe\libraries\std">
       <UniqueIdentifier>{12f383be-618f-4276-9927-7c0765a055ef}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Resource Files\snippets">
-      <UniqueIdentifier>{9e9feb0e-a547-4a57-bd90-2ebc58caa34c}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Resource Files\snippets\tests">
-      <UniqueIdentifier>{b6678e23-e356-44a0-aa4a-2e46664a4d4f}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Resource Files\snippets\euler">
-      <UniqueIdentifier>{699e989c-a665-428a-8642-f3f52811a282}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Resource Files\snippets\syntax">
-      <UniqueIdentifier>{d2eed966-3785-41d1-aa0f-06b991095d00}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source Files\tests\utils">
       <UniqueIdentifier>{297b88f1-c9a8-442d-8052-a15ae1a0b2ec}</UniqueIdentifier>
     </Filter>
@@ -78,23 +62,9 @@
     <Filter Include="Common\fe\data">
       <UniqueIdentifier>{d04daaea-2a34-4323-8e51-62902ff3d773}</UniqueIdentifier>
     </Filter>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="snippets\euler\euler1.fe">
-      <Filter>Resource Files\snippets\euler</Filter>
-    </None>
-    <None Include="snippets\euler\euler2.fe">
-      <Filter>Resource Files\snippets\euler</Filter>
-    </None>
-    <None Include="snippets\euler\euler3.fe">
-      <Filter>Resource Files\snippets\euler</Filter>
-    </None>
-    <None Include="snippets\syntax\statements.fe">
-      <Filter>Resource Files\snippets\syntax</Filter>
-    </None>
-    <None Include="snippets\tests\array.fe">
-      <Filter>Resource Files\snippets\tests</Filter>
-    </None>
+    <Filter Include="Common\fe\vm">
+      <UniqueIdentifier>{a1c67ea5-a03e-4238-876e-7d9e75797771}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp">
@@ -263,6 +233,12 @@
     </ClInclude>
     <ClInclude Include="include\fe\pipeline\bytecode_printing_stage.h">
       <Filter>Source Files\fe\pipeline</Filter>
+    </ClInclude>
+    <ClInclude Include="include\fe\libraries\std\std_ffi.h">
+      <Filter>Source Files\fe\libraries\std</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\fe\vm\runtime_info.h">
+      <Filter>Common\fe\vm</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

@@ -128,13 +128,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <None Include="snippets\euler\euler1.fe" />
-    <None Include="snippets\euler\euler2.fe" />
-    <None Include="snippets\euler\euler3.fe" />
-    <None Include="snippets\syntax\statements.fe" />
-    <None Include="snippets\tests\array.fe" />
-  </ItemGroup>
-  <ItemGroup>
     <ClCompile Include="..\common\fe\data\bytecode.cpp" />
     <ClCompile Include="src\fe\data\core_ast.cpp" />
     <ClCompile Include="src\fe\data\ext_ast.cpp" />
@@ -161,6 +154,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\common\fe\data\bytecode.h" />
+    <ClInclude Include="..\common\fe\vm\runtime_info.h" />
     <ClInclude Include="include\fe\data\constants_store.h" />
     <ClInclude Include="include\fe\data\core_ast.h" />
     <ClInclude Include="include\fe\data\ext_ast.h" />
@@ -170,6 +164,7 @@
     <ClInclude Include="include\fe\data\name_scope.h" />
     <ClInclude Include="include\fe\data\type_scope.h" />
     <ClInclude Include="include\fe\language_definition.h" />
+    <ClInclude Include="include\fe\libraries\std\std_ffi.h" />
     <ClInclude Include="include\fe\libraries\std\std_types.h" />
     <ClInclude Include="include\fe\modes\project.h" />
     <ClInclude Include="include\fe\pipeline\bytecode_gen_stage.h" />
