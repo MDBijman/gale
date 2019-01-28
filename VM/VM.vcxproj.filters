@@ -14,6 +14,12 @@
     <Filter Include="Common\fe\data">
       <UniqueIdentifier>{3e474d3a-19bd-4c9b-8473-1f290ccdd906}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\runtime">
+      <UniqueIdentifier>{aee2fb88-57c8-4dee-9799-ff54f2addf81}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Common\fe\vm">
+      <UniqueIdentifier>{83726ab6-2abf-417b-9f43-65d854137579}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\vm_stage.cpp">
@@ -28,6 +34,9 @@
     <ClCompile Include="..\common\fe\data\bytecode.cpp">
       <Filter>Common\fe\data</Filter>
     </ClCompile>
+    <ClCompile Include="src\runtime\ffi.cpp">
+      <Filter>Source Files\runtime</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\vm_stage.h">
@@ -38,6 +47,12 @@
     </ClInclude>
     <ClInclude Include="..\common\fe\data\bytecode.h">
       <Filter>Common\fe\data</Filter>
+    </ClInclude>
+    <ClInclude Include="src\runtime\ffi.h">
+      <Filter>Source Files\runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\fe\vm\runtime_info.h">
+      <Filter>Common\fe\vm</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

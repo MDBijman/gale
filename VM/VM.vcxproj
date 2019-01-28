@@ -128,11 +128,14 @@
     <ClCompile Include="..\common\fe\data\bytecode.cpp" />
     <ClCompile Include="src\bytecode_parser.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\runtime\ffi.cpp" />
     <ClCompile Include="src\vm_stage.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\common\fe\data\bytecode.h" />
+    <ClInclude Include="..\common\fe\vm\runtime_info.h" />
     <ClInclude Include="src\bytecode_parser.h" />
+    <ClInclude Include="src\runtime\ffi.h" />
     <ClInclude Include="src\vm_stage.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

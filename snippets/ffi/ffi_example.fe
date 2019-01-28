@@ -1,0 +1,6 @@
+module user_ffi
+import [std.ffi std.c]
+
+let io_dll: std.ffi.dll = std.ffi.load_dll "./io.dll";
+let print: std.c.int -> () = std.ffi.load_fn (io_dll, "print");
+print 1;

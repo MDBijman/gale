@@ -1,13 +1,16 @@
 #include "vm_stage.h"
 #include "fe/data/bytecode.h"
-#include <assert.h>
-#include <iostream>
+#include "runtime/ffi.h"
 #include <string>
-#include <chrono>
 
 namespace fe::vm
 {
-	extern "C" uint16_t* vm_init(native_function_ptr*);
+	void* native_functions[2] = {
+		fe::vm::load_dll,
+		fe::vm::load_fn
+	};
+
+	extern "C" uint16_t* vm_init(void*[]);
 	extern "C" uint64_t* vm_interpret(const byte* first);
 
 	direct_threaded_executable preprocess(executable& e, uint16_t* handlers)
@@ -71,14 +74,12 @@ namespace fe::vm
 			}
 		}
 
-		return direct_threaded_executable(bc, e.native_functions);
+		return direct_threaded_executable(bc);
 	}
 
 	void interpret(executable& e, vm_settings& s)
 	{
-		const byte* first_instruction = e.code.get_instruction(near_lbl(0));
-
-		uint16_t* op_handlers = vm_init(e.native_functions.data());
+		uint16_t* op_handlers = vm_init(native_functions);
 		auto direct_threaded = preprocess(e, op_handlers);
 
 		vm_interpret(direct_threaded.code.get_instruction(0));

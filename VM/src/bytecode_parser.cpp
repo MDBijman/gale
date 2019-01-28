@@ -208,6 +208,6 @@ namespace fe::vm
 			parse_line(line, bc);
 		}
 
-		return executable(bc, {});
+		return executable(bc);
 	}
 }
