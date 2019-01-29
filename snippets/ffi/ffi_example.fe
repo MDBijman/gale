@@ -1,6 +1,9 @@
-module user_ffi
-import [std.ffi std.c]
+module test
+import [std]
 
-let io_dll: std.ffi.dll = std.ffi.load_dll "./io.dll";
-let print: std.c.int -> () = std.ffi.load_fn (io_dll, "print");
-print 1;
+#[link("StdLib.dll")]
+extern C { 
+	test_value: () -> std.ui8; 
+}
+
+let test: std.ui8 = test_value ();
