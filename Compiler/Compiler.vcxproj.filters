@@ -234,9 +234,6 @@
     <ClInclude Include="include\fe\pipeline\bytecode_printing_stage.h">
       <Filter>Source Files\fe\pipeline</Filter>
     </ClInclude>
-    <ClInclude Include="include\fe\libraries\std\std_ffi.h">
-      <Filter>Source Files\fe\libraries\std</Filter>
-    </ClInclude>
     <ClInclude Include="..\common\fe\vm\runtime_info.h">
       <Filter>Common\fe\vm</Filter>
     </ClInclude>

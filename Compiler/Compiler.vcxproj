@@ -164,7 +164,6 @@
     <ClInclude Include="include\fe\data\name_scope.h" />
     <ClInclude Include="include\fe\data\type_scope.h" />
     <ClInclude Include="include\fe\language_definition.h" />
-    <ClInclude Include="include\fe\libraries\std\std_ffi.h" />
     <ClInclude Include="include\fe\libraries\std\std_types.h" />
     <ClInclude Include="include\fe\modes\project.h" />
     <ClInclude Include="include\fe\pipeline\bytecode_gen_stage.h" />

@@ -4,3 +4,4 @@ Release/
 out/
 *.aps
 *.args.json
+*.dll

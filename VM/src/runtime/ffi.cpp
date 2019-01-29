@@ -1,6 +1,7 @@
 #include "ffi.h"
 #include <Windows.h>
 #include <cstdlib>
+#include <stdint.h>
 
 namespace fe::vm
 {
@@ -15,9 +16,11 @@ namespace fe::vm
 		func_ptr ptr;
 	};
 
-	dll* load_dll(const char* location)
+	static_assert(sizeof(dll*) == 8);
+	static_assert(sizeof(fn*) == 8);
+	dll* load_dll(uint64_t a)
 	{
-		HINSTANCE dll_windows = LoadLibrary(location);
+		HINSTANCE dll_windows = LoadLibrary("./StdLib.dll");
 		if (!dll_windows)
 		{
 			std::exit(-1);

@@ -85,7 +85,7 @@ namespace fe
 						auto full_name = imp.full + "." + c.get_name();
 						bytecode.add_function(c.is_bytecode() ?
 							vm::function(full_name, c.get_bytecode()) :
-							vm::function(full_name, c.get_native_function_ptr()));
+							vm::function(full_name, c.get_native_function_id()));
 					}
 				}
 			}
