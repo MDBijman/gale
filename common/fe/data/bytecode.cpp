@@ -74,6 +74,7 @@ namespace fe::vm
 		case op_kind::JRZ_REG_I32: return "jrz_reg_i32";
 		case op_kind::CALL_UI64: return "call_ui64";
 		case op_kind::CALL_NATIVE_UI64: return "call_native_ui64";
+		case op_kind::CALL_REG: return "call_reg";
 		case op_kind::RET_UI8: return "ret_ui8";
 		case op_kind::SALLOC_REG_UI8: return "salloc_reg_ui8";
 		case op_kind::SDEALLOC_UI8: return "sdealloc_ui8";
@@ -139,6 +140,7 @@ namespace fe::vm
 		if(o == "jrz_reg_i32") return op_kind::JRZ_REG_I32;
 		if(o == "call_ui64") return op_kind::CALL_UI64;
 		if(o == "call_native_ui64") return op_kind::CALL_NATIVE_UI64;
+		if (o == "call_reg") return op_kind::CALL_REG;
 		if(o == "ret_ui8") return op_kind::RET_UI8;
 		if(o == "salloc_reg_ui8") return op_kind::SALLOC_REG_UI8;
 		if(o == "sdealloc_ui8") return op_kind::SDEALLOC_UI8;
@@ -231,7 +233,8 @@ namespace fe::vm
 		case op_kind::PUSH32_REG:
 		case op_kind::PUSH64_REG:
 		case op_kind::JRNZ_REG_I32: 
-		case op_kind::JRZ_REG_I32: 
+		case op_kind::JRZ_REG_I32:
+		case op_kind::CALL_REG:
 			return (op + 1)->val == r.val;
 
 		default: return false;
@@ -549,6 +552,10 @@ namespace fe::vm
 	{
 		auto to = make_ui64(ip);
 		return bytes<9>{ op_to_byte(op_kind::CALL_NATIVE_UI64), to[0], to[1], to[2], to[3], to[4], to[5], to[6], to[7] };
+	}
+	bytes<2> make_call_reg(reg r)
+	{
+		return bytes<2>{ op_to_byte(op_kind::CALL_REG), r.val };
 	}
 	bytes<2> make_ret(byte a)
 	{

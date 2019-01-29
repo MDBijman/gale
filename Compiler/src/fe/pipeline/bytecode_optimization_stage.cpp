@@ -175,10 +175,16 @@ namespace fe::vm
 				}
 				case op_kind::CALL_UI64: {
 					for (int i = 0; i < 32; i++) latest_writes[i] = 0;
+					latest_push_ops = {};
+					latest_writes[60] = i;
+					break;
+				}
+				case op_kind::CALL_REG: {
+					for (int i = 0; i < 32; i++) latest_writes[i] = 0;
 
 					latest_push_ops = {};
 					latest_writes[60] = i;
-					local_graph.dependencies.push_back(dependency{ i, latest_writes[0] });
+					local_graph.dependencies.push_back(dependency{ i, latest_writes[current_instruction[1].val] });
 					break;
 				}
 				}
