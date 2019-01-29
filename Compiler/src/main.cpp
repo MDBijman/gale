@@ -50,7 +50,6 @@ int main(int argc, char** argv)
 			}
 
 			fe::project proj(std::move(pipeline));
-			// std types
 			proj.add_module(fe::stdlib::typedefs::load());
 
 			auto project_path = std::experimental::filesystem::path(argv[2]);
