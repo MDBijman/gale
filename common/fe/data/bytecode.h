@@ -118,6 +118,7 @@ namespace fe::vm
 		// push bp, push ip, ip <- reg[b1]
 		CALL_UI64,
 		CALL_NATIVE_UI64,
+		CALL_REG,
 		// reg[x] <- pop, ip <- reg[x]
 		RET_UI8,
 
@@ -197,6 +198,7 @@ namespace fe::vm
 		case op_kind::JRZ_REG_I32: return 6;
 		case op_kind::CALL_UI64: return 9;
 		case op_kind::CALL_NATIVE_UI64: return 9;
+		case op_kind::CALL_REG: return 2;
 		case op_kind::RET_UI8: return 2;
 		case op_kind::SALLOC_REG_UI8: return 3;
 		case op_kind::SDEALLOC_UI8: return 2;
@@ -334,6 +336,7 @@ namespace fe::vm
 	bytes<2> make_pop64(reg dest);
 	bytes<9> make_call_ui64(uint64_t ip);
 	bytes<9> make_call_native_ui64(uint64_t ip);
+	bytes<2> make_call_reg(reg r);
 	bytes<2> make_ret(byte a);
 	bytes<5> make_jmpr_i32(int32_t offset);
 	bytes<6> make_jrnz_i32(reg a, int32_t offset);

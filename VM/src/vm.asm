@@ -1070,6 +1070,27 @@ call_native_ui64 LABEL NEAR PTR WORD
 	DISPATCH
 ; END call native ui64
 
+; BEGIN call reg
+call_reg LABEL NEAR PTR WORD
+	mov al, BYTE PTR [r8 + 2]
+	and rax, 0ffh
+	mov rax, [r13 + rax*8]
+
+	; save r8 in non-volatile and restore after
+	mov r14, r8
+	; push right to left, stack pointer then register pointer
+	mov rcx, r13
+	mov rdx, rsp
+	sub rsp, 32
+	call rax
+	add rsp, 32
+	mov r8, r14
+
+	add rsp, rax
+
+	add r8, 3
+	DISPATCH
+; END call reg
 
 ; BEGIN salloc reg ui8
 salloc_reg_ui8 LABEL NEAR PTR WORD
@@ -1117,7 +1138,7 @@ vm_interpret ENDP
 
 vm_init PROC
 ; store the pointer to native function pointers
-mov [native_functions], rax
+mov [native_functions], rcx
 
 lea rax, handlers
  
@@ -1403,6 +1424,11 @@ mov [rax + rdx*2], cx
 
 inc rdx
 lea rcx, call_native_ui64
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, call_reg
 sub rcx, rbx
 mov [rax + rdx*2], cx
 
