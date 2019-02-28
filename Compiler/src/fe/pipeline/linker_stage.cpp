@@ -91,7 +91,7 @@ namespace fe::vm
 
 			// Calls reference other bytecode
 
-			case op_kind::CALL_UI64:
+			case op_kind::CALL_UI64_UI8_UI8_UI8:
 			{
 				auto sc = std::find_if(chunk_locations.rbegin(), chunk_locations.rend(),
 					[i](auto loc) { return loc <= i; });

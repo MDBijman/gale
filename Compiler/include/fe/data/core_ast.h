@@ -23,10 +23,10 @@ namespace fe::core_ast
 		REFERENCE,
 
 		// Stack manipulation
-		POP,
-		PUSH,
-		STACK_ALLOC,
-		STACK_DEALLOC,
+		 POP,
+		 PUSH,
+		 STACK_ALLOC,
+		 STACK_DEALLOC,
 
 		// Stack manipulation descriptors
 		PARAM,

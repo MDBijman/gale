@@ -75,7 +75,7 @@ namespace fe::core_ast
 		case node_type::REFERENCE: { assert(!"nyi"); break; }
 		case node_type::RET: {
 			res.pre_node_stack_sizes[n] = predecessor_size(n, ast, res);
-			res.node_stack_sizes[n] = predecessor_size(n, ast, res) - ast.get_node_data<return_data>(n).size;
+			res.node_stack_sizes[n] = predecessor_size(n, ast, res) - ast.get_node_data<return_data>(n).in_size;
 			analyze_stack(ast.get_node(n).children[0], ast, res);
 			break;
 		}

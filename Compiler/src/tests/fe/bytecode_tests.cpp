@@ -606,12 +606,14 @@ let test: std.ui64 = lib.get_ten ();
 std.io.print test;
 )delim";
 
+	// This doesnt work with #rewrite
+	REQUIRE(false);
 	auto p = test_project();
 	p.add_module(fe::module_builder()
 		.set_name({ "lib" })
 		.add_function(
 			function("get_ten", bytecode_builder()
-				.add(make_mv_reg_i64(ret_reg, 10), make_ret(0))
+				.add(make_mv_reg_i64(ret_reg, 10), make_ret(0, 0, 0, 0))
 				.build()),
 			fe::types::unique_type(new fe::types::function_type(fe::types::product_type(), fe::types::ui64()))
 		).build());
@@ -626,19 +628,94 @@ TEST_CASE("instructions", "[bytecode]")
 {
 	using namespace fe::vm;
 	auto p = program();
-	auto bc = bytecode();
-	bc.add_instructions(
-		make_mv_reg_ui8(reg(3), 100),
-		make_mv_reg_ui16(reg(4), 150),
-		make_add(reg(5), reg(3), reg(4)),
-		make_mv_reg_ui8(reg(1), 120),
-		make_push8(reg(1)),
-		make_pop8(reg(2)),
+	auto bootstrap = bytecode();
+	bootstrap.add_instructions(
+		make_call_ui64_ui8_ui8_ui8(1, 0, 0, 0),
 		make_exit()
 	);
-	p.add_function(function{ "_main", bc, {} });
-	auto res = interpret(link(p));
-	REQUIRE(res.registers[sp_reg] == 0);
-	REQUIRE(res.registers[5] == 250);
-	REQUIRE(res.registers[2] == 120);
+	p.add_function(function{ "_main", bootstrap, { { 1, "main" } } });
+
+	auto bc = bytecode();
+	bc.add_instructions(
+		make_alloc_ui8(5),
+		make_mv_reg_ui8(reg(3), 100),
+		make_mv_reg_ui16(reg(4), 150),
+		make_add(reg(2), reg(3), reg(4)),
+		make_mv_reg_ui8(reg(1), 120),
+		make_ret(0, 5, 0, 0)
+	);
+	p.add_function(function{ "main", bc, {} });
+	auto linked = link(p);
+	auto res = interpret(linked);
+}
+
+TEST_CASE("args", "[bytecode]")
+{
+	using namespace fe::vm;
+	auto p = program();
+	auto bootstrap = bytecode();
+	bootstrap.add_instructions(
+		make_call_ui64_ui8_ui8_ui8(1, 0, 0, 0),
+		make_exit()
+	);
+	p.add_function(function{ "_main", bootstrap, { { 1, "main" } } });
+
+	auto bc = bytecode();
+	bc.add_instructions(
+		make_alloc_ui8(2),
+		make_mv_reg_ui64(reg(0), 100),
+		make_mv_reg_ui64(reg(1), 150),
+		make_call_ui64_ui8_ui8_ui8(1, 0, 2, 0),
+		make_ret(0, 2, 0, 0)
+	);
+	p.add_function(function{ "main", bc, {{1, "foo"}} });
+
+	auto bc2 = bytecode();
+	bc2.add_instructions(
+		make_alloc_ui8(2),
+		make_mv64_reg_reg(reg(2), reg(0)),
+		make_mv64_reg_reg(reg(3), reg(1)),
+		make_add(reg(2), reg(2), reg(3)),
+		make_ret(2, 2, 0, 0)
+	);
+	p.add_function(function{ "foo", bc2, {} });
+
+	auto linked = link(p);
+	auto res = interpret(linked);
+}
+
+TEST_CASE("rets", "[bytecode]")
+{
+	using namespace fe::vm;
+	auto p = program();
+	auto bootstrap = bytecode();
+	bootstrap.add_instructions(
+		make_call_ui64_ui8_ui8_ui8(1, 0, 0, 0),
+		make_exit()
+	);
+	p.add_function(function{ "_main", bootstrap, { { 1, "main" } } });
+
+	auto bc = bytecode();
+	bc.add_instructions(
+		make_alloc_ui8(3),
+		make_mv_reg_ui64(reg(0), 100),
+		make_mv_reg_ui64(reg(1), 150),
+		make_call_ui64_ui8_ui8_ui8(1, 0, 2, 2),
+		make_mv64_reg_reg(reg(0), reg(2)),
+		make_ret(0, 3, 0, 0)
+	);
+	p.add_function(function{ "main", bc, {{1, "foo"}} });
+
+	auto bc2 = bytecode();
+	bc2.add_instructions(
+		make_alloc_ui8(2),
+		make_mv64_reg_reg(reg(2), reg(0)),
+		make_mv64_reg_reg(reg(3), reg(1)),
+		make_add(reg(2), reg(2), reg(3)),
+		make_ret(2, 2, 2, 1)
+	);
+	p.add_function(function{ "foo", bc2, {} });
+
+	auto linked = link(p);
+	auto res = interpret(linked);
 }

@@ -16,14 +16,13 @@ namespace fe::vm
 		// Mapping of nodes to bytecode chunks
 		std::unordered_map<node_id, uint8_t> node_to_chunk;
 
-		// Bitfield with 64 entries, one for each register, 1 indicates register is allocated
-		std::bitset<64> used_registers;
-
 		// Mapping from function names to code labels
 		std::unordered_map<std::string, core_ast::label> functions;
 
 		// Mapping from stack label to the frame size at its location in the ast
 		std::unordered_map<uint32_t, uint32_t> stack_label_sizes;
+
+		uint32_t next_free_register;
 
 		core_ast::label next_label;
 
@@ -32,9 +31,8 @@ namespace fe::vm
 
 		core_ast::function_data current_scope;
 
-		std::vector<reg> clear_registers();
-		void set_saved_registers(std::vector<reg>);
 		reg alloc_register();
+		reg last_alloced_register();
 		void dealloc_register(reg r);
 
 		void link_node_chunk(node_id, uint8_t);

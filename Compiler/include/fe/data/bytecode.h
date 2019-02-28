@@ -64,8 +64,7 @@ namespace fe::vm
 		* Control
 		*/
 
-		// reg[b0] <- sp
-		MV_REG_SP,
+		// #security -> leaks information about addresses ?
 		// reg[b0] <- ip
 		MV_REG_IP,
 		// reg[b0] <- b1
@@ -82,42 +81,21 @@ namespace fe::vm
 		MV16_REG_REG,
 		MV32_REG_REG,
 		MV64_REG_REG,
-		// stack[reg[b0]] <- reg[b1]
-		MV8_LOC_REG,
-		MV16_LOC_REG,
-		MV32_LOC_REG,
-		MV64_LOC_REG,
-		// reg[b0] <- stack[reg[b1]]
-		MV8_REG_LOC,
-		MV16_REG_LOC,
-		MV32_REG_LOC,
-		MV64_REG_LOC,
-		// stack[esp] <- reg[b0], esp++
-		PUSH8_REG,
-		PUSH16_REG,
-		PUSH32_REG,
-		PUSH64_REG,
-		// reg[b0] <- stack[esp - 1], esp--
-		POP8_REG,
-		POP16_REG,
-		POP32_REG,
-		POP64_REG,
+
 		// jump relative: ip += b0
 		JMPR_I32,
 		// jump relative not zero: if reg[b0] != 0 { ip += b1 } else { ip++ }
 		JRNZ_REG_I32,
 		// jump relative zero: if reg[b0] == 0 { ip += b1 } else { ip++ }
 		JRZ_REG_I32,
-		// push bp, push ip, ip <- reg[b1]
-		CALL_UI64,
+		// Call(target ip address, first argument register, argument count, first return register)
+		CALL_UI64_UI8_UI8_UI8,
 		CALL_NATIVE_UI64,
-		// reg[x] <- pop, ip <- reg[x]
-		RET_UI8,
 
-		// allocate ui8 bytes of memory, put address in reg
-		SALLOC_REG_UI8,
-		// deallocate ui8 bytes of memory
-		SDEALLOC_UI8
+		ALLOC_UI8,
+
+		// Ret(argument count, additional frame size, first return register, return register count)
+		RET_UI8_UI8_UI8_UI8,
 	};
 
 	uint8_t op_to_byte(op_kind);
@@ -148,7 +126,6 @@ namespace fe::vm
 		case op_kind::AND_REG_REG_UI8: return 4;
 		case op_kind::OR_REG_REG_REG: return 4;
 		case op_kind::XOR_REG_REG_UI8: return 4;
-		case op_kind::MV_REG_SP: return 2;
 		case op_kind::MV_REG_IP: return 2;
 		case op_kind::MV_REG_UI8: return 3;
 		case op_kind::MV_REG_UI16: return 4;
@@ -162,31 +139,14 @@ namespace fe::vm
 		case op_kind::MV16_REG_REG: return 3;
 		case op_kind::MV32_REG_REG: return 3;
 		case op_kind::MV64_REG_REG: return 3;
-		case op_kind::MV8_LOC_REG: return 3;
-		case op_kind::MV16_LOC_REG: return 3;
-		case op_kind::MV32_LOC_REG: return 3;
-		case op_kind::MV64_LOC_REG: return 3;
-		case op_kind::MV8_REG_LOC: return 3;
-		case op_kind::MV16_REG_LOC: return 3;
-		case op_kind::MV32_REG_LOC: return 3;
-		case op_kind::MV64_REG_LOC: return 3;
-		case op_kind::PUSH8_REG: return 2;
-		case op_kind::PUSH16_REG: return 2;
-		case op_kind::PUSH32_REG: return 2;
-		case op_kind::PUSH64_REG: return 2;
-		case op_kind::POP8_REG: return 2;
-		case op_kind::POP16_REG: return 2;
-		case op_kind::POP32_REG: return 2;
-		case op_kind::POP64_REG: return 2;
 		case op_kind::LBL_UI32: return 5;
 		case op_kind::JMPR_I32: return 5;
 		case op_kind::JRNZ_REG_I32: return 6;
 		case op_kind::JRZ_REG_I32: return 6;
-		case op_kind::CALL_UI64: return 9;
+		case op_kind::CALL_UI64_UI8_UI8_UI8: return 12;
 		case op_kind::CALL_NATIVE_UI64: return 9;
-		case op_kind::RET_UI8: return 2;
-		case op_kind::SALLOC_REG_UI8: return 3;
-		case op_kind::SDEALLOC_UI8: return 2;
+		case op_kind::ALLOC_UI8: return 2;
+		case op_kind::RET_UI8_UI8_UI8_UI8: return 5;
 		case op_kind::EXIT: return 1;
 		default: assert(!"Unknown op"); return -1;
 		}
@@ -280,7 +240,6 @@ namespace fe::vm
 	bytes<4> make_eq(reg dest, reg a, reg b);
 	bytes<4> make_neq(reg dest, reg a, reg b);
 	bytes<4> make_xor(reg dest, reg a, int8_t b);
-	bytes<2> make_mv_reg_sp(reg dest);
 	bytes<3> make_mv_reg_ui8(reg dest, uint8_t a);
 	bytes<4> make_mv_reg_ui16(reg dest, uint16_t a);
 	bytes<6> make_mv_reg_ui32(reg dest, uint32_t a);
@@ -294,35 +253,14 @@ namespace fe::vm
 	bytes<3> make_mv16_reg_reg(reg dest, reg src);
 	bytes<3> make_mv32_reg_reg(reg dest, reg src);
 	bytes<3> make_mv64_reg_reg(reg dest, reg src);
-	bytes<3> make_mv_reg_loc(uint8_t bytes, reg dest, reg src);
-	bytes<3> make_mv8_reg_loc(reg dest, reg src);
-	bytes<3> make_mv16_reg_loc(reg dest, reg src);
-	bytes<3> make_mv32_reg_loc(reg dest, reg src);
-	bytes<3> make_mv64_reg_loc(reg dest, reg src);
-	bytes<3> make_mv_loc_reg(uint8_t bytes, reg dest, reg src);
-	bytes<3> make_mv8_loc_reg(reg dest, reg src);
-	bytes<3> make_mv16_loc_reg(reg dest, reg src);
-	bytes<3> make_mv32_loc_reg(reg dest, reg src);
-	bytes<3> make_mv64_loc_reg(reg dest, reg src);
-	bytes<2> make_push(uint8_t bytes, reg src);
-	bytes<2> make_push8(reg src);
-	bytes<2> make_push16(reg src);
-	bytes<2> make_push32(reg src);
-	bytes<2> make_push64(reg src);
-	bytes<2> make_pop(uint8_t bytes, reg src);
-	bytes<2> make_pop8(reg dest);
-	bytes<2> make_pop16(reg dest);
-	bytes<2> make_pop32(reg dest);
-	bytes<2> make_pop64(reg dest);
-	bytes<9> make_call_ui64(uint64_t ip);
+	bytes<2> make_alloc_ui8(uint8_t size);
+	bytes<12> make_call_ui64_ui8_ui8_ui8(uint64_t ip, uint8_t reg, uint8_t regc, uint8_t ret_reg);
 	bytes<9> make_call_native_ui64(uint64_t ip);
-	bytes<2> make_ret(byte a);
+	bytes<5> make_ret(byte paramc, byte fs, byte first_reg, byte retc);
 	bytes<5> make_jmpr_i32(int32_t offset);
 	bytes<6> make_jrnz_i32(reg a, int32_t offset);
 	bytes<6> make_jrz_i32(reg a, int32_t offset);
 	bytes<5> make_lbl(uint32_t id);
-	bytes<3> make_salloc_reg_ui8(reg r, uint8_t size);
-	bytes<2> make_sdealloc_ui8(uint8_t size);
 	bytes<1> make_exit();
 
 	// far_lbl is used to refer to an instruction and the chunk it is a part of
