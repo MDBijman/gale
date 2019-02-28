@@ -38,7 +38,6 @@ namespace fe::vm
 		case op_kind::AND_REG_REG_UI8: return "and_reg_reg_ui8";
 		case op_kind::OR_REG_REG_REG: return "or_reg_reg_reg";
 		case op_kind::XOR_REG_REG_UI8: return "xor_reg_reg_ui8";
-		case op_kind::MV_REG_SP: return "mv_reg_sp";
 		case op_kind::MV_REG_IP: return "mv_reg_ip";
 		case op_kind::MV_REG_UI8: return "mv_reg_ui8";
 		case op_kind::MV_REG_UI16: return "mv_reg_ui16";
@@ -52,31 +51,14 @@ namespace fe::vm
 		case op_kind::MV16_REG_REG: return "mv16_reg_reg";
 		case op_kind::MV32_REG_REG: return "mv32_reg_reg";
 		case op_kind::MV64_REG_REG: return "mv64_reg_reg";
-		case op_kind::MV8_LOC_REG: return "mv8_loc_reg";
-		case op_kind::MV16_LOC_REG: return "mv16_loc_reg";
-		case op_kind::MV32_LOC_REG: return "mv32_loc_reg";
-		case op_kind::MV64_LOC_REG: return "mv64_loc_reg";
-		case op_kind::MV8_REG_LOC: return "mv8_reg_loc";
-		case op_kind::MV16_REG_LOC: return "mv16_reg_loc";
-		case op_kind::MV32_REG_LOC: return "mv32_reg_loc";
-		case op_kind::MV64_REG_LOC: return "mv64_reg_loc";
-		case op_kind::PUSH8_REG: return "push8_reg";
-		case op_kind::PUSH16_REG: return "push16_reg";
-		case op_kind::PUSH32_REG: return "push32_reg";
-		case op_kind::PUSH64_REG: return "push64_reg";
-		case op_kind::POP8_REG: return "pop8_reg";
-		case op_kind::POP16_REG: return "pop16_reg";
-		case op_kind::POP32_REG: return "pop32_reg";
-		case op_kind::POP64_REG: return "pop64_reg";
 		case op_kind::LBL_UI32: return "lbl_ui32";
 		case op_kind::JMPR_I32: return "jmpr_i32";
 		case op_kind::JRNZ_REG_I32: return "jrnz_reg_i32";
 		case op_kind::JRZ_REG_I32: return "jrz_reg_i32";
-		case op_kind::CALL_UI64: return "call_ui64";
+		case op_kind::CALL_UI64_UI8_UI8_UI8: return "call_ui64_ui8_ui8_ui8";
 		case op_kind::CALL_NATIVE_UI64: return "call_native_ui64";
-		case op_kind::RET_UI8: return "ret_ui8";
-		case op_kind::SALLOC_REG_UI8: return "salloc_reg_ui8";
-		case op_kind::SDEALLOC_UI8: return "sdealloc_ui8";
+		case op_kind::ALLOC_UI8: return "alloc_ui8";
+		case op_kind::RET_UI8_UI8_UI8_UI8: return "ret_ui8_ui8_ui8_ui8";
 		case op_kind::EXIT: return "exit";
 		}
 		assert(!"Unknown instruction");
@@ -102,7 +84,6 @@ namespace fe::vm
 		case op_kind::AND_REG_REG_REG: 
 		case op_kind::AND_REG_REG_UI8: 
 		case op_kind::OR_REG_REG_REG:
-		case op_kind::MV_REG_SP:
 		case op_kind::MV_REG_IP:
 		case op_kind::MV_REG_UI8:
 		case op_kind::MV_REG_UI16:
@@ -116,15 +97,6 @@ namespace fe::vm
 		case op_kind::MV16_REG_REG:
 		case op_kind::MV32_REG_REG:
 		case op_kind::MV64_REG_REG: 
-		case op_kind::MV8_REG_LOC:
-		case op_kind::MV16_REG_LOC:
-		case op_kind::MV32_REG_LOC:
-		case op_kind::MV64_REG_LOC:
-		case op_kind::POP8_REG:
-		case op_kind::POP16_REG:
-		case op_kind::POP32_REG:
-		case op_kind::POP64_REG:
-		case op_kind::SALLOC_REG_UI8: 
 			return (op + 1)->val == r.val;
 		default: return false;
 		}
@@ -156,16 +128,8 @@ namespace fe::vm
 		case op_kind::MV16_REG_REG: 
 		case op_kind::MV32_REG_REG:
 		case op_kind::MV64_REG_REG: 
-		case op_kind::MV8_LOC_REG:
-		case op_kind::MV16_LOC_REG:
-		case op_kind::MV32_LOC_REG:
-		case op_kind::MV64_LOC_REG:
 			return (op + 2)->val == r.val;
 
-		case op_kind::PUSH8_REG:
-		case op_kind::PUSH16_REG:
-		case op_kind::PUSH32_REG:
-		case op_kind::PUSH64_REG:
 		case op_kind::JRNZ_REG_I32: 
 		case op_kind::JRZ_REG_I32: 
 			return (op + 1)->val == r.val;
@@ -290,10 +254,6 @@ namespace fe::vm
 	{
 		return bytes<4>{ op_to_byte(op_kind::XOR_REG_REG_UI8), dest.val, a.val, byte(b) };
 	}
-	bytes<2> make_mv_reg_sp(reg dest)
-	{
-		return bytes<2>{ op_to_byte(op_kind::MV_REG_SP), dest.val };
-	}
 	bytes<3> make_mv64(reg dest, reg src)
 	{
 		return bytes<3>{ op_to_byte(op_kind::MV64_REG_REG), dest.val, src.val };
@@ -364,131 +324,23 @@ namespace fe::vm
 	{
 		return bytes<3>{op_to_byte(op_kind::MV64_REG_REG), dest.val, src.val };
 	}
-	bytes<3> make_mv_reg_loc(uint8_t bytes, reg dest, reg src)
-	{
-		switch (bytes)
-		{
-		case 1: return make_mv8_reg_loc(dest, src);
-		case 2: return make_mv16_reg_loc(dest, src);
-		case 4: return make_mv32_reg_loc(dest, src);
-		case 8: return make_mv64_reg_loc(dest, src);
-		default: assert(!"Invalid mv bit count");
-		}
-		throw std::runtime_error("Bytecode Generation Error: Invalid mv bit count");
-	}
-	bytes<3> make_mv8_reg_loc(reg dest, reg src)
-	{
-		return bytes<3>{op_to_byte(op_kind::MV8_REG_LOC), dest.val, src.val};
-	}
-	bytes<3> make_mv16_reg_loc(reg dest, reg src)
-	{
-		return bytes<3>{op_to_byte(op_kind::MV16_REG_LOC), dest.val, src.val};
-	}
-	bytes<3> make_mv32_reg_loc(reg dest, reg src)
-	{
-		return bytes<3>{op_to_byte(op_kind::MV32_REG_LOC), dest.val, src.val};
-	}
-	bytes<3> make_mv64_reg_loc(reg dest, reg src)
-	{
-		return bytes<3>{op_to_byte(op_kind::MV64_REG_LOC), dest.val, src.val};
-	}
-	bytes<3> make_mv_loc_reg(uint8_t bytes, reg dest, reg src)
-	{
-		switch (bytes)
-		{
-		case 1: return make_mv8_loc_reg(dest, src);
-		case 2: return make_mv16_loc_reg(dest, src);
-		case 4: return make_mv32_loc_reg(dest, src);
-		case 8: return make_mv64_loc_reg(dest, src);
-		default: assert(!"Invalid mv bit count");
-		}
-		throw std::runtime_error("Bytecode Generation Error: Invalid mv bit count");
-	}
-	bytes<3> make_mv8_loc_reg(reg dest, reg src)
-	{
-		return bytes<3>{op_to_byte(op_kind::MV8_LOC_REG), dest.val, src.val};
-	}
-	bytes<3> make_mv16_loc_reg(reg dest, reg src)
-	{
-		return bytes<3>{op_to_byte(op_kind::MV16_LOC_REG), dest.val, src.val};
-	}
-	bytes<3> make_mv32_loc_reg(reg dest, reg src)
-	{
-		return bytes<3>{op_to_byte(op_kind::MV32_LOC_REG), dest.val, src.val};
-	}
-	bytes<3> make_mv64_loc_reg(reg dest, reg src)
-	{
-		return bytes<3>{op_to_byte(op_kind::MV64_LOC_REG), dest.val, src.val};
-	}
-	bytes<2> make_push(uint8_t bytes, reg src)
-	{
-		switch (bytes)
-		{
-		case 1: return make_push8(src);
-		case 2: return make_push16(src);
-		case 4: return make_push32(src);
-		case 8: return make_push64(src);
-		default: assert(!"Invalid push bit count");
-		}
-		throw std::runtime_error("Bytecode Generation Error: Invalid push bit count");
-	}
-	bytes<2> make_push8(reg dest)
-	{
-		return bytes<2>{ op_to_byte(op_kind::PUSH8_REG), dest.val };
-	}
-	bytes<2> make_push16(reg dest)
-	{
-		return bytes<2>{ op_to_byte(op_kind::PUSH16_REG), dest.val };
-	}
-	bytes<2> make_push32(reg dest)
-	{
-		return bytes<2>{ op_to_byte(op_kind::PUSH32_REG), dest.val };
-	}
-	bytes<2> make_push64(reg src)
-	{
-		return bytes<2>{ op_to_byte(op_kind::PUSH64_REG), src.val };
-	}
-	bytes<2> make_pop(uint8_t bits, reg dst)
-	{
-		switch (bits)
-		{
-		case 1: return make_pop8(dst);
-		case 2: return make_pop16(dst);
-		case 4: return make_pop32(dst);
-		case 8: return make_pop64(dst);
-		default: assert(!"Invalid pop bit count");
-		}
-		throw std::runtime_error("Bytecode Generation Error: Invalid pop bit count");
-	}
-	bytes<2> make_pop8(reg dest)
-	{
-		return bytes<2>{ op_to_byte(op_kind::POP8_REG), dest.val };
-	}
-	bytes<2> make_pop16(reg dest)
-	{
-		return bytes<2>{ op_to_byte(op_kind::POP16_REG), dest.val };
-	}
-	bytes<2> make_pop32(reg dest)
-	{
-		return bytes<2>{ op_to_byte(op_kind::POP32_REG), dest.val };
-	}
-	bytes<2> make_pop64(reg dest)
-	{
-		return bytes<2>{ op_to_byte(op_kind::POP64_REG), dest.val };
-	}
-	bytes<9> make_call_ui64(uint64_t ip)
+	bytes<12> make_call_ui64_ui8_ui8_ui8(uint64_t ip, uint8_t reg, uint8_t regc, uint8_t ret_reg)
 	{
 		auto to = make_ui64(ip);
-		return bytes<9>{ op_to_byte(op_kind::CALL_UI64), to[0], to[1], to[2], to[3], to[4], to[5], to[6], to[7] };
+		return bytes<12>{ op_to_byte(op_kind::CALL_UI64_UI8_UI8_UI8), to[0], to[1], to[2], to[3], to[4], to[5], to[6], to[7], reg, regc, ret_reg };
 	}
 	bytes<9> make_call_native_ui64(uint64_t ip)
 	{
 		auto to = make_ui64(ip);
 		return bytes<9>{ op_to_byte(op_kind::CALL_NATIVE_UI64), to[0], to[1], to[2], to[3], to[4], to[5], to[6], to[7] };
 	}
-	bytes<2> make_ret(byte a)
+	bytes<2> make_alloc_ui8(uint8_t size)
 	{
-		return bytes<2>{ op_to_byte(op_kind::RET_UI8), a.val };
+		return bytes<2>{ op_to_byte(op_kind::ALLOC_UI8), size };
+	}
+	bytes<5> make_ret(byte paramc, byte fs, byte first_reg, byte returnc)
+	{
+		return bytes<5>{ op_to_byte(op_kind::RET_UI8_UI8_UI8_UI8), paramc.val, fs.val, first_reg.val, returnc.val };
 	}
 	bytes<5> make_jmpr_i32(int32_t dest)
 	{
@@ -509,14 +361,6 @@ namespace fe::vm
 	{
 		auto lit = make_ui32(id);
 		return bytes<5>{op_to_byte(op_kind::LBL_UI32), lit[0], lit[1], lit[2], lit[3] };
-	}
-	bytes<3> make_salloc_reg_ui8(reg r, uint8_t size)
-	{
-		return bytes<3>{ op_to_byte(op_kind::SALLOC_REG_UI8), r.val, size };
-	}
-	bytes<2> make_sdealloc_ui8(uint8_t size)
-	{
-		return bytes<2>{ op_to_byte(op_kind::SDEALLOC_UI8), size };
 	}
 	bytes<1> make_exit()
 	{

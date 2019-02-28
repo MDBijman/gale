@@ -221,7 +221,7 @@ namespace fe::ext_ast
 		else throw std::runtime_error("Error: parameter node type invalid");
 
 		auto ret = new_ast.create_node(core_ast::node_type::RET, function_id);
-		new_ast.get_node_data<core_ast::return_data>(ret) = core_ast::return_data{ in_size };
+		new_ast.get_node_data<core_ast::return_data>(ret).in_size = in_size;
 
 		auto block = new_ast.create_node(core_ast::node_type::BLOCK, ret);
 
@@ -231,8 +231,10 @@ namespace fe::ext_ast
 
 		assert(new_body.location == location_type::stack);
 		new_ast.get_node(block).size = new_body.allocated_stack_space;
+		new_ast.get_node_data<core_ast::return_data>(ret).out_size = new_body.allocated_stack_space;
 
 		new_ast.get_node_data<core_ast::function_data>(function_id).locals_size = context.curr_fn_context.total_var_size;
+		new_ast.get_node_data<core_ast::return_data>(ret).frame_size = context.curr_fn_context.total_var_size + context.curr_fn_context.total_param_size;
 
 		context.curr_fn_context = fn_before;
 
@@ -613,6 +615,8 @@ namespace fe::ext_ast
 			.resolve_variable(name, ast.type_scope_cb())
 			->type.calculate_size();
 
+		new_ast.get_node_data<core_ast::function_call_data>(fun_id).out_size = output_size;
+
 		// If we output via a pointer we generate space the size of the output on the stack
 		if (output_size > 8)
 		{
@@ -621,6 +625,8 @@ namespace fe::ext_ast
 		}
 
 		auto param = lower(fun_id, ast.get_node(children[1]), ast, new_ast, context);
+
+		new_ast.get_node_data<core_ast::function_call_data>(fun_id).in_size = param.allocated_stack_space;
 
 		new_ast.get_node(fun_id).size = output_size;
 
@@ -852,7 +858,7 @@ namespace fe::ext_ast
 			auto input_var = context.alloc_param(in_size);
 
 			auto ret = new_ast.create_node(core_ast::node_type::RET, fn);
-			new_ast.get_data<core_ast::return_data>(*new_ast.get_node(ret).data_index).size = in_size;
+			new_ast.get_data<core_ast::return_data>(*new_ast.get_node(ret).data_index) = { in_size, 1 + in_size, 1 + in_size };
 			auto block = new_ast.create_node(core_ast::node_type::BLOCK, ret);
 
 			{
@@ -1092,7 +1098,7 @@ namespace fe::ext_ast
 		auto root_block = new_ast.root_id();
 
 		auto bootstrap = new_ast.create_node(core_ast::node_type::FUNCTION_CALL, root_block);
-		new_ast.get_node_data<core_ast::function_call_data>(bootstrap).name = "main";
+		new_ast.get_node_data<core_ast::function_call_data>(bootstrap) = core_ast::function_call_data("main", 0, 0);
 		new_ast.create_node(core_ast::node_type::TUPLE, bootstrap);
 		new_ast.get_node(bootstrap).size = 0;
 
@@ -1110,7 +1116,7 @@ namespace fe::ext_ast
 		new_ast.get_node_data<core_ast::function_data>(main).locals_size = context.curr_fn_context.total_var_size;
 
 		auto ret = new_ast.create_node(core_ast::node_type::RET, block);
-		new_ast.get_node_data<core_ast::return_data>(ret) = { 0 };
+		new_ast.get_node_data<core_ast::return_data>(ret) = { 0, 0, 0 };
 		auto num = new_ast.create_node(core_ast::node_type::TUPLE, ret);
 
 

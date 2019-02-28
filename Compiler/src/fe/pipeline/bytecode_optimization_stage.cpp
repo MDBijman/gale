@@ -11,8 +11,8 @@ namespace fe::vm
 	void optimize_program(program& e, optimization_settings& s)
 	{
 		program_dependency_graph dg = build_dependency_graph(e);
-		while (optimize_dependencies(e, dg, s)
-			|| optimize_single_ops(e, dg, s)
+		while (//optimize_dependencies(e, dg, s)
+			/*||*/ optimize_single_ops(e, dg, s)
 			|| remove_dependantless_instructions(e, dg));
 
 		// Prints program including dependencies
@@ -156,58 +156,6 @@ namespace fe::vm
 					latest_writes[dest.val] = i;
 					break;
 				}
-				case op_kind::MV8_LOC_REG:
-				case op_kind::MV16_LOC_REG:
-				case op_kind::MV32_LOC_REG:
-				case op_kind::MV64_LOC_REG: {
-					reg src = current_instruction[2].val;
-
-					local_graph.dependencies.push_back(dependency{ i, latest_writes[src.val] });
-					break;
-				}
-				case op_kind::MV8_REG_LOC:
-				case op_kind::MV16_REG_LOC:
-				case op_kind::MV32_REG_LOC:
-				case op_kind::MV64_REG_LOC: {
-					reg src = current_instruction[1].val;
-
-					latest_writes[src.val] = i;
-					break;
-				}
-				case op_kind::PUSH8_REG:
-				case op_kind::PUSH16_REG:
-				case op_kind::PUSH32_REG:
-				case op_kind::PUSH64_REG: {
-					reg src = current_instruction[1].val;
-
-					latest_push_ops.push(i);
-					local_graph.dependencies.push_back(dependency{ i, latest_writes[src.val] });
-					break;
-				}
-				case op_kind::POP8_REG:
-				case op_kind::POP16_REG:
-				case op_kind::POP32_REG:
-				case op_kind::POP64_REG: {
-					reg dst = current_instruction[1].val;
-
-					if (!latest_push_ops.empty())
-					{
-						local_graph.dependencies.push_back(dependency{ i, latest_push_ops.top() });
-						latest_push_ops.pop();
-					}
-					latest_writes[dst.val] = i;
-					break;
-				}
-				case op_kind::MV_REG_SP: {
-					reg dst = current_instruction[1].val;
-
-					if (!latest_push_ops.empty())
-					{
-						local_graph.dependencies.push_back(dependency{ i, latest_push_ops.top() });
-					}
-					latest_writes[dst.val] = i;
-					break;
-				}
 				case op_kind::JRNZ_REG_I32:
 				case op_kind::JRZ_REG_I32: {
 					reg src = current_instruction[1].val;
@@ -220,7 +168,7 @@ namespace fe::vm
 					latest_push_ops = {};
 					break;
 				}
-				case op_kind::CALL_UI64: {
+				case op_kind::CALL_UI64_UI8_UI8_UI8: {
 					for (int i = 0; i < 32; i++) latest_writes[i] = 0;
 
 					latest_push_ops = {};
@@ -240,295 +188,6 @@ namespace fe::vm
 		return graph;
 	}
 
-	namespace peephole_optimizations
-	{
-		std::optional<uint64_t> try_replace_push_pop(bytecode& bc, const function_dependency_graph& dg, uint64_t push, uint64_t pop)
-		{
-			byte* first = bc[push];
-			byte* second = bc[pop];
-
-			auto first_reg = first[1].val;
-			auto second_reg = second[1].val;
-
-			// Only continue if there are no other dependencies on the dependency
-			for (const auto& d : dg.dependencies)
-			{
-				if (d.depends_on == push && d.instruction_id != pop)
-					return std::nullopt;
-			}
-
-			// And add new single instruction
-			uint64_t new_op;
-			switch (byte_to_op(first->val))
-			{
-			case op_kind::PUSH64_REG: new_op = bc.add_instruction(pop + 2, make_mv64_reg_reg(second_reg, first_reg)).ip; break;
-			case op_kind::PUSH32_REG: new_op = bc.add_instruction(pop + 2, make_mv32_reg_reg(second_reg, first_reg)).ip; break;
-			case op_kind::PUSH16_REG: new_op = bc.add_instruction(pop + 2, make_mv16_reg_reg(second_reg, first_reg)).ip; break;
-			case op_kind::PUSH8_REG: new_op = bc.add_instruction(pop + 2, make_mv8_reg_reg(second_reg, first_reg)).ip; break;
-			}
-
-			// Remove the old instructions
-			bc.set_instruction(push, make_nops<ct_op_size<op_kind::PUSH64_REG>::value>());
-			bc.set_instruction(pop, make_nops<ct_op_size<op_kind::POP64_REG>::value>());
-
-			return new_op;
-		}
-
-		std::optional<uint64_t> try_replace_indirect_literal(bytecode& bc, const function_dependency_graph& dg, uint64_t mv_i64, uint64_t mv_reg)
-		{
-			static_assert(ct_op_size<op_kind::MV_REG_I64>::value == ct_op_size<op_kind::MV_REG_UI64>::value);
-
-			byte* first = bc[mv_i64];
-			byte* second = bc[mv_reg];
-
-			auto tmp_reg = (first + 1)->val;
-
-			if (second[2].val != tmp_reg)
-				return std::nullopt;
-
-			auto dst_reg = (second + 1)->val;
-
-			// Only continue if there are no other dependencies on the dependency
-			for (const auto& d : dg.dependencies)
-			{
-				if (d.depends_on == mv_i64 && d.instruction_id != mv_reg)
-					return std::nullopt;
-			}
-
-			auto literal_int = read_i64(&(first + 2)->val);
-			if (byte_to_op(first->val) == op_kind::MV_REG_UI64) assert(literal_int >= 0);
-
-			// Remove the old instructions
-			bc.set_instruction(mv_i64, make_nops<ct_op_size<op_kind::MV_REG_I64>::value>());
-			bc.set_instruction(mv_reg, make_nops<ct_op_size<op_kind::MV64_REG_REG>::value>());
-
-			// And add new single instruction
-			return bc.add_instruction(
-				mv_reg + ct_op_size<op_kind::MV64_REG_REG>::value,
-				make_mv_reg_i64(dst_reg, literal_int)
-			).ip;
-		}
-
-		std::optional<uint64_t> try_simplify_store(bytecode& bc, const function_dependency_graph& dg, uint64_t mv_reg, uint64_t mv_loc)
-		{
-			byte* first = bc[mv_reg];
-			byte* second = bc[mv_loc];
-
-			auto tmp_reg = first[1].val;
-
-			if (second[2].val != tmp_reg)
-				return std::nullopt;
-
-			// Only continue if there are no other dependencies on the dependency
-			for (const auto& d : dg.dependencies)
-			{
-				if (d.depends_on == mv_reg && d.instruction_id != mv_loc)
-					return std::nullopt;
-			}
-
-			auto src_reg = first[2].val;
-			auto dst_reg = second[1].val;
-
-			// Remove the old instructions
-			bc.set_instruction(mv_reg, make_nops<ct_op_size<op_kind::MV64_REG_REG>::value>());
-			bc.set_instruction(mv_loc, make_nops<ct_op_size<op_kind::MV64_LOC_REG>::value>());
-
-			// And add new single instruction
-			return bc.add_instruction(
-				mv_loc + ct_op_size<op_kind::MV64_LOC_REG>::value,
-				make_mv64_loc_reg(dst_reg, src_reg)
-			).ip;
-		}
-
-		std::optional<uint64_t> try_simplify_sub(bytecode& bc, const function_dependency_graph& dg, uint64_t mv_reg, uint64_t mv_loc)
-		{
-			byte* first = bc[mv_reg];
-			byte* second = bc[mv_loc];
-
-			auto tmp_reg = first[1].val;
-
-			if (second[3].val != tmp_reg)
-				return std::nullopt;
-
-			// Only continue if there are no other dependencies on the dependency
-			for (const auto& d : dg.dependencies)
-			{
-				if (d.depends_on == mv_reg && d.instruction_id != mv_loc)
-					return std::nullopt;
-			}
-
-			auto literal_value = read_i64(&first[2].val);
-			if (literal_value < 0 || literal_value > std::numeric_limits<uint8_t>::max())
-				return std::nullopt;
-
-			auto target_reg = second[1].val;
-
-			// Get the register that won't be optimized away
-			auto other_src_reg = second[2].val;
-
-			// Remove the old instructions
-			bc.set_instruction(mv_reg, make_nops<ct_op_size<op_kind::MV_REG_I64>::value>());
-			bc.set_instruction(mv_loc, make_nops<ct_op_size<op_kind::SUB_REG_REG_REG>::value>());
-
-			// And add new single instruction
-			return bc.add_instruction(
-				mv_reg + ct_op_size<op_kind::SUB_REG_REG_UI8>::value,
-				make_sub(target_reg, other_src_reg, byte(literal_value))
-			).ip;
-		}
-
-		std::optional<uint64_t> try_simplify_add(bytecode& bc, const function_dependency_graph& dg, uint64_t mv_reg_reg, uint64_t add)
-		{
-			byte* first = bc[mv_reg_reg];
-			byte* second = bc[add];
-
-			auto src_reg = first[2].val;
-			auto tmp_reg = first[1].val;
-
-			if (second[3].val != tmp_reg && second[2].val != tmp_reg)
-				return std::nullopt;
-
-			// Only continue if there are no other dependencies on the dependency
-			for (const auto& d : dg.dependencies)
-			{
-				if (d.depends_on == mv_reg_reg && d.instruction_id != add)
-					return std::nullopt;
-			}
-
-			auto target_reg = second[1].val;
-
-			// Get the register that won't be optimized away
-			auto other_src_reg = second[2].val == tmp_reg ? second[3].val : second[2].val;
-
-			// Remove the old instructions
-			bc.set_instruction(mv_reg_reg, make_nops<ct_op_size<op_kind::MV64_REG_REG>::value>());
-			bc.set_instruction(add, make_nops<ct_op_size<op_kind::ADD_REG_REG_REG>::value>());
-
-			// And add new single instruction
-			return bc.add_instruction(
-				add + ct_op_size<op_kind::ADD_REG_REG_REG>::value,
-				make_add(reg(target_reg), reg(other_src_reg), reg(src_reg))
-			).ip;
-		}
-
-		std::optional<uint64_t> try_simplify_lte_literal(bytecode& bc, const function_dependency_graph& dg, uint64_t mv_reg_i64, uint64_t lte)
-		{
-			byte* first = bc[mv_reg_i64];
-			byte* second = bc[lte];
-
-			auto tmp_reg = first[1].val;
-
-			if (second[3].val != tmp_reg)
-				return std::nullopt;
-
-			// Only continue if there are no other dependencies on the dependency
-			for (const auto& d : dg.dependencies)
-			{
-				if (d.depends_on == mv_reg_i64 && d.instruction_id != lte)
-					return std::nullopt;
-			}
-
-			auto target_reg = second[1].val;
-			auto other_src = second[2].val;
-			auto lit = read_i64(&(first + 2)->val);
-
-			if (lit < std::numeric_limits<int8_t>::min() || lit > std::numeric_limits<int8_t>::max())
-				return std::nullopt;
-
-			// Remove the old instructions
-			bc.set_instruction(mv_reg_i64, make_nops<ct_op_size<op_kind::MV_REG_I64>::value>());
-			bc.set_instruction(lte, make_nops<ct_op_size<op_kind::LTE_REG_REG_REG>::value>());
-
-			// And add new single instruction
-			return bc.add_instruction(
-				lte + ct_op_size<op_kind::LTE_REG_REG_REG>::value,
-				make_lte(reg(target_reg), reg(other_src), byte(static_cast<int8_t>(lit)))
-			).ip;
-		}
-
-		std::optional<uint64_t> try_remove_dependency(bytecode& b, function_dependency_graph& g, dependency& d)
-		{
-			auto* dependency = b[d.depends_on];
-			op_kind dependency_kind = byte_to_op(dependency->val);
-
-			auto* dependant = b[d.instruction_id];
-			op_kind dependant_kind = byte_to_op(dependant->val);
-
-			if (dependency_kind == op_kind::MV64_REG_REG && dependant_kind == op_kind::MV64_LOC_REG)
-			{
-				auto replacement = peephole_optimizations::try_simplify_store(b, g, d.depends_on, d.instruction_id);
-
-				if (!replacement)
-					return std::nullopt;
-
-				g.add_offset(*replacement, ct_op_size<op_kind::MV64_LOC_REG>::value);
-
-				return replacement;
-			}
-			else if ((dependency_kind == op_kind::MV_REG_I64 || dependency_kind == op_kind::MV_REG_UI64)
-				&& dependant_kind == op_kind::MV64_REG_REG)
-			{
-				auto replacement = peephole_optimizations::try_replace_indirect_literal(b, g, d.depends_on, d.instruction_id);
-
-				if (!replacement)
-					return std::nullopt;
-
-				g.add_offset(*replacement, ct_op_size<op_kind::MV_REG_I64>::value);
-
-				return replacement;
-			}
-			else if ((dependency_kind == op_kind::PUSH64_REG && dependant_kind == op_kind::POP64_REG)
-				|| (dependency_kind == op_kind::PUSH32_REG && dependant_kind == op_kind::POP32_REG)
-				|| (dependency_kind == op_kind::PUSH16_REG && dependant_kind == op_kind::POP16_REG)
-				|| (dependency_kind == op_kind::PUSH8_REG && dependant_kind == op_kind::POP8_REG))
-			{
-				auto replacement = peephole_optimizations::try_replace_push_pop(b, g, d.depends_on, d.instruction_id);
-
-				if (!replacement)
-					return std::nullopt;
-
-				g.add_offset(*replacement, ct_op_size<op_kind::MV64_REG_REG>::value);
-
-				return replacement;
-			}
-			else if (dependency_kind == op_kind::MV_REG_I64 && dependant_kind == op_kind::SUB_REG_REG_REG)
-			{
-				auto replacement = peephole_optimizations::try_simplify_sub(b, g, d.depends_on, d.instruction_id);
-
-				if (!replacement)
-					return std::nullopt;
-
-				g.add_offset(*replacement, ct_op_size<op_kind::SUB_REG_REG_UI8>::value);
-
-				return replacement;
-			}
-			else if (dependency_kind == op_kind::MV64_REG_REG && dependant_kind == op_kind::ADD_REG_REG_REG)
-			{
-				auto replacement = peephole_optimizations::try_simplify_add(b, g, d.depends_on, d.instruction_id);
-
-				if (!replacement)
-					return std::nullopt;
-
-				g.add_offset(*replacement, ct_op_size<op_kind::ADD_REG_REG_REG>::value);
-
-				return replacement;
-			}
-			else if (dependency_kind == op_kind::MV_REG_I64 && dependant_kind == op_kind::LTE_REG_REG_REG)
-			{
-				auto replacement = peephole_optimizations::try_simplify_lte_literal(b, g, d.depends_on, d.instruction_id);
-
-				if (!replacement)
-					return std::nullopt;
-
-				g.add_offset(*replacement, ct_op_size<op_kind::LTE_REG_REG_I8>::value);
-
-				return replacement;
-			}
-
-			return std::nullopt;
-		}
-	}
-
 	/*
 	* Reduces pairs of operations into a single operation, when dependencies allow.
 	* E.g. mov r1 1, mov r2 r1 becomes mov r2 1.
@@ -536,70 +195,70 @@ namespace fe::vm
 	* on the new instruction.
 	* Returns true if any changes to the program were made
 	*/
-	bool optimize_dependencies(program& e, program_dependency_graph& g, optimization_settings& s)
-	{
-		bool change_made = false;
+	//bool optimize_dependencies(program& e, program_dependency_graph& g, optimization_settings& s)
+	//{
+	//	bool change_made = false;
 
-		for (auto&[fun_id, fun_dg] : g)
-		{
-			auto& function = e.get_function(fun_id);
-			assert(function.is_bytecode());
-			auto& bytecode = function.get_bytecode();
+	//	for (auto&[fun_id, fun_dg] : g)
+	//	{
+	//		auto& function = e.get_function(fun_id);
+	//		assert(function.is_bytecode());
+	//		auto& bytecode = function.get_bytecode();
 
-			while (true)
-			{
-				// first: dependency, second: dependant, third: replacement
-				std::optional<std::tuple<uint64_t, uint64_t, uint64_t>> replaced_op;
+	//		while (true)
+	//		{
+	//			// first: dependency, second: dependant, third: replacement
+	//			std::optional<std::tuple<uint64_t, uint64_t, uint64_t>> replaced_op;
 
-				for (auto it = fun_dg.dependencies.begin(); it != fun_dg.dependencies.end(); it++)
-				{
-					auto& dep = *it;
+	//			for (auto it = fun_dg.dependencies.begin(); it != fun_dg.dependencies.end(); it++)
+	//			{
+	//				auto& dep = *it;
 
-					auto replacement = peephole_optimizations::try_remove_dependency(bytecode, fun_dg, dep);
+	//				auto replacement = peephole_optimizations::try_remove_dependency(bytecode, fun_dg, dep);
 
-					if (replacement)
-					{
-						replaced_op = { dep.depends_on, dep.instruction_id, *replacement };
-						break;
-					}
-				}
+	//				if (replacement)
+	//				{
+	//					replaced_op = { dep.depends_on, dep.instruction_id, *replacement };
+	//					break;
+	//				}
+	//			}
 
-				if (!replaced_op)
-					break;
+	//			if (!replaced_op)
+	//				break;
 
-				std::vector<dependency> replacement_deps;
-				for (auto& dep : fun_dg.dependencies)
-				{
-					auto dependency = std::get<0>(*replaced_op);
-					auto dependant = std::get<1>(*replaced_op);
-					auto replacement = std::get<2>(*replaced_op);
+	//			std::vector<dependency> replacement_deps;
+	//			for (auto& dep : fun_dg.dependencies)
+	//			{
+	//				auto dependency = std::get<0>(*replaced_op);
+	//				auto dependant = std::get<1>(*replaced_op);
+	//				auto replacement = std::get<2>(*replaced_op);
 
-					if (dep.instruction_id == dependant && dep.depends_on == dependency)
-						continue;
+	//				if (dep.instruction_id == dependant && dep.depends_on == dependency)
+	//					continue;
 
-					assert(dep.depends_on != dependency);
-					if (dep.depends_on == dependant)
-						replacement_deps.push_back(vm::dependency{ dep.instruction_id, replacement });
-					else if (dep.instruction_id == dependency)
-						replacement_deps.push_back(vm::dependency{ replacement, dep.depends_on });
-					else if (dep.instruction_id == dependant && dep.depends_on != dependency)
-						replacement_deps.push_back(vm::dependency{ replacement, dep.depends_on });
-				}
+	//				assert(dep.depends_on != dependency);
+	//				if (dep.depends_on == dependant)
+	//					replacement_deps.push_back(vm::dependency{ dep.instruction_id, replacement });
+	//				else if (dep.instruction_id == dependency)
+	//					replacement_deps.push_back(vm::dependency{ replacement, dep.depends_on });
+	//				else if (dep.instruction_id == dependant && dep.depends_on != dependency)
+	//					replacement_deps.push_back(vm::dependency{ replacement, dep.depends_on });
+	//			}
 
-				fun_dg.dependencies.erase(std::remove_if(fun_dg.dependencies.begin(), fun_dg.dependencies.end(), [replaced_op](auto& dep) {
-					return (std::get<0>(*replaced_op) == dep.instruction_id
-						|| std::get<1>(*replaced_op) == dep.depends_on
-						|| std::get<1>(*replaced_op) == dep.instruction_id
-						|| std::get<1>(*replaced_op) == dep.depends_on);
-				}), fun_dg.dependencies.end());
+	//			fun_dg.dependencies.erase(std::remove_if(fun_dg.dependencies.begin(), fun_dg.dependencies.end(), [replaced_op](auto& dep) {
+	//				return (std::get<0>(*replaced_op) == dep.instruction_id
+	//					|| std::get<1>(*replaced_op) == dep.depends_on
+	//					|| std::get<1>(*replaced_op) == dep.instruction_id
+	//					|| std::get<1>(*replaced_op) == dep.depends_on);
+	//			}), fun_dg.dependencies.end());
 
-				std::move(replacement_deps.begin(), replacement_deps.end(), std::back_inserter(fun_dg.dependencies));
-			}
+	//			std::move(replacement_deps.begin(), replacement_deps.end(), std::back_inserter(fun_dg.dependencies));
+	//		}
 
-		}
+	//	}
 
-		return change_made;
-	}
+	//	return change_made;
+	//}
 
 	namespace peephole_optimizations
 	{
@@ -833,7 +492,7 @@ namespace fe::vm
 					*reinterpret_cast<bytes<4>*>(jump_bytes) = make_i32(jump_offset - nops_between(op, op + jump_offset));
 				continue;
 			}
-			case op_kind::CALL_UI64: {
+			case op_kind::CALL_UI64_UI8_UI8_UI8: {
 				byte* address_bytes = op + 1;
 				int64_t jump_offset = read_i64(&address_bytes->val);
 				if (jump_offset < 0)

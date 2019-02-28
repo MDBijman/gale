@@ -169,9 +169,9 @@ namespace fe::core_ast
 
 	struct return_data
 	{
-		return_data() : size(0) {}
-		return_data(size_t size) : size(size) {}
-		size_t size;
+		return_data() : in_size(0), frame_size(0), out_size(0) {}
+		return_data(size_t in_size, size_t frame_size, size_t out_size) : in_size(in_size), frame_size(frame_size), out_size(out_size) {}
+		size_t in_size, frame_size, out_size;
 	};
 
 	struct function_data
@@ -186,7 +186,9 @@ namespace fe::core_ast
 	struct function_call_data
 	{
 		function_call_data() {}
+		function_call_data(const std::string& name, uint32_t in, uint32_t out) : name(name), out_size(out), in_size(in) {}
 		std::string name;
+		uint32_t out_size, in_size;
 	};
 }
 
