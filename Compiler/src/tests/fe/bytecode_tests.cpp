@@ -637,7 +637,8 @@ TEST_CASE("instructions", "[bytecode]")
 		make_exit()
 	);
 	p.add_function(function{ "_main", bc, {} });
-	auto res = interpret(link(p));
+	auto executable = link(p);
+	auto res = interpret(executable);
 	REQUIRE(res.registers[sp_reg] == 0);
 	REQUIRE(res.registers[5] == 250);
 	REQUIRE(res.registers[2] == 120);

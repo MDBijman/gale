@@ -356,10 +356,10 @@ namespace fe::ext_ast
 			auto param_test = generate_pattern_test(ast.get_node(children[1]), ast, new_ast, sl, offset - 1, inner, context);
 			if (param_test.first)
 			{
-				auto and = new_ast.create_node(core_ast::node_type::AND);
-				new_ast.link_child_parent(eq, and);
-				new_ast.link_child_parent(*param_test.first, and);
-				return std::pair(and, 1 + param_test.second);
+				auto new_and = new_ast.create_node(core_ast::node_type::AND);
+				new_ast.link_child_parent(eq, new_and);
+				new_ast.link_child_parent(*param_test.first, new_and);
+				return std::pair(new_and, 1 + param_test.second);
 			}
 
 			return std::pair(eq, 1 + param_test.second);
@@ -393,10 +393,10 @@ namespace fe::ext_ast
 					}
 					else
 					{
-						auto and = new_ast.create_node(core_ast::node_type::AND);
-						new_ast.link_child_parent(*root, and);
-						new_ast.link_child_parent(*pattern_test.first, and);
-						root = and;
+						auto new_and = new_ast.create_node(core_ast::node_type::AND);
+						new_ast.link_child_parent(*root, new_and);
+						new_ast.link_child_parent(*pattern_test.first, new_and);
+						root = new_and;
 					}
 				}
 				
@@ -595,6 +595,8 @@ namespace fe::ext_ast
 			return lowering_result(location_type::stack, 4);
 		else if (num_data.type == number_type::I64 || num_data.type == number_type::UI64)
 			return lowering_result(location_type::stack, 8);
+
+		throw std::runtime_error("Unknown number type");
 	}
 
 	lowering_result lower_function_call(node_id p, node& n, ast& ast, core_ast::ast& new_ast, lowering_context& context)

@@ -12,24 +12,24 @@ namespace fe::ext_ast
 {
 	struct conversion_constraint
 	{
-		types::type& to;
+		const types::type& to;
 
-		conversion_constraint(types::type& t) : to(t) {}
+		conversion_constraint(const types::type& t) : to(t) {}
 
-		bool satisfied_by(types::type& t)
+		bool satisfied_by(const types::type& t) const
 		{
 			if (to == &t) return true;
 
 			// Number literals
 			{
-				if (auto lhs = dynamic_cast<types::i64*>(&to); lhs)
+				if (auto lhs = dynamic_cast<const types::i64*>(&to); lhs)
 				{
-					if (dynamic_cast<types::i32*>(&t) != nullptr) { return true; }
-					if (dynamic_cast<types::ui32*>(&t) != nullptr) { return true; }
+					if (dynamic_cast<const types::i32*>(&t) != nullptr) { return true; }
+					if (dynamic_cast<const types::ui32*>(&t) != nullptr) { return true; }
 				}
-				if (auto lhs = dynamic_cast<types::ui64*>(&to); lhs)
+				if (auto lhs = dynamic_cast<const types::ui64*>(&to); lhs)
 				{
-					if (dynamic_cast<types::ui32*>(&t) != nullptr) { return true; }
+					if (dynamic_cast<const types::ui32*>(&t) != nullptr) { return true; }
 				}
 			}
 
@@ -38,7 +38,7 @@ namespace fe::ext_ast
 
 		std::optional<conversion_constraint> tuple_sub_constraint(size_t i)
 		{
-			if (auto product = dynamic_cast<types::product_type*>(&to))
+			if (auto product = dynamic_cast<const types::product_type*>(&to))
 			{
 				return conversion_constraint(*product->product.at(i));
 			}
@@ -48,7 +48,7 @@ namespace fe::ext_ast
 
 		std::optional<conversion_constraint> array_sub_constraint()
 		{
-			if (auto arr = dynamic_cast<types::array_type*>(&to))
+			if (auto arr = dynamic_cast<const types::array_type*>(&to))
 			{
 				return conversion_constraint(*arr->element_type);
 			}
@@ -58,7 +58,7 @@ namespace fe::ext_ast
 
 		std::optional<conversion_constraint> sum_sub_constraint(size_t i)
 		{
-			if (auto sum = dynamic_cast<types::sum_type*>(&to))
+			if (auto sum = dynamic_cast<const types::sum_type*>(&to))
 			{
 				return conversion_constraint(*sum->sum.at(i));
 			}
@@ -74,13 +74,13 @@ namespace fe::ext_ast
 
 	struct equality_constraint
 	{
-		types::type& to;
-		equality_constraint(types::type& t) : to(t) {}
+		const types::type& to;
+		equality_constraint(const types::type& t) : to(t) {}
 
-		bool satisfied_by(types::type& t)
+		bool satisfied_by(const types::type& t) const
 		{
 			// #todo add more cases? constraints must be redone anyway
-			if (dynamic_cast<types::atom<types::atom_type::ANY>*>(&to))
+			if (dynamic_cast<const types::atom<types::atom_type::ANY>*>(&to))
 				return true;
 
 			return (to == &t);
@@ -88,7 +88,7 @@ namespace fe::ext_ast
 
 		std::optional<equality_constraint> tuple_sub_constraint(size_t i)
 		{
-			if (auto product = dynamic_cast<types::product_type*>(&to))
+			if (auto product = dynamic_cast<const types::product_type*>(&to))
 			{
 				return equality_constraint(*product->product.at(i));
 			}
@@ -98,7 +98,7 @@ namespace fe::ext_ast
 
 		std::optional<equality_constraint> array_sub_constraint()
 		{
-			if (auto arr = dynamic_cast<types::array_type*>(&to))
+			if (auto arr = dynamic_cast<const types::array_type*>(&to))
 			{
 				return equality_constraint(*arr->element_type);
 			}
@@ -108,7 +108,7 @@ namespace fe::ext_ast
 
 		std::optional<equality_constraint> sum_sub_constraint(size_t i)
 		{
-			if (auto sum = dynamic_cast<types::sum_type*>(&to))
+			if (auto sum = dynamic_cast<const types::sum_type*>(&to))
 			{
 				return equality_constraint(*sum->sum.at(i));
 			}
@@ -134,11 +134,11 @@ namespace fe::ext_ast
 		type_constraints() {}
 		type_constraints(std::vector<type_constraint> tc) : constraints(std::move(tc)) {}
 
-		bool satisfied_by(types::type& t)
+		bool satisfied_by(const types::type& t)
 		{
 			for (auto& constraint : constraints)
 			{
-				auto satisfied = std::visit(([&t](auto& x) -> bool { return x.satisfied_by(t); }), constraint);
+				auto satisfied = std::visit(([&t](const auto& x) -> bool { return x.satisfied_by(t); }), constraint);
 				if (!satisfied) return false;
 			}
 

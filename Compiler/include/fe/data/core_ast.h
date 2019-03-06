@@ -86,9 +86,17 @@ namespace fe::core_ast
 		std::vector<node_id> children;
 		std::optional<node_id> parent_id;
 		std::optional<size_t> size;
-		std::optional<data_index> data_index;
+		std::optional<data_index_t> data_index;
 		std::optional<scope_index> value_scope_id;
 	};
+
+	class ast;
+
+	namespace detail
+	{
+		template<class DataType>
+		DataType& get_data(ast& a, data_index_t i);
+	}
 
 	class ast
 	{
@@ -121,26 +129,33 @@ namespace fe::core_ast
 
 		// Node data 
 		template<class DataType>
-		DataType& get_data(data_index i);
+		DataType& get_data(data_index_t i) { return detail::get_data<DataType>(*this, i);  }
+		template<class DataType>
+		friend DataType& detail::get_data(ast&, data_index_t i);
 		template<class DataType>
 		DataType& get_node_data(node& i) { return get_data<DataType>(*i.data_index); }
 		template<class DataType>
 		DataType& get_node_data(node_id i) { return get_data<DataType>(*get_node(i).data_index); }
-		template<> boolean& get_data<boolean>(data_index i) { return constants.get<boolean>(i); }
-		template<> string& get_data<string>(data_index i) { return constants.get<string>(i); }
-		template<> number& get_data<number>(data_index i) { return constants.get<number>(i); }
-		template<> function_data& get_data<function_data>(data_index i) { return function_data_store.get_at(i); }
-		template<> function_call_data& get_data<function_call_data>(data_index i) { return function_call_data_store.get_at(i); }
-		template<> label& get_data<label>(data_index i) { return label_store.get_at(i); }
-		template<> relative_offset& get_data<relative_offset>(data_index i) { return relative_offset_store.get_at(i); }
-		template<> stack_label& get_data<stack_label>(data_index i) { return stack_label_store.get_at(i); }
-		template<> size& get_data<size>(data_index i) { return size_store.get_at(i); }
-		template<> var_data& get_data<var_data>(data_index i) { return var_store.get_at(i); }
-		template<> return_data& get_data<return_data>(data_index i) { return return_data_store.get_at(i); }
+
 
 	private:
-		std::optional<data_index> create_node_data(node_type t);
+		std::optional<data_index_t> create_node_data(node_type t);
 	};
+
+	namespace detail
+	{
+		template<> boolean& get_data<boolean>(ast& a, data_index_t i);
+		template<> string& get_data<string>(ast& a, data_index_t i);
+		template<> number& get_data<number>(ast& a, data_index_t i);
+		template<> function_data& get_data<function_data>(ast& a, data_index_t i);
+		template<> function_call_data& get_data<function_call_data>(ast& a, data_index_t i);
+		template<> label& get_data<label>(ast& a, data_index_t i);
+		template<> relative_offset& get_data<relative_offset>(ast& a, data_index_t i);
+		template<> stack_label& get_data<stack_label>(ast& a, data_index_t i);
+		template<> size& get_data<size>(ast& a, data_index_t i);
+		template<> var_data& get_data<var_data>(ast& a, data_index_t i);
+		template<> return_data& get_data<return_data>(ast& a, data_index_t i);
+	}
 
 	class ast_helper
 	{
@@ -178,7 +193,7 @@ namespace fe::core_ast
 		{
 			for (auto i = 0; i < a.nodes.size(); i++)
 			{
-				if (a.nodes.is_occupied(i) && a.nodes.get_at(i).kind == t)
+				if (a.nodes.is_occupied(i))
 				{
 					if (f(a.nodes.get_at(i))) return a.nodes.get_at(i).id;
 				}

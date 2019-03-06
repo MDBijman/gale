@@ -281,21 +281,11 @@ namespace fe::vm
 
 		far_lbl location(chunk_id, p.get_function(chunk_id).get_bytecode().size());
 
-		auto& analysis = info.analyzed_functions[chunk_id];
-
 		for (auto i = 0; i < children.size(); i++)
 			generate_bytecode(children[i], ast, p, info);
 
 		if (is_root)
 		{
-			int64_t stack_size = *ast.get_node(n).size;
-			assert(stack_size >= 0);
-			if (stack_size > 0)
-			{
-				p.get_function(info.chunk_of(n))
-					.get_bytecode()
-					.add_instruction(make_sdealloc_ui8(static_cast<uint8_t>(stack_size)));
-			}
 			p.get_function(info.chunk_of(n)).get_bytecode().add_instruction(make_exit());
 		}
 	}

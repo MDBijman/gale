@@ -139,14 +139,14 @@ namespace fe::ext_ast
 		return this->constants;
 	}
 
-	data_index ast::create_node_data(node_type t)
+	data_index_t ast::create_node_data(node_type t)
 	{
 		switch (t)
 		{
-		case node_type::IDENTIFIER: return static_cast<data_index>(identifiers.create());
-		case node_type::NUMBER:     return static_cast<data_index>(constants.create<number>());
-		case node_type::STRING:     return static_cast<data_index>(constants.create<string>());
-		case node_type::BOOLEAN:    return static_cast<data_index>(constants.create<boolean>());
+		case node_type::IDENTIFIER: return static_cast<data_index_t>(identifiers.create());
+		case node_type::NUMBER:     return static_cast<data_index_t>(constants.create<number>());
+		case node_type::STRING:     return static_cast<data_index_t>(constants.create<string>());
+		case node_type::BOOLEAN:    return static_cast<data_index_t>(constants.create<boolean>());
 		default:
 			return no_data;
 		}
@@ -162,5 +162,13 @@ namespace fe::ext_ast
 				return i;
 		}
 		return std::nullopt;
+	}
+
+	namespace detail
+	{
+		template<> identifier& get_data<identifier>(ast& a, data_index_t i) { assert(i != no_data); return a.identifiers.get_at(i); }
+		template<> boolean&    get_data<boolean>(ast& a, data_index_t i) { assert(i != no_data); return a.constants.get<boolean>(i); }
+		template<> string&     get_data<string>(ast& a, data_index_t i) { assert(i != no_data); return a.constants.get<string>(i); }
+		template<> number&     get_data<number>(ast& a, data_index_t i) { assert(i != no_data); return a.constants.get<number>(i); }
 	}
 }
