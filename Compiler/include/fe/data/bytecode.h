@@ -4,6 +4,7 @@
 #include <variant>
 #include <assert.h>
 #include <unordered_map>
+#include <algorithm>
 
 namespace fe::vm
 {
@@ -419,7 +420,7 @@ namespace fe::vm
 		bytecode(std::vector<byte> bs) : instructions(bs) {}
 
 		// Adds the bytes to this bytecode at the given address
-		template<int C> near_lbl add_instruction(near_lbl l, bytes<C> in)
+		template<long unsigned int C> near_lbl add_instruction(near_lbl l, bytes<C> in)
 		{
 			for (int i = 0; i < C; i++) 
 				instructions.insert(instructions.begin() + l.ip + i, in[i]);
@@ -427,7 +428,7 @@ namespace fe::vm
 		}
 
 		// Adds the bytes to the end of this bytecode, returning the address of the first byte
-		template<int C> std::pair<near_lbl, uint32_t> add_instruction(bytes<C> in)
+		template<long unsigned int C> std::pair<near_lbl, uint32_t> add_instruction(bytes<C> in)
 		{
 			near_lbl l(instructions.size());
 			for (int i = 0; i < C; i++) instructions.push_back(in[i]);
@@ -435,7 +436,7 @@ namespace fe::vm
 		}
 
 		// Adds the vector of bytes to the end of this bytecode, returning the address of the first byte
-		template<int... Cs> std::pair<near_lbl, uint32_t> add_instructions(bytes<Cs>... in)
+		template<long unsigned int... Cs> std::pair<near_lbl, uint32_t> add_instructions(bytes<Cs>... in)
 		{
 			near_lbl l(instructions.size());
 			(add_instruction(in), ...);
@@ -448,7 +449,7 @@ namespace fe::vm
 		}
 
 		// Returns the C bytes starting at the given address, padded with op_kind::ERR bytes
-		template<int C> bytes<C> get_instruction(near_lbl l) const
+		template<long unsigned int C> bytes<C> get_instruction(near_lbl l) const
 		{
 			bytes<C> res;
 			for (int i = 0; i < C; i++) res[i] = i + l.ip < instructions.size() ? instructions[l.ip + i] : op_to_byte(op_kind::ERR);
@@ -456,7 +457,7 @@ namespace fe::vm
 		}
 
 		// Sets the instruction at the given address to the new bytes 
-		template<int C> void set_instruction(near_lbl l, bytes<C> b)
+		template<long unsigned int C> void set_instruction(near_lbl l, bytes<C> b)
 		{
 			for (int i = 0; i < C; i++) instructions[l.ip + i] = b[i];
 		}
@@ -504,14 +505,14 @@ namespace fe::vm
 	public:
 
 		// Adds the bytes to the end of the bytecode
-		template<int C> bytecode_builder& add(bytes<C> in)
+		template<long unsigned int C> bytecode_builder& add(bytes<C> in)
 		{
 			bc.add_instruction(in);
 			return *this;
 		}
 
 		// Adds the vector of bytes to the end of the bytecode
-		template<int... Cs> bytecode_builder& add(bytes<Cs>... in)
+		template<long unsigned int... Cs> bytecode_builder& add(bytes<Cs>... in)
 		{
 			bc.add_instructions(in...);
 			return *this;
@@ -575,7 +576,7 @@ namespace fe::vm
 
 		template<int C> bytes<C> operator[](far_lbl l)
 		{
-			return chunks.at(l.chunk_id).get_instruction<C>(l.ip);
+			return code.at(l.chunk_id).get_bytecode().get_instruction<C>(l.ip);
 		}
 
 		std::string to_string();

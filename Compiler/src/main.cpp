@@ -70,10 +70,10 @@ int main(int argc, char** argv)
 
 			fe::stdlib::io::set_iostream(std::make_unique<fe::stdlib::io::iostream>());
 
-			auto project_path = std::experimental::filesystem::path(argv[2]);
+			auto project_path = std::filesystem::path(argv[2]);
 			std::cout << "Project folder: " << project_path << "\n";
 
-			auto directory_it = std::experimental::filesystem::recursive_directory_iterator(argv[2]);
+			auto directory_it = std::filesystem::recursive_directory_iterator(argv[2]);
 			for (auto& item : directory_it)
 			{
 				auto path = item.path();

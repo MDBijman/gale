@@ -193,11 +193,10 @@ namespace fe::core_ast
 		}
 	}
 
-	stack_analysis_result analyze_stack(node_id id, ast& ast)
+	stack_analysis_result analyze_stack(node_id id, ast &ast)
 	{
 		stack_analysis_result r;
 
-		assert(ast.get_node(id).kind == node_type::FUNCTION);
 		r.node_stack_sizes[id] = ast.get_node_data<function_data>(id).in_size + ast.get_node_data<function_data>(id).locals_size + 8 /* return adress */;
 		analyze_stack(ast.get_node(id).children[0], ast, r);
 

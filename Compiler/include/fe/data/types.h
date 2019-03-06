@@ -15,10 +15,11 @@ namespace fe
 			struct comparable
 			{
 			public:
-				bool operator==(Base* o) const
+				bool operator==(const Base* o) const
 				{
-					if (typeid(*o) == typeid(types::any))
-						return true;
+					// This doesnt work with gcc, because types::any is not defined yet, not sure why it works with msvc
+					//if (typeid(*o) == typeid(types::any))
+					//	return true;
 
 					if (typeid(Derived) != typeid(*o))
 						return false;
@@ -43,12 +44,12 @@ namespace fe
 
 		struct type
 		{
-			virtual ~type() = 0 {};
+			virtual ~type() {};
 			virtual operator std::string() const = 0;
 			virtual type* copy() const = 0;
 			virtual size_t calculate_size() const = 0;
 			virtual size_t calculate_offset(const std::vector<size_t>& offsets, size_t curr = 0) const = 0;
-			virtual bool operator==(type* other) const = 0;
+			virtual bool operator==(const type* other) const = 0;
 		};
 
 		using unique_type = std::unique_ptr<type>;
@@ -94,8 +95,9 @@ namespace fe
 			case atom_type::ANY:       return "any";        break;
 			case atom_type::VOID:      return "void";       break;
 			}
-			assert(!"Unknown atom type");
-			throw std::runtime_error("Unknown atom type");
+			// Throwing an error in a constexpr is not allowed by gcc
+			return "";
+			// throw std::runtime_error("Unknown atom type");
 		};
 
 		constexpr size_t atom_type_size(atom_type lit)
@@ -118,12 +120,13 @@ namespace fe
 			case atom_type::ANY:       return -1; break;
 			case atom_type::VOID:      return 0;  break;
 			}
-			assert(!"Unknown atom type");
-			throw std::runtime_error("Unknown atom type");
+			// Throwing an error in a constexpr is not allowed by gcc
+			return 0;
+			// throw std::runtime_error("Unknown atom type");
 		}
 
 		template<atom_type Type>
-		struct atom : public type, private detail::comparable<atom<Type>, type>, private detail::copyable<atom<Type>, type>
+		struct atom : public type, public detail::comparable<atom<Type>, type>, public detail::copyable<atom<Type>, type>
 		{
 			atom() {}
 
@@ -140,8 +143,8 @@ namespace fe
 				return atom_type_str(Type);
 			}
 
-			bool operator==(type* other) const override { return comparable::operator==(other); }
-			type* copy() const override { return copyable::copy(*this); }
+			bool operator==(const type* other) const override { return detail::comparable<atom<Type>, type>::operator==(other); }
+			type* copy() const override { return detail::copyable<atom<Type>, type>::copy(*this); }
 			size_t calculate_size() const override { return atom_type_size(Type); }
 			size_t calculate_offset(const std::vector<size_t>& offsets, size_t curr = 0) const override
 			{
@@ -168,7 +171,7 @@ namespace fe
 
 		// Composition types
 
-		struct sum_type : public type, private detail::comparable<sum_type, type>, private detail::copyable<sum_type, type>
+		struct sum_type : public type, public detail::comparable<sum_type, type>, public detail::copyable<sum_type, type>
 		{
 			sum_type();
 			sum_type(std::vector<unique_type> sum);
@@ -182,7 +185,7 @@ namespace fe
 			sum_type& operator=(const sum_type& other);
 
 			operator std::string() const override;
-			bool operator==(type* other) const override { return comparable::operator==(other); }
+			bool operator==(const type* other) const override { return comparable::operator==(other); }
 			type* copy() const override { return copyable::copy(*this); }
 			size_t calculate_size() const override
 			{ 
@@ -210,7 +213,7 @@ namespace fe
 			std::vector<unique_type> sum;
 		};
 
-		struct array_type : public type, private detail::comparable<array_type, type>, private detail::copyable<array_type, type>
+		struct array_type : public type, public detail::comparable<array_type, type>, public detail::copyable<array_type, type>
 		{
 			array_type();
 			array_type(unique_type t, size_t count);
@@ -225,7 +228,7 @@ namespace fe
 			array_type& operator=(const array_type& other);
 
 			operator std::string() const override;
-			bool operator==(type* other) const override { return comparable::operator==(other); }
+			bool operator==(const type* other) const override { return comparable::operator==(other); }
 			type* copy() const override { return copyable::copy(*this); }
 			size_t calculate_size() const override
 			{
@@ -241,7 +244,7 @@ namespace fe
 			unique_type element_type;
 		};
 
-		struct reference_type : public type, private detail::comparable<reference_type, type>, private detail::copyable<reference_type, type>
+		struct reference_type : public type, public detail::comparable<reference_type, type>, public detail::copyable<reference_type, type>
 		{
 			reference_type();
 			reference_type(unique_type t);
@@ -256,7 +259,7 @@ namespace fe
 			reference_type& operator=(const reference_type& other);
 
 			operator std::string() const override;
-			bool operator==(type* other) const override { return comparable::operator==(other); }
+			bool operator==(const type* other) const override { return comparable::operator==(other); }
 			type* copy() const override { return copyable::copy(*this); }
 			size_t calculate_size() const override
 			{
@@ -271,7 +274,7 @@ namespace fe
 			unique_type referred_type;
 		};
 
-		struct product_type : public type, private detail::comparable<product_type, type>, private detail::copyable<product_type, type>
+		struct product_type : public type, public detail::comparable<product_type, type>, public detail::copyable<product_type, type>
 		{
 			product_type();
 			product_type(std::vector<unique_type> product);
@@ -285,7 +288,7 @@ namespace fe
 			product_type& operator=(const product_type& other);
 
 			operator std::string() const override;
-			bool operator==(type* other) const override { return comparable::operator==(other); }
+			bool operator==(const type* other) const override { return comparable::operator==(other); }
 			type* copy() const override { return copyable::copy(*this); }
 			size_t calculate_size() const override
 			{
@@ -306,7 +309,7 @@ namespace fe
 			std::vector<unique_type> product;
 		};
 
-		struct function_type : public type, private detail::comparable<function_type, type>, private detail::copyable<function_type, type>
+		struct function_type : public type, public detail::comparable<function_type, type>, public detail::copyable<function_type, type>
 		{
 			function_type(unique_type f, unique_type t);
 			function_type(const type& f, const type& t);
@@ -320,7 +323,7 @@ namespace fe
 			function_type& operator=(const function_type& other);
 
 			operator std::string() const override;
-			bool operator==(type* other) const override { return comparable::operator==(other); }
+			bool operator==(const type* other) const override { return comparable::operator==(other); }
 			type* copy() const override { return copyable::copy(*this); }
 			size_t calculate_size() const override
 			{
@@ -335,7 +338,7 @@ namespace fe
 			unique_type from, to;
 		};
 
-		struct nominal_type : public type, private detail::comparable<nominal_type, type>, private detail::copyable<nominal_type, type>
+		struct nominal_type : public type, public detail::comparable<nominal_type, type>, public detail::copyable<nominal_type, type>
 		{
 			nominal_type(std::string name, unique_type inner);
 			nominal_type(std::string name, const type& inner);
@@ -349,7 +352,7 @@ namespace fe
 			nominal_type& operator=(const nominal_type& other);
 
 			operator std::string() const override;
-			bool operator==(type* other) const override { return comparable::operator==(other); }
+			bool operator==(const type* other) const override { return comparable::operator==(other); }
 			type* copy() const override { return copyable::copy(*this); }
 			size_t calculate_size() const override
 			{
