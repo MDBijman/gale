@@ -57,7 +57,7 @@ namespace fe::core_ast
 		return nodes.get_at(id);
 	}
 
-	std::optional<data_index> ast::create_node_data(node_type t)
+	std::optional<data_index_t> ast::create_node_data(node_type t)
 	{
 		switch (t)
 		{
@@ -90,5 +90,20 @@ namespace fe::core_ast
 			return return_data_store.create();
 		default: return std::nullopt;
 		}
+	}
+
+	namespace detail
+	{
+		template<> boolean& get_data<boolean>(ast& a, data_index_t i) { return a.constants.get<boolean>(i); }
+		template<> string& get_data<string>(ast& a,data_index_t i) { return a.constants.get<string>(i); }
+		template<> number& get_data<number>(ast& a,data_index_t i) { return a.constants.get<number>(i); }
+		template<> function_data& get_data<function_data>(ast& a,data_index_t i) { return a.function_data_store.get_at(i); }
+		template<> function_call_data& get_data<function_call_data>(ast& a,data_index_t i) { return a.function_call_data_store.get_at(i); }
+		template<> label& get_data<label>(ast& a,data_index_t i) { return a.label_store.get_at(i); }
+		template<> relative_offset& get_data<relative_offset>(ast& a,data_index_t i) { return a.relative_offset_store.get_at(i); }
+		template<> stack_label& get_data<stack_label>(ast& a,data_index_t i) { return a.stack_label_store.get_at(i); }
+		template<> size& get_data<size>(ast& a,data_index_t i) { return a.size_store.get_at(i); }
+		template<> var_data& get_data<var_data>(ast& a,data_index_t i) { return a.var_store.get_at(i); }
+		template<> return_data& get_data<return_data>(ast& a,data_index_t i) { return a.return_data_store.get_at(i); }
 	}
 }

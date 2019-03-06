@@ -1,7 +1,6 @@
 #pragma once
 #include "fe/data/types.h"
 #include "fe/data/module.h"
-#include <Windows.h>
 
 namespace fe::stdlib::ui
 {

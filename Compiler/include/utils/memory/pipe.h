@@ -4,6 +4,7 @@
 #include <queue>
 #include <array>
 #include <thread>
+#include <condition_variable>
 
 namespace memory
 {

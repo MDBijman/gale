@@ -1,6 +1,7 @@
 #pragma once
 #include <array>
 #include <set>
+#include <algorithm>
 
 namespace memory
 {

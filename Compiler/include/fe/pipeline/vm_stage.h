@@ -44,5 +44,5 @@ namespace fe::vm
 		vm_implementation implementation;
 	};
 
-	machine_state interpret(executable&, vm_settings& = vm_settings{});
+	machine_state interpret(executable&, const vm_settings& = vm_settings{});
 }

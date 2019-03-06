@@ -138,7 +138,7 @@ namespace fe::vm
 	}
 
 	// #todo #cleanup move this into different file together with machine_state and create a common interpretation result 'object'
-	machine_state vm_hl_interpret(executable& e, vm_settings& s)
+	machine_state vm_hl_interpret(executable& e, const vm_settings& s)
 	{
 		auto state = machine_state();
 		const byte* first_instruction = e.code.get_instruction(near_lbl(0));
@@ -279,7 +279,7 @@ namespace fe::vm
 		throw std::runtime_error("Program did not exit with op kind EXIT");
 	}
 
-	machine_state interpret(executable& e, vm_settings& s)
+	machine_state interpret(executable& e, const vm_settings& s)
 	{
 		const byte* first_instruction = e.code.get_instruction(near_lbl(0));
 
