@@ -4,6 +4,17 @@
 
 namespace fe
 {
+	struct constants_store;
+
+	/*
+	* We have to do this because gcc doesnt compile template specializations within a struct/class.
+	*/
+	namespace detail
+	{
+		template<class DataType> DataType& get(constants_store& cs, data_index_t i);
+		template<class DataType> data_index_t create(constants_store& cs);
+	}
+
 	struct constants_store
 	{
 	public:
@@ -14,18 +25,29 @@ namespace fe
 
 		// Node data 
 		template<class DataType>
-		DataType& get(data_index i);
-		template<> plain_identifier& get<plain_identifier>(data_index i) { return identifiers.get_at(i); }
-		template<> boolean& get<boolean>(data_index i) { return booleans.get_at(i); }
-		template<> string& get<string>(data_index i) { return strings.get_at(i); }
-		template<> number& get<number>(data_index i) { return numbers.get_at(i); }
+		DataType& get(data_index_t i)
+		{
+			return detail::get<DataType>(*this, i);
+		}
 
 		// Node data 
 		template<class DataType>
-		data_index create();
-		template<> data_index create<plain_identifier>() { return static_cast<data_index>(identifiers.create()); }
-		template<> data_index create<boolean>() { return static_cast<data_index>(booleans.create()); }
-		template<> data_index create<string>() { return static_cast<data_index>(strings.create()); }
-		template<> data_index create<number>() { return static_cast<data_index>(numbers.create()); }
+		data_index_t create()
+		{
+			return detail::create<DataType>(*this);
+		}
 	};
+
+	namespace detail
+	{
+		template<> plain_identifier& get<plain_identifier>(constants_store& cs, data_index_t i);
+		template<> boolean& get<boolean>(constants_store& cs, data_index_t i);
+		template<> string& get<string>(constants_store& cs, data_index_t i);
+		template<> number& get<number>(constants_store& cs, data_index_t i);
+
+		template<> data_index_t create<plain_identifier>(constants_store& cs);
+		template<> data_index_t create<boolean>(constants_store& cs);
+		template<> data_index_t create<string>(constants_store& cs);
+		template<> data_index_t create<number>(constants_store& cs);
+	}
 }
