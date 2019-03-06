@@ -218,7 +218,7 @@ namespace fe::vm
 	bool writes_to(const byte* op, reg r);
 	bool reads_from(const byte* op, reg r);
 
-	template<int C>
+	template<size_t C>
 	using bytes = std::array<byte, C>;
 
 	template<int C> bytes<C> make_nops()
@@ -420,7 +420,7 @@ namespace fe::vm
 		bytecode(std::vector<byte> bs) : instructions(bs) {}
 
 		// Adds the bytes to this bytecode at the given address
-		template<long unsigned int C> near_lbl add_instruction(near_lbl l, bytes<C> in)
+		template<size_t C> near_lbl add_instruction(near_lbl l, bytes<C> in)
 		{
 			for (int i = 0; i < C; i++) 
 				instructions.insert(instructions.begin() + l.ip + i, in[i]);
@@ -428,7 +428,7 @@ namespace fe::vm
 		}
 
 		// Adds the bytes to the end of this bytecode, returning the address of the first byte
-		template<long unsigned int C> std::pair<near_lbl, uint32_t> add_instruction(bytes<C> in)
+		template<size_t C> std::pair<near_lbl, uint32_t> add_instruction(bytes<C> in)
 		{
 			near_lbl l(instructions.size());
 			for (int i = 0; i < C; i++) instructions.push_back(in[i]);
@@ -436,7 +436,7 @@ namespace fe::vm
 		}
 
 		// Adds the vector of bytes to the end of this bytecode, returning the address of the first byte
-		template<long unsigned int... Cs> std::pair<near_lbl, uint32_t> add_instructions(bytes<Cs>... in)
+		template<size_t... Cs> std::pair<near_lbl, uint32_t> add_instructions(bytes<Cs>... in)
 		{
 			near_lbl l(instructions.size());
 			(add_instruction(in), ...);
@@ -449,7 +449,7 @@ namespace fe::vm
 		}
 
 		// Returns the C bytes starting at the given address, padded with op_kind::ERR bytes
-		template<long unsigned int C> bytes<C> get_instruction(near_lbl l) const
+		template<size_t C> bytes<C> get_instruction(near_lbl l) const
 		{
 			bytes<C> res;
 			for (int i = 0; i < C; i++) res[i] = i + l.ip < instructions.size() ? instructions[l.ip + i] : op_to_byte(op_kind::ERR);
@@ -457,7 +457,7 @@ namespace fe::vm
 		}
 
 		// Sets the instruction at the given address to the new bytes 
-		template<long unsigned int C> void set_instruction(near_lbl l, bytes<C> b)
+		template<size_t C> void set_instruction(near_lbl l, bytes<C> b)
 		{
 			for (int i = 0; i < C; i++) instructions[l.ip + i] = b[i];
 		}
