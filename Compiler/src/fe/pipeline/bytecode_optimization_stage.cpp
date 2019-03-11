@@ -14,53 +14,6 @@ namespace fe::vm
 		while (optimize_dependencies(e, dg, s)
 			|| optimize_single_ops(e, dg, s)
 			|| remove_dependantless_instructions(e, dg));
-
-		// Prints program including dependencies
-
-		//auto& funs = e.get_code();
-		//for (int i = 0; i < funs.size(); i++)
-		//{
-		//	auto& fun = funs[i];
-		//	if (!fun.is_bytecode()) continue;
-		//	auto& bc = fun.get_bytecode();
-		//	auto& local_dg = dg[i];
-
-		//	std::cout << "\n" << fun.get_name() << "\n";
-		//	std::string out;
-		//	size_t ip = 0;
-		//	while (bc.has_instruction(ip))
-		//	{
-		//		auto in = bc.get_instruction<10>(ip);
-		//		if (byte_to_op(in[0].val) == op_kind::NOP)
-		//		{
-		//			ip++; continue;
-		//		}
-
-		//		out += std::to_string(ip) + ": ";
-		//		out += op_to_string(byte_to_op(in[0].val)) + " ";
-		//		for (int i = 1; i < op_size(byte_to_op(in[0].val)); i++)
-		//			out += std::to_string(in[i].val) + " ";
-
-		//		auto dep = std::find_if(local_dg.dependencies.begin(), local_dg.dependencies.end(), [ip](dependency& dep) {
-		//			return (ip == dep.instruction_id);
-		//		});
-
-		//		while (dep != local_dg.dependencies.end())
-		//		{
-		//			out += " dep ";
-		//			out += std::to_string(dep->depends_on);
-
-		//			dep = std::find_if(dep + 1, local_dg.dependencies.end(), [ip](dependency& dep) {
-		//				return (ip == dep.instruction_id);
-		//			});
-		//		}
-
-		//		out += "\n";
-		//		ip += op_size(byte_to_op(in[0].val));
-		//	}
-
-		//	std::cout << out;
-		//}
 	}
 
 	void function_dependency_graph::add_offset(uint64_t loc, uint32_t size)
@@ -222,10 +175,16 @@ namespace fe::vm
 				}
 				case op_kind::CALL_UI64: {
 					for (int i = 0; i < 32; i++) latest_writes[i] = 0;
+					latest_push_ops = {};
+					latest_writes[60] = i;
+					break;
+				}
+				case op_kind::CALL_REG: {
+					for (int i = 0; i < 32; i++) latest_writes[i] = 0;
 
 					latest_push_ops = {};
 					latest_writes[60] = i;
-					local_graph.dependencies.push_back(dependency{ i, latest_writes[0] });
+					local_graph.dependencies.push_back(dependency{ i, latest_writes[current_instruction[1].val] });
 					break;
 				}
 				}

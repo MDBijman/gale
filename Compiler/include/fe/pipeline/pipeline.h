@@ -7,7 +7,8 @@
 #include "fe/pipeline/bytecode_gen_stage.h"
 #include "fe/pipeline/linker_stage.h"
 #include "fe/pipeline/bytecode_optimization_stage.h"
-#include "fe/pipeline/vm_stage.h"
+#include "fe/pipeline/bytecode_printing_stage.h"
+#include "fe/data/bytecode.h"
 #include "fe/pipeline/error.h"
 
 #include <memory>
@@ -71,9 +72,9 @@ namespace fe
 			vm::optimize_executable(e, s);
 		}
 
-		vm::machine_state run(vm::executable& e, vm::vm_settings& s) const
+		void print_bytecode(const std::string& filename, vm::executable& e) const
 		{
-			return vm::interpret(e, s);
+			vm::print_bytecode(filename, e);
 		}
 
 	private:
