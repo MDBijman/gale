@@ -1,0 +1,10 @@
+{
+    "command": "./compile_and_run.bat",
+    "tests": [
+        {
+            "args": "./snippets/mod.fe",
+            "test": "exitCode",
+            "expect": 0
+        }
+    ]
+}
