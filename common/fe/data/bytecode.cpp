@@ -1,4 +1,4 @@
-#include "fe/data/bytecode.h"
+#include "bytecode.h"
 #include <assert.h>
 #include <iostream>
 #include <string>
@@ -74,11 +74,77 @@ namespace fe::vm
 		case op_kind::JRZ_REG_I32: return "jrz_reg_i32";
 		case op_kind::CALL_UI64: return "call_ui64";
 		case op_kind::CALL_NATIVE_UI64: return "call_native_ui64";
+		case op_kind::CALL_REG: return "call_reg";
 		case op_kind::RET_UI8: return "ret_ui8";
 		case op_kind::SALLOC_REG_UI8: return "salloc_reg_ui8";
 		case op_kind::SDEALLOC_UI8: return "sdealloc_ui8";
 		case op_kind::EXIT: return "exit";
 		}
+		assert(!"Unknown instruction");
+	}
+
+	op_kind string_to_op(const std::string& o)
+	{
+		if(o == "nop") return op_kind::NOP;
+		if(o == "add_reg_reg_reg") return op_kind::ADD_REG_REG_REG;
+		if(o == "add_reg_reg_ui8") return op_kind::ADD_REG_REG_UI8;
+		if(o == "sub_reg_reg_reg") return op_kind::SUB_REG_REG_REG;
+		if(o == "sub_reg_reg_ui8") return op_kind::SUB_REG_REG_UI8;
+		if(o == "mul_reg_reg_reg") return op_kind::MUL_REG_REG_REG;
+		if(o == "div_reg_reg_reg") return op_kind::DIV_REG_REG_REG;
+		if(o == "mod_reg_reg_reg") return op_kind::MOD_REG_REG_REG;
+		if(o == "gt_reg_reg_reg") return op_kind::GT_REG_REG_REG;
+		if(o == "gte_reg_reg_reg") return op_kind::GTE_REG_REG_REG;
+		if(o == "lt_reg_reg_reg") return op_kind::LT_REG_REG_REG;
+		if(o == "lte_reg_reg_reg") return op_kind::LTE_REG_REG_REG;
+		if(o == "lte_reg_reg_i8") return op_kind::LTE_REG_REG_I8;
+		if(o == "eq_reg_reg_reg") return op_kind::EQ_REG_REG_REG;
+		if(o == "neq_reg_reg_reg") return op_kind::NEQ_REG_REG_REG;
+		if(o == "and_reg_reg_reg") return op_kind::AND_REG_REG_REG;
+		if(o == "and_reg_reg_ui8") return op_kind::AND_REG_REG_UI8;
+		if(o == "or_reg_reg_reg") return op_kind::OR_REG_REG_REG;
+		if(o == "xor_reg_reg_ui8") return op_kind::XOR_REG_REG_UI8;
+		if(o == "mv_reg_sp") return op_kind::MV_REG_SP;
+		if(o == "mv_reg_ip") return op_kind::MV_REG_IP;
+		if(o == "mv_reg_ui8") return op_kind::MV_REG_UI8;
+		if(o == "mv_reg_ui16") return op_kind::MV_REG_UI16;
+		if(o == "mv_reg_ui32") return op_kind::MV_REG_UI32;
+		if(o == "mv_reg_ui64") return op_kind::MV_REG_UI64;
+		if(o == "mv_reg_i8") return op_kind::MV_REG_I8;
+		if(o == "mv_reg_i16") return op_kind::MV_REG_I16;
+		if(o == "mv_reg_i32") return op_kind::MV_REG_I32;
+		if(o == "mv_reg_i64") return op_kind::MV_REG_I64;
+		if(o == "mv8_reg_reg") return op_kind::MV8_REG_REG;
+		if(o == "mv16_reg_reg") return op_kind::MV16_REG_REG;
+		if(o == "mv32_reg_reg") return op_kind::MV32_REG_REG;
+		if(o == "mv64_reg_reg") return op_kind::MV_REG_UI8;
+		if(o == "mv8_loc_reg") return op_kind::MV_REG_UI8;
+		if(o == "mv16_loc_reg") return op_kind::MV16_LOC_REG;
+		if(o == "mv32_loc_reg") return op_kind::MV32_LOC_REG;
+		if(o == "mv64_loc_reg") return op_kind::MV64_LOC_REG;
+		if(o == "mv8_reg_loc") return op_kind::MV8_REG_LOC;
+		if(o == "mv16_reg_loc") return op_kind::MV16_REG_LOC;
+		if(o == "mv32_reg_loc") return op_kind::MV32_REG_LOC;
+		if(o == "mv64_reg_loc") return op_kind::MV64_REG_LOC;
+		if(o == "push8_reg") return op_kind::PUSH8_REG;
+		if(o == "push16_reg") return op_kind::PUSH16_REG;
+		if(o == "push32_reg") return op_kind::PUSH32_REG;
+		if(o == "push64_reg") return op_kind::PUSH64_REG;
+		if(o == "pop8_reg") return op_kind::POP8_REG;
+		if(o == "pop16_reg") return op_kind::POP16_REG;
+		if(o == "pop32_reg") return op_kind::POP32_REG;
+		if(o == "pop64_reg") return op_kind::POP64_REG;
+		if(o == "lbl_ui32") return op_kind::LBL_UI32;
+		if(o == "jmpr_i32") return op_kind::JMPR_I32;
+		if(o == "jrnz_reg_i32") return op_kind::JRNZ_REG_I32;
+		if(o == "jrz_reg_i32") return op_kind::JRZ_REG_I32;
+		if(o == "call_ui64") return op_kind::CALL_UI64;
+		if(o == "call_native_ui64") return op_kind::CALL_NATIVE_UI64;
+		if (o == "call_reg") return op_kind::CALL_REG;
+		if(o == "ret_ui8") return op_kind::RET_UI8;
+		if(o == "salloc_reg_ui8") return op_kind::SALLOC_REG_UI8;
+		if(o == "sdealloc_ui8") return op_kind::SDEALLOC_UI8;
+		if(o == "exit") return op_kind::EXIT;
 		assert(!"Unknown instruction");
 	}
 
@@ -167,7 +233,8 @@ namespace fe::vm
 		case op_kind::PUSH32_REG:
 		case op_kind::PUSH64_REG:
 		case op_kind::JRNZ_REG_I32: 
-		case op_kind::JRZ_REG_I32: 
+		case op_kind::JRZ_REG_I32:
+		case op_kind::CALL_REG:
 			return (op + 1)->val == r.val;
 
 		default: return false;
@@ -486,6 +553,10 @@ namespace fe::vm
 		auto to = make_ui64(ip);
 		return bytes<9>{ op_to_byte(op_kind::CALL_NATIVE_UI64), to[0], to[1], to[2], to[3], to[4], to[5], to[6], to[7] };
 	}
+	bytes<2> make_call_reg(reg r)
+	{
+		return bytes<2>{ op_to_byte(op_kind::CALL_REG), r.val };
+	}
 	bytes<2> make_ret(byte a)
 	{
 		return bytes<2>{ op_to_byte(op_kind::RET_UI8), a.val };
@@ -527,6 +598,25 @@ namespace fe::vm
 	* Bytecode
 	*/
 
+	bytecode::bytecode() {}
+	bytecode::bytecode(std::vector<byte> bs) : instructions(bs) {}
+
+
+	const byte* bytecode::get_instruction(near_lbl l) const
+	{
+		return &(instructions[l.ip]);
+	}
+
+	byte* bytecode::operator[](uint64_t index)
+	{
+		return &instructions[index];
+	}
+
+	void bytecode::append(bytecode& other)
+	{
+		instructions.insert(instructions.end(), other.data().begin(), other.data().end());
+	}
+
 	bool bytecode::has_instruction(near_lbl i) const
 	{
 		return i.ip < instructions.size();
@@ -539,7 +629,6 @@ namespace fe::vm
 		while (has_instruction(ip))
 		{
 			auto in = get_instruction<10>(ip);
-			out += std::to_string(ip) + ": ";
 			out += op_to_string(byte_to_op(in[0].val)) + " ";
 			for (int i = 1; i < op_size(byte_to_op(in[0].val)); i++)
 				out += std::to_string(in[i].val) + " ";
@@ -548,6 +637,100 @@ namespace fe::vm
 		}
 		return out;
 	}
+
+	size_t bytecode::size() const
+	{
+		return instructions.size();
+	}
+
+	std::vector<byte>& bytecode::data()
+	{
+		return this->instructions;
+	}
+
+	bytecode::iterator bytecode::begin()
+	{
+		return iterator(instructions);
+	}
+
+	bytecode::iterator bytecode::end()
+	{
+		return iterator(instructions, instructions.size());
+	}
+
+	/*
+	* Bytecode iterator
+	*/
+
+	bytecode::iterator::iterator(std::vector<byte>& c) : i(0), data(c) {}
+	bytecode::iterator::iterator(std::vector<byte>& c, uint64_t i) : i(i), data(c) {}
+
+	bytecode::iterator::iterator(const iterator& o) : i(o.i), data(o.data) {}
+	bytecode::iterator& bytecode::iterator::operator=(const iterator& o)
+	{
+		data = o.data;
+		i = o.i;
+		return *this;
+	}
+	bytecode::iterator bytecode::iterator::add_unsafe(uint64_t offset)
+	{
+		i += offset;
+		return *this;
+	}
+	// postfix
+	bytecode::iterator bytecode::iterator::operator++(int)
+	{
+		i += op_size(byte_to_op(data[i].val));
+		return *this;
+	}
+	// prefix
+	bytecode::iterator& bytecode::iterator::operator++()
+	{
+		i += op_size(byte_to_op(data[i].val));
+		return *this;
+	}
+	bool bytecode::iterator::operator==(const iterator& o)
+	{
+		return (i == o.i) && (&data != &o.data);
+	}
+	bool bytecode::iterator::operator!=(const iterator& o)
+	{
+		return (i != o.i) || (&data != &o.data);
+	}
+	byte* bytecode::iterator::operator*()
+	{
+		return &data[i];
+	}
+	byte* bytecode::iterator::operator->()
+	{
+		return this->operator*();
+	}
+
+	/*
+	* Bytecode Builder
+	*/
+
+	bytecode bytecode_builder::build()
+	{
+		return bc;
+	}
+
+	/*
+	* Function
+	*/
+
+	function::function(name n, bytecode c, symbols s) : signature(n), code(c), externals(s) {}
+	function::function(name n, bytecode c) : signature(n), code(c) {}
+	function::function(name n, native_function_id c, symbols s) : signature(n), code(c), externals(s) {}
+	function::function(name n, native_function_id c) : signature(n), code(c) {}
+	function::function() {}
+
+	name& function::get_name() { return signature; }
+	symbols& function::get_symbols() { return externals; }
+	bool function::is_bytecode() { return std::holds_alternative<bytecode>(code); }
+	bool function::is_native() { return std::holds_alternative<native_function_id>(code); }
+	bytecode& function::get_bytecode() { return std::get<bytecode>(code); }
+	native_function_id function::get_native_function_id() { return std::get<native_function_id>(code); }
 
 	/*
 	* Program
@@ -577,6 +760,15 @@ namespace fe::vm
 		return code.size();
 	}
 
+	void program::insert_padding(far_lbl loc, uint8_t size)
+	{
+		if (size == 0) return;
+		auto& bc = code.at(loc.chunk_id).get_bytecode().data();
+		bc.insert(bc.begin() + loc.ip, size, byte(0));
+	}
+
+	std::vector<function>& program::get_code() { return code; }
+
 	std::string program::to_string()
 	{
 		std::string r;
@@ -595,8 +787,23 @@ namespace fe::vm
 	* Executable
 	*/
 
+	executable::executable(bytecode code) : code(code) {}
+
 	std::string executable::to_string()
 	{
 		return code.operator std::string();
 	}
+
+	bytecode::iterator executable::begin() { return code.begin(); }
+	bytecode::iterator executable::end() { return code.end(); }
+	byte* executable::operator[](uint64_t i)
+	{
+		return &code.data()[i];
+	}
+
+	/*
+	* Direct Threaded Executable
+	*/
+
+	direct_threaded_executable::direct_threaded_executable(bytecode code) : code(code) {}
 }

@@ -3,7 +3,6 @@
 
 #include "fe/data/bytecode.h"
 #include "fe/data/core_ast.h"
-#include "fe/pipeline/vm_stage.h"
 #include "fe/pipeline/bytecode_gen_stage.h"
 #include "fe/pipeline/pipeline.h"
 #include "fe/modes/project.h"

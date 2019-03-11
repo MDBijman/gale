@@ -1,26 +1,21 @@
 cmake_minimum_required(VERSION 3.2)
 project(Compiler C CXX)
-include(CheckLanguage)
 
 set(CMAKE_CXX_STANDARD 17)
 
 # Maybe not use glob?
+# Own sources
 file(GLOB_RECURSE SOURCES src/*.cpp)
+# Common sources
+file(GLOB_RECURSE COMMON_SOURCES ${Language_SOURCE_DIR}/common/*.cpp)
+list(APPEND SOURCES ${COMMON_SOURCES})
 
-check_language(ASM_NASM)
-check_language(ASM_MASM)
-
-if(CMAKE_ASM_NASM_COMPILER)
-    enable_language(ASM_NASM)
-    list(APPEND SOURCES "src/fe/pipeline/vm_nasm.asm")
-elseif(CMAKE_ASM_MASM_COMPILER)
-    enable_language(ASM_MASM)
-    list(APPEND SOURCES "src/fe/pipeline/vm_masm.asm")
-else()
-    message(FATAL_ERROR "No suitable asm compiler found")
-endif()
-
+# Define executable sources
 add_executable(Compiler ${SOURCES})
 
-target_include_directories(Compiler PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lib)
-target_include_directories(Compiler PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+# Include catch library 
+target_include_directories(Compiler PRIVATE ${Compiler_SOURCE_DIR}/lib)
+# Include own headers
+target_include_directories(Compiler PRIVATE ${Compiler_SOURCE_DIR}/include)
+# Include common headers
+target_include_directories(Compiler PRIVATE ${Language_SOURCE_DIR}/common)
