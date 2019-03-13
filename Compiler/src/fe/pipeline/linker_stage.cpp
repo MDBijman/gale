@@ -10,7 +10,6 @@ namespace fe::vm
 
 		std::unordered_map<name, int64_t> function_locations;
 
-		std::vector<native_function_ptr> native_functions;
 		std::unordered_map<name, uint64_t> native_function_locations;
 
 		// chunk_locations[chunk_id] = locations of chunk
@@ -32,8 +31,7 @@ namespace fe::vm
 			}
 			else if(func.is_native())
 			{
-				native_function_locations.insert({ func.get_name(), native_functions.size() });
-				native_functions.push_back(func.get_native_function_ptr());
+				native_function_locations.insert({ func.get_name(), func.get_native_function_id() });
 			}
 		}
 
@@ -119,6 +117,6 @@ namespace fe::vm
 			i += op_size(byte_to_op(op.val));
 		}
 
-		return executable(code, native_functions);
+		return executable(code);
 	}
 }
