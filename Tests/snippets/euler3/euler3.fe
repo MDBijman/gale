@@ -1,0 +1,15 @@
+module euler3
+import [std std.io]
+
+let number: std.ui64 = 600851475143;
+let divisor: std.ui64 = 2;
+
+while (divisor < number) {
+	if(number % divisor == 0) {
+		number = number / divisor;
+	} else {
+		divisor = divisor + 1;
+	};
+};
+
+std.io.println number;
