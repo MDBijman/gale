@@ -1070,12 +1070,31 @@ call_native_ui64 LABEL NEAR PTR WORD
 	DISPATCH
 ; END call native ui64
 
+; BEGIN call reg
+call_reg LABEL NEAR PTR WORD
+	; r9l contains offset
+	shr r9, 16
+	and r9, 0ffh
+
+	; simulate call
+
+	; push the next op so we return and continue execution after this op
+	mov rbx, r8
+	add rbx, 10
+	push rbx
+
+	; update ip to function entry location
+	add r8, r9
+
+	DISPATCH
+; END call reg
+
 
 ; BEGIN salloc reg ui8
 salloc_reg_ui8 LABEL NEAR PTR WORD
 	shr r9, 16
 	xor rax, rax
-	mov r9b, al
+	mov al, r9b
 	shr r9, 8
 	and r9, 0ffh
 
@@ -1403,6 +1422,11 @@ mov [rax + rdx*2], cx
 
 inc rdx
 lea rcx, call_native_ui64
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, call_reg
 sub rcx, rbx
 mov [rax + rdx*2], cx
 

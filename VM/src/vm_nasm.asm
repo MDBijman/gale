@@ -1034,6 +1034,25 @@ call_ui64:
 	DISPATCH
 ; END call ui64
 
+; BEGIN call reg
+call_reg:
+	; r9l contains offset
+	shr r9, 16
+	and r9, 0ffh
+
+	; simulate call
+
+	; push the next op so we return and continue execution after this op
+	mov rbx, r8
+	add rbx, 10
+	push rbx
+
+	; update ip to function entry location
+	add r8, r9
+
+	DISPATCH
+; END call reg
+
 ; BEGIN ret ui8
 ret_ui8:
 	; r9b contains param size
@@ -1079,7 +1098,7 @@ call_native_ui64:
 salloc_reg_ui8:
 	shr r9, 16
 	xor rax, rax
-	mov r9b, al
+	mov al, r9b
 	shr r9, 8
 	and r9, 0ffh
 
@@ -1405,6 +1424,11 @@ mov WORD [rax + rdx*2], cx
 
 inc rdx
 lea rcx, [call_native_ui64]
+sub rcx, rbx
+mov WORD [rax + rdx*2], cx
+
+inc rdx
+lea rcx, [call_reg]
 sub rcx, rbx
 mov WORD [rax + rdx*2], cx
 
