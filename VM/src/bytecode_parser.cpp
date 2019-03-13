@@ -35,6 +35,16 @@ namespace fe::vm
 		return read_ui64({ parse_uint8(ss), parse_uint8(ss), parse_uint8(ss), parse_uint8(ss), parse_uint8(ss), parse_uint8(ss), parse_uint8(ss), parse_uint8(ss) });
 	}
 
+	int8_t parse_int8(std::istringstream& ss)
+	{
+		return static_cast<int8_t>(parse_uint8(ss));
+	}
+
+	int16_t parse_int16(std::istringstream& ss)
+	{
+		return static_cast<int16_t>(parse_uint16(ss));
+	}
+
 	int32_t parse_int32(std::istringstream& ss)
 	{
 		return read_i32({ parse_uint8(ss), parse_uint8(ss), parse_uint8(ss), parse_uint8(ss) });
@@ -121,11 +131,33 @@ namespace fe::vm
 			bc.add_instruction(make_mv_reg_ui64(a, b));
 			break;
 		}
-		case op_kind::MV_REG_I8:
+		case op_kind::MV_REG_I8: {
+			uint8_t reg = parse_uint8(iss);
+			int8_t val = parse_int8(iss);
+			bc.add_instruction(make_mv_reg_i8(reg, val));
+			break;
+		}
 		case op_kind::MV_REG_I16:
+		{
+			uint8_t reg = parse_uint8(iss);
+			int16_t val = parse_int16(iss);
+			bc.add_instruction(make_mv_reg_i16(reg, val));
+			break;
+		}
 		case op_kind::MV_REG_I32:
+		{
+			uint8_t reg = parse_uint8(iss);
+			int32_t val = parse_int32(iss);
+			bc.add_instruction(make_mv_reg_i32(reg, val));
+			break;
+		}
 		case op_kind::MV_REG_I64:
-			assert(!"nyi");
+		{
+			uint8_t reg = parse_uint8(iss);
+			int64_t val = parse_int64(iss);
+			bc.add_instruction(make_mv_reg_i64(reg, val));
+			break;
+		}
 		case op_kind::MV8_REG_REG:
 		case op_kind::MV16_REG_REG:
 		case op_kind::MV32_REG_REG:
@@ -137,65 +169,75 @@ namespace fe::vm
 		case op_kind::MV8_REG_LOC:
 		case op_kind::MV16_REG_LOC:
 		case op_kind::MV32_REG_LOC:
-		case op_kind::MV64_REG_LOC: {
+		case op_kind::MV64_REG_LOC:
+		{
 			uint8_t a = parse_uint8(iss);
 			uint8_t b = parse_uint8(iss);
-			bc.add_instruction(bytes<3>{ op_to_byte(op), a, b });
+			bc.add_instruction(bytes<3>{op_to_byte(op), a, b});
 			break;
 		}
 		case op_kind::LBL_UI32:
 			throw std::runtime_error("Labels should not be in executables");
-		case op_kind::JMPR_I32: {
+		case op_kind::JMPR_I32:
+		{
 			int32_t a = parse_int32(iss);
 			bc.add_instruction(make_jmpr_i32(a));
 			break;
 		}
-		case op_kind::JRNZ_REG_I32: {
+		case op_kind::JRNZ_REG_I32:
+		{
 			uint8_t a = parse_uint8(iss);
 			int32_t b = parse_int32(iss);
 			bc.add_instruction(make_jrnz_i32(a, b));
 			break;
 		}
-		case op_kind::JRZ_REG_I32: {
+		case op_kind::JRZ_REG_I32:
+		{
 			uint8_t a = parse_uint8(iss);
 			int32_t b = parse_int32(iss);
 			bc.add_instruction(make_jrz_i32(a, b));
 			break;
 		}
-		case op_kind::CALL_UI64: {
+		case op_kind::CALL_UI64:
+		{
 			uint64_t a = parse_uint64(iss);
 			bc.add_instruction(make_call_ui64(a));
 			break;
 		}
-		case op_kind::CALL_NATIVE_UI64: {
+		case op_kind::CALL_NATIVE_UI64:
+		{
 			uint64_t a = parse_uint64(iss);
 			bc.add_instruction(make_call_native_ui64(a));
 			break;
 		}
-		case op_kind::RET_UI8: {
+		case op_kind::RET_UI8:
+		{
 			uint8_t a = parse_uint8(iss);
 			bc.add_instruction(make_ret(a));
 			break;
 		}
-		case op_kind::SALLOC_REG_UI8: {
+		case op_kind::SALLOC_REG_UI8:
+		{
 			uint8_t a = parse_uint8(iss);
 			uint8_t b = parse_uint8(iss);
 			bc.add_instruction(make_salloc_reg_ui8(a, b));
 			break;
 		}
-		case op_kind::SDEALLOC_UI8: {
+		case op_kind::SDEALLOC_UI8:
+		{
 			uint8_t a = parse_uint8(iss);
 			bc.add_instruction(make_sdealloc_ui8(a));
 			break;
 		}
-		case op_kind::EXIT: {
+		case op_kind::EXIT:
+		{
 			bc.add_instruction(make_exit());
 			break;
 		}
 		}
 	}
 
-	executable parse_bytecode(const std::string& filename)
+	executable parse_bytecode(const std::string &filename)
 	{
 		bytecode bc;
 
@@ -210,4 +252,4 @@ namespace fe::vm
 
 		return executable(bc);
 	}
-}
+	} // namespace fe::vm
