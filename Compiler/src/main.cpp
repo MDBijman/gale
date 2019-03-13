@@ -77,38 +77,47 @@ int main(int argc, char** argv)
 		catch (const lexing::error& e)
 		{
 			std::cout << "Lexing error:\n" << e.message << "\n";
+			return 1;
 		}
 		catch (const fe::parse_error& e)
 		{
 			std::cout << "Parse error:\n" << e.message << "\n";
+			return 1;
 		}
 		catch (const fe::typecheck_error& e)
 		{
 			std::cout << "Typechecking error:\n" << e.message << "\n";
+			return 1;
 		}
 		catch (const fe::lower_error& e)
 		{
 			std::cout << "Lowering error:\n" << e.message << "\n";
+			return 1;
 		}
 		catch (const fe::interp_error& e)
 		{
 			std::cout << "Interp error:\n" << e.message << "\n";
+			return 1;
 		}
 		catch (const fe::resolution_error& e)
 		{
 			std::cout << "Resolution error:\n" << e.message << "\n";
+			return 1;
 		}
 		catch (const fe::type_env_error& e)
 		{
 			std::cout << e.message << "\n" << std::endl;
+			return 1;
 		}
 		catch (const fe::other_error& e)
 		{
 			std::cout << e.message << "\n" << std::endl;
+			return 1;
 		}
 		catch (const std::runtime_error& e)
 		{
 			std::cout << e.what() << std::endl;
+			return 1;
 		}
 	}
 	else if (mode == "help")
@@ -123,10 +132,8 @@ int main(int argc, char** argv)
 			<< "{language} repl\n"
 			<< "\tStarts a REPL session\n"
 			<< std::endl;
-		std::cin.get();
 		return 0;
 	}
 
-	std::cin.get();
 	return 0;
 }
