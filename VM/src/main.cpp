@@ -4,9 +4,14 @@
 
 int main(int argc, char** argv)
 {
-	if (argc != 2)
+	if (argc > 2)
 	{
-		std::cout << "Unexpected number of input arguments";
+		std::cout << "Expected only a single bytecode file as argument\n";
+		std::exit(1);
+	}
+	else if(argc == 1)
+	{
+		std::cout << "Expected a single bytecode file as argument\n";
 		std::exit(1);
 	}
 
@@ -15,6 +20,5 @@ int main(int argc, char** argv)
 	auto exec = fe::vm::parse_bytecode(filename);
 	std::cout << exec.to_string();
 	fe::vm::interpret(exec);
-	std::cin.get();
 	return 0;
 }
