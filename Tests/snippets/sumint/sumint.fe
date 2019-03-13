@@ -1,0 +1,10 @@
+module sumint
+import [std std.io]
+
+let sum : Num: std.ui64 | Bool: std.bool = Num 2;
+
+sum match {
+	| Bool x -> { std.io.print 1; }
+	| Num x -> { std.io.print 2; }
+};
+

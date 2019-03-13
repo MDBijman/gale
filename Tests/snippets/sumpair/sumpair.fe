@@ -1,0 +1,11 @@
+module sumpair
+import [std std.io]
+
+let sum : Num: std.ui64 | Bool: std.bool | Pair: (std.ui64, std.ui64) = Pair (3, 3);
+
+sum match {
+	| Bool x -> { std.io.print 1; }
+	| Num x -> { std.io.print 2; }
+	| Pair x -> { std.io.print 3; }
+};
+

@@ -1,0 +1,7 @@
+module func
+import [std std.io]
+
+let test: std.ui64 -> std.ui64 = \n => if (n == 1) { n } else { (test (n - 1)) + n };
+let a: std.ui64 = test 6;
+let b: std.ui64 = a + 2;
+std.io.print b;
