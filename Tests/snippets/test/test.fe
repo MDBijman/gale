@@ -1,0 +1,5 @@
+module test
+import [std]
+
+let a: std.i64 = 1;
+let b: std.i64 = 2;

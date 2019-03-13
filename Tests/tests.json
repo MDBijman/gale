@@ -1,10 +1,18 @@
 {
-    "command": "./compile_and_run.bat",
+    "command": "powershell -executionpolicy bypass -file .\\compile_and_run.ps1",
     "tests": [
         {
-            "args": "./snippets/mod.fe",
-            "test": "exitCode",
-            "expect": 0
+            "args": ["./snippets/test", "test"],
+            "match": {
+                "exitcode": 0
+            }
+        },
+        {
+            "args": ["./snippets/fib", "fib"],
+            "match": {
+                "exitcode": 0,
+                "stdout": "1346269\n"
+            }
         }
     ]
 }
