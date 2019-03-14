@@ -187,7 +187,9 @@ namespace fe::core_ast
 	struct function_call_data
 	{
 		function_call_data() {}
+		function_call_data(std::string name, size_t in, size_t out) : name(name), in_size(in), out_size(out) {}
 		std::string name;
+		size_t in_size, out_size;
 	};
 }
 
