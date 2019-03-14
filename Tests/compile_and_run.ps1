@@ -22,7 +22,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # Invoke VM
-$vmExpression = "$vmLocation ./out/$module.bc"
+$vmExpression = "$vmLocation ./out/test.bc"
 Write-Output "Running vm as: $vmExpression"
 Invoke-Expression $vmExpression
 if ($LASTEXITCODE -ne 0) {
