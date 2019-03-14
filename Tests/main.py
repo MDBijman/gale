@@ -91,7 +91,7 @@ for test_case in validated_test_cases:
     # Execute the process, the default timeout is 15, maybe change/make configurable
     try:
         out, err = process.communicate(timeout = 15)
-    except TimeoutExpired:
+    except TimeoutError:
         process.kill()
         result = { 'result': 'timeout' }
 
@@ -113,4 +113,7 @@ for test_case in validated_test_cases:
 
     idx += 1
 
-print(results)
+# Report results
+
+for idx, result in enumerate(results):
+    print(f"{idx}: {result}")
