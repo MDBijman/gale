@@ -1,0 +1,11 @@
+Language: Cpp
+BasedOnStyle: LLVM
+
+IndentWidth: 8
+UseTab: Always
+FixNamespaceComments: true
+NamespaceIndentation: All
+BreakBeforeBraces: Allman
+ColumnLimit: 100
+Cpp11BracedListStyle: false
+ContinuationIndentWidth: 2

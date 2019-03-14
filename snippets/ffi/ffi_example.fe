@@ -1,9 +1,0 @@
-module test
-import [std]
-
-#[link("StdLib.dll")]
-extern C { 
-	test_value: () -> std.ui8; 
-}
-
-let test: std.ui8 = test_value ();
