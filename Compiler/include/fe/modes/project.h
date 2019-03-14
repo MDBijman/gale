@@ -3,7 +3,7 @@
 #include "fe/language_definition.h"
 #include "fe/data/ext_ast.h"
 #include "fe/data/module.h"
-#include "fe/libraries/std/std_types.h"
+#include "fe/runtime/types.h"
 #include "utils/reading/reader.h"
 #include "fe/pipeline/pretty_print_stage.h"
 #include <string>

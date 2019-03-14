@@ -1,64 +1,69 @@
 #include "bytecode_parser.h"
 #include "fe/data/bytecode.h"
-#include <string>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <sstream>
+#include <string>
 
 namespace fe::vm
 {
 
 	/*
-	* Set of helper functions to read integers in the bytecode file. The numbers in a bytecode file are split up in bytes.
-	*/
+	 * Set of helper functions to read integers in the bytecode file. The numbers in a bytecode
+	 * file are split up in bytes.
+	 */
 
-	uint8_t parse_uint8(std::istringstream& ss)
+	uint8_t parse_uint8(std::istringstream &ss)
 	{
-		// #performance This is probably quite slow, and since it is used in all others is might be worthwhile to speed it up.
+		// #performance This is probably quite slow, and since it is used in all others is
+		// might be worthwhile to speed it up.
 		int a;
 		ss >> a;
 		return static_cast<uint8_t>(a);
 	}
 
-	uint16_t parse_uint16(std::istringstream& ss)
+	uint16_t parse_uint16(std::istringstream &ss)
 	{
 		return read_ui16({ parse_uint8(ss), parse_uint8(ss) });
 	}
 
-	uint32_t parse_uint32(std::istringstream& ss)
+	uint32_t parse_uint32(std::istringstream &ss)
 	{
-		return read_ui32({ parse_uint8(ss), parse_uint8(ss), parse_uint8(ss), parse_uint8(ss) });
+		return read_ui32(
+		  { parse_uint8(ss), parse_uint8(ss), parse_uint8(ss), parse_uint8(ss) });
 	}
 
-	uint64_t parse_uint64(std::istringstream& ss)
+	uint64_t parse_uint64(std::istringstream &ss)
 	{
-		return read_ui64({ parse_uint8(ss), parse_uint8(ss), parse_uint8(ss), parse_uint8(ss), parse_uint8(ss), parse_uint8(ss), parse_uint8(ss), parse_uint8(ss) });
+		return read_ui64({ parse_uint8(ss), parse_uint8(ss), parse_uint8(ss),
+				   parse_uint8(ss), parse_uint8(ss), parse_uint8(ss),
+				   parse_uint8(ss), parse_uint8(ss) });
 	}
 
-	int8_t parse_int8(std::istringstream& ss)
-	{
-		return static_cast<int8_t>(parse_uint8(ss));
-	}
+	int8_t parse_int8(std::istringstream &ss) { return static_cast<int8_t>(parse_uint8(ss)); }
 
-	int16_t parse_int16(std::istringstream& ss)
+	int16_t parse_int16(std::istringstream &ss)
 	{
 		return static_cast<int16_t>(parse_uint16(ss));
 	}
 
-	int32_t parse_int32(std::istringstream& ss)
+	int32_t parse_int32(std::istringstream &ss)
 	{
-		return read_i32({ parse_uint8(ss), parse_uint8(ss), parse_uint8(ss), parse_uint8(ss) });
+		return read_i32(
+		  { parse_uint8(ss), parse_uint8(ss), parse_uint8(ss), parse_uint8(ss) });
 	}
-	
-	int64_t parse_int64(std::istringstream& ss)
+
+	int64_t parse_int64(std::istringstream &ss)
 	{
-		return read_i64({ parse_uint8(ss), parse_uint8(ss), parse_uint8(ss), parse_uint8(ss) });
+		return read_i64(
+		  { parse_uint8(ss), parse_uint8(ss), parse_uint8(ss), parse_uint8(ss) });
 	}
 
 	/*
-	* Parses a single instruction/line and appends it to the given bytecode
-	*/
-	void parse_line(const std::string& line, bytecode& bc)
+	 * Parses a single instruction/line and appends it to the given bytecode
+	 */
+	void parse_line(const std::string &line, bytecode &bc)
 	{
 		std::string instruction;
 		std::istringstream iss(line);
@@ -86,11 +91,12 @@ namespace fe::vm
 		case op_kind::AND_REG_REG_REG:
 		case op_kind::AND_REG_REG_UI8:
 		case op_kind::OR_REG_REG_REG:
-		case op_kind::XOR_REG_REG_UI8: {
+		case op_kind::XOR_REG_REG_UI8:
+		{
 			uint8_t a = parse_uint8(iss);
 			uint8_t b = parse_uint8(iss);
 			uint8_t c = parse_uint8(iss);
-			bc.add_instruction(bytes<4>{op_to_byte(op), a, b, c});
+			bc.add_instruction(bytes<4>{ op_to_byte(op), a, b, c });
 			break;
 		}
 		case op_kind::MV_REG_SP:
@@ -102,36 +108,42 @@ namespace fe::vm
 		case op_kind::POP8_REG:
 		case op_kind::POP16_REG:
 		case op_kind::POP32_REG:
-		case op_kind::POP64_REG: {
+		case op_kind::POP64_REG:
+		{
 			uint8_t a = parse_uint8(iss);
-			bc.add_instruction(bytes<2>{op_to_byte(op), a });
+			bc.add_instruction(bytes<2>{ op_to_byte(op), a });
 			break;
 		}
-		case op_kind::MV_REG_UI8: {
+		case op_kind::MV_REG_UI8:
+		{
 			uint8_t a = parse_uint8(iss);
 			uint8_t b = parse_uint8(iss);
-			bc.add_instruction(bytes<3>{op_to_byte(op), a, b });
+			bc.add_instruction(bytes<3>{ op_to_byte(op), a, b });
 			break;
 		}
-		case op_kind::MV_REG_UI16: {
+		case op_kind::MV_REG_UI16:
+		{
 			uint8_t a = parse_uint8(iss);
 			uint16_t b = parse_uint16(iss);
 			bc.add_instruction(make_mv_reg_ui16(a, b));
 			break;
 		}
-		case op_kind::MV_REG_UI32: {
+		case op_kind::MV_REG_UI32:
+		{
 			uint8_t a = parse_uint8(iss);
 			uint32_t b = parse_uint32(iss);
 			bc.add_instruction(make_mv_reg_ui32(a, b));
 			break;
 		}
-		case op_kind::MV_REG_UI64: {
+		case op_kind::MV_REG_UI64:
+		{
 			uint8_t a = parse_uint8(iss);
 			uint64_t b = parse_uint64(iss);
 			bc.add_instruction(make_mv_reg_ui64(a, b));
 			break;
 		}
-		case op_kind::MV_REG_I8: {
+		case op_kind::MV_REG_I8:
+		{
 			uint8_t reg = parse_uint8(iss);
 			int8_t val = parse_int8(iss);
 			bc.add_instruction(make_mv_reg_i8(reg, val));
@@ -173,7 +185,7 @@ namespace fe::vm
 		{
 			uint8_t a = parse_uint8(iss);
 			uint8_t b = parse_uint8(iss);
-			bc.add_instruction(bytes<3>{op_to_byte(op), a, b});
+			bc.add_instruction(bytes<3>{ op_to_byte(op), a, b });
 			break;
 		}
 		case op_kind::LBL_UI32:
@@ -244,6 +256,12 @@ namespace fe::vm
 		std::ifstream i;
 		i.open(filename);
 
+		if (!i)
+		{
+			std::cerr << "Cannot open input file: " << filename << "\n";
+			std::exit(1);
+		}
+
 		std::string line;
 		while (std::getline(i, line))
 		{
@@ -252,4 +270,4 @@ namespace fe::vm
 
 		return executable(bc);
 	}
-	} // namespace fe::vm
+} // namespace fe::vm

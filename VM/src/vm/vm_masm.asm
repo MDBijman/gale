@@ -1,23 +1,23 @@
-global vm_interpret, vm_init
-SECTION .data
-registers: TIMES 64 dq 0 ; 64 registers of 64 bits each, initialized to 0
-handlers: TIMES 64 dw 0 ; dispatch target locations, initialized in vm_init
-native_functions: dq 0 ; pointer to array of native functions
-SECTION .code
+PUBLIC vm_interpret, vm_init
+.data
+registers QWORD 64 dup (0) ; 64 registers of 64 bits each, initialized to 0
+handlers  WORD 64 dup (?) ; dispatch target locations, initialized in vm_init
+native_functions QWORD (0) ; pointer to array of native functions
+.code
 
 
-%macro DISPATCH 0
+DISPATCH MACRO 
 	; put operands in r9
-	mov r9, QWORD [r8] 
+	mov r9, QWORD PTR [r8] 
 	movzx rax, r9w
 	add rax, r12
 	jmp rax
-%endmacro
+ENDM
 
 ; interprets the given bytecode
 ; rcx : pointer to first bytecode instruction
 
-vm_interpret:
+vm_interpret PROC
 
 ; save nonvolatile registers rbx, r12, r13
 push rbx
@@ -27,10 +27,10 @@ push r14
 push r15
 
 ; move begin_interp offset into r12, used for dispatch
-mov r12, begin_interp
+mov r12, OFFSET begin_interp
 
 ; move register pointer into r13, used for register operations
-mov r13, registers
+mov r13, OFFSET registers
 
 ; r8 contains the pointer to data
 ; r9 contains the operands
@@ -38,22 +38,22 @@ mov r13, registers
 ; rsp contains stack pointer
 
 ; mov argument into r8
-mov r8, rdx
+mov r8, rcx
 
 ; initial dispatch
 DISPATCH
 
-begin_interp:
+begin_interp LABEL NEAR PTR WORD
 
 ; BEGIN nop
-lbl_ui32:
-nop_:
+lbl_ui32 LABEL NEAR PTR WORD
+nop_ LABEL NEAR PTR WORD
 	add r8, 1
 	DISPATCH
 ; END nop
 
 ; BEGIN add reg reg reg
-add_reg_reg_reg :
+add_reg_reg_reg LABEL NEAR PTR WORD
 	shr r9, 16
 	mov rax, r9
 	mov rbx, r9
@@ -77,7 +77,7 @@ add_reg_reg_reg :
 
 
 ; BEGIN add reg reg ui8
-add_reg_reg_ui8 :
+add_reg_reg_ui8 LABEL NEAR PTR WORD
 	shr r9, 16
 	mov rax, r9
 	mov rbx, r9
@@ -99,7 +99,7 @@ add_reg_reg_ui8 :
 ; END add reg reg ui8
 
 ; BEGIN sub reg reg reg
-sub_reg_reg_reg :
+sub_reg_reg_reg LABEL NEAR PTR WORD
 	shr r9, 16
 	mov rax, r9
 	mov rbx, r9
@@ -122,7 +122,7 @@ sub_reg_reg_reg :
 ; END sub reg reg reg
 
 ; BEGIN sub reg reg ui8
-sub_reg_reg_ui8 :
+sub_reg_reg_ui8 LABEL NEAR PTR WORD
 	shr r9, 16
 	mov rax, r9
 	mov rbx, r9
@@ -145,7 +145,7 @@ sub_reg_reg_ui8 :
 ; END sub reg reg ui8
 
 ; BEGIN mul reg reg reg
-mul_reg_reg_reg :
+mul_reg_reg_reg LABEL NEAR PTR WORD
 	shr r9, 16
 	mov rax, r9
 	mov rbx, r9
@@ -160,7 +160,7 @@ mul_reg_reg_reg :
 	and r9, 0ffh
 
 	mov rax, [r13 + rax*8]
-	imul QWORD [r13 + r9*8]
+	imul QWORD PTR [r13 + r9*8]
 	mov [r13 + rbx*8], rax
 
 	add r8, 5
@@ -168,7 +168,7 @@ mul_reg_reg_reg :
 ; END mul reg reg reg
 
 ; BEGIN div reg reg reg
-div_reg_reg_reg :
+div_reg_reg_reg LABEL NEAR PTR WORD
 	shr r9, 16
 	mov rax, r9
 	mov rbx, r9
@@ -187,7 +187,7 @@ div_reg_reg_reg :
 	mov rax, [r13 + rax*8]
 	; div uses rax:rdx so make sure rdx is clears
 	xor rdx, rdx
-	div QWORD [r13 + r9*8]
+	div QWORD PTR [r13 + r9*8]
 	mov [r13 + rbx*8], rax
 
 	add r8, 5
@@ -195,7 +195,7 @@ div_reg_reg_reg :
 ; END div reg reg reg
 
 ; BEGIN mod reg reg reg
-mod_reg_reg_reg :
+mod_reg_reg_reg LABEL NEAR PTR WORD
 	shr r9, 16
 	mov rax, r9
 	mov rbx, r9
@@ -214,7 +214,7 @@ mod_reg_reg_reg :
 	mov rax, [r13 + rax*8]
 	; div uses rax:rdx so make sure rdx is clears
 	xor rdx, rdx
-	div QWORD [r13 + r9*8]
+	div QWORD PTR [r13 + r9*8]
 	mov [r13 + rbx*8], rdx
 
 	add r8, 5
@@ -222,7 +222,7 @@ mod_reg_reg_reg :
 ; END mod reg reg reg
 
 ; BEGIN gt reg reg reg
-gt_reg_reg_reg :
+gt_reg_reg_reg LABEL NEAR PTR WORD
 	shr r9, 16
 	mov rax, r9
 	mov rbx, r9
@@ -252,7 +252,7 @@ gt_reg_reg_reg :
 ; END gt reg reg reg
 
 ; BEGIN gte reg reg reg
-gte_reg_reg_reg :
+gte_reg_reg_reg LABEL NEAR PTR WORD
 	shr r9, 16
 	mov rax, r9
 	mov rbx, r9
@@ -281,7 +281,7 @@ gte_reg_reg_reg :
 ; END gte reg reg reg
 
 ; BEGIN lt reg reg reg
-lt_reg_reg_reg :
+lt_reg_reg_reg LABEL NEAR PTR WORD
 	shr r9, 16
 	mov rax, r9
 	mov rbx, r9
@@ -310,7 +310,7 @@ lt_reg_reg_reg :
 ; END lt reg reg reg
 
 ; BEGIN lte reg reg reg
-lte_reg_reg_reg :
+lte_reg_reg_reg LABEL NEAR PTR WORD
 	shr r9, 16
 	mov rax, r9
 	mov rbx, r9
@@ -339,7 +339,7 @@ lte_reg_reg_reg :
 ; END lte reg reg reg
 
 ; BEGIN lte reg reg ui8
-lte_reg_reg_ui8 :
+lte_reg_reg_ui8 LABEL NEAR PTR WORD
 	shr r9, 16
 	mov rax, r9
 	mov rbx, r9
@@ -367,7 +367,7 @@ lte_reg_reg_ui8 :
 ; END lte reg reg ui8
 
 ; BEGIN eq reg reg reg
-eq_reg_reg_reg :
+eq_reg_reg_reg LABEL NEAR PTR WORD
 	shr r9, 16
 	mov rax, r9
 	mov rbx, r9
@@ -396,7 +396,7 @@ eq_reg_reg_reg :
 ; END eq reg reg reg
 
 ; BEGIN neq reg reg reg
-neq_reg_reg_reg :
+neq_reg_reg_reg LABEL NEAR PTR WORD
 	shr r9, 16
 	mov rax, r9
 	mov rbx, r9
@@ -425,7 +425,7 @@ neq_reg_reg_reg :
 ; END neq reg reg reg 
 
 ; BEGIN and reg reg reg
-and_reg_reg_reg :
+and_reg_reg_reg LABEL NEAR PTR WORD
 	shr r9, 16
 	mov rax, r9
 	mov rbx, r9
@@ -448,7 +448,7 @@ and_reg_reg_reg :
 ; END and reg reg reg 
 
 ; BEGIN and reg reg ui8
-and_reg_reg_ui8 :
+and_reg_reg_ui8 LABEL NEAR PTR WORD
 	shr r9, 16
 	mov rax, r9
 	mov rbx, r9
@@ -471,7 +471,7 @@ and_reg_reg_ui8 :
 ; END and reg reg ui8 
 
 ; BEGIN or reg reg reg
-or_reg_reg_reg :
+or_reg_reg_reg LABEL NEAR PTR WORD
 	shr r9, 16
 	mov rax, r9
 	mov rbx, r9
@@ -494,7 +494,7 @@ or_reg_reg_reg :
 ; END or reg reg reg 
 
 ; BEGIN xor reg reg ui8
-xor_reg_reg_ui8 :
+xor_reg_reg_ui8 LABEL NEAR PTR WORD
 	; al contains target
 	shr r9, 16
 	xor rax, rax
@@ -507,16 +507,16 @@ xor_reg_reg_ui8 :
 	shr r9, 8
 	and r9, 0ffh
 
-	mov rcx, QWORD [r13 + rbx*8]
+	mov rcx, QWORD PTR [r13 + rbx*8]
 	xor rcx, r9
-	mov QWORD [r13 + rax*8], rcx
+	mov QWORD PTR [r13 + rax*8], rcx
 
 	add r8, 5
 	DISPATCH
 ; END xor reg reg ui8
 
 ; BEGIN mv reg sp
-mv_reg_sp :
+mv_reg_sp LABEL NEAR PTR WORD
 	shr r9, 16
 	and r9, 0ffh
 	mov [r13 + r9*8], rsp
@@ -526,7 +526,7 @@ mv_reg_sp :
 ; END mv reg sp
 
 ; BEGIN mv reg ip
-mv_reg_ip :
+mv_reg_ip LABEL NEAR PTR WORD
 	shr r9, 16
 	and r9, 0ffh
 	mov rax, [r13 + 63*8]
@@ -537,8 +537,8 @@ mv_reg_ip :
 ; END mv reg ip
 
 ; BEGIN mv reg ui8 | mv reg i8
-mv_reg_i8 :
-mv_reg_ui8 :
+mv_reg_i8 LABEL NEAR PTR WORD
+mv_reg_ui8 LABEL NEAR PTR WORD
 	shr r9, 16
 	xor rax, rax
 	; al contains reg
@@ -553,8 +553,8 @@ mv_reg_ui8 :
 ; END mv reg ui8 | mv reg i8
 
 ; BEGIN mv reg ui16 | mv reg i16
-mv_reg_i16 :
-mv_reg_ui16 :
+mv_reg_i16 LABEL NEAR PTR WORD
+mv_reg_ui16 LABEL NEAR PTR WORD
 	shr r9, 16
 	xor rax, rax
 	; al contains reg
@@ -569,13 +569,14 @@ mv_reg_ui16 :
 ; END mv reg ui16 | mv reg i16
 
 ; BEGIN mv reg ui32 | mv reg ui32
-mv_reg_i32 :
-mv_reg_ui32 :
+mv_reg_i32 LABEL NEAR PTR WORD
+mv_reg_ui32 LABEL NEAR PTR WORD
 	shr r9, 16
 	xor rax, rax
 	; al contains reg
 	mov al, r9b 
 	shr r9, 8
+	and r9, 0ffffffffh
 	; r9 contains literal
 	mov [r13 + rax*8], r9
 
@@ -584,9 +585,9 @@ mv_reg_ui32 :
 ; END mv reg ui32 | mv reg i32
 
 ; BEGIN mv reg ui64 | mv reg i64
-mv_reg_i64 :
-mv_reg_ui64 :
-	mov rax, QWORD [r8 + 3]
+mv_reg_i64 LABEL NEAR PTR WORD
+mv_reg_ui64 LABEL NEAR PTR WORD
+	mov rax, QWORD PTR [r8 + 3]
 	shr r9, 16
 	and r9, 0ffh
 	mov [r13 + r9*8], rax
@@ -596,7 +597,7 @@ mv_reg_ui64 :
 ; END mv reg ui64 | mv reg i64
 
 ; BEGIN mv8 reg reg
-mv8_reg_reg :
+mv8_reg_reg LABEL NEAR PTR WORD
 	; al contains target
 	shr r9, 16
 	xor rax, rax
@@ -606,16 +607,16 @@ mv8_reg_reg :
 	xor rbx, rbx
 	mov bl, r9b
 
-	mov rcx, QWORD [r13 + rbx*8]
+	mov rcx, QWORD PTR [r13 + rbx*8]
 	and rcx, 0ffh
-	mov QWORD [r13 + rax*8], rcx
+	mov QWORD PTR [r13 + rax*8], rcx
 
 	add r8, 4
 	DISPATCH
 ; END mv8 reg reg
 
 ; BEGIN mv16 reg reg
-mv16_reg_reg :
+mv16_reg_reg LABEL NEAR PTR WORD
 	; al contains target
 	shr r9, 16
 	xor rax, rax
@@ -625,16 +626,16 @@ mv16_reg_reg :
 	xor rbx, rbx
 	mov bl, r9b
 
-	mov rcx, QWORD [r13 + rbx*8]
+	mov rcx, QWORD PTR [r13 + rbx*8]
 	and rcx, 0ffffh
-	mov QWORD [r13 + rax*8], rcx
+	mov QWORD PTR [r13 + rax*8], rcx
 
 	add r8, 4
 	DISPATCH
 ; END mv16 reg reg
 
 ; BEGIN mv32 reg reg
-mv32_reg_reg :
+mv32_reg_reg LABEL NEAR PTR WORD
 	; al contains target
 	shr r9, 16
 	xor rax, rax
@@ -644,15 +645,16 @@ mv32_reg_reg :
 	xor rbx, rbx
 	mov bl, r9b
 
-	mov rcx, QWORD [r13 + rbx*8]
-	mov QWORD [r13 + rax*8], rcx
+	mov rcx, QWORD PTR [r13 + rbx*8]
+	and rcx, 0ffffffffh
+	mov QWORD PTR [r13 + rax*8], rcx
 
 	add r8, 4
 	DISPATCH
 ; END mv32 reg reg
 
 ; BEGIN mv64 reg reg
-mv64_reg_reg :
+mv64_reg_reg LABEL NEAR PTR WORD
 	; al contains target
 	shr r9, 16
 	xor rax, rax
@@ -662,15 +664,15 @@ mv64_reg_reg :
 	xor rbx, rbx
 	mov bl, r9b
 
-	mov rcx, QWORD [r13 + rbx*8]
-	mov QWORD [r13 + rax*8], rcx
+	mov rcx, QWORD PTR [r13 + rbx*8]
+	mov QWORD PTR [r13 + rax*8], rcx
 
 	add r8, 4
 	DISPATCH
 ; END mv64 reg reg
 
 ; BEGIN mv8 loc reg
-mv8_loc_reg :
+mv8_loc_reg LABEL NEAR PTR WORD
 	; al contains loc
 	shr r9, 16
 	xor rax, rax
@@ -680,16 +682,16 @@ mv8_loc_reg :
 	xor rbx, rbx
 	mov bl, r9b
 
-	mov rax, QWORD [r13 + rax*8]
-	mov bl, BYTE [r13 + rbx*8]
-	mov BYTE [rax], bl
+	mov rax, QWORD PTR [r13 + rax*8]
+	mov bl, BYTE PTR [r13 + rbx*8]
+	mov BYTE PTR [rax], bl
 
 	add r8, 4
 	DISPATCH
 ; END mv8 loc reg
 
 ; BEGIN mv16 loc reg
-mv16_loc_reg :
+mv16_loc_reg LABEL NEAR PTR WORD
 	; al contains loc
 	shr r9, 16
 	xor rax, rax
@@ -700,17 +702,17 @@ mv16_loc_reg :
 	mov bl, r9b
 
 	; get location from register
-	mov rax, QWORD [r13 + rax*8]
+	mov rax, QWORD PTR [r13 + rax*8]
 	; get value from register
-	mov bx, WORD [r13 + rbx*8]
-	mov WORD [rax], bx
+	mov bx, WORD PTR [r13 + rbx*8]
+	mov WORD PTR [rax], bx
 
 	add r8, 4
 	DISPATCH
 ; END mv16 loc reg
 
 ; BEGIN mv32 loc reg
-mv32_loc_reg :
+mv32_loc_reg LABEL NEAR PTR WORD
 	; al contains loc
 	shr r9, 16
 	xor rax, rax
@@ -721,17 +723,17 @@ mv32_loc_reg :
 	mov bl, r9b
 
 	; get location from register
-	mov rax, QWORD [r13 + rax*8]
+	mov rax, QWORD PTR [r13 + rax*8]
 	; get value from register
-	mov ebx, DWORD [r13 + rbx*8]
-	mov DWORD [rax], ebx
+	mov ebx, DWORD PTR [r13 + rbx*8]
+	mov DWORD PTR [rax], ebx
 
 	add r8, 4
 	DISPATCH
 ; END mv32 loc reg
 
 ; BEGIN mv64 loc reg
-mv64_loc_reg :
+mv64_loc_reg LABEL NEAR PTR WORD
 	; al contains loc
 	shr r9, 16
 	xor rax, rax
@@ -742,17 +744,17 @@ mv64_loc_reg :
 	mov bl, r9b
 
 	; get location from register
-	mov rax, QWORD [r13 + rax*8]
+	mov rax, QWORD PTR [r13 + rax*8]
 	; get value from register
-	mov rbx, QWORD [r13 + rbx*8]
-	mov QWORD [rax], rbx
+	mov rbx, QWORD PTR [r13 + rbx*8]
+	mov QWORD PTR [rax], rbx
 
 	add r8, 4
 	DISPATCH
 ; END mv64 loc reg
 
 ; BEGIN mv8 reg loc
-mv8_reg_loc :
+mv8_reg_loc LABEL NEAR PTR WORD
 	; al contains reg
 	shr r9, 16
 	xor rax, rax
@@ -763,18 +765,18 @@ mv8_reg_loc :
 	mov bl, r9b
 
 	; get location from register
-	mov rbx, QWORD [r13 + rbx*8]
+	mov rbx, QWORD PTR [r13 + rbx*8]
 	; get value at location
-	mov bl, BYTE [rbx]
+	mov bl, BYTE PTR [rbx]
 	; put value in register
-	mov BYTE [r13 + rax*8], bl
+	mov BYTE PTR [r13 + rax*8], bl
 
 	add r8, 4
 	DISPATCH
 ; END mv8 reg loc
 
 ; BEGIN mv16 reg loc
-mv16_reg_loc :
+mv16_reg_loc LABEL NEAR PTR WORD
 	; al contains reg
 	shr r9, 16
 	xor rax, rax
@@ -785,18 +787,18 @@ mv16_reg_loc :
 	mov bl, r9b
 
 	; get location from register
-	mov rbx, QWORD [r13 + rbx*8]
+	mov rbx, QWORD PTR [r13 + rbx*8]
 	; get value at location
-	mov bx, WORD [rbx]
+	mov bx, WORD PTR [rbx]
 	; put value in register
-	mov WORD [r13 + rax*8], bx
+	mov WORD PTR [r13 + rax*8], bx
 
 	add r8, 4
 	DISPATCH
 ; END mv16 reg loc
 
 ; BEGIN mv32 reg loc
-mv32_reg_loc :
+mv32_reg_loc LABEL NEAR PTR WORD
 	; al contains reg
 	shr r9, 16
 	xor rax, rax
@@ -807,18 +809,18 @@ mv32_reg_loc :
 	mov bl, r9b
 
 	; get location from register
-	mov rbx, QWORD [r13 + rbx*8]
+	mov rbx, QWORD PTR [r13 + rbx*8]
 	; get value at location
-	mov ebx, DWORD [rbx]
+	mov ebx, DWORD PTR [rbx]
 	; put value in register
-	mov DWORD [r13 + rax*8], ebx
+	mov DWORD PTR [r13 + rax*8], ebx
 
 	add r8, 4
 	DISPATCH
 ; END mv32 reg loc
 
 ; BEGIN mv64 reg loc
-mv64_reg_loc :
+mv64_reg_loc LABEL NEAR PTR WORD
 	; al contains reg
 	shr r9, 16
 	xor rax, rax
@@ -829,39 +831,39 @@ mv64_reg_loc :
 	mov bl, r9b
 
 	; get location from register
-	mov rbx, QWORD [r13 + rbx*8]
+	mov rbx, QWORD PTR [r13 + rbx*8]
 	; get value at location
-	mov rbx, QWORD [rbx]
+	mov rbx, QWORD PTR [rbx]
 	; put value in register
-	mov QWORD [r13 + rax*8], rbx
+	mov QWORD PTR [r13 + rax*8], rbx
 
 	add r8, 4
 	DISPATCH
 ; END mv64 reg loc
 
 ; BEGIN push8 reg
-push8_reg :
+push8_reg LABEL NEAR PTR WORD
 	; al contains reg
 	shr r9, 16
 	xor rax, rax
 	mov al, r9b
 
 	dec rsp
-	mov al, BYTE [r13 + rax*8] 
-	mov BYTE [rsp], al
+	mov al, BYTE PTR [r13 + rax*8] 
+	mov BYTE PTR [rsp], al
 	
 	add r8, 3
 	DISPATCH
 ; END push8 reg
 
 ; BEGIN push16 reg
-push16_reg :
+push16_reg LABEL NEAR PTR WORD
 	; al contains reg
 	shr r9, 16
 	xor rax, rax
 	mov al, r9b
 	
-	mov ax, WORD [r13 + rax*8]
+	mov ax, WORD PTR [r13 + rax*8]
 	push ax
 
 	add r8, 3
@@ -869,14 +871,14 @@ push16_reg :
 ; END push16 reg
 
 ; BEGIN push32 reg
-push32_reg :
+push32_reg LABEL NEAR PTR WORD
 	; al contains reg
 	shr r9, 16
 	xor rax, rax
 	mov al, r9b
 	
 	sub rsp, 4
-	mov eax, DWORD [r13 + rax*8]
+	mov eax, DWORD PTR [r13 + rax*8]
 	mov [rsp], eax
 
 	add r8, 3
@@ -884,13 +886,13 @@ push32_reg :
 ; END push32 reg
 
 ; BEGIN push64 reg
-push64_reg :
+push64_reg LABEL NEAR PTR WORD
 	; al contains reg
 	shr r9, 16
 	xor rax, rax
 	mov al, r9b
 	
-	mov rax, QWORD [r13 + rax*8]
+	mov rax, QWORD PTR [r13 + rax*8]
 	push rax
 
 	add r8, 3
@@ -898,7 +900,7 @@ push64_reg :
 ; END push64 reg
 
 ; BEGIN pop8 reg
-pop8_reg :
+pop8_reg LABEL NEAR PTR WORD
 	; al contains reg
 	shr r9, 16
 	xor rax, rax
@@ -907,17 +909,17 @@ pop8_reg :
 	mov bl, [rsp]
 	inc rsp
 	movsx rbx, bl
-	mov QWORD [r13 + rax*8], rbx
+	mov QWORD PTR [r13 + rax*8], rbx
 
 	; for debugging, zero popped stack memory
-	mov BYTE [rsp - 1], 0cch
+	mov BYTE PTR [rsp - 1], 0cch
 
 	add r8, 3
 	DISPATCH
 ; END pop8 reg
 
 ; BEGIN pop16 reg
-pop16_reg :
+pop16_reg LABEL NEAR PTR WORD
 	; al contains reg
 	shr r9, 16
 	xor rax, rax
@@ -925,14 +927,14 @@ pop16_reg :
 	
 	pop bx
 	movsx rbx, bx
-	mov QWORD [r13 + rax*8], rbx
+	mov QWORD PTR [r13 + rax*8], rbx
 
 	add r8, 3
 	DISPATCH
 ; END pop16 reg
 
 ; BEGIN pop32 reg
-pop32_reg:
+pop32_reg LABEL NEAR PTR WORD
 	; al contains reg
 	shr r9, 16
 	xor rax, rax
@@ -941,32 +943,32 @@ pop32_reg:
 	mov ebx, [rsp]
 	add rsp, 4
 	movsxd rbx, ebx
-	mov QWORD [r13 + rax*8], rbx
+	mov QWORD PTR [r13 + rax*8], rbx
 
 	add r8, 3
 	DISPATCH
 ; END pop32 reg
 
 ; BEGIN pop64 reg
-pop64_reg:
+pop64_reg LABEL NEAR PTR WORD
 	; al contains reg
 	shr r9, 16
 	xor rax, rax
 	mov al, r9b
 	
 	pop rbx
-	mov QWORD [r13 + rax*8], rbx
+	mov QWORD PTR [r13 + rax*8], rbx
 
 	; for debugging, zero popped stack memory
-	mov DWORD [rsp - 8], 0cccccccch
-	mov DWORD [rsp - 4], 0cccccccch
+	mov DWORD PTR [rsp - 8], 0cccccccch
+	mov DWORD PTR [rsp - 4], 0cccccccch
 
 	add r8, 3
 	DISPATCH
 ; END pop64 reg
 
 ; BEGIN jmpr i32
-jmpr_i32:
+jmpr_i32 LABEL NEAR PTR WORD
 	; r9d contains offset
 	shr r9, 16
 	movsxd r9, r9d
@@ -975,7 +977,7 @@ jmpr_i32:
 ; END jmpr i32
 
 ; BEGIN jrnz reg i32
-jrnz_reg_i32:
+jrnz_reg_i32 LABEL NEAR PTR WORD
 	shr r9, 16
 	; al contains reg
 	xor rax, rax
@@ -984,7 +986,7 @@ jrnz_reg_i32:
 	shr r9, 8
 	movsxd r9, r9d
 
-	mov rax, QWORD [r13 + rax*8]
+	mov rax, QWORD PTR [r13 + rax*8]
 
 	cmp rax, 0
 	je _skip_jrnz
@@ -996,7 +998,7 @@ _skip_jrnz:
 ; END jrnz reg i32
 
 ; BEGIN jrz reg i32
-jrz_reg_i32:
+jrz_reg_i32 LABEL NEAR PTR WORD
 	shr r9, 16
 	; al contains reg
 	xor rax, rax
@@ -1005,7 +1007,7 @@ jrz_reg_i32:
 	shr r9, 8
 	movsxd r9, r9d
 
-	mov rax, QWORD [r13 + rax*8]
+	mov rax, QWORD PTR [r13 + rax*8]
 
 	cmp rax, 0
 	jne _skip_jrz
@@ -1017,9 +1019,9 @@ _skip_jrz:
 ; END jrz reg i32
 
 ; BEGIN call ui64
-call_ui64:
+call_ui64 LABEL NEAR PTR WORD
 	; rax contains offset
-	mov rax, QWORD [r8 + 2]
+	mov rax, QWORD PTR [r8 + 2]
 
 	; simulate call
 
@@ -1034,8 +1036,41 @@ call_ui64:
 	DISPATCH
 ; END call ui64
 
+; BEGIN ret ui8
+ret_ui8 LABEL NEAR PTR WORD
+	; r9b contains param size
+	shr r9, 16
+	and r9, 0ffh
+
+	pop r8
+	add rsp, r9
+
+	DISPATCH
+; END ret 8
+
+; BEGIN call native ui64
+call_native_ui64 LABEL NEAR PTR WORD
+	mov rax, QWORD PTR [r8 + 2]
+	mov rbx, [native_functions]
+	mov rax, [rbx + rax*8]
+
+	; save r8 in non-volatile and restore after
+	mov r14, r8
+	; push right to left, stack pointer then register pointer
+	mov rcx, r13
+	mov rdx, rsp
+	sub rsp, 32
+	call rax
+	add rsp, 32
+	add rsp, rax
+	mov r8, r14
+
+	add r8, 10
+	DISPATCH
+; END call native ui64
+
 ; BEGIN call reg
-call_reg:
+call_reg LABEL NEAR PTR WORD
 	; r9l contains offset
 	shr r9, 16
 	and r9, 0ffh
@@ -1053,49 +1088,9 @@ call_reg:
 	DISPATCH
 ; END call reg
 
-; BEGIN ret ui8
-ret_ui8:
-	; r9b contains param size
-	shr r9, 16
-	and r9, 0ffh
-
-	pop r8
-	add rsp, r9
-
-	DISPATCH
-; END ret ui8
-
-; BEGIN call native ui64
-call_native_ui64:
-	mov rax, QWORD [r8 + 2]
-	mov rbx, [native_functions]
-	mov rax, [rbx + rax*8]
-
-	; save r8 and rsp in non-volatile and restore after
-	mov r15, r8
-	; r13 is nonvolatile already
-	mov r14, rsp
-
-	; parameters, reg ptr + stack ptr
-	mov rdi, r13
-	mov rsi, rsp
-
-	; align stack (SymbolV)
-	and rsp, ~0xF
-	call rax
-
-	mov r8, r15
-	mov rsp, r14
-
-	add rsp, rax
-
-	add r8, 10
-	DISPATCH
-; END call native ui64
-
 
 ; BEGIN salloc reg ui8
-salloc_reg_ui8:
+salloc_reg_ui8 LABEL NEAR PTR WORD
 	shr r9, 16
 	xor rax, rax
 	mov al, r9b
@@ -1110,20 +1105,23 @@ salloc_reg_ui8:
 ; END salloc reg ui8
 
 ; BEGIN sdealloc ui8
-sdealloc_ui8:
+sdealloc_ui8 LABEL NEAR PTR
 	shr r9, 16
 	and r9, 0ffh
+	cmp r9, 0
+	je _skip_dealloc
+
 	add rsp, r9
+	mov BYTE PTR [rsp - 1], 0cch
 
-	mov BYTE [rsp - 1], 0cch
-
+_skip_dealloc:
 	add r8, 3
 	DISPATCH
 ; END sdealloc ui8
 
 ; BEGIN exit
-exit:
-	lea rax, [registers]
+exit LABEL NEAR PTR WORD
+	lea rax, OFFSET registers 
 
 	; restore nonvolatile registers rbx, r12, r13, r14, r15
 	pop r15
@@ -1134,318 +1132,322 @@ exit:
 	ret
 ; END exit
 
+vm_interpret ENDP
+
 ; initializes each handler pointer
 
-vm_init:
+vm_init PROC
 ; store the pointer to native function pointers
-mov [native_functions], rax
+mov native_functions, rcx
 
-lea rax, [handlers]
+lea rax, handlers
  
-lea rbx, [begin_interp]
+lea rbx, begin_interp
 
 mov rdx, 0
 
-lea rcx, [nop_]
+lea rcx, nop_
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [exit]
+lea rcx, exit 
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx ; skip err opcode
 inc rdx
-lea rcx, [lbl_ui32]
+lea rcx, lbl_ui32
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [add_reg_reg_reg]
+lea rcx, add_reg_reg_reg
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [add_reg_reg_ui8]
+lea rcx, add_reg_reg_ui8
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [sub_reg_reg_reg]
+lea rcx, sub_reg_reg_reg
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [sub_reg_reg_ui8]
+lea rcx, sub_reg_reg_ui8
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [mul_reg_reg_reg]
+lea rcx, mul_reg_reg_reg
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [div_reg_reg_reg]
+lea rcx, div_reg_reg_reg
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [mod_reg_reg_reg]
+lea rcx, mod_reg_reg_reg
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [gt_reg_reg_reg]
+lea rcx, gt_reg_reg_reg
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [gte_reg_reg_reg]
+lea rcx, gte_reg_reg_reg
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [lt_reg_reg_reg]
+lea rcx, lt_reg_reg_reg
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [lte_reg_reg_reg]
+lea rcx, lte_reg_reg_reg
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [lte_reg_reg_ui8]
+lea rcx, lte_reg_reg_ui8
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [eq_reg_reg_reg]
+lea rcx, eq_reg_reg_reg
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [neq_reg_reg_reg]
+lea rcx, neq_reg_reg_reg
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [and_reg_reg_reg]
+lea rcx, and_reg_reg_reg
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [and_reg_reg_ui8]
+lea rcx, and_reg_reg_ui8
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [or_reg_reg_reg]
+lea rcx, or_reg_reg_reg
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [xor_reg_reg_ui8]
+lea rcx, xor_reg_reg_ui8
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [mv_reg_sp]
+lea rcx, mv_reg_sp
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 ; todo remove
 inc rdx
-lea rcx, [mv_reg_ip]
+lea rcx, mv_reg_ip
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [mv_reg_ui8]
+lea rcx, mv_reg_ui8
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [mv_reg_ui16]
+lea rcx, mv_reg_ui16
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [mv_reg_ui32]
+lea rcx, mv_reg_ui32
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [mv_reg_ui64]
+lea rcx, mv_reg_ui64
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [mv_reg_i8]
+lea rcx, mv_reg_i8
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [mv_reg_i16]
+lea rcx, mv_reg_i16
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [mv_reg_i32]
+lea rcx, mv_reg_i32
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [mv_reg_i64]
+lea rcx, mv_reg_i64
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [mv8_reg_reg]
+lea rcx, mv8_reg_reg
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [mv16_reg_reg]
+lea rcx, mv16_reg_reg
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [mv32_reg_reg]
+lea rcx, mv32_reg_reg
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [mv64_reg_reg]
+lea rcx, mv64_reg_reg
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [mv8_loc_reg]
+lea rcx, mv8_loc_reg
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [mv16_loc_reg]
+lea rcx, mv16_loc_reg
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [mv32_loc_reg]
+lea rcx, mv32_loc_reg
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [mv64_loc_reg]
+lea rcx, mv64_loc_reg
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [mv8_reg_loc]
+lea rcx, mv8_reg_loc
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [mv16_reg_loc]
+lea rcx, mv16_reg_loc
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [mv32_reg_loc]
+lea rcx, mv32_reg_loc
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [mv64_reg_loc]
+lea rcx, mv64_reg_loc
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [push8_reg]
+lea rcx, push8_reg
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [push16_reg]
+lea rcx, push16_reg
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [push32_reg]
+lea rcx, push32_reg
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [push64_reg]
+lea rcx, push64_reg
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [pop8_reg]
+lea rcx, pop8_reg
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [pop16_reg]
+lea rcx, pop16_reg
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [pop32_reg]
+lea rcx, pop32_reg
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [pop64_reg]
+lea rcx, pop64_reg
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [jmpr_i32]
+lea rcx, jmpr_i32
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [jrnz_reg_i32]
+lea rcx, jrnz_reg_i32
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [jrz_reg_i32]
+lea rcx, jrz_reg_i32
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [call_ui64]
+lea rcx, call_ui64
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [call_native_ui64]
+lea rcx, call_native_ui64
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [call_reg]
+lea rcx, call_reg
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [ret_ui8]
+lea rcx, ret_ui8
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [salloc_reg_ui8]
+lea rcx, salloc_reg_ui8
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, [sdealloc_ui8]
+lea rcx, sdealloc_ui8 
 sub rcx, rbx
-mov WORD [rax + rdx*2], cx
+mov [rax + rdx*2], cx
 
 ret
+vm_init ENDP
 
+END

@@ -1,4 +1,4 @@
-#include "ffi.h"
+#include "dll.h"
 #include <Windows.h>
 #include <cstdlib>
 #include <stdint.h>
