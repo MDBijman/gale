@@ -14,8 +14,8 @@ $vmLocation = "../build/VM/Debug/VM.exe"
 
 # Invoke Compiler
 $compilerExpression = "$compilerLocation project $file $module"
-Write-Output "Running compiler as: $compilerExpression"
-Invoke-Expression $compilerExpression
+Write-Debug "Running compiler as: $compilerExpression"
+$out = Invoke-Expression $compilerExpression
 if ($LASTEXITCODE -ne 0) {
     Cleanup
     exit 1
@@ -23,7 +23,7 @@ if ($LASTEXITCODE -ne 0) {
 
 # Invoke VM
 $vmExpression = "$vmLocation ./out/test.bc"
-Write-Output "Running vm as: $vmExpression"
+Write-Debug "Running vm as: $vmExpression"
 Invoke-Expression $vmExpression
 if ($LASTEXITCODE -ne 0) {
     Cleanup
