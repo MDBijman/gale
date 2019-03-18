@@ -1,13 +1,20 @@
 import json
 import os
 import subprocess
+import time
+import sys
 
 def exit_with(message, code):
     print(message)
     exit(code)
 
+if len(sys.argv) != 2:
+    exit_with("Expected test file name as argument", -1)
+
+test_name = sys.argv[1]
+
 try:
-    test_file = open("./tests.json")
+    test_file = open(test_name)
 except IOError as e:
     exit_with("Could not open test configuration, exiting", -1)
 
@@ -74,6 +81,15 @@ for test_case in tests:
 
 print("Validated all test cases")
 
+# Find greates length for printing
+greatest_length = 0
+for test_case in validated_test_cases:
+    test_command_args = " ".join(test_case['args'])
+    test_command = command + " " + test_command_args
+    if len(test_command) > greatest_length:
+        greatest_length = len(test_command)
+idx_len = len(str(len(validated_test_cases)))
+
 # Run tests
 
 results = [None] * len(validated_test_cases)
@@ -82,8 +98,11 @@ idx = 0
 for test_case in validated_test_cases:
     test_command_args = " ".join(test_case['args'])
     test_command = command + " " + test_command_args
-    print(f"Running test case {idx}: \"{test_command}\"")
+    quoted_command = f"\"{test_command}\""
+    # Add 2 because quoted command is 2 character longer
+    print(f"Running test case {idx: >{idx_len}}: {quoted_command:.<{greatest_length+2}}...", end='', flush=True)
 
+    before = time.time()
     process = subprocess.Popen(test_command, stdout = subprocess.PIPE, text = True, shell = True)
 
     result = { 'result': 'success' }
@@ -91,6 +110,7 @@ for test_case in validated_test_cases:
     # Execute the process, the default timeout is 15, maybe change/make configurable
     try:
         out, err = process.communicate(timeout = 15)
+        result['time'] = "{0:.2f}".format(time.time() - before)
     except TimeoutError:
         process.kill()
         result = { 'result': 'timeout' }
@@ -105,15 +125,37 @@ for test_case in validated_test_cases:
         if expected != actual:
             result['result'] = 'fail'
             result['exitcode'] = { 'actual': actual, 'expected': expected }
+    if 'stdout' in matches:
+        expected = matches['stdout']
+        actual = out
+
+        if expected != actual:
+            result['result'] = 'fail'
+            result['stdout'] = { 'actual': actual, 'expected': expected }
+
+    if result['result'] == 'success':
+        print("\u001b[32m", result['result'], "\u001b[0m", sep='', flush=True)
+    elif result['result'] == 'fail' or result['result'] == 'timeout':
+        print("\u001b[31m", result['result'], "\u001b[0m", sep='', flush=True)
 
     # Save the command args for later inspection
     result['args'] = test_command_args
 
     results[idx] = result
-
     idx += 1
 
 # Report results
 
-for idx, result in enumerate(results):
-    print(f"{idx}: {result}")
+failure_count = sum(1 for _ in filter(lambda r: r['result'] == 'fail', results))
+success_count = sum(1 for _ in filter(lambda r: r['result'] == 'success', results))
+timeout_count = sum(1 for _ in filter(lambda r: r['result'] == 'timeout', results))
+
+print(f"Failure count: {failure_count}")
+print(f"Success count: {success_count}")
+print(f"Timeout count: {timeout_count}")
+
+failures = list(filter(lambda r: r['result'] == 'fail', results))
+if len(failures) > 0:
+    print("Failures:")
+    for result in failures:
+        print(f"{result}")
