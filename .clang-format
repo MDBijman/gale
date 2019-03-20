@@ -1,0 +1,16 @@
+Language: Cpp
+BasedOnStyle: LLVM
+
+IndentWidth: 8
+UseTab: Always
+FixNamespaceComments: true
+NamespaceIndentation: All
+BreakBeforeBraces: Allman
+ContinuationIndentWidth: 2
+ColumnLimit: 100
+Cpp11BracedListStyle: false
+AllowShortCaseLabelsOnASingleLine: true
+AllowShortFunctionsOnASingleLine: true
+AllowShortBlocksOnASingleLine: true
+AllowShortIfStatementsOnASingleLine: true
+AllowShortLoopsOnASingleLine: true

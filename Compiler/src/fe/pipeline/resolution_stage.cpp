@@ -285,7 +285,7 @@ namespace fe::ext_ast
 		if (type_node.kind == node_type::IDENTIFIER)
 		{
 			auto& id = ast.get_data<identifier>(type_node.data_index);
-			auto& res = scope.resolve_type(id.module_path, id.name, ast.name_scope_cb());
+			auto res = scope.resolve_type(id.module_path, id.name, ast.name_scope_cb());
 			assert(res);
 			auto& referenced_type_node = ast.get_node(res->declaration_node);
 			return product_type_element(referenced_type_node, ast, index);

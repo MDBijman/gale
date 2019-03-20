@@ -123,7 +123,7 @@ namespace fe::ext_ast
 		node_id children_id;
 		node_id parent_id;
 
-		data_index data_index;
+		data_index_t data_index;
 		scope_index name_scope_id;
 		// #performance we can use a single scope id instead of 2 saving 4 bytes per node
 		scope_index type_scope_id;
@@ -143,6 +143,14 @@ namespace fe::ext_ast
 		size_t strings;
 		size_t numbers;
 	};
+
+	class ast;
+
+	namespace detail
+	{
+		template<class DataType>
+		DataType& get_data(ast& ast, data_index_t i);
+	}
 
 	class ast
 	{
@@ -190,14 +198,23 @@ namespace fe::ext_ast
 		constants_store& get_constants();
 
 		template<class DataType>
-		DataType& get_data(data_index i);
-		template<> identifier& get_data<identifier>(data_index i) { assert(i != no_data); return identifiers.get_at(i); }
-		template<> boolean&    get_data<boolean>(data_index i) { assert(i != no_data); return constants.get<boolean>(i); }
-		template<> string&     get_data<string>(data_index i) { assert(i != no_data); return constants.get<string>(i); }
-		template<> number&     get_data<number>(data_index i) { assert(i != no_data); return constants.get<number>(i); }
+		DataType& get_data(data_index_t i)
+		{
+			return detail::get_data<DataType>(*this, i);
+		}
+		template<class DataType>
+		friend DataType& detail::get_data(ast& a, data_index_t t);
 
 	private:
-		data_index create_node_data(node_type t);
+		data_index_t create_node_data(node_type t);
 		std::optional<node_id> find_node(node_type t);
 	};
+
+	namespace detail
+	{
+		template<> identifier& get_data<identifier>(ast& a, data_index_t i);
+		template<> boolean&    get_data<boolean>(ast& a, data_index_t i);
+		template<> string&     get_data<string>(ast& a, data_index_t i);
+		template<> number&     get_data<number>(ast& a, data_index_t i);
+	}
 }

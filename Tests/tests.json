@@ -1,0 +1,236 @@
+{
+    "command": "powershell -executionpolicy bypass -file .\\compile_and_run.ps1",
+    "tests": [
+        {
+            "args": ["./snippets/mod", "mod"],
+            "match": {
+                "exitcode": 0,
+                "stdout": "0"
+            }
+        },
+        {
+            "args": ["./snippets/mod2", "mod"],
+            "match": {
+                "exitcode": 0,
+                "stdout": "0"
+            }
+        },
+        {
+            "args": ["./snippets/fib", "fib"],
+            "match": {
+                "exitcode": 0,
+                "stdout": "1346269\n"
+            }
+        },
+        {
+            "args": ["./snippets/and_short_circuit", "short"],
+            "match": {
+                "exitcode": 0,
+                "stdout": "1"
+            }
+        },
+        {
+            "args": ["./snippets/or_short_circuit", "short"],
+            "match": {
+                "exitcode": 0,
+                "stdout": "1"
+            }
+        },
+        {
+            "args": ["./snippets/scope", "scope"],
+            "match": {
+                "exitcode": 0,
+                "stdout": "3"
+            }
+        },
+        {
+            "args": ["./snippets/block_vars", "blockvars"],
+            "match": {
+                "exitcode": 0,
+                "stdout": "3"
+            }
+        },
+        {
+            "args": ["./snippets/if", "m_if"],
+            "match": {
+                "exitcode": 0,
+                "stdout": "2"
+            }
+        },
+        {
+            "args": ["./snippets/while", "m_while"],
+            "match": {
+                "exitcode": 0,
+                "stdout": "2"
+            }
+        },
+        {
+            "args": ["./snippets/func", "func"],
+            "match": {
+                "exitcode": 0,
+                "stdout": "6"
+            }
+        },
+        {
+            "args": ["./snippets/tuple2", "tuple2"],
+            "match": {
+                "exitcode": 0,
+                "stdout": "3"
+            }
+        },
+        {
+            "args": ["./snippets/tuple3", "tuple3"],
+            "match": {
+                "exitcode": 0,
+                "stdout": "7"
+            }
+        },
+        {
+            "args": ["./snippets/euler1", "euler1"],
+            "match": {
+                "exitcode": 0,
+                "stdout": "233168\n"
+            }
+        },
+        {
+            "args": ["./snippets/euler2", "euler2"],
+            "match": {
+                "exitcode": 0,
+                "stdout": "4613732"
+            }
+        },
+        {
+            "args": ["./snippets/euler3", "euler3"],
+            "match": {
+                "exitcode": 0,
+                "stdout": "6857\n"
+            }
+        },
+        {
+            "args": ["./snippets/sumint", "sumint"],
+            "match": {
+                "exitcode": 0,
+                "stdout": "2"
+            }
+        },
+        {
+            "args": ["./snippets/sumbool", "sumbool"],
+            "match": {
+                "exitcode": 0,
+                "stdout": "1"
+            }
+        },
+        {
+            "args": ["./snippets/sumpair", "sumpair"],
+            "match": {
+                "exitcode": 0,
+                "stdout": "3"
+            }
+        },
+        {
+            "args": ["./snippets/sumpairdestr", "sumpairdestr"],
+            "match": {
+                "exitcode": 0,
+                "stdout": "7"
+            }
+        },
+        {
+            "args": ["./snippets/sumintmatch", "sumintmatch"],
+            "match": {
+                "exitcode": 0,
+                "stdout": "3"
+            }
+        },
+        {
+            "args": ["./snippets/sumtuplematch", "sumtuplematch"],
+            "match": {
+                "exitcode": 0,
+                "stdout": "5"
+            }
+        },
+        {
+            "args": ["./snippets/sumboolmatch", "sumboolmatch"],
+            "match": {
+                "exitcode": 0,
+                "stdout": "1"
+            }
+        },
+        {
+            "args": ["./snippets/sumboolmatch2", "sumboolmatch"],
+            "match": {
+                "exitcode": 0,
+                "stdout": "2"
+            }
+        },
+        {
+            "args": ["./snippets/sumvarbind", "sumvarbind"],
+            "match": {
+                "exitcode": 0,
+                "stdout": "3"
+            }
+        },
+        {
+            "args": ["./snippets/sumvarbind2", "sumvarbind"],
+            "match": {
+                "exitcode": 0,
+                "stdout": "1"
+            }
+        },
+        {
+            "args": ["./snippets/sumvarbind3", "sumvarbind"],
+            "match": {
+                "exitcode": 0,
+                "stdout": "1"
+            }
+        },
+        {
+            "args": ["./snippets/funcvar", "funcvar"],
+            "match": {
+                "exitcode": 0,
+                "stdout": "6"
+            }
+        },
+        {
+            "args": ["./snippets/param", "param"],
+            "match": {
+                "exitcode": 0,
+                "stdout": "6"
+            }
+        },
+        {
+            "args": ["./snippets/parammultiple", "parammultiple"],
+            "match": {
+                "exitcode": 0,
+                "stdout": "10"
+            }
+        },
+        {
+            "args": ["./snippets/paramarray", "paramarray"],
+            "match": {
+                "exitcode": 0,
+                "stdout": "1"
+            }
+        },
+        {
+            "args": ["./snippets/paramarray3", "paramarray"],
+            "match": {
+                "exitcode": 0,
+                "stdout": "3"
+            }
+        },
+        {
+            "args": ["./snippets/array", "array"],
+            "match": {
+                "exitcode": 0,
+                "stdout": "1"
+            }
+        },
+        {
+            "args": ["./snippets/array2", "array"],
+            "match": {
+                "exitcode": 0,
+                "stdout": "2"
+            }
+        }
+    ]
+}

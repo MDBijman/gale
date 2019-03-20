@@ -3,9 +3,7 @@
 #include "fe/language_definition.h"
 #include "fe/data/ext_ast.h"
 #include "fe/data/module.h"
-#include "fe/libraries/std/std_ui.h"
-#include "fe/libraries/std/std_io.h"
-#include "fe/libraries/std/std_types.h"
+#include "fe/runtime/types.h"
 #include "utils/reading/reader.h"
 #include "fe/pipeline/pretty_print_stage.h"
 #include <string>
@@ -14,6 +12,16 @@
 
 namespace fe
 {
+	struct project_settings
+	{
+		project_settings()
+			: print_code(false), print_result(false), print_time(false), should_optimize(true) {}
+		project_settings(bool print_code, bool print_result, bool print_time, bool so)
+			: print_code(print_code), print_result(print_result), print_time(print_time), should_optimize(so) {}
+
+		bool print_code, print_result, print_time, should_optimize;
+	};
+
 	class project
 	{
 	public:
@@ -24,7 +32,7 @@ namespace fe
 			modules.insert({ m.name, m });
 		}
 
-		vm::machine_state eval(const std::string& code, vm::vm_settings s)
+		vm::executable compile(const std::string& code, project_settings s)
 		{
 			auto e_ast = pl.parse(code);
 
@@ -77,7 +85,7 @@ namespace fe
 						auto full_name = imp.full + "." + c.get_name();
 						bytecode.add_function(c.is_bytecode() ?
 							vm::function(full_name, c.get_bytecode()) :
-							vm::function(full_name, c.get_native_function_ptr()));
+							vm::function(full_name, c.get_native_function_id()));
 					}
 				}
 			}
@@ -126,8 +134,13 @@ namespace fe
 			// optimize
 			pl.optimize_executable(executable);
 
-			// Stage 4: interpret
-			return pl.run(executable, s);
+			return executable;
+		}
+
+		void compile_to_file(const std::string& filename, const std::string& code, project_settings s)
+		{
+			auto e = compile(code, s);
+			pl.print_bytecode(filename, e);
 		}
 
 	private:

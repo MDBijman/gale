@@ -9,7 +9,7 @@ namespace utils
 		std::variant<std::string, std::exception> read_file(const std::string& name)
 		{
 			std::ifstream in(name, std::ios::in | std::ios::binary);
-			if (!in) return std::exception("Could not open file");
+			if (!in) return std::exception();
 
 			std::string contents;
 			in.seekg(0, std::ios::end);
