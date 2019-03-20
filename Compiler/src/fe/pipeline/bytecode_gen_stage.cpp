@@ -1,27 +1,44 @@
 #include "fe/pipeline/bytecode_gen_stage.h"
-#include "fe/pipeline/vm_stage.h"
 #include "fe/data/bytecode.h"
 #include "fe/data/core_ast.h"
 #include "fe/pipeline/core_stack_analysis.h"
+#include <optional>
 
 namespace fe::vm
 {
+	code_gen_scope::code_gen_scope() {}
+	code_gen_scope::code_gen_scope(core_ast::function_data fd) : current_function(fd) {}
+
 	code_gen_state::code_gen_state(core_ast::label first_label) : next_label(first_label) {}
 
-	reg code_gen_state::alloc_register()
+	code_gen_scope code_gen_state::set_scope(code_gen_scope new_scope)
 	{
-		return reg(next_free_register++);
+		auto old_scope = this->scope;
+		this->scope = new_scope;
+		return old_scope;
 	}
 
-	reg code_gen_state::last_alloced_register()
+	std::optional<reg> code_gen_state::last_alloced_register(uint32_t fid, uint32_t nid)
 	{
-		return reg(next_free_register - 1);
+		auto stack_size = this->analyzed_functions.at(fid).pre_node_stack_sizes.at(nid);
+		if (stack_size == 0)
+			return std::nullopt;
+		else
+			return reg(stack_size / 8 - 1);
 	}
 
-	void code_gen_state::dealloc_register(reg r)
+	std::optional<reg> code_gen_state::last_alloced_register_after(uint32_t fid, uint32_t nid)
 	{
-		assert(r.val == next_free_register - 1);
-		next_free_register--;
+		auto stack_size = this->analyzed_functions.at(fid).node_stack_sizes.at(nid);
+		if (stack_size == 0)
+			return std::nullopt;
+		else
+			return reg(stack_size / 8 - 1);
+	}
+
+	reg code_gen_state::next_register(uint32_t fid, uint32_t nid)
+	{
+		return reg(this->analyzed_functions.at(fid).pre_node_stack_sizes.at(nid) / 8);
 	}
 
 	void code_gen_state::link_node_chunk(node_id n, uint8_t c)
@@ -37,7 +54,7 @@ namespace fe::vm
 
 	code_gen_result::code_gen_result() {}
 
-	core_ast::label code_gen_state::get_function_label(const std::string& name)
+	core_ast::label code_gen_state::get_function_label(const std::string &name)
 	{
 		auto p = this->functions.find(name);
 		if (p == this->functions.end())
@@ -59,7 +76,8 @@ namespace fe::vm
 	}
 	uint32_t code_gen_state::node_diff_stack_size(uint32_t function_id, uint32_t node_id)
 	{
-		return node_post_stack_size(function_id, node_id) - node_pre_stack_size(function_id, node_id);
+		return node_post_stack_size(function_id, node_id) -
+		       node_pre_stack_size(function_id, node_id);
 	}
 	void code_gen_state::set_stack_label_size(uint32_t stack_label, uint32_t size)
 	{
@@ -69,7 +87,7 @@ namespace fe::vm
 	{
 		return stack_label_sizes.at(stack_label);
 	}
-}
+} // namespace fe::vm
 
 namespace fe::vm
 {
@@ -78,132 +96,135 @@ namespace fe::vm
 
 namespace fe::vm
 {
-	void generate_bytecode(node_id n, core_ast::ast& ast, program& p, code_gen_state& i);
+	void generate_bytecode(node_id n, core_ast::ast &ast, program &p, code_gen_state &i);
 
-	void link_to_parent_chunk(node_id n, core_ast::ast& ast, code_gen_state& i)
+	void link_to_parent_chunk(node_id n, core_ast::ast &ast, code_gen_state &i)
 	{
 		i.link_node_chunk(n, i.chunk_of(ast.parent_of(n).id));
 	}
 
-	void generate_number(node_id n, core_ast::ast& ast, program& p, code_gen_state& i)
+	void generate_number(node_id n, core_ast::ast &ast, program &p, code_gen_state &i)
 	{
 		link_to_parent_chunk(n, ast, i);
-		auto& bc = p.get_function(i.chunk_of(n)).get_bytecode();
+		auto fid = i.chunk_of(n);
+		auto &bc = p.get_function(fid).get_bytecode();
 
-		auto& num = ast.get_data<fe::number>(*ast.get_node(n).data_index);
+		auto &num = ast.get_data<fe::number>(*ast.get_node(n).data_index);
 		size_t size = 0;
-		reg r_result = i.alloc_register();
+		reg r_result = i.next_register(fid, n);
 		switch (num.type)
 		{
-		case number_type::UI8: {
-			auto[location, size] = bc.add_instructions(
-				make_mv_reg_ui8(r_result, static_cast<uint8_t>(num.value))
-			);
+		case number_type::UI8:
+		{
+			auto [location, size] = bc.add_instructions(
+			  make_mv_reg_ui8(r_result, static_cast<uint8_t>(num.value)));
 			break;
 		}
-		case number_type::I8: {
-			auto[location, size] = bc.add_instructions(
-				make_mv_reg_i8(r_result, static_cast<int8_t>(num.value))
-			);
+		case number_type::I8:
+		{
+			auto [location, size] = bc.add_instructions(
+			  make_mv_reg_i8(r_result, static_cast<int8_t>(num.value)));
 			break;
 		}
-		case number_type::UI16: {
-			auto[location, size] = bc.add_instructions(
-				make_mv_reg_ui16(r_result, static_cast<uint16_t>(num.value))
-			);
+		case number_type::UI16:
+		{
+			auto [location, size] = bc.add_instructions(
+			  make_mv_reg_ui16(r_result, static_cast<uint16_t>(num.value)));
 			break;
 		}
-		case number_type::I16: {
-			auto[location, size] = bc.add_instructions(
-				make_mv_reg_i16(r_result, static_cast<int16_t>(num.value))
-			);
+		case number_type::I16:
+		{
+			auto [location, size] = bc.add_instructions(
+			  make_mv_reg_i16(r_result, static_cast<int16_t>(num.value)));
 			break;
 		}
-		case number_type::UI32: {
-			auto[location, size] = bc.add_instructions(
-				make_mv_reg_ui32(r_result, static_cast<uint32_t>(num.value))
-			);
+		case number_type::UI32:
+		{
+			auto [location, size] = bc.add_instructions(
+			  make_mv_reg_ui32(r_result, static_cast<uint32_t>(num.value)));
 			break;
 		}
-		case number_type::I32: {
-			auto[location, size] = bc.add_instructions(
-				make_mv_reg_i32(r_result, static_cast<int32_t>(num.value))
-			);
+		case number_type::I32:
+		{
+			auto [location, size] = bc.add_instructions(
+			  make_mv_reg_i32(r_result, static_cast<int32_t>(num.value)));
 			break;
 		}
-		case number_type::UI64: {
-			auto[location, size] = bc.add_instructions(
-				make_mv_reg_ui64(r_result, static_cast<uint64_t>(num.value))
-			);
+		case number_type::UI64:
+		{
+			auto [location, size] = bc.add_instructions(
+			  make_mv_reg_ui64(r_result, static_cast<uint64_t>(num.value)));
 			break;
 		}
-		case number_type::I64: {
-			auto[location, size] = bc.add_instructions(
-				make_mv_reg_i64(r_result, static_cast<int64_t>(num.value))
-			);
+		case number_type::I64:
+		{
+			auto [location, size] = bc.add_instructions(
+			  make_mv_reg_i64(r_result, static_cast<int64_t>(num.value)));
 			break;
 		}
 		default: assert(!"Number type not supported");
 		}
-
 	}
 
-	void generate_string(node_id n, core_ast::ast& ast, program& p, code_gen_state& i)
+	void generate_string(node_id n, core_ast::ast &ast, program &p, code_gen_state &i)
 	{
 		throw std::runtime_error("NYI string");
 	}
 
-	void generate_boolean(node_id n, core_ast::ast& ast, program& p, code_gen_state& i)
+	void generate_boolean(node_id n, core_ast::ast &ast, program &p, code_gen_state &i)
 	{
 		link_to_parent_chunk(n, ast, i);
-		auto& bc = p.get_function(i.chunk_of(n)).get_bytecode();
+		auto fid = i.chunk_of(n);
+		auto &bc = p.get_function(fid).get_bytecode();
 
 		auto value = ast.get_data<fe::boolean>(*ast.get_node(n).data_index).value;
 
-		// We cannot push literals onto the stack (yet) so we move it into a register and push the register
-		auto r_res = i.alloc_register();
-		auto[location, size] = bc.add_instructions(
-			make_mv_reg_ui8(r_res, value ? 1 : 0)
-		);
-		i.dealloc_register(r_res);
+		reg r_res = i.next_register(fid, n);
+		auto [location, size] = bc.add_instructions(make_mv_reg_ui64(r_res, value ? 1 : 0));
 	}
 
-	void generate_function(node_id n, core_ast::ast& ast, program& p, code_gen_state& i)
+	void generate_function(node_id n, core_ast::ast &ast, program &p, code_gen_state &i)
 	{
 		auto id = p.add_function(function());
 		i.link_node_chunk(n, id);
 
-		auto& node = ast.get_node(n);
+		auto &node = ast.get_node(n);
 		assert(node.children.size() == 1);
 
 		auto stack_analysis = core_ast::analyze_stack(node.id, ast);
 		i.analyzed_functions[id] = stack_analysis;
 
 		// Register function
-		auto& func_data = ast.get_data<core_ast::function_data>(*node.data_index);
+		auto &func_data = ast.get_data<core_ast::function_data>(*node.data_index);
 		p.get_function(id).get_name() = func_data.name;
-		auto function_scope = i.current_scope;
-		i.current_scope = func_data;
+		auto prev_scope = i.set_scope(code_gen_scope(func_data));
 
 		// Generate body
-		auto[loc, _] = p.get_function(id).get_bytecode().add_instruction(make_lbl(i.get_function_label(func_data.name).id));
+		auto [loc, _] = p.get_function(id).get_bytecode().add_instruction(
+		  make_lbl(i.get_function_label(func_data.name).id));
 
 		// Generate frame allocation
-		p.get_function(id).get_bytecode().add_instruction(make_alloc_ui8(func_data.locals_size));
+		auto stack_sizes = i.analyzed_functions[id].node_stack_sizes;
+		auto max_size = 0;
+		for (auto size : stack_sizes)
+			if (size.second > max_size) max_size = size.second;
+
+		assert(func_data.locals_size % 8 == 0);
+		p.get_function(id).get_bytecode().add_instruction(
+		  make_alloc_ui8(max_size / 8 - func_data.in_size / 8));
 
 		generate_bytecode(node.children[0], ast, p, i);
 
-		i.current_scope = function_scope;
+		i.set_scope(prev_scope);
 	}
 
-	void generate_tuple(node_id n, core_ast::ast& ast, program& p, code_gen_state& info)
+	void generate_tuple(node_id n, core_ast::ast &ast, program &p, code_gen_state &info)
 	{
 		link_to_parent_chunk(n, ast, info);
 
-		auto& node = ast.get_node(n);
+		auto &node = ast.get_node(n);
 
-		if (node.children.size() == 0)
-			return;
+		if (node.children.size() == 0) return;
 
 		generate_bytecode(node.children[0], ast, p, info);
 
@@ -211,7 +232,7 @@ namespace fe::vm
 			generate_bytecode(node.children[i], ast, p, info);
 	}
 
-	void generate_block(node_id n, core_ast::ast& ast, program& p, code_gen_state& info)
+	void generate_block(node_id n, core_ast::ast &ast, program &p, code_gen_state &info)
 	{
 		auto chunk_id = 0;
 		bool is_root = ast.root_id() == n;
@@ -227,170 +248,169 @@ namespace fe::vm
 			chunk_id = info.chunk_of(n);
 		}
 
-		auto& children = ast.children_of(n);
+		auto &children = ast.children_of(n);
 		assert(children.size() > 0);
 
 		far_lbl location(chunk_id, p.get_function(chunk_id).get_bytecode().size());
-
-		auto& analysis = info.analyzed_functions[chunk_id];
 
 		for (auto i = 0; i < children.size(); i++)
 			generate_bytecode(children[i], ast, p, info);
 
 		if (is_root)
-		{
-			p.get_function(info.chunk_of(n)).get_bytecode().add_instruction(make_exit());
-		}
-	}
+		{ p.get_function(info.chunk_of(n)).get_bytecode().add_instruction(make_exit()); }
+		} // weird clang #format
 
-	void generate_function_call(node_id n, core_ast::ast& ast, program& p, code_gen_state& i)
+	void generate_function_call(node_id n, core_ast::ast &ast, program &p, code_gen_state &i)
 	{
-		auto& node = ast.get_node(n);
-		i.link_node_chunk(n, i.chunk_of(ast.parent_of(n).id));
-		auto& bc = p.get_function(i.chunk_of(n)).get_bytecode();
+		auto &node = ast.get_node(n);
+		auto fid = i.chunk_of(ast.parent_of(n).id);
+		i.link_node_chunk(n, fid);
+		auto &bc = p.get_function(i.chunk_of(n)).get_bytecode();
 
-		auto& call_data = ast.get_data<core_ast::function_call_data>(*node.data_index);
+		auto &call_data = ast.get_data<core_ast::function_call_data>(*node.data_index);
 		core_ast::label func_label = i.get_function_label(call_data.name);
-		p.get_function(i.chunk_of(n)).get_symbols().insert({ func_label.id, call_data.name });
+		p.get_function(i.chunk_of(n))
+		  .get_symbols()
+		  .insert({ func_label.id, call_data.name });
 
-		reg first_reg = 0;
-		reg prev_reg = 0;
-		uint8_t reg_count = 0;
+		for (auto &child : node.children) { generate_bytecode(child, ast, p, i); }
 
-		for (auto& child : node.children)
+		// The number of parameter registers
+		auto after = i.last_alloced_register_after(fid, node.children.back());
+		auto before = i.last_alloced_register(fid, n);
+		uint8_t reg_count = after ? (after->val - (before ? before->val : -1)) : 0;
+
+		reg first_reg = i.next_register(fid, n);
+
+		reg res_reg = 0;
+		if (call_data.out_size > 0)
 		{
-			generate_bytecode(child, ast, p, i);
-
-			auto last = i.last_alloced_register();
-
-			if (reg_count > 0)
-			{
-				assert(last.val == prev_reg.val + 1);
-				prev_reg = last;
-			}
-			else
-			{
-				first_reg = i.last_alloced_register();
-				prev_reg = first_reg;
-			}
-
-			reg_count++;
+			// #todo larger out sizes
+			assert(call_data.out_size == 8);
+			res_reg = first_reg;
 		}
-
-		auto res_reg = call_data.out_size > 0 ? i.alloc_register() : 0;
-		// #todo larger out sizes
-		assert(call_data.out_size <= 8);
 
 		// Perform call
 		assert(node.size);
-		bc.add_instruction(make_call_ui64_ui8_ui8_ui8(func_label.id, first_reg.val, reg_count, res_reg.val));
+		bc.add_instruction(
+		  make_call_ui64_ui8_ui8_ui8(func_label.id, first_reg.val, reg_count, res_reg.val));
 	}
 
-	void generate_reference(node_id n, core_ast::ast& ast, program& p, code_gen_state& i)
+	void generate_reference(node_id n, core_ast::ast &ast, program &p, code_gen_state &i)
 	{
 		throw std::runtime_error("NYI ref");
 	}
 
-	void generate_return(node_id n, core_ast::ast& ast, program& p, code_gen_state& i)
+	void generate_return(node_id n, core_ast::ast &ast, program &p, code_gen_state &i)
 	{
 		link_to_parent_chunk(n, ast, i);
-		auto& node = ast.get_node(n);
+		auto &node = ast.get_node(n);
 		assert(node.children.size() == 1);
 		auto f_id = i.chunk_of(n);
-		auto& bc = p.get_function(f_id).get_bytecode();
+		auto &bc = p.get_function(f_id).get_bytecode();
 
 		generate_bytecode(node.children[0], ast, p, i);
 
 		auto ret_data = ast.get_node_data<core_ast::return_data>(n);
 
+		auto stack_sizes = i.analyzed_functions[f_id].node_stack_sizes;
+		auto max_size = 0;
+		for (auto size : stack_sizes)
+			if (size.second > max_size) max_size = size.second;
+		auto locals_size = i.scope.current_function.locals_size;
+
 		// #todo #rewrite all output sizes
 		assert(ret_data.out_size == 0 || ret_data.out_size == 8);
-		bc.add_instruction(make_ret(static_cast<uint8_t>(ret_data.in_size), ret_data.frame_size, i.last_alloced_register().val, ret_data.out_size / 8));
+		bc.add_instruction(make_ret(
+		  static_cast<uint8_t>(ret_data.in_size / 8), max_size / 8 + -ret_data.in_size / 8,
+		  i.last_alloced_register_after(f_id, node.children[0])->val, ret_data.out_size / 8));
 	}
 
-	void generate_stack_alloc(node_id n, core_ast::ast& ast, program& p, code_gen_state& i)
+	void generate_stack_alloc(node_id n, core_ast::ast &ast, program &p, code_gen_state &i)
 	{
 		link_to_parent_chunk(n, ast, i);
 	}
 
-	void generate_stack_dealloc(node_id n, core_ast::ast& ast, program& p, code_gen_state& i)
+	void generate_stack_dealloc(node_id n, core_ast::ast &ast, program &p, code_gen_state &i)
 	{
 		link_to_parent_chunk(n, ast, i);
+		auto &size = ast.get_node_data<core_ast::size>(n);
 	}
 
-	void generate_jump_not_zero(node_id n, core_ast::ast& ast, program& p, code_gen_state& i)
+	void generate_jump_not_zero(node_id n, core_ast::ast &ast, program &p, code_gen_state &i)
 	{
 		link_to_parent_chunk(n, ast, i);
-		auto& bc = p.get_function(i.chunk_of(n)).get_bytecode();
+		auto fid = i.chunk_of(n);
+		auto &bc = p.get_function(fid).get_bytecode();
 
-		auto& node = ast.get_node(n);
-		auto& lbl = ast.get_data<core_ast::label>(*node.data_index);
+		auto &node = ast.get_node(n);
+		auto &lbl = ast.get_data<core_ast::label>(*node.data_index);
+
+		auto test_reg = i.last_alloced_register(fid, n)->val;
 
 		// the label is a placeholder for the actual location
 		// We must first register all labels before we substitute the locations in the jumps
 		// As labels can occur after the jumps to them and locations can still change
-		auto[loc, size] = bc.add_instruction(make_jrnz_i32(i.last_alloced_register(), lbl.id));
-		i.dealloc_register(i.last_alloced_register());
+		auto [loc, size] = bc.add_instruction(make_jrnz_i32(test_reg, lbl.id));
 	}
 
-	void generate_jump_zero(node_id n, core_ast::ast& ast, program& p, code_gen_state& i)
+	void generate_jump_zero(node_id n, core_ast::ast &ast, program &p, code_gen_state &i)
 	{
 		link_to_parent_chunk(n, ast, i);
-		auto& bc = p.get_function(i.chunk_of(n)).get_bytecode();
+		auto fid = i.chunk_of(n);
+		auto &bc = p.get_function(fid).get_bytecode();
 
-		auto& node = ast.get_node(n);
-		auto& lbl = ast.get_data<core_ast::label>(*node.data_index);
+		auto &node = ast.get_node(n);
+		auto &lbl = ast.get_data<core_ast::label>(*node.data_index);
 
-		auto test_reg = i.alloc_register();
-		// the label is a placeholder for the actual location
-		// We must first register all labels before we substitute the locations in the jumps
-		// As labels can occur after the jumps to them and locations can still change
-		auto[loc, size] = bc.add_instruction(make_jrz_i32(i.last_alloced_register(), lbl.id));
-		i.dealloc_register(i.last_alloced_register());
-	}
-
-	void generate_jump(node_id n, core_ast::ast& ast, program& p, code_gen_state& i)
-	{
-		link_to_parent_chunk(n, ast, i);
-		auto& bc = p.get_function(i.chunk_of(n)).get_bytecode();
-		auto& node = ast.get_node(n);
-		auto& lbl = ast.get_data<core_ast::label>(*node.data_index);
+		auto test_reg = i.last_alloced_register(fid, n)->val;
 
 		// the label is a placeholder for the actual location
 		// We must first register all labels before we substitute the locations in the jumps
 		// As labels can occur after the jumps to them and locations can still change
-		auto[loc, size] = bc.add_instruction(make_jmpr_i32(lbl.id));
+		auto [loc, size] = bc.add_instruction(make_jrz_i32(test_reg, lbl.id));
 	}
 
-	void generate_label(node_id n, core_ast::ast& ast, program& p, code_gen_state& i)
+	void generate_jump(node_id n, core_ast::ast &ast, program &p, code_gen_state &i)
 	{
 		link_to_parent_chunk(n, ast, i);
-		auto& bc = p.get_function(i.chunk_of(n)).get_bytecode();
-		auto& node = ast.get_node(n);
-		auto& lbl = ast.get_data<core_ast::label>(*node.data_index);
+		auto &bc = p.get_function(i.chunk_of(n)).get_bytecode();
+		auto &node = ast.get_node(n);
+		auto &lbl = ast.get_data<core_ast::label>(*node.data_index);
 
-		auto[loc, size] = bc.add_instruction(make_lbl(lbl.id));
+		// the label is a placeholder for the actual location
+		// We must first register all labels before we substitute the locations in the jumps
+		// As labels can occur after the jumps to them and locations can still change
+		auto [loc, size] = bc.add_instruction(make_jmpr_i32(lbl.id));
 	}
 
-	void generate_stack_label(node_id n, core_ast::ast& ast, program& p, code_gen_state& i)
+	void generate_label(node_id n, core_ast::ast &ast, program &p, code_gen_state &i)
+	{
+		link_to_parent_chunk(n, ast, i);
+		auto &bc = p.get_function(i.chunk_of(n)).get_bytecode();
+		auto &node = ast.get_node(n);
+		auto &lbl = ast.get_data<core_ast::label>(*node.data_index);
+
+		auto [loc, size] = bc.add_instruction(make_lbl(lbl.id));
+	}
+
+	void generate_stack_label(node_id n, core_ast::ast &ast, program &p, code_gen_state &i)
 	{
 		link_to_parent_chunk(n, ast, i);
 		auto f_id = i.chunk_of(n);
-		auto& bc = p.get_function(f_id).get_bytecode();
-		auto& node = ast.get_node(n);
-		auto& lbl = ast.get_data<core_ast::stack_label>(*node.data_index);
+		auto &bc = p.get_function(f_id).get_bytecode();
+		auto &node = ast.get_node(n);
+		auto &lbl = ast.get_data<core_ast::stack_label>(*node.data_index);
 		i.set_stack_label_size(lbl.id, i.node_post_stack_size(f_id, n));
 	}
 
-	void generate_binary_op(node_id n, core_ast::ast& ast, program& p, code_gen_state& i)
+	void generate_binary_op(node_id n, core_ast::ast &ast, program &p, code_gen_state &i)
 	{
 		link_to_parent_chunk(n, ast, i);
 		auto f_id = i.chunk_of(n);
-		auto& bc = p.get_function(f_id).get_bytecode();
-		auto& children = ast.children_of(n);
+		auto &bc = p.get_function(f_id).get_bytecode();
+		auto &children = ast.children_of(n);
 		assert(children.size() == 2);
-
-		auto res_reg = i.alloc_register();
 
 		// children bytecode should leave 2 values on stack
 		generate_bytecode(children[0], ast, p, i);
@@ -401,55 +421,79 @@ namespace fe::vm
 		auto second_size = i.node_diff_stack_size(f_id, children[1]);
 		assert(second_size > 0 && second_size <= 8);
 
-		auto r_res_rhs = i.last_alloced_register();
-		i.dealloc_register(r_res_rhs);
-		auto r_res_lhs = i.last_alloced_register();
-		i.dealloc_register(r_res_lhs);
+		auto r_res_rhs = i.next_register(f_id, children[1]);
+		auto r_res_lhs = r_res_rhs.val - 1;
 
-		auto& node = ast.get_node(n);
+		auto &node = ast.get_node(n);
 		switch (node.kind)
 		{
-		case core_ast::node_type::ADD:bc.add_instruction(make_add(res_reg, r_res_lhs, r_res_rhs)); break;
-		case core_ast::node_type::SUB:bc.add_instruction(make_sub(res_reg, r_res_lhs, r_res_rhs)); break;
-		case core_ast::node_type::MUL:bc.add_instruction(make_mul(res_reg, r_res_lhs, r_res_rhs)); break;
-		case core_ast::node_type::DIV:bc.add_instruction(make_div(res_reg, r_res_lhs, r_res_rhs)); break;
-		case core_ast::node_type::MOD:bc.add_instruction(make_mod(res_reg, r_res_lhs, r_res_rhs)); break;
-		case core_ast::node_type::AND:bc.add_instruction(make_and(res_reg, r_res_lhs, r_res_rhs)); break;
-		case core_ast::node_type::OR: bc.add_instruction(make_or(res_reg, r_res_lhs, r_res_rhs)); break;
-		case core_ast::node_type::LT: bc.add_instruction(make_lt(res_reg, r_res_lhs, r_res_rhs)); break;
-		case core_ast::node_type::LEQ:bc.add_instruction(make_lte(res_reg, r_res_lhs, r_res_rhs)); break;
-		case core_ast::node_type::GT: bc.add_instruction(make_gt(res_reg, r_res_lhs, r_res_rhs)); break;
-		case core_ast::node_type::GEQ:bc.add_instruction(make_gte(res_reg, r_res_lhs, r_res_rhs)); break;
-		case core_ast::node_type::EQ: bc.add_instruction(make_eq(res_reg, r_res_lhs, r_res_rhs)); break;
-		case core_ast::node_type::NEQ:bc.add_instruction(make_neq(res_reg, r_res_lhs, r_res_rhs)); break;
+		case core_ast::node_type::ADD:
+			bc.add_instruction(make_add(r_res_lhs, r_res_lhs, r_res_rhs));
+			break;
+		case core_ast::node_type::SUB:
+			bc.add_instruction(make_sub(r_res_lhs, r_res_lhs, r_res_rhs));
+			break;
+		case core_ast::node_type::MUL:
+			bc.add_instruction(make_mul(r_res_lhs, r_res_lhs, r_res_rhs));
+			break;
+		case core_ast::node_type::DIV:
+			bc.add_instruction(make_div(r_res_lhs, r_res_lhs, r_res_rhs));
+			break;
+		case core_ast::node_type::MOD:
+			bc.add_instruction(make_mod(r_res_lhs, r_res_lhs, r_res_rhs));
+			break;
+		case core_ast::node_type::AND:
+			bc.add_instruction(make_and(r_res_lhs, r_res_lhs, r_res_rhs));
+			break;
+		case core_ast::node_type::OR:
+			bc.add_instruction(make_or(r_res_lhs, r_res_lhs, r_res_rhs));
+			break;
+		case core_ast::node_type::LT:
+			bc.add_instruction(make_lt(r_res_lhs, r_res_lhs, r_res_rhs));
+			break;
+		case core_ast::node_type::LEQ:
+			bc.add_instruction(make_lte(r_res_lhs, r_res_lhs, r_res_rhs));
+			break;
+		case core_ast::node_type::GT:
+			bc.add_instruction(make_gt(r_res_lhs, r_res_lhs, r_res_rhs));
+			break;
+		case core_ast::node_type::GEQ:
+			bc.add_instruction(make_gte(r_res_lhs, r_res_lhs, r_res_rhs));
+			break;
+		case core_ast::node_type::EQ:
+			bc.add_instruction(make_eq(r_res_lhs, r_res_lhs, r_res_rhs));
+			break;
+		case core_ast::node_type::NEQ:
+			bc.add_instruction(make_neq(r_res_lhs, r_res_lhs, r_res_rhs));
+			break;
 		}
 
 		// #todo not used?
 
-		//uint8_t res_size;
-		//switch (node.kind)
+		// uint8_t res_size;
+		// switch (node.kind)
 		//{
-		//case core_ast::node_type::ADD: case core_ast::node_type::SUB:
-		//case core_ast::node_type::MUL: case core_ast::node_type::DIV:
-		//case core_ast::node_type::MOD: case core_ast::node_type::AND:
-		//case core_ast::node_type::OR:
+		// case core_ast::node_type::ADD: case core_ast::node_type::SUB:
+		// case core_ast::node_type::MUL: case core_ast::node_type::DIV:
+		// case core_ast::node_type::MOD: case core_ast::node_type::AND:
+		// case core_ast::node_type::OR:
 		//	res_size = std::max(first_size, second_size);
 		//	break;
-		//case core_ast::node_type::LT: case core_ast::node_type::GEQ:
-		//case core_ast::node_type::GT: case core_ast::node_type::LEQ:
-		//case core_ast::node_type::EQ: case core_ast::node_type::NEQ:
+		// case core_ast::node_type::LT: case core_ast::node_type::GEQ:
+		// case core_ast::node_type::GT: case core_ast::node_type::LEQ:
+		// case core_ast::node_type::EQ: case core_ast::node_type::NEQ:
 		//	res_size = 1;
 		//	break;
 		//}
 	}
 
-	void generate_unary_op(node_id n, core_ast::ast& ast, program& p, code_gen_state& i)
+	void generate_unary_op(node_id n, core_ast::ast &ast, program &p, code_gen_state &i)
 	{
 		link_to_parent_chunk(n, ast, i);
 		auto f_id = i.chunk_of(n);
-		auto& bc = p.get_function(f_id).get_bytecode();
-		auto& children = ast.children_of(n);
-		auto& node = ast.get_node(n);
+		auto &bc = p.get_function(f_id).get_bytecode();
+		auto &children = ast.children_of(n);
+		auto &node = ast.get_node(n);
 		assert(children.size() == 1);
 
 		assert(node.kind == core_ast::node_type::NOT);
@@ -457,55 +501,74 @@ namespace fe::vm
 		// children bytecode should leave 1 value on stack
 		generate_bytecode(children[0], ast, p, i);
 		auto child_size = i.node_diff_stack_size(f_id, children[0]);
-		auto child_reg = i.last_alloced_register();
+		auto child_reg = *i.last_alloced_register(f_id, n);
 		bc.add_instruction(make_xor(child_reg, child_reg, 1));
 	}
 
-	void generate_push(node_id n, core_ast::ast& ast, program& p, code_gen_state& i)
+	void generate_push(node_id n, core_ast::ast &ast, program &p, code_gen_state &i)
 	{
 		link_to_parent_chunk(n, ast, i);
 		auto f_id = i.chunk_of(n);
-		auto& bc = p.get_function(f_id).get_bytecode();
-		auto& push_node = ast.get_node(n);
-		assert(push_node.children.size() == 1);
-		auto& push_size = ast.get_node_data<core_ast::size>(push_node);
+		auto &bc = p.get_function(f_id).get_bytecode();
+		auto &push_node = ast.get_node(n);
+		assert(push_node.children.size() == 1); // sanity check
+		auto &push_size = ast.get_node_data<core_ast::size>(push_node);
 
-		auto& from = ast.get_node(push_node.children[0]);
+		auto &from = ast.get_node(push_node.children[0]);
 		link_to_parent_chunk(from.id, ast, i);
 
-		assert(from.kind == core_ast::node_type::VARIABLE || from.kind == core_ast::node_type::DYNAMIC_VARIABLE
-			|| from.kind == core_ast::node_type::PARAM || from.kind == core_ast::node_type::DYNAMIC_PARAM
-			|| from.kind == core_ast::node_type::STATIC_OFFSET || from.kind == core_ast::node_type::RELATIVE_OFFSET);
+		// These are the valid nodes describing pop targets
+		assert(from.kind == core_ast::node_type::VARIABLE ||
+		       from.kind == core_ast::node_type::DYNAMIC_VARIABLE ||
+		       from.kind == core_ast::node_type::PARAM ||
+		       from.kind == core_ast::node_type::DYNAMIC_PARAM ||
+		       from.kind == core_ast::node_type::STATIC_OFFSET ||
+		       from.kind == core_ast::node_type::RELATIVE_OFFSET);
 
-		assert(from.kind == core_ast::node_type::VARIABLE);
-		auto& from_var = ast.get_node_data<core_ast::var_data>(from);
+		// Currently only implemented variables and params
+		assert(from.kind == core_ast::node_type::VARIABLE ||
+		       from.kind == core_ast::node_type::PARAM);
+
+		auto &from_var = ast.get_node_data<core_ast::var_data>(from);
 		assert(from_var.size == 8);
-		auto dst_reg = i.last_alloced_register();
-		bc.add_instruction(make_mv64_reg_reg(dst_reg, from_var.offset));
+		assert(from_var.offset % 8 == 0);
+
+		auto dst_reg = i.next_register(f_id, n);
+		bc.add_instruction(make_mv64_reg_reg(dst_reg, from_var.offset / 8));
 	}
 
-	void generate_pop(node_id n, core_ast::ast& ast, program& p, code_gen_state& i)
+	void generate_pop(node_id n, core_ast::ast &ast, program &p, code_gen_state &i)
 	{
 		link_to_parent_chunk(n, ast, i);
-		auto& bc = p.get_function(i.chunk_of(n)).get_bytecode();
-		auto& node = ast.get_node(n);
-		assert(node.children.size() == 1);
-		auto& to = ast.get_node(node.children[0]);
-		auto& data_size = ast.get_node_data<core_ast::size>(node);
+		auto fid = i.chunk_of(n);
+		auto &bc = p.get_function(fid).get_bytecode();
+		auto &node = ast.get_node(n);
+		assert(node.children.size() == 1); // sanity check
 
-		assert(to.kind == core_ast::node_type::VARIABLE || to.kind == core_ast::node_type::DYNAMIC_VARIABLE
-			|| to.kind == core_ast::node_type::PARAM || to.kind == core_ast::node_type::DYNAMIC_PARAM);
+		auto &to = ast.get_node(node.children[0]);
+		auto &data_size = ast.get_node_data<core_ast::size>(node);
 
-		assert(to.kind == core_ast::node_type::VARIABLE);
-		auto& to_var = ast.get_node_data<core_ast::var_data>(to);
+		// These are the valid nodes describing pop targets
+		assert(to.kind == core_ast::node_type::VARIABLE ||
+		       to.kind == core_ast::node_type::DYNAMIC_VARIABLE ||
+		       to.kind == core_ast::node_type::PARAM ||
+		       to.kind == core_ast::node_type::DYNAMIC_PARAM);
+
+		// Currently only implemented variables and params
+		assert(to.kind == core_ast::node_type::VARIABLE ||
+		       to.kind == core_ast::node_type::PARAM);
+
+		auto &to_var = ast.get_node_data<core_ast::var_data>(to);
 		assert(to_var.size == 8);
-		auto src_reg = i.last_alloced_register();
-		bc.add_instruction(make_mv64_reg_reg(to_var.offset, src_reg));
+		assert(to_var.offset % 8 == 0);
+
+		auto src_reg = *i.last_alloced_register(fid, n);
+		bc.add_instruction(make_mv64_reg_reg(to_var.offset / 8, src_reg));
 	}
 
-	void generate_bytecode(node_id n, core_ast::ast& ast, program& p, code_gen_state& i)
+	void generate_bytecode(node_id n, core_ast::ast &ast, program &p, code_gen_state &i)
 	{
-		auto& node = ast.get_node(n);
+		auto &node = ast.get_node(n);
 		switch (node.kind)
 		{
 		case core_ast::node_type::NUMBER: return generate_number(n, ast, p, i);
@@ -514,11 +577,13 @@ namespace fe::vm
 		case core_ast::node_type::FUNCTION: return generate_function(n, ast, p, i);
 		case core_ast::node_type::TUPLE: return generate_tuple(n, ast, p, i);
 		case core_ast::node_type::BLOCK: return generate_block(n, ast, p, i);
-		case core_ast::node_type::FUNCTION_CALL: return generate_function_call(n, ast, p, i);
+		case core_ast::node_type::FUNCTION_CALL:
+			return generate_function_call(n, ast, p, i);
 		case core_ast::node_type::REFERENCE: return generate_reference(n, ast, p, i);
 		case core_ast::node_type::RET: return generate_return(n, ast, p, i);
 		case core_ast::node_type::STACK_ALLOC: return generate_stack_alloc(n, ast, p, i);
-		case core_ast::node_type::STACK_DEALLOC: return generate_stack_dealloc(n, ast, p, i);
+		case core_ast::node_type::STACK_DEALLOC:
+			return generate_stack_dealloc(n, ast, p, i);
 		case core_ast::node_type::JNZ: return generate_jump_not_zero(n, ast, p, i);
 		case core_ast::node_type::JZ: return generate_jump_zero(n, ast, p, i);
 		case core_ast::node_type::JMP: return generate_jump(n, ast, p, i);
@@ -528,32 +593,43 @@ namespace fe::vm
 		case core_ast::node_type::POP: return generate_pop(n, ast, p, i);
 		case core_ast::node_type::NOP: return;
 		default:
-			if (core_ast::is_binary_op(node.kind)) return generate_binary_op(n, ast, p, i);
-			if (core_ast::is_unary_op(node.kind)) return generate_unary_op(n, ast, p, i);
+			if (core_ast::is_binary_op(node.kind))
+				return generate_binary_op(n, ast, p, i);
+			if (core_ast::is_unary_op(node.kind))
+				return generate_unary_op(n, ast, p, i);
 			throw std::runtime_error("Error in bytecode gen. stage: unknown node type");
 		}
 	}
 
-	program generate_bytecode(core_ast::ast& ast)
+	program generate_bytecode(core_ast::ast &ast)
 	{
 		// Program that will contain the chunks containing the bytecode
 		program p;
 
 		core_ast::ast_helper h(ast);
 
-		// Find the highest label allocated so far in the ast, so function labels wont overlap with jmp labels
+		// Find the highest label allocated so far in the ast, so function labels wont
+		// overlap with jmp labels
 		core_ast::label max_lbl{ 0 };
-		h.for_all_t(core_ast::node_type::LABEL, [&max_lbl, &ast](core_ast::node& node) {
-			auto& data = ast.get_node_data<core_ast::label>(node);
+		h.for_all_t(core_ast::node_type::LABEL, [&max_lbl, &ast](core_ast::node &node) {
+			auto &data = ast.get_node_data<core_ast::label>(node);
 			if (data.id > max_lbl.id) max_lbl.id = data.id;
 		});
 		max_lbl.id++;
 
-		// Meta information about intersection between core_ast and bytecode e.g. ast to chunk mapping etc.
+		// Meta information about intersection between core_ast and bytecode e.g. ast to
+		// chunk mapping etc.
 		code_gen_state i(max_lbl);
+
+		auto stack_analysis_res = core_ast::stack_analysis_result();
+		stack_analysis_res.pre_node_stack_sizes.insert({ 1, 0 });
+		stack_analysis_res.node_stack_sizes.insert({ 1, 0 });
+		stack_analysis_res.pre_node_stack_sizes.insert({ 2, 0 });
+		stack_analysis_res.node_stack_sizes.insert({ 2, 0 });
+		i.analyzed_functions.insert({ 0, stack_analysis_res });
 
 		generate_bytecode(ast.root_id(), ast, p, i);
 
 		return p;
 	}
-}
+} // namespace fe::vm

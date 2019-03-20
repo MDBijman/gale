@@ -463,10 +463,10 @@ namespace recursive_descent
 	fe::node_id parse_not(tree& t, token_stream_reader& ts)
 	{
 		ts.consume(token_kind::NOT);
-		auto not = t.create_node(fe::ext_ast::node_type::NOT);
+		auto not_node = t.create_node(fe::ext_ast::node_type::NOT);
 		auto n = parse_expression(t, ts);
-		link_child_parent(n, not, t);
-		return not;
+		link_child_parent(n, not_node, t);
+		return not_node;
 	}
 
 	fe::node_id parse_expression(tree& t, token_stream_reader& ts)
@@ -863,7 +863,8 @@ namespace recursive_descent
 
 		try
 		{
-			parse_file(t, token_stream_reader(in));
+			auto stream_reader = token_stream_reader(in);
+			parse_file(t, stream_reader);
 			return t;
 		}
 		catch (error e)

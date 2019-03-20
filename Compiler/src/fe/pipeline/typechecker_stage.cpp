@@ -1,4 +1,3 @@
-#pragma once
 #include "fe/data/ast_data.h"
 #include "fe/data/ext_ast.h"
 #include "fe/data/type_scope.h"
@@ -30,7 +29,7 @@ namespace fe::ext_ast
 
 		auto& scope = ast.get_type_scope(n.type_scope_id);
 		auto& id = ast.get_data<identifier>(n.data_index);
-		auto& res = scope.resolve_variable(id, ast.type_scope_cb());
+		auto res = scope.resolve_variable(id, ast.type_scope_cb());
 		assert(res);
 
 		auto t = types::unique_type(res->type.copy());
@@ -413,13 +412,13 @@ namespace fe::ext_ast
 
 		auto& from_node = ast.get_node(children[0]);
 		// #todo use type constraints
-		auto& from_constraint = type_constraints();
-		auto& from_type = typeof(from_node, ast, from_constraint);
+		auto from_constraint = type_constraints();
+		auto from_type = typeof(from_node, ast, from_constraint);
 
 		auto& to_node = ast.get_node(children[1]);
 		// #todo use type constraints
-		auto& to_constraint = type_constraints();
-		auto& to_type = typeof(to_node, ast, to_constraint);
+		auto to_constraint = type_constraints();
+		auto to_type = typeof(to_node, ast, to_constraint);
 
 		return types::unique_type(new types::function_type(std::move(from_type), std::move(to_type)));
 	}
@@ -432,11 +431,11 @@ namespace fe::ext_ast
 		assert(children.size() == 2);
 
 		auto& elem_node = ast.get_node(children[0]);
-		auto& elem_type = typeof(elem_node, ast, type_constraints());
+		auto elem_type = typeof(elem_node, ast, type_constraints());
 
 		auto& idx_node = ast.get_node(children[1]);
 		types::unique_type is_num(new types::ui64);
-		auto& idx_type = typeof(idx_node, ast, type_constraints({ equality_constraint(*is_num) }));
+		auto idx_type = typeof(idx_node, ast, type_constraints({ equality_constraint(*is_num) }));
 		auto num = ast.get_data<number>(idx_node.data_index).value;
 
 		return types::unique_type(new types::array_type(std::move(elem_type), num));
@@ -520,7 +519,7 @@ namespace fe::ext_ast
 		n.type_scope_id = ast.create_type_scope(parent.type_scope_id);
 
 		auto& constraint = std::get<equality_constraint>(tc.constraints[0]);
-		auto function_constraint = dynamic_cast<types::function_type*>(&constraint.to);
+		auto function_constraint = dynamic_cast<const types::function_type*>(&constraint.to);
 
 		auto& assignable_node = ast.get_node(children.at(0));
 		assert(assignable_node.kind == node_type::IDENTIFIER || assignable_node.kind == node_type::IDENTIFIER_TUPLE);
@@ -562,7 +561,9 @@ namespace fe::ext_ast
 		case node_type::FUNCTION_CALL: {
 			auto& id = ast.get_node(ast.get_children(n.children_id)[0]);
 			auto& name = ast.get_data<identifier>(id.data_index);
-			auto& t = scope.resolve_type(name, ast.type_scope_cb())->type;
+			auto res = scope.resolve_type(name, ast.type_scope_cb());
+			auto& t = res->type;
+			
 			auto& sum_type = *dynamic_cast<types::sum_type*>(dynamic_cast<types::product_type*>(&t)->product[1].get());
 			assert(sum_type == curr);
 
@@ -763,7 +764,7 @@ namespace fe::ext_ast
 		copy_parent_scope(n, ast);
 
 		auto& type_node = ast.get_node(children[1]);
-		auto& type = typeof(type_node, ast);
+		auto type = typeof(type_node, ast);
 
 		auto& scope = ast.get_type_scope(n.type_scope_id);
 		auto& lhs_node = ast.get_node(children[0]);
@@ -841,7 +842,8 @@ namespace fe::ext_ast
 		auto& test_node = ast.get_node(children[0]);
 		auto type = typeof(test_node, ast);
 
-		assert(*type == &types::boolean());
+		auto bool_type = types::boolean();
+		assert(*type == &bool_type);
 
 		auto& body_node = ast.get_node(children[1]);
 		typecheck(body_node, ast);
@@ -855,22 +857,23 @@ namespace fe::ext_ast
 		assert(children.size() >= 2);
 		copy_parent_scope(n, ast);
 
-		auto& if_test_type = typeof(ast.get_node(children[0]), ast);
-		auto& if_block_type = typeof(ast.get_node(children[1]), ast);
+		auto if_test_type = typeof(ast.get_node(children[0]), ast);
+		auto if_block_type = typeof(ast.get_node(children[1]), ast);
 
 		bool contains_else = children.size() % 2 == 1 ? true : false;
 		size_t size_excluding_else = children.size() - (children.size() % 2);
 		for (int i = 2; i < size_excluding_else; i += 2)
 		{
-			auto& test_type = typeof(ast.get_node(children[i]), ast);
-			auto& block_type = typeof(ast.get_node(children[i + 1]), ast);
-			assert(*test_type == &types::boolean());
+			auto test_type = typeof(ast.get_node(children[i]), ast);
+			auto block_type = typeof(ast.get_node(children[i + 1]), ast);
+			auto bool_type = types::boolean();
+			assert(*test_type == &bool_type);
 			assert(*block_type == &*if_block_type);
 		}
 
 		if (contains_else)
 		{
-			auto& else_block_type = typeof(ast.get_node(children.back()), ast);
+			auto else_block_type = typeof(ast.get_node(children.back()), ast);
 			assert(*else_block_type == &*if_block_type);
 		}
 	}

@@ -1,0 +1,10 @@
+module sumboolmatch
+import [std std.io]
+
+let sum : Num: std.ui64 | Bool: std.bool | Pair: (std.ui64, std.ui64) = Bool false;
+
+sum match {
+	| Num 3 -> { std.io.print 0; }
+	| Bool true -> { std.io.print 1; }
+	| Bool false -> { std.io.print 2; }
+};

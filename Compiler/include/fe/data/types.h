@@ -1,9 +1,9 @@
 #pragma once
-#include <vector>
-#include <variant>
+#include <assert.h>
 #include <memory>
 #include <optional>
-#include <assert.h>
+#include <variant>
+#include <vector>
 
 namespace fe
 {
@@ -11,44 +11,42 @@ namespace fe
 	{
 		namespace detail
 		{
-			template<class Derived, class Base>
-			struct comparable
+			template <class Derived, class Base> struct comparable
 			{
-			public:
-				bool operator==(Base* o) const
+			      public:
+				bool operator==(const Base *o) const
 				{
-					if (typeid(*o) == typeid(types::any))
-						return true;
+					// This doesnt work with gcc, because
+					// types::any is not defined yet, not
+					// sure why it works with msvc
+					// if (typeid(*o) == typeid(types::any))
+					//	return true;
 
-					if (typeid(Derived) != typeid(*o))
-						return false;
+					if (typeid(Derived) != typeid(*o)) return false;
 
-					const Derived & a = static_cast<const Derived&>(*this);
-					const Derived & b = static_cast<const Derived&>(*o);
+					const Derived &a = static_cast<const Derived &>(*this);
+					const Derived &b = static_cast<const Derived &>(*o);
 
 					return a == b;
 				}
 			};
 
-			template<class Derived, class Base>
-			struct copyable
+			template <class Derived, class Base> struct copyable
 			{
-			public:
-				Base * copy(const Derived& o) const
-				{
-					return new Derived(o);
-				}
+			      public:
+				Base *copy(const Derived &o) const { return new Derived(o); }
 			};
-		}
+		} // namespace detail
 
 		struct type
 		{
-			virtual ~type() = 0 {};
+			virtual ~type(){};
 			virtual operator std::string() const = 0;
-			virtual type* copy() const = 0;
+			virtual type *copy() const = 0;
 			virtual size_t calculate_size() const = 0;
-			virtual size_t calculate_offset(const std::vector<size_t>& offsets, size_t curr = 0) const = 0;
-			virtual bool operator==(type* other) const = 0;
+			virtual size_t calculate_offset(const std::vector<size_t> &offsets,
+							size_t curr = 0) const = 0;
+			virtual bool operator==(const type *other) const = 0;
 		};
 
 		using unique_type = std::unique_ptr<type>;
@@ -59,179 +57,205 @@ namespace fe
 		{
 			I8,
 			I16,
-			I32, 
+			I32,
 			I64,
 			UI8,
 			UI16,
-			UI32, 
+			UI32,
 			UI64,
-			F32, 
-			F64, 
-			BOOL, 
+			F32,
+			F64,
+			BOOL,
 			STRING,
-			UNSET, 
-			ANY, 
+			UNSET,
+			ANY,
 			VOID
 		};
 
-		constexpr const char* atom_type_str(atom_type lit)
+		constexpr const char *atom_type_str(atom_type lit)
 		{
 			switch (lit)
 			{
-			case atom_type::I8:        return "std.i8";     break;
-			case atom_type::I16:       return "std.i16";    break;
-			case atom_type::I32:       return "std.i32";    break;
-			case atom_type::I64:       return "std.i64";    break;
-			case atom_type::UI8:       return "std.ui8";     break;
-			case atom_type::UI16:      return "std.ui16";    break;
-			case atom_type::UI32:      return "std.ui32";   break;
-			case atom_type::UI64:      return "std.ui64";   break;
-			case atom_type::F32:       return "std.f32";    break;
-			case atom_type::F64:       return "std.f64";    break;
-			case atom_type::STRING:    return "std.str";    break;
-			case atom_type::BOOL:      return "std.bool";   break;
-			case atom_type::UNSET:     return "unset";      break;
-			case atom_type::ANY:       return "any";        break;
-			case atom_type::VOID:      return "void";       break;
+			case atom_type::I8: return "std.i8"; break;
+			case atom_type::I16: return "std.i16"; break;
+			case atom_type::I32: return "std.i32"; break;
+			case atom_type::I64: return "std.i64"; break;
+			case atom_type::UI8: return "std.ui8"; break;
+			case atom_type::UI16: return "std.ui16"; break;
+			case atom_type::UI32: return "std.ui32"; break;
+			case atom_type::UI64: return "std.ui64"; break;
+			case atom_type::F32: return "std.f32"; break;
+			case atom_type::F64: return "std.f64"; break;
+			case atom_type::STRING: return "std.str"; break;
+			case atom_type::BOOL: return "std.bool"; break;
+			case atom_type::UNSET: return "unset"; break;
+			case atom_type::ANY: return "any"; break;
+			case atom_type::VOID: return "void"; break;
 			}
-			assert(!"Unknown atom type");
-			throw std::runtime_error("Unknown atom type");
+			// Throwing an error in a constexpr is not allowed by
+			// gcc
+			return "";
+			// throw std::runtime_error("Unknown atom type");
 		};
 
 		constexpr size_t atom_type_size(atom_type lit)
 		{
 			switch (lit)
 			{
-			case atom_type::I8:        return 1;  break;
-			case atom_type::I16:       return 2;  break;
-			case atom_type::I32:       return 4;  break;
-			case atom_type::I64:       return 8;  break;
-			case atom_type::UI8:       return 1;  break;
-			case atom_type::UI16:      return 2;  break;
-			case atom_type::UI32:      return 4;  break;
-			case atom_type::UI64:      return 8;  break;
-			case atom_type::F32:       return 4;  break;
-			case atom_type::F64:       return 8;  break;
-			case atom_type::STRING:    return 8;  break;
-			case atom_type::BOOL:      return 1;  break;
-			case atom_type::UNSET:     return -1; break;
-			case atom_type::ANY:       return -1; break;
-			case atom_type::VOID:      return 0;  break;
+			case atom_type::I8: return 1; break;
+			case atom_type::I16: return 2; break;
+			case atom_type::I32: return 4; break;
+			case atom_type::I64: return 8; break;
+			case atom_type::UI8: return 1; break;
+			case atom_type::UI16: return 2; break;
+			case atom_type::UI32: return 4; break;
+			case atom_type::UI64: return 8; break;
+			case atom_type::F32: return 4; break;
+			case atom_type::F64: return 8; break;
+			case atom_type::STRING: return 8; break;
+			case atom_type::BOOL: return 1; break;
+			case atom_type::UNSET: return -1; break;
+			case atom_type::ANY: return -1; break;
+			case atom_type::VOID: return 0; break;
 			}
-			assert(!"Unknown atom type");
-			throw std::runtime_error("Unknown atom type");
+			// Throwing an error in a constexpr is not allowed by
+			// gcc
+			return 0;
+			// throw std::runtime_error("Unknown atom type");
 		}
 
-		template<atom_type Type>
-		struct atom : public type, private detail::comparable<atom<Type>, type>, private detail::copyable<atom<Type>, type>
+		template <atom_type Type>
+		struct atom : public type,
+			      public detail::comparable<atom<Type>, type>,
+			      public detail::copyable<atom<Type>, type>
 		{
 			atom() {}
 
 			// Move
-			atom(atom&& other) {}
-			atom& operator=(atom&& other) {}
+			atom(atom &&other) {}
+			atom &operator=(atom &&other) {}
 
 			// Copy
-			atom(const atom& other) {}
-			atom& operator=(const atom& other) {}
+			atom(const atom &other) {}
+			atom &operator=(const atom &other) {}
 
-			operator std::string() const override
+			operator std::string() const override { return atom_type_str(Type); }
+
+			bool operator==(const type *other) const override
 			{
-				return atom_type_str(Type);
+				return detail::comparable<atom<Type>, type>::operator==(other);
 			}
-
-			bool operator==(type* other) const override { return comparable::operator==(other); }
-			type* copy() const override { return copyable::copy(*this); }
+			type *copy() const override
+			{
+				return detail::copyable<atom<Type>, type>::copy(*this);
+			}
 			size_t calculate_size() const override { return atom_type_size(Type); }
-			size_t calculate_offset(const std::vector<size_t>& offsets, size_t curr = 0) const override
+			size_t calculate_offset(const std::vector<size_t> &offsets,
+						size_t curr = 0) const override
 			{
 				assert(curr == offsets.size());
 				return 0;
 			}
 		};
 
-		using i8         = atom<atom_type::I8>;
-		using i16        = atom<atom_type::I16>;
-		using i32        = atom<atom_type::I32>;
-		using i64        = atom<atom_type::I64>;
-		using ui8        = atom<atom_type::UI8>;
-		using ui16       = atom<atom_type::UI16>;
-		using ui32       = atom<atom_type::UI32>;
-		using ui64       = atom<atom_type::UI64>;
-		using f32        = atom<atom_type::F32>;
-		using f64        = atom<atom_type::F64>;
-		using boolean    = atom<atom_type::BOOL>;
-		using str        = atom<atom_type::STRING>;
-		using any        = atom<atom_type::ANY>;
-		using unset      = atom<atom_type::UNSET>;
-		using voidt      = atom<atom_type::VOID>;
+		using i8 = atom<atom_type::I8>;
+		using i16 = atom<atom_type::I16>;
+		using i32 = atom<atom_type::I32>;
+		using i64 = atom<atom_type::I64>;
+		using ui8 = atom<atom_type::UI8>;
+		using ui16 = atom<atom_type::UI16>;
+		using ui32 = atom<atom_type::UI32>;
+		using ui64 = atom<atom_type::UI64>;
+		using f32 = atom<atom_type::F32>;
+		using f64 = atom<atom_type::F64>;
+		using boolean = atom<atom_type::BOOL>;
+		using str = atom<atom_type::STRING>;
+		using any = atom<atom_type::ANY>;
+		using unset = atom<atom_type::UNSET>;
+		using voidt = atom<atom_type::VOID>;
 
 		// Composition types
 
-		struct sum_type : public type, private detail::comparable<sum_type, type>, private detail::copyable<sum_type, type>
+		struct sum_type : public type,
+				  public detail::comparable<sum_type, type>,
+				  public detail::copyable<sum_type, type>
 		{
 			sum_type();
 			sum_type(std::vector<unique_type> sum);
 
-			// Move
-			sum_type(sum_type&& other);
-			sum_type& operator=(sum_type&& other);
+			// Move constructor
+			sum_type(sum_type &&other);
+			// Move assignment operator
+			sum_type &operator=(sum_type &&other);
 
-			// Copy
-			sum_type(const sum_type& other);
-			sum_type& operator=(const sum_type& other);
+			// Copy constructor
+			sum_type(const sum_type &other);
+			// Copy assignment constructor
+			sum_type &operator=(const sum_type &other);
 
+			// Returns string representation of this type
 			operator std::string() const override;
-			bool operator==(type* other) const override { return comparable::operator==(other); }
-			type* copy() const override { return copyable::copy(*this); }
+
+			bool operator==(const type *other) const override
+			{
+				return comparable::operator==(other);
+			}
+
+			type *copy() const override { return copyable::copy(*this); }
+
 			size_t calculate_size() const override
-			{ 
+			{
 				size_t max = 0;
-				for (auto& t : sum)
+				for (auto &t : sum)
 				{
 					size_t s = t->calculate_size();
 					max = s > max ? s : max;
 				}
 				return max;
 			}
-			size_t calculate_offset(const std::vector<size_t>& offsets, size_t curr = 0) const override
+
+			size_t calculate_offset(const std::vector<size_t> &offsets,
+						size_t curr = 0) const override
 			{
 				assert(curr == offsets.size());
 				return 0;
 			}
 
-			types::type& operator[](int i)
-			{
-				return *sum[i];
-			}
+			types::type &operator[](int i) { return *sum[i]; }
 
 			size_t index_of(std::string name);
 
 			std::vector<unique_type> sum;
 		};
 
-		struct array_type : public type, private detail::comparable<array_type, type>, private detail::copyable<array_type, type>
+		struct array_type : public type,
+				    public detail::comparable<array_type, type>,
+				    public detail::copyable<array_type, type>
 		{
 			array_type();
 			array_type(unique_type t, size_t count);
-			array_type(type& t, size_t count);
+			array_type(type &t, size_t count);
 
 			// Move
-			array_type(array_type&& other);
-			array_type& operator=(array_type&& other);
+			array_type(array_type &&other);
+			array_type &operator=(array_type &&other);
 
 			// Copy
-			array_type(const array_type& other);
-			array_type& operator=(const array_type& other);
+			array_type(const array_type &other);
+			array_type &operator=(const array_type &other);
 
 			operator std::string() const override;
-			bool operator==(type* other) const override { return comparable::operator==(other); }
-			type* copy() const override { return copyable::copy(*this); }
+			bool operator==(const type *other) const override
+			{
+				return comparable::operator==(other);
+			}
+			type *copy() const override { return copyable::copy(*this); }
 			size_t calculate_size() const override
 			{
 				return count * element_type->calculate_size();
 			}
-			size_t calculate_offset(const std::vector<size_t>& offsets, size_t curr = 0) const override
+			size_t calculate_offset(const std::vector<size_t> &offsets,
+						size_t curr = 0) const override
 			{
 				assert(curr == offsets.size());
 				return 0;
@@ -241,28 +265,31 @@ namespace fe
 			unique_type element_type;
 		};
 
-		struct reference_type : public type, private detail::comparable<reference_type, type>, private detail::copyable<reference_type, type>
+		struct reference_type : public type,
+					public detail::comparable<reference_type, type>,
+					public detail::copyable<reference_type, type>
 		{
 			reference_type();
 			reference_type(unique_type t);
-			reference_type(type& t);
+			reference_type(type &t);
 
 			// Move
-			reference_type(reference_type&& other);
-			reference_type& operator=(reference_type&& other);
+			reference_type(reference_type &&other);
+			reference_type &operator=(reference_type &&other);
 
 			// Copy
-			reference_type(const reference_type& other);
-			reference_type& operator=(const reference_type& other);
+			reference_type(const reference_type &other);
+			reference_type &operator=(const reference_type &other);
 
 			operator std::string() const override;
-			bool operator==(type* other) const override { return comparable::operator==(other); }
-			type* copy() const override { return copyable::copy(*this); }
-			size_t calculate_size() const override
+			bool operator==(const type *other) const override
 			{
-				return 4;
+				return comparable::operator==(other);
 			}
-			size_t calculate_offset(const std::vector<size_t>& offsets, size_t curr = 0) const override
+			type *copy() const override { return copyable::copy(*this); }
+			size_t calculate_size() const override { return 4; }
+			size_t calculate_offset(const std::vector<size_t> &offsets,
+						size_t curr = 0) const override
 			{
 				assert(curr == offsets.size());
 				return 0;
@@ -271,34 +298,41 @@ namespace fe
 			unique_type referred_type;
 		};
 
-		struct product_type : public type, private detail::comparable<product_type, type>, private detail::copyable<product_type, type>
+		struct product_type : public type,
+				      public detail::comparable<product_type, type>,
+				      public detail::copyable<product_type, type>
 		{
 			product_type();
 			product_type(std::vector<unique_type> product);
 
 			// Move
-			product_type(product_type&& other);
-			product_type& operator=(product_type&& other);
+			product_type(product_type &&other);
+			product_type &operator=(product_type &&other);
 
 			// Copy
-			product_type(const product_type& other);
-			product_type& operator=(const product_type& other);
+			product_type(const product_type &other);
+			product_type &operator=(const product_type &other);
 
 			operator std::string() const override;
-			bool operator==(type* other) const override { return comparable::operator==(other); }
-			type* copy() const override { return copyable::copy(*this); }
+			bool operator==(const type *other) const override
+			{
+				return comparable::operator==(other);
+			}
+			type *copy() const override { return copyable::copy(*this); }
 			size_t calculate_size() const override
 			{
 				size_t sum = 0;
-				for (auto& t : product) sum += t->calculate_size();
+				for (auto &t : product) sum += t->calculate_size();
 				return sum;
 			}
-			size_t calculate_offset(const std::vector<size_t>& offsets, size_t curr = 0) const override
+			size_t calculate_offset(const std::vector<size_t> &offsets,
+						size_t curr = 0) const override
 			{
 				assert(curr < offsets.size());
 				auto offset = offsets[curr];
 				size_t sum = 0;
-				for(int i = 0; i < offset; i++) sum += product[i]->calculate_size();
+				for (int i = 0; i < offset; i++)
+					sum += product[i]->calculate_size();
 				sum += product[offset]->calculate_offset(offsets, curr + 1);
 				return sum;
 			}
@@ -306,27 +340,30 @@ namespace fe
 			std::vector<unique_type> product;
 		};
 
-		struct function_type : public type, private detail::comparable<function_type, type>, private detail::copyable<function_type, type>
+		struct function_type : public type,
+				       public detail::comparable<function_type, type>,
+				       public detail::copyable<function_type, type>
 		{
 			function_type(unique_type f, unique_type t);
-			function_type(const type& f, const type& t);
+			function_type(const type &f, const type &t);
 
 			// Move
-			function_type(function_type&& other);
-			function_type& operator=(function_type&& other);
+			function_type(function_type &&other);
+			function_type &operator=(function_type &&other);
 
 			// Copy
-			function_type(const function_type& other);
-			function_type& operator=(const function_type& other);
+			function_type(const function_type &other);
+			function_type &operator=(const function_type &other);
 
 			operator std::string() const override;
-			bool operator==(type* other) const override { return comparable::operator==(other); }
-			type* copy() const override { return copyable::copy(*this); }
-			size_t calculate_size() const override
+			bool operator==(const type *other) const override
 			{
-				return to->calculate_size();
+				return comparable::operator==(other);
 			}
-			size_t calculate_offset(const std::vector<size_t>& offsets, size_t curr = 0) const override
+			type *copy() const override { return copyable::copy(*this); }
+			size_t calculate_size() const override { return to->calculate_size(); }
+			size_t calculate_offset(const std::vector<size_t> &offsets,
+						size_t curr = 0) const override
 			{
 				assert(curr == offsets.size());
 				return 0;
@@ -335,27 +372,30 @@ namespace fe
 			unique_type from, to;
 		};
 
-		struct nominal_type : public type, private detail::comparable<nominal_type, type>, private detail::copyable<nominal_type, type>
+		struct nominal_type : public type,
+				      public detail::comparable<nominal_type, type>,
+				      public detail::copyable<nominal_type, type>
 		{
 			nominal_type(std::string name, unique_type inner);
-			nominal_type(std::string name, const type& inner);
+			nominal_type(std::string name, const type &inner);
 
 			// Move
-			nominal_type(nominal_type&& other);
-			nominal_type& operator=(nominal_type&& other);
+			nominal_type(nominal_type &&other);
+			nominal_type &operator=(nominal_type &&other);
 
 			// Copy
-			nominal_type(const nominal_type& other);
-			nominal_type& operator=(const nominal_type& other);
+			nominal_type(const nominal_type &other);
+			nominal_type &operator=(const nominal_type &other);
 
 			operator std::string() const override;
-			bool operator==(type* other) const override { return comparable::operator==(other); }
-			type* copy() const override { return copyable::copy(*this); }
-			size_t calculate_size() const override
+			bool operator==(const type *other) const override
 			{
-				return inner->calculate_size();
+				return comparable::operator==(other);
 			}
-			size_t calculate_offset(const std::vector<size_t>& offsets, size_t curr = 0) const override
+			type *copy() const override { return copyable::copy(*this); }
+			size_t calculate_size() const override { return inner->calculate_size(); }
+			size_t calculate_offset(const std::vector<size_t> &offsets,
+						size_t curr = 0) const override
 			{
 				return inner->calculate_offset(offsets, curr);
 			}
@@ -366,28 +406,25 @@ namespace fe
 
 		// Helper methods
 
-		const auto make_unique = [](auto& x) {
-			return std::unique_ptr<type>(x.copy());
-		};
+		const auto make_unique = [](auto &x) { return std::unique_ptr<type>(x.copy()); };
 
 		// Operators
 
-		template<atom_type T>
-		bool operator==(const atom<T>& one, const atom<T>& two)
+		template <atom_type T> bool operator==(const atom<T> &one, const atom<T> &two)
 		{
 			return true;
 		}
 
-		bool operator==(const sum_type& one, const sum_type& two);
+		bool operator==(const sum_type &one, const sum_type &two);
 
-		bool operator==(const product_type& one, const product_type& two);
+		bool operator==(const product_type &one, const product_type &two);
 
-		bool operator==(const function_type& one, const function_type& two);
+		bool operator==(const function_type &one, const function_type &two);
 
-		bool operator==(const array_type& one, const array_type& two);
+		bool operator==(const array_type &one, const array_type &two);
 
-		bool operator==(const reference_type& one, const reference_type& two);
+		bool operator==(const reference_type &one, const reference_type &two);
 
-		bool operator==(const nominal_type& one, const nominal_type& two);
-	}
-}
+		bool operator==(const nominal_type &one, const nominal_type &two);
+	} // namespace types
+} // namespace fe

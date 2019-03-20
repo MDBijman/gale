@@ -1,23 +1,23 @@
-#include "fe/pipeline/pipeline.h"
 #include "fe/modes/project.h"
-#include "fe/modes/repl.h"
+#include "fe/pipeline/pipeline.h"
+#include "fe/runtime/io.h"
 #include "utils/memory/small_vector.h"
-#include "fe/libraries/std/std_assert.h"
 
 #define CATCH_CONFIG_RUNNER
 #define CATCH_CONFIG_FAST_COMPILE
 #include <catch2/catch.hpp>
 
-#include <iostream>
 #include <filesystem>
+#include <iostream>
 
-int main(int argc, char** argv)
+int main(int argc, char **argv)
 {
 	auto mode = argc > 1 ? std::string(argv[1]) : "help";
 
-	auto possible_modes = { "test", "project", "help", "repl", "exit", "other" };
+	auto possible_modes = { "test", "project", "help", "exit", "other" };
 
-	if (argc == 2 && (std::find(possible_modes.begin(), possible_modes.end(), mode) == possible_modes.end()))
+	if (argc == 2 &&
+	    (std::find(possible_modes.begin(), possible_modes.end(), mode) == possible_modes.end()))
 	{
 		std::cout << "Unknown commandline argument: " << mode << std::endl;
 		std::cin.get();
@@ -25,16 +25,9 @@ int main(int argc, char** argv)
 	}
 
 	auto pipeline = fe::pipeline();
-
-	if (mode == "repl")
+	if (mode == "test")
 	{
-		auto repl = fe::repl(std::move(pipeline));
-		repl.run();
-		return 0;
-	}
-	else if (mode == "test")
-	{
-		std::vector<char*> commands;
+		std::vector<char *> commands;
 		commands.push_back(argv[0]);
 		for (int i = 2; i < argc; i++)
 			commands.push_back(argv[i]);
@@ -59,27 +52,20 @@ int main(int argc, char** argv)
 			}
 
 			fe::project proj(std::move(pipeline));
-			// std io
-			proj.add_module(fe::stdlib::io::load());
-			// std ui
-			proj.add_module(fe::stdlib::ui::load());
-			// std types
 			proj.add_module(fe::stdlib::typedefs::load());
-			// std assert
-			proj.add_module(fe::stdlib::assert::load());
+			proj.add_module(fe::stdlib::io::load());
 
-			fe::stdlib::io::set_iostream(std::make_unique<fe::stdlib::io::iostream>());
-
-			auto project_path = std::experimental::filesystem::path(argv[2]);
+			auto project_path = std::filesystem::path(argv[2]);
 			std::cout << "Project folder: " << project_path << "\n";
 
-			auto directory_it = std::experimental::filesystem::recursive_directory_iterator(argv[2]);
-			for (auto& item : directory_it)
+			auto directory_it = std::filesystem::recursive_directory_iterator(argv[2]);
+			for (auto &item : directory_it)
 			{
 				auto path = item.path();
-				if (path.filename().extension() != ".fe") continue;
+				if (path.filename().extension() != ".fe")
+					continue;
 
-				std::cout << "\nInterpreting file " << path.filename() << "\n";
+				std::cout << "\nCompiling file " << path.filename() << "\n";
 
 				auto file_or_error = utils::files::read_file(path.string());
 				if (std::holds_alternative<std::exception>(file_or_error))
@@ -87,64 +73,72 @@ int main(int argc, char** argv)
 					std::cout << "File not found\n";
 					continue;
 				}
-				auto& code = std::get<std::string>(file_or_error);
+				auto &code = std::get<std::string>(file_or_error);
 
-				proj.eval(code, fe::vm::vm_settings(fe::vm::vm_implementation::asm_, true, false, false, false));
+				proj.compile_to_file(
+				  "test", code, fe::project_settings(false, false, false, false));
 			}
 		}
-		catch (const lexing::error& e)
+		catch (const lexing::error &e)
 		{
 			std::cout << "Lexing error:\n" << e.message << "\n";
+			return 1;
 		}
-		catch (const fe::parse_error& e)
+		catch (const fe::parse_error &e)
 		{
 			std::cout << "Parse error:\n" << e.message << "\n";
+			return 1;
 		}
-		catch (const fe::typecheck_error& e)
+		catch (const fe::typecheck_error &e)
 		{
 			std::cout << "Typechecking error:\n" << e.message << "\n";
+			return 1;
 		}
-		catch (const fe::lower_error& e)
+		catch (const fe::lower_error &e)
 		{
 			std::cout << "Lowering error:\n" << e.message << "\n";
+			return 1;
 		}
-		catch (const fe::interp_error& e)
+		catch (const fe::interp_error &e)
 		{
 			std::cout << "Interp error:\n" << e.message << "\n";
+			return 1;
 		}
-		catch (const fe::resolution_error& e)
+		catch (const fe::resolution_error &e)
 		{
 			std::cout << "Resolution error:\n" << e.message << "\n";
+			return 1;
 		}
-		catch (const fe::type_env_error& e)
+		catch (const fe::type_env_error &e)
 		{
 			std::cout << e.message << "\n" << std::endl;
+			return 1;
 		}
-		catch (const fe::other_error& e)
+		catch (const fe::other_error &e)
 		{
 			std::cout << e.message << "\n" << std::endl;
+			return 1;
 		}
-		catch (const std::runtime_error& e)
+		catch (const std::runtime_error &e)
 		{
 			std::cout << e.what() << std::endl;
+			return 1;
 		}
 	}
 	else if (mode == "help")
 	{
-		std::cout
-			<< "The {language} toolset v0.0.1\n"
-			<< "Commands:\n"
-			<< "{language} project {project folder} {main module}\n"
-			<< "\tInterprets each module in the project folder, taking the main module as root\n"
-			<< "{language} test\n"
-			<< "\tRuns the toolset tests\n"
-			<< "{language} repl\n"
-			<< "\tStarts a REPL session\n"
-			<< std::endl;
-		std::cin.get();
+		std::cout << "The {language} toolset v0.0.1\n"
+			  << "Commands:\n"
+			  << "{language} project {project folder} {main module}\n"
+			  << "\tInterprets each module in the project folder, taking the main "
+			     "module as root\n"
+			  << "{language} test\n"
+			  << "\tRuns the toolset tests\n"
+			  << "{language} repl\n"
+			  << "\tStarts a REPL session\n"
+			  << std::endl;
 		return 0;
 	}
 
-	std::cin.get();
 	return 0;
 }

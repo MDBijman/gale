@@ -1,0 +1,12 @@
+module euler1
+import [std std.io]
+
+let sum : std.ui64 = 0;
+let i : std.ui64 = 1;
+while (i < 1000) {
+	if ((i % 3) == 0 || (i % 5) == 0) {
+		sum = sum + i;
+	};
+	i = i + 1;
+};
+std.io.println sum;
