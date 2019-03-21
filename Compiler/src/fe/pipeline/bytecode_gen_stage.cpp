@@ -24,7 +24,7 @@ namespace fe::vm
 		if (stack_size == 0)
 			return std::nullopt;
 		else
-			return reg(stack_size / 8 - 1);
+			return reg(stack_size - 1);
 	}
 
 	std::optional<reg> code_gen_state::last_alloced_register_after(uint32_t fid, uint32_t nid)
@@ -33,12 +33,12 @@ namespace fe::vm
 		if (stack_size == 0)
 			return std::nullopt;
 		else
-			return reg(stack_size / 8 - 1);
+			return reg(stack_size - 1);
 	}
 
 	reg code_gen_state::next_register(uint32_t fid, uint32_t nid)
 	{
-		return reg(this->analyzed_functions.at(fid).pre_node_stack_sizes.at(nid) / 8);
+		return reg(this->analyzed_functions.at(fid).pre_node_stack_sizes.at(nid));
 	}
 
 	void code_gen_state::link_node_chunk(node_id n, uint8_t c)
@@ -111,7 +111,8 @@ namespace fe::vm
 
 		auto &num = ast.get_data<fe::number>(*ast.get_node(n).data_index);
 		size_t size = 0;
-		reg r_result = i.next_register(fid, n);
+		auto last = i.last_alloced_register(fid, n);
+		reg r_result = (last ? last->val : -1) + number_size(num.type);
 		switch (num.type)
 		{
 		case number_type::UI8:
@@ -179,7 +180,7 @@ namespace fe::vm
 
 		auto value = ast.get_data<fe::boolean>(*ast.get_node(n).data_index).value;
 
-		reg r_res = i.next_register(fid, n);
+		reg r_res = i.last_alloced_register(fid, n)->val + 8;
 		auto [location, size] = bc.add_instructions(make_mv_reg_ui64(r_res, value ? 1 : 0));
 	}
 
@@ -211,7 +212,7 @@ namespace fe::vm
 
 		assert(func_data.locals_size % 8 == 0);
 		p.get_function(id).get_bytecode().add_instruction(
-		  make_alloc_ui8(max_size / 8 - func_data.in_size / 8));
+		  make_alloc_ui8(max_size - func_data.in_size));
 
 		generate_bytecode(node.children[0], ast, p, i);
 
@@ -280,20 +281,18 @@ namespace fe::vm
 		auto before = i.last_alloced_register(fid, n);
 		uint8_t reg_count = after ? (after->val - (before ? before->val : -1)) : 0;
 
-		reg first_reg = i.next_register(fid, n);
-
 		reg res_reg = 0;
 		if (call_data.out_size > 0)
 		{
 			// #todo larger out sizes
 			assert(call_data.out_size == 8);
-			res_reg = first_reg;
+			res_reg = (before ? before->val : -1) + call_data.out_size;
 		}
 
 		// Perform call
 		assert(node.size);
 		bc.add_instruction(
-		  make_call_ui64_ui8_ui8_ui8(func_label.id, first_reg.val, reg_count, res_reg.val));
+		  make_call_ui64_ui8_ui8_ui8(func_label.id, after->val, reg_count, res_reg.val));
 	}
 
 	void generate_reference(node_id n, core_ast::ast &ast, program &p, code_gen_state &i)
@@ -322,8 +321,8 @@ namespace fe::vm
 		// #todo #rewrite all output sizes
 		assert(ret_data.out_size == 0 || ret_data.out_size == 8);
 		bc.add_instruction(make_ret(
-		  static_cast<uint8_t>(ret_data.in_size / 8), max_size / 8 + -ret_data.in_size / 8,
-		  i.last_alloced_register_after(f_id, node.children[0])->val, ret_data.out_size / 8));
+		  static_cast<uint8_t>(ret_data.in_size), max_size - ret_data.in_size,
+		  i.last_alloced_register(f_id, n)->val + ret_data.out_size, ret_data.out_size));
 	}
 
 	void generate_stack_alloc(node_id n, core_ast::ast &ast, program &p, code_gen_state &i)
@@ -346,7 +345,7 @@ namespace fe::vm
 		auto &node = ast.get_node(n);
 		auto &lbl = ast.get_data<core_ast::label>(*node.data_index);
 
-		auto test_reg = i.last_alloced_register(fid, n)->val;
+		auto test_reg = i.last_alloced_register_after(fid, n)->val + 8;
 
 		// the label is a placeholder for the actual location
 		// We must first register all labels before we substitute the locations in the jumps
@@ -363,7 +362,7 @@ namespace fe::vm
 		auto &node = ast.get_node(n);
 		auto &lbl = ast.get_data<core_ast::label>(*node.data_index);
 
-		auto test_reg = i.last_alloced_register(fid, n)->val;
+		auto test_reg = i.last_alloced_register_after(fid, n)->val + 8;
 
 		// the label is a placeholder for the actual location
 		// We must first register all labels before we substitute the locations in the jumps
@@ -421,8 +420,8 @@ namespace fe::vm
 		auto second_size = i.node_diff_stack_size(f_id, children[1]);
 		assert(second_size > 0 && second_size <= 8);
 
-		auto r_res_rhs = i.next_register(f_id, children[1]);
-		auto r_res_lhs = r_res_rhs.val - 1;
+		auto r_res_rhs = reg(i.last_alloced_register_after(f_id, children[1])->val);
+		auto r_res_lhs = reg(i.last_alloced_register_after(f_id, children[0])->val);
 
 		auto &node = ast.get_node(n);
 		switch (node.kind)
@@ -533,8 +532,8 @@ namespace fe::vm
 		assert(from_var.size == 8);
 		assert(from_var.offset % 8 == 0);
 
-		auto dst_reg = i.next_register(f_id, n);
-		bc.add_instruction(make_mv64_reg_reg(dst_reg, from_var.offset / 8));
+		auto dst_reg = i.last_alloced_register_after(f_id, n)->val;
+		bc.add_instruction(make_mv64_reg_reg(dst_reg, from_var.offset + from_var.size - 1));
 	}
 
 	void generate_pop(node_id n, core_ast::ast &ast, program &p, code_gen_state &i)
@@ -562,8 +561,8 @@ namespace fe::vm
 		assert(to_var.size == 8);
 		assert(to_var.offset % 8 == 0);
 
-		auto src_reg = *i.last_alloced_register(fid, n);
-		bc.add_instruction(make_mv64_reg_reg(to_var.offset / 8, src_reg));
+		auto src_reg = i.last_alloced_register_after(fid, n)->val + to_var.size;
+		bc.add_instruction(make_mv64_reg_reg(to_var.offset + to_var.size - 1, reg(src_reg)));
 	}
 
 	void generate_bytecode(node_id n, core_ast::ast &ast, program &p, code_gen_state &i)
