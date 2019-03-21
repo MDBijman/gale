@@ -24,8 +24,7 @@ namespace fe::core_ast
 		if (parent.kind == node_type::FUNCTION)
 		{
 			// return
-			// ast.get_node_data<function_data>(parent.id).in_size +
-			// 8;
+			// ast.get_node_data<function_data>(parent.id).in_size + 8;
 			return res.node_stack_sizes.at(parent.id);
 		}
 

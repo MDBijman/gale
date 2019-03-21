@@ -336,7 +336,7 @@ namespace fe::ext_ast
 			auto test_res = lower(p, ast.get_node(children[i]), ast, new_ast, context);
 
 			// Does not count towards allocation size since JZ consumes the byte
-			assert(test_res.allocated_stack_space == 1);
+			assert(test_res.allocated_stack_space == 8);
 
 			auto jump = new_ast.create_node(core_ast::node_type::JZ, p);
 			new_ast.get_data<core_ast::label>(*new_ast.get_node(jump).data_index).id =
@@ -653,7 +653,7 @@ namespace fe::ext_ast
 		auto &bool_node = new_ast.get_node(bool_id);
 		new_ast.get_data<boolean>(*bool_node.data_index) = bool_data;
 
-		return lowering_result(location_type::stack, 1);
+		return lowering_result(location_type::stack, 8);
 	}
 
 	lowering_result lower_number(node_id p, node &n, ast &ast, core_ast::ast &new_ast,
@@ -1061,31 +1061,31 @@ namespace fe::ext_ast
 		case node_type::MODULO: new_node_type = core_ast::node_type::MOD; break;
 		case node_type::EQUALITY:
 			new_node_type = core_ast::node_type::EQ;
-			stack_bytes = 1;
+			stack_bytes = 8;
 			break;
 		case node_type::GREATER_OR_EQ:
 			new_node_type = core_ast::node_type::GEQ;
-			stack_bytes = 1;
+			stack_bytes = 8;
 			break;
 		case node_type::GREATER_THAN:
 			new_node_type = core_ast::node_type::GT;
-			stack_bytes = 1;
+			stack_bytes = 8;
 			break;
 		case node_type::LESS_OR_EQ:
 			new_node_type = core_ast::node_type::LEQ;
-			stack_bytes = 1;
+			stack_bytes = 8;
 			break;
 		case node_type::LESS_THAN:
 			new_node_type = core_ast::node_type::LT;
-			stack_bytes = 1;
+			stack_bytes = 8;
 			break;
 		case node_type::AND:
 			new_node_type = core_ast::node_type::AND;
-			stack_bytes = 1;
+			stack_bytes = 8;
 			break;
 		case node_type::OR:
 			new_node_type = core_ast::node_type::OR;
-			stack_bytes = 1;
+			stack_bytes = 8;
 			break;
 		default: throw lower_error{ "Unknown binary op" };
 		}
