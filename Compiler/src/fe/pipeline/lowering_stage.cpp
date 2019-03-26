@@ -41,14 +41,14 @@ namespace fe::ext_ast
 	struct function_context
 	{
 		variable_index next_idx = 0;
-		int total_var_size = 0;
-		int total_param_size = 0;
+		uint32_t total_var_size = 0;
+		uint32_t total_param_size = 0;
 
 		std::unordered_map<variable_index,
 				   std::pair<int /*offset from base*/, int /*size*/>>
 		  var_positions;
 
-		variable_index alloc_variable(int size)
+		variable_index alloc_variable(uint32_t size)
 		{
 			auto var_id = next_idx++;
 			var_positions.insert(
@@ -57,7 +57,7 @@ namespace fe::ext_ast
 			return var_id;
 		}
 
-		variable_index alloc_param(int size)
+		variable_index alloc_param(uint32_t size)
 		{
 			auto var_id = next_idx++;
 			var_positions.insert(
@@ -77,14 +77,12 @@ namespace fe::ext_ast
 
 		function_context curr_fn_context;
 
-		variable_index alloc_variable(int size)
+		variable_index alloc_variable(uint32_t size)
 		{
-			assert(size % 8 == 0);
 			return curr_fn_context.alloc_variable(size);
 		}
-		variable_index alloc_param(int size)
+		variable_index alloc_param(uint32_t size)
 		{
-			assert(size % 8 == 0);
 			return curr_fn_context.alloc_param(size);
 		}
 		variable_index get_offset(variable_index id)
@@ -336,7 +334,7 @@ namespace fe::ext_ast
 			auto test_res = lower(p, ast.get_node(children[i]), ast, new_ast, context);
 
 			// Does not count towards allocation size since JZ consumes the byte
-			assert(test_res.allocated_stack_space == 8);
+			assert(test_res.allocated_stack_space == 1);
 
 			auto jump = new_ast.create_node(core_ast::node_type::JZ, p);
 			new_ast.get_data<core_ast::label>(*new_ast.get_node(jump).data_index).id =
@@ -471,7 +469,7 @@ namespace fe::ext_ast
 		{
 			auto &num = ast.get_data<number>(n.data_index);
 
-			int32_t num_byte_size = number_size(num.type);
+			uint8_t num_byte_size = number_size(num.type);
 
 			auto eq = new_ast.create_node(core_ast::node_type::EQ);
 
@@ -510,7 +508,7 @@ namespace fe::ext_ast
 			return std::pair(eq, size);
 			break;
 		}
-		default: assert(!"Invalid pattern"); break;
+		default: throw std::runtime_error("Invalid pattern"); break;
 		}
 	}
 
@@ -653,7 +651,7 @@ namespace fe::ext_ast
 		auto &bool_node = new_ast.get_node(bool_id);
 		new_ast.get_data<boolean>(*bool_node.data_index) = bool_data;
 
-		return lowering_result(location_type::stack, 8);
+		return lowering_result(location_type::stack, 1);
 	}
 
 	lowering_result lower_number(node_id p, node &n, ast &ast, core_ast::ast &new_ast,
@@ -702,13 +700,6 @@ namespace fe::ext_ast
 		  core_ast::function_call_data(name.full, input_size, output_size);
 
 		new_ast.get_node_data<core_ast::function_call_data>(fun_id).out_size = output_size;
-
-		// If we output via a pointer we generate space the size of the output on the stack
-		if (output_size > 8)
-		{
-			auto alloc = new_ast.create_node(core_ast::node_type::STACK_ALLOC, fun_id);
-			new_ast.get_node_data<core_ast::size>(alloc).val = output_size;
-		}
 
 		auto param = lower(fun_id, ast.get_node(children[1]), ast, new_ast, context);
 
@@ -882,7 +873,7 @@ namespace fe::ext_ast
 			return lowering_result();
 		}
 
-		assert(!"error");
+		throw std::runtime_error("error");
 	}
 
 	lowering_result lower_type_definition(node_id p, node &n, ast &ast, core_ast::ast &new_ast,
@@ -966,15 +957,12 @@ namespace fe::ext_ast
 			auto fn = new_ast.create_node(core_ast::node_type::FUNCTION, p);
 			auto &fn_data = new_ast.get_data<core_ast::function_data>(
 			  *new_ast.get_node(fn).data_index);
-			fn_data.in_size = in_size + out_size;
-			fn_data.out_size = 0; /*output is written to space allocated by caller*/
+			fn_data.in_size = in_size;
+			fn_data.out_size = in_size + 1; /*output is written to space allocated by caller*/
 			fn_data.name = id.name;
 			fn_data.locals_size = 0;
 			context.curr_fn_context = function_context();
 
-			// This var is not cleared by the return because it contains the function
-			// output
-			auto out_var = context.alloc_param(out_size);
 			auto input_var = context.alloc_param(in_size);
 
 			auto ret = new_ast.create_node(core_ast::node_type::RET, fn);
@@ -989,20 +977,10 @@ namespace fe::ext_ast
 
 				auto move = new_ast.create_node(core_ast::node_type::PUSH, block);
 				new_ast.get_node_data<core_ast::size>(move).val = in_size;
-
 				// Resolve source (param at offset 0)
 				auto from = new_ast.create_node(core_ast::node_type::PARAM, move);
 				new_ast.get_node_data<core_ast::var_data>(from) = {
 					context.get_offset(input_var), context.get_size(input_var)
-				};
-
-				auto pop = new_ast.create_node(core_ast::node_type::POP, block);
-				new_ast.get_node_data<core_ast::size>(pop).val = in_size + 1;
-
-				// out location is before params
-				auto target = new_ast.create_node(core_ast::node_type::PARAM, pop);
-				new_ast.get_node_data<core_ast::var_data>(target) = {
-					context.get_offset(out_var), context.get_size(out_var)
 				};
 			}
 		}
@@ -1061,31 +1039,31 @@ namespace fe::ext_ast
 		case node_type::MODULO: new_node_type = core_ast::node_type::MOD; break;
 		case node_type::EQUALITY:
 			new_node_type = core_ast::node_type::EQ;
-			stack_bytes = 8;
+			stack_bytes = 1;
 			break;
 		case node_type::GREATER_OR_EQ:
 			new_node_type = core_ast::node_type::GEQ;
-			stack_bytes = 8;
+			stack_bytes = 1;
 			break;
 		case node_type::GREATER_THAN:
 			new_node_type = core_ast::node_type::GT;
-			stack_bytes = 8;
+			stack_bytes = 1;
 			break;
 		case node_type::LESS_OR_EQ:
 			new_node_type = core_ast::node_type::LEQ;
-			stack_bytes = 8;
+			stack_bytes = 1;
 			break;
 		case node_type::LESS_THAN:
 			new_node_type = core_ast::node_type::LT;
-			stack_bytes = 8;
+			stack_bytes = 1;
 			break;
 		case node_type::AND:
 			new_node_type = core_ast::node_type::AND;
-			stack_bytes = 8;
+			stack_bytes = 1;
 			break;
 		case node_type::OR:
 			new_node_type = core_ast::node_type::OR;
-			stack_bytes = 8;
+			stack_bytes = 1;
 			break;
 		default: throw lower_error{ "Unknown binary op" };
 		}
