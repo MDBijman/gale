@@ -26,7 +26,7 @@ namespace fe
 
 	enum class number_type { UI8, I8, UI16, I16, UI32, I32, UI64, I64 };
 
-	constexpr size_t number_size(number_type t)
+	constexpr uint8_t number_size(number_type t)
 	{
 		switch (t)
 		{
@@ -38,7 +38,7 @@ namespace fe
 		case number_type::I32: return 4;
 		case number_type::UI64: return 8;
 		case number_type::I64: return 8;
-		default: assert(!"Invalid number type"); return 0;
+		default: throw std::runtime_error("Invalid number type"); return 0;
 		}
 	}
 

@@ -2,7 +2,7 @@
 
 namespace fe::core_ast
 {
-	constexpr uint8_t BOOL_SIZE = 8;
+	constexpr uint8_t BOOL_SIZE = 1;
 
 	node_id predecessor(node_id n, ast &ast)
 	{

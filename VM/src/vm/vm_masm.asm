@@ -682,7 +682,7 @@ mv_reg_ui8 LABEL NEAR PTR WORD
 	shr r9, 8
 	and r9, 0ffh
 
-	mov [r13 + rax], r9
+	mov BYTE PTR [r13 + rax], r9b
 
 	add r8, 4
 	DISPATCH
@@ -854,9 +854,9 @@ jrnz_reg_i32 LABEL NEAR PTR WORD
 	shr r9, 8
 	movsxd r9, r9d
 
-	mov rax, QWORD PTR [r13 + rax]
+	mov al, BYTE PTR [r13 + rax]
 
-	cmp rax, 0
+	cmp al, 0
 	je _skip_jrnz
 	add r8, r9
 	DISPATCH
@@ -878,9 +878,9 @@ jrz_reg_i32 LABEL NEAR PTR WORD
 	shr r9, 8
 	movsxd r9, r9d
 
-	mov rax, QWORD PTR [r13 + rax]
+	mov al, BYTE PTR [r13 + rax]
 
-	cmp rax, 0
+	cmp al, 0
 	jne _skip_jrz
 	add r8, r9
 	DISPATCH
