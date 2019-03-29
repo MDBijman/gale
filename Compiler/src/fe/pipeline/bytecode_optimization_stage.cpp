@@ -99,20 +99,6 @@ namespace fe::vm
 					latest_writes[dest.val] = i;
 					break;
 				}
-				case op_kind::MV8_REG_REG:
-				case op_kind::MV16_REG_REG:
-				case op_kind::MV32_REG_REG:
-				case op_kind::MV64_REG_REG:
-				{
-					reg dest = current_instruction[1].val;
-					reg src = current_instruction[2].val;
-
-					local_graph.dependencies.push_back(
-					  dependency{ i, latest_writes[src.val] });
-
-					latest_writes[dest.val] = i;
-					break;
-				}
 				case op_kind::JRNZ_REG_I32:
 				case op_kind::JRZ_REG_I32:
 				{
@@ -135,6 +121,7 @@ namespace fe::vm
 					latest_writes[60] = i;
 					break;
 				}
+				 default: throw std::runtime_error("Unknown Op in opt stage");
 				}
 
 				index_to_op.insert({ i, op_i });
@@ -270,20 +257,6 @@ namespace fe::vm
 			return std::pair(mv_lit, new_op);
 		}
 
-		bool try_remove_mv(bytecode &bc, uint64_t mv)
-		{
-			byte *b = bc[mv];
-
-			reg dst = (b + 1)->val;
-			reg src = (b + 2)->val;
-
-			if (!(dst == src)) return false;
-
-			bc.set_instruction(mv,
-					   make_nops<ct_op_size<op_kind::MV64_REG_REG>::value>());
-
-			return true;
-		}
 	} // namespace peephole_optimizations
 
 	bool optimize_single_ops(program &e, program_dependency_graph &g, optimization_settings &s)
@@ -314,19 +287,6 @@ namespace fe::vm
 						old_op = replacement->first;
 						new_op = replacement->second;
 						break;
-					}
-
-					if (byte_to_op(bytecode[i]->val) == op_kind::MV64_REG_REG)
-					{
-						auto removed =
-						  peephole_optimizations::try_remove_mv(bytecode,
-											i);
-
-						if (removed)
-						{
-							old_op = i;
-							break;
-						}
 					}
 
 					i += op_size(byte_to_op(bytecode[i]->val));
@@ -413,18 +373,6 @@ namespace fe::vm
 			{
 				auto op = *it;
 				auto op_id = op - *bytecode.begin();
-				if (byte_to_op(op->val) == op_kind::MV8_REG_REG)
-				{
-					bool has_dependants = std::any_of(
-					  current_deps.begin(), current_deps.end(),
-					  [op_id](auto &dep) { return dep.depends_on == op_id; });
-
-					if (has_dependants) continue;
-
-					change_made = true;
-					*reinterpret_cast<bytes<3> *>(op) = make_nops<3>();
-					removed_ops.push_back(op_id);
-				}
 			}
 
 			current_deps.erase(

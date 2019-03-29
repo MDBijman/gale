@@ -157,15 +157,13 @@ namespace fe::vm
 			bc.add_instruction(make_mv_reg_i64(reg, val));
 			break;
 		}
-		case op_kind::MV8_REG_REG:
-		case op_kind::MV16_REG_REG:
-		case op_kind::MV32_REG_REG:
-		case op_kind::MV64_REG_REG:
-		case op_kind::MV_R64_L64:
+		case op_kind::MV_RN_LN:
+		case op_kind::MV_RN_RN:
 		{
+			uint8_t c = parse_uint8(iss);
 			uint8_t a = parse_uint8(iss);
 			uint8_t b = parse_uint8(iss);
-			bc.add_instruction(bytes<3>{ op_to_byte(op), a, b });
+			bc.add_instruction(bytes<4>{ op_to_byte(op), c, a, b });
 			break;
 		}
 		case op_kind::LBL_UI32:

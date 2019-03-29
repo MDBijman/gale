@@ -84,13 +84,11 @@ namespace fe::vm
 		MV_REG_I16,
 		MV_REG_I32,
 		MV_REG_I64,
-		// reg[b0] <- reg[b1]
-		MV8_REG_REG,
-		MV16_REG_REG,
-		MV32_REG_REG,
-		MV64_REG_REG,
-		// reg[b0] <- reg[reg[b2]], dynamic indexing
-		MV_R64_L64,
+
+		// Moves N bytes from source register to destination register
+		MV_RN_RN,
+		// Moves N bytes from source location to destination register
+		MV_RN_LN,
 
 		/*
 		 * Control
@@ -163,11 +161,8 @@ namespace fe::vm
 		case op_kind::MV_REG_I16: return 4;
 		case op_kind::MV_REG_I32: return 6;
 		case op_kind::MV_REG_I64: return 10;
-		case op_kind::MV8_REG_REG: return 3;
-		case op_kind::MV16_REG_REG: return 3;
-		case op_kind::MV32_REG_REG: return 3;
-		case op_kind::MV64_REG_REG: return 3;
-		case op_kind::MV_R64_L64: return 3;
+		case op_kind::MV_RN_RN: return 4;
+		case op_kind::MV_RN_LN: return 4;
 		case op_kind::LBL_UI32: return 5;
 		case op_kind::JMPR_I32: return 5;
 		case op_kind::JRNZ_REG_I32: return 6;
@@ -291,11 +286,8 @@ namespace fe::vm
 	bytes<6> make_mv_reg_i32(reg dest, int32_t a);
 	bytes<10> make_mv_reg_i64(reg dest, int64_t a);
 	bytes<3> make_mv_reg_reg(uint8_t bytes, reg dest, reg a);
-	bytes<3> make_mv8_reg_reg(reg dest, reg src);
-	bytes<3> make_mv16_reg_reg(reg dest, reg src);
-	bytes<3> make_mv32_reg_reg(reg dest, reg src);
-	bytes<3> make_mv64_reg_reg(reg dest, reg src);
-	bytes<3> make_mv_r64_l64(reg dest, reg src);
+	bytes<4> make_mv_rn_rn(byte count, reg dest, reg src);
+	bytes<4> make_mv_rn_ln(byte count, reg dest, reg src);
 	bytes<2> make_alloc_ui8(uint8_t size);
 	bytes<12> make_call_ui64_ui8_ui8_ui8(uint64_t ip, uint8_t reg, uint8_t regc,
 					     uint8_t ret_reg);

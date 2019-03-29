@@ -450,7 +450,7 @@ namespace fe::vm
 			case 8:
 				bc.add_instructions(
 				  make_and_r64_r64_r64(r_res + 7, r_res_lhs, r_res_rhs),
-				  make_mv8_reg_reg(r_res, r_res + 7));
+				  make_mv_rn_rn(1, r_res, r_res + 7));
 				break;
 			case 1:
 				bc.add_instruction(make_and_r8_r8_r8(r_res, r_res_lhs, r_res_rhs));
@@ -465,7 +465,7 @@ namespace fe::vm
 			case 8:
 				bc.add_instructions(
 				  make_or_r64_r64_r64(r_res + 7, r_res_lhs, r_res_rhs),
-				  make_mv8_reg_reg(r_res, r_res + 7));
+				  make_mv_rn_rn(1, r_res, r_res + 7));
 				break;
 			case 1:
 				bc.add_instruction(make_or_r8_r8_r8(r_res, r_res_lhs, r_res_rhs));
@@ -564,7 +564,7 @@ namespace fe::vm
 		       from.kind == core_ast::node_type::PARAM ||
 		       from.kind == core_ast::node_type::RELATIVE_OFFSET ||
 		       from.kind == core_ast::node_type::DYNAMIC_PARAM ||
-			   from.kind == core_ast::node_type::DYNAMIC_VARIABLE);
+		       from.kind == core_ast::node_type::DYNAMIC_VARIABLE);
 
 		auto dst_base = i.last_alloced_register_after(f_id, n)->val;
 		auto src_base = 0;
@@ -576,8 +576,8 @@ namespace fe::vm
 			auto off = i.get_stack_label_size(data.label_id);
 			src_base = off + data.offset - 1;
 		}
-		else if (from.kind == core_ast::node_type::DYNAMIC_PARAM
-		|| from.kind == core_ast::node_type::DYNAMIC_VARIABLE)
+		else if (from.kind == core_ast::node_type::DYNAMIC_PARAM ||
+			 from.kind == core_ast::node_type::DYNAMIC_VARIABLE)
 		{
 			// #security #fixme what if push size overrides variable index
 			src_is_location = true;
@@ -585,7 +585,8 @@ namespace fe::vm
 			auto &data = ast.get_node_data<core_ast::var_data>(from);
 			src_base = idx_reg->val;
 			assert(data.offset <= 255);
-			bc.add_instruction(make_add_r64_r64_ui8(src_base, src_base, data.offset + push_size - 1));
+			bc.add_instruction(
+			  make_add_r64_r64_ui8(src_base, src_base, data.offset + push_size - 1));
 		}
 		else
 		{
@@ -593,49 +594,10 @@ namespace fe::vm
 			src_base = data.offset + data.size - 1;
 		}
 
-		// Subdivide into bytecode moves
-		for (int j = 0; j < push_size;)
-		{
-			auto bytes_left = push_size - j;
-			auto src_reg = reg(src_base - j);
-			auto dst_reg = reg(dst_base - j);
-
-			if (bytes_left >= 8)
-			{
-				if (src_is_location)
-					bc.add_instruction(make_mv_r64_l64(dst_reg, src_reg));
-				else
-					bc.add_instruction(make_mv64_reg_reg(dst_reg, src_reg));
-				j += 8;
-			}
-			else if (bytes_left >= 4)
-			{
-				if (src_is_location)
-					throw std::runtime_error(
-					  "Moving 32 bits from location not yet implemented");
-				else
-					bc.add_instruction(make_mv32_reg_reg(dst_reg, src_reg));
-				j += 4;
-			}
-			else if (bytes_left >= 2)
-			{
-				if (src_is_location)
-					throw std::runtime_error(
-					  "Moving 16 bits from location not yet implemented");
-				else
-					bc.add_instruction(make_mv16_reg_reg(dst_reg, src_reg));
-				j += 2;
-			}
-			else if (bytes_left == 1)
-			{
-				if (src_is_location)
-					throw std::runtime_error(
-					  "Moving 8 bits from location not yet implemented");
-				else
-					bc.add_instruction(make_mv8_reg_reg(dst_reg, src_reg));
-				break;
-			}
-		}
+		if (!src_is_location)
+			bc.add_instruction(make_mv_rn_rn(push_size, dst_base, src_base));
+		else
+			bc.add_instruction(make_mv_rn_ln(push_size, dst_base, src_base));
 	}
 
 	void generate_pop(node_id n, core_ast::ast &ast, program &p, code_gen_state &i)
@@ -662,33 +624,7 @@ namespace fe::vm
 		auto &to_var = ast.get_node_data<core_ast::var_data>(to);
 		auto base = i.last_alloced_register(fid, n)->val;
 
-		for (int j = 0; j < to_var.size;)
-		{
-			auto bytes_left = to_var.size - j;
-			auto src_reg = reg(base - j);
-			auto dst_reg = reg(to_var.offset + to_var.size - 1 - j);
-
-			if (bytes_left >= 8)
-			{
-				bc.add_instruction(make_mv64_reg_reg(dst_reg, src_reg));
-				j += 8;
-			}
-			else if (bytes_left >= 4)
-			{
-				bc.add_instruction(make_mv32_reg_reg(dst_reg, src_reg));
-				j += 4;
-			}
-			else if (bytes_left >= 2)
-			{
-				bc.add_instruction(make_mv16_reg_reg(dst_reg, src_reg));
-				j += 2;
-			}
-			else if (bytes_left == 1)
-			{
-				bc.add_instruction(make_mv8_reg_reg(dst_reg, src_reg));
-				break;
-			}
-		}
+		bc.add_instruction(make_mv_rn_rn(to_var.size, reg(to_var.offset + to_var.size - 1), reg(base)));
 	}
 
 	void generate_bytecode(node_id n, core_ast::ast &ast, program &p, code_gen_state &i)

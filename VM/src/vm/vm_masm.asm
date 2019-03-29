@@ -997,117 +997,151 @@ mv_reg_ui64 LABEL NEAR PTR WORD
 	DISPATCH
 ; END mv reg ui64 | mv reg i64
 
-; BEGIN mv8 reg reg
-mv8_reg_reg LABEL NEAR PTR WORD
-	; rax gets target
+; BEGIN mv count reg reg
+mv_rn_rn LABEL NEAR PTR WORD
 	shr r9, 16
+
+	; rax gets count
 	xor rax, rax
 	mov al, r9b
-	neg rax
 
-	; rbx gets source
+	; rbx gets dest
 	shr r9, 8
 	xor rbx, rbx
 	mov bl, r9b
 	neg rbx
 
-	mov rcx, QWORD PTR [r13 + rbx]
-	and rcx, 0ffh
-	mov BYTE PTR [r13 + rax], cl
+	; r9 gets source
+	shr r9, 8
+	and r9, 0ffh
+	neg r9
 
-	add r8, 4
+	; move as many 8 bytes as posible
+	_mv_8_mv_rn_rn:
+	cmp rax, 8
+	jl _mv_4_mv_rn_rn
+
+	mov rcx, QWORD PTR [r13 + r9]
+	mov QWORD PTR [r13 + rbx], rcx
+	sub rax, 8
+	add r9, 8
+	add rbx, 8
+
+	jmp _mv_8_mv_rn_rn
+
+	; move as many 4 bytes as posible
+	_mv_4_mv_rn_rn:
+	cmp rax, 4
+	jl _mv_2_mv_rn_rn
+
+	mov ecx, DWORD PTR [r13 + r9]
+	mov DWORD PTR [r13 + rbx], ecx
+	sub rax, 4
+	add r9, 4
+	add rbx, 4
+
+	jmp _mv_4_mv_rn_rn
+
+	; move as many 2 bytes as posible
+	_mv_2_mv_rn_rn:
+	cmp rax, 2
+	jl _mv_1_mv_rn_rn
+
+	mov cx, WORD PTR [r13 + r9]
+	mov WORD PTR [r13 + rbx], cx
+	sub rax, 2
+	add r9, 2
+	add rbx, 2
+
+	jmp _mv_2_mv_rn_rn
+
+	; move last byte if possible
+	_mv_1_mv_rn_rn:
+	cmp rax, 1
+	jl _mv_0_mv_rn_rn
+
+	mov cl, BYTE PTR [r13 + r9]
+	mov BYTE PTR [r13 + rbx], cl
+
+	_mv_0_mv_rn_rn:
+
+	add r8, 5
 	DISPATCH
-; END mv8 reg reg
+; END mv count reg reg
 
-; BEGIN mv16 reg reg
-mv16_reg_reg LABEL NEAR PTR WORD
-	; rax gets target
+; BEGIN mv count rn ln
+mv_rn_ln LABEL NEAR PTR WORD
 	shr r9, 16
+
+	; rax gets count
 	xor rax, rax
 	mov al, r9b
-	neg rax
 
-	; rbx gets source
+	; rbx gets dest
 	shr r9, 8
 	xor rbx, rbx
 	mov bl, r9b
 	neg rbx
 
-	mov rcx, QWORD PTR [r13 + rbx]
-	and rcx, 0ffffh
-	mov WORD PTR [r13 + rax], cx
-
-	add r8, 4
-	DISPATCH
-; END mv16 reg reg
-
-; BEGIN mv32 reg reg
-mv32_reg_reg LABEL NEAR PTR WORD
-	; rax gets target
-	shr r9, 16
-	xor rax, rax
-	mov al, r9b
-	neg rax
-
-	; rbx gets source
+	; r9 gets source
 	shr r9, 8
-	xor rbx, rbx
-	mov bl, r9b
-	neg rbx
+	and r9, 0ffh
+	neg r9
+	mov r9, QWORD PTR [r13 + r9]
+	neg r9
 
-	mov rcx, QWORD PTR [r13 + rbx]
-	and rcx, 0ffffffffh
-	mov DWORD PTR [r13 + rax], ecx
+	; move as many 8 bytes as posible
+	_mv_8_mv_rn_ln:
+	cmp rax, 8
+	jl _mv_4_mv_rn_ln
 
-	add r8, 4
+	mov rcx, QWORD PTR [r13 + r9]
+	mov QWORD PTR [r13 + rbx], rcx
+	sub rax, 8
+	add r9, 8
+	add rbx, 8
+
+	jmp _mv_8_mv_rn_ln
+
+	; move as many 4 bytes as posible
+	_mv_4_mv_rn_ln:
+	cmp rax, 4
+	jl _mv_2_mv_rn_ln
+
+	mov ecx, DWORD PTR [r13 + r9]
+	mov DWORD PTR [r13 + rbx], ecx
+	sub rax, 4
+	add r9, 4
+	add rbx, 4
+
+	jmp _mv_4_mv_rn_ln
+
+	; move as many 2 bytes as posible
+	_mv_2_mv_rn_ln:
+	cmp rax, 2
+	jl _mv_1_mv_rn_ln
+
+	mov cx, WORD PTR [r13 + r9]
+	mov WORD PTR [r13 + rbx], cx
+	sub rax, 2
+	add r9, 2
+	add rbx, 2
+
+	jmp _mv_2_mv_rn_ln
+
+	; move last byte if possible
+	_mv_1_mv_rn_ln:
+	cmp rax, 1
+	jl _mv_0_mv_rn_ln
+
+	mov cl, BYTE PTR [r13 + r9]
+	mov BYTE PTR [r13 + rbx], cl
+
+	_mv_0_mv_rn_ln:
+
+	add r8, 5
 	DISPATCH
-; END mv32 reg reg
-
-; BEGIN mv64 reg reg
-mv64_reg_reg LABEL NEAR PTR WORD
-	shr r9, 16
-
-	; rax gets target
-	xor rax, rax
-	mov al, r9b
-	neg rax
-
-	; rbx gets source
-	shr r9, 8
-	xor rbx, rbx
-	mov bl, r9b
-	neg rbx
-
-	mov rcx, QWORD PTR [r13 + rbx]
-	mov QWORD PTR [r13 + rax], rcx
-
-	add r8, 4
-	DISPATCH
-; END mv64 reg reg
-
-; BEGIN mv r64 l64
-mv_r64_l64 LABEL NEAR PTR WORD
-	shr r9, 16
-
-	; rax gets target
-	xor rax, rax
-	mov al, r9b
-	neg rax
-
-	; rbx gets location source
-	shr r9, 8
-	xor rbx, rbx
-	mov bl, r9b
-	neg rbx
-
-	mov rcx, QWORD PTR [r13 + rbx]
-	neg rcx
-	mov rcx, QWORD PTR [r13 + rcx]
-	mov QWORD PTR [r13 + rax], rcx
-
-	add r8, 4
-	DISPATCH
-; END mv r64 l64
+; END mv count rn ln
 
 ; BEGIN jmpr i32
 jmpr_i32 LABEL NEAR PTR WORD
@@ -1546,27 +1580,12 @@ sub rcx, rbx
 mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, mv8_reg_reg
+lea rcx, mv_rn_rn
 sub rcx, rbx
 mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, mv16_reg_reg
-sub rcx, rbx
-mov [rax + rdx*2], cx
-
-inc rdx
-lea rcx, mv32_reg_reg
-sub rcx, rbx
-mov [rax + rdx*2], cx
-
-inc rdx
-lea rcx, mv64_reg_reg
-sub rcx, rbx
-mov [rax + rdx*2], cx
-
-inc rdx
-lea rcx, mv_r64_l64
+lea rcx, mv_rn_ln
 sub rcx, rbx
 mov [rax + rdx*2], cx
 
