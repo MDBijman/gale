@@ -107,11 +107,11 @@ for test_case in validated_test_cases:
 
     result = { 'result': 'success' }
 
-    # Execute the process, the default timeout is 15, maybe change/make configurable
+    # Execute the process, the default timeout is 5, maybe change/make configurable
     try:
-        out, err = process.communicate(timeout = 15)
+        out, err = process.communicate(timeout = 5)
         result['time'] = "{0:.2f}".format(time.time() - before)
-    except TimeoutError:
+    except subprocess.TimeoutExpired:
         process.kill()
         result = { 'result': 'timeout' }
 
@@ -125,6 +125,7 @@ for test_case in validated_test_cases:
         if expected != actual:
             result['result'] = 'fail'
             result['exitcode'] = { 'actual': actual, 'expected': expected }
+    # Match the stdout(put) of the process
     if 'stdout' in matches:
         expected = matches['stdout']
         actual = out

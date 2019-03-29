@@ -26,7 +26,7 @@ namespace fe
 
 	enum class number_type { UI8, I8, UI16, I16, UI32, I32, UI64, I64 };
 
-	constexpr size_t number_size(number_type t)
+	constexpr uint8_t number_size(number_type t)
 	{
 		switch (t)
 		{
@@ -38,7 +38,7 @@ namespace fe
 		case number_type::I32: return 4;
 		case number_type::UI64: return 8;
 		case number_type::I64: return 8;
-		default: assert(!"Invalid number type"); return 0;
+		default: throw std::runtime_error("Invalid number type"); return 0;
 		}
 	}
 
@@ -170,9 +170,9 @@ namespace fe::core_ast
 
 	struct return_data
 	{
-		return_data() : size(0) {}
-		return_data(size_t size) : size(size) {}
-		size_t size;
+		return_data() : in_size(0), frame_size(0), out_size(0) {}
+		return_data(size_t in_size, size_t frame_size, size_t out_size) : in_size(in_size), frame_size(frame_size), out_size(out_size) {}
+		size_t in_size, frame_size, out_size;
 	};
 
 	struct function_data
@@ -187,9 +187,9 @@ namespace fe::core_ast
 	struct function_call_data
 	{
 		function_call_data() {}
-		function_call_data(std::string name, size_t in, size_t out) : name(name), in_size(in), out_size(out) {}
+		function_call_data(const std::string& name, uint32_t in, uint32_t out) : name(name), out_size(out), in_size(in) {}
 		std::string name;
-		size_t in_size, out_size;
+		uint32_t out_size, in_size;
 	};
 }
 
