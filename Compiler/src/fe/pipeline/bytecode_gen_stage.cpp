@@ -180,7 +180,8 @@ namespace fe::vm
 
 		auto value = ast.get_data<fe::boolean>(*ast.get_node(n).data_index).value;
 
-		reg r_res = i.last_alloced_register(fid, n)->val + 1;
+		auto last_reg = i.last_alloced_register(fid, n);
+		reg r_res = (last_reg ? last_reg->val + 1 : 0);
 		auto [location, size] = bc.add_instructions(make_mv_reg_ui8(r_res, value ? 1 : 0));
 	}
 
@@ -226,9 +227,7 @@ namespace fe::vm
 
 		if (node.children.size() == 0) return;
 
-		generate_bytecode(node.children[0], ast, p, info);
-
-		for (auto i = 1; i < node.children.size(); i++)
+		for (auto i = 0; i < node.children.size(); i++)
 			generate_bytecode(node.children[i], ast, p, info);
 	}
 
@@ -337,7 +336,8 @@ namespace fe::vm
 		auto &node = ast.get_node(n);
 		auto &lbl = ast.get_data<core_ast::label>(*node.data_index);
 
-		auto test_reg = i.last_alloced_register_after(fid, n)->val + 1;
+		auto last_reg = i.last_alloced_register_after(fid, n);
+		auto test_reg = (last_reg ? last_reg->val + 1 : 0);
 
 		// the label is a placeholder for the actual location
 		// We must first register all labels before we substitute the locations in the jumps
@@ -354,7 +354,8 @@ namespace fe::vm
 		auto &node = ast.get_node(n);
 		auto &lbl = ast.get_data<core_ast::label>(*node.data_index);
 
-		auto test_reg = i.last_alloced_register_after(fid, n)->val + 1;
+		auto last_reg = i.last_alloced_register_after(fid, n);
+		auto test_reg = (last_reg ? last_reg->val + 1 : 0);
 
 		// the label is a placeholder for the actual location
 		// We must first register all labels before we substitute the locations in the jumps
@@ -412,6 +413,9 @@ namespace fe::vm
 		auto second_size = i.node_diff_stack_size(f_id, children[1]);
 		assert(second_size > 0 && second_size <= 8);
 
+		assert(second_size == first_size);
+		auto in_size = first_size;
+
 		auto r_res_rhs = reg(i.last_alloced_register_after(f_id, children[1])->val);
 		auto r_res_lhs = reg(i.last_alloced_register_after(f_id, children[0])->val);
 		auto r_res = i.last_alloced_register_after(f_id, n)->val;
@@ -420,87 +424,100 @@ namespace fe::vm
 		switch (node.kind)
 		{
 		case core_ast::node_type::ADD:
-			bc.add_instruction(make_add(r_res, r_res_lhs, r_res_rhs));
+			assert(in_size == 8);
+			bc.add_instruction(make_add_r64_r64_r64(r_res, r_res_lhs, r_res_rhs));
 			break;
 		case core_ast::node_type::SUB:
-			bc.add_instruction(make_sub(r_res, r_res_lhs, r_res_rhs));
+			assert(in_size == 8);
+			bc.add_instruction(make_sub_r64_r64_r64(r_res, r_res_lhs, r_res_rhs));
 			break;
 		case core_ast::node_type::MUL:
-			bc.add_instruction(make_mul(r_res, r_res_lhs, r_res_rhs));
+			assert(in_size == 8);
+			bc.add_instruction(make_mul_r64_r64_r64(r_res, r_res_lhs, r_res_rhs));
 			break;
 		case core_ast::node_type::DIV:
-			bc.add_instruction(make_div(r_res, r_res_lhs, r_res_rhs));
+			assert(in_size == 8);
+			bc.add_instruction(make_div_r64_r64_r64(r_res, r_res_lhs, r_res_rhs));
 			break;
 		case core_ast::node_type::MOD:
-			bc.add_instruction(make_mod(r_res, r_res_lhs, r_res_rhs));
+			assert(in_size == 8);
+			bc.add_instruction(make_mod_r64_r64_r64(r_res, r_res_lhs, r_res_rhs));
 			break;
 		case core_ast::node_type::AND:
-			bc.add_instructions(
-				make_and(r_res + 7, r_res_lhs, r_res_rhs),
-				make_mv8_reg_reg(r_res, r_res + 7)
-				);
-			break;
+		{
+			switch (in_size)
+			{
+			case 8:
+				bc.add_instructions(
+				  make_and_r64_r64_r64(r_res + 7, r_res_lhs, r_res_rhs),
+				  make_mv8_reg_reg(r_res, r_res + 7));
+				break;
+			case 1:
+				bc.add_instruction(make_and_r8_r8_r8(r_res, r_res_lhs, r_res_rhs));
+				break;
+			}
+		}
+		break;
 		case core_ast::node_type::OR:
-			bc.add_instructions(
-				make_or(r_res + 7, r_res_lhs, r_res_rhs),
-				make_mv8_reg_reg(r_res, r_res + 7)
-				);
-			break;
+		{
+			switch (in_size)
+			{
+			case 8:
+				bc.add_instructions(
+				  make_or_r64_r64_r64(r_res + 7, r_res_lhs, r_res_rhs),
+				  make_mv8_reg_reg(r_res, r_res + 7));
+				break;
+			case 1:
+				bc.add_instruction(make_or_r8_r8_r8(r_res, r_res_lhs, r_res_rhs));
+				break;
+			}
+		}
+		break;
 		case core_ast::node_type::LT:
-			bc.add_instructions(
-				make_lt(r_res + 7, r_res_lhs, r_res_rhs),
-				make_mv8_reg_reg(r_res, r_res + 7)
-				);
+			assert(in_size == 8);
+			bc.add_instruction(make_lt_r8_r64_r64(r_res, r_res_lhs, r_res_rhs));
 			break;
 		case core_ast::node_type::LEQ:
-			bc.add_instructions(
-				make_lte(r_res + 7, r_res_lhs, r_res_rhs),
-				make_mv8_reg_reg(r_res, r_res + 7)
-				);
+			assert(in_size == 8);
+			bc.add_instruction(make_lte_r8_r64_r64(r_res, r_res_lhs, r_res_rhs));
 			break;
 		case core_ast::node_type::GT:
-			bc.add_instructions(
-				make_gt(r_res + 7, r_res_lhs, r_res_rhs),
-				make_mv8_reg_reg(r_res, r_res + 7)
-				);
+			assert(in_size == 8);
+			bc.add_instruction(make_gt_r8_r64_r64(r_res, r_res_lhs, r_res_rhs));
 			break;
 		case core_ast::node_type::GEQ:
-			bc.add_instructions(
-				make_gte(r_res + 7, r_res_lhs, r_res_rhs),
-				make_mv8_reg_reg(r_res, r_res + 7)
-				);
+			assert(in_size == 8);
+			bc.add_instruction(make_gte_r8_r64_r64(r_res, r_res_lhs, r_res_rhs));
 			break;
 		case core_ast::node_type::EQ:
-			bc.add_instructions(
-				make_eq(r_res + 7, r_res_lhs, r_res_rhs),
-				make_mv8_reg_reg(r_res, r_res + 7)
-				);
-			break;
-		case core_ast::node_type::NEQ:
-			bc.add_instructions(
-				make_neq(r_res + 7, r_res_lhs, r_res_rhs),
-				make_mv8_reg_reg(r_res, r_res + 7)
-				);
-			break;
+		{
+			switch (in_size)
+			{
+			case 8:
+				bc.add_instructions(
+				  make_eq_r8_r64_r64(r_res, r_res_lhs, r_res_rhs));
+				break;
+			case 1:
+				bc.add_instruction(make_eq_r8_r8_r8(r_res, r_res_lhs, r_res_rhs));
+				break;
+			}
 		}
-
-		// #todo not used?
-
-		// uint8_t res_size;
-		// switch (node.kind)
-		//{
-		// case core_ast::node_type::ADD: case core_ast::node_type::SUB:
-		// case core_ast::node_type::MUL: case core_ast::node_type::DIV:
-		// case core_ast::node_type::MOD: case core_ast::node_type::AND:
-		// case core_ast::node_type::OR:
-		//	res_size = std::max(first_size, second_size);
-		//	break;
-		// case core_ast::node_type::LT: case core_ast::node_type::GEQ:
-		// case core_ast::node_type::GT: case core_ast::node_type::LEQ:
-		// case core_ast::node_type::EQ: case core_ast::node_type::NEQ:
-		//	res_size = 1;
-		//	break;
-		//}
+		break;
+		case core_ast::node_type::NEQ:
+		{
+			switch (in_size)
+			{
+			case 8:
+				bc.add_instructions(
+				  make_neq_r8_r64_r64(r_res, r_res_lhs, r_res_rhs));
+				break;
+			case 1:
+				bc.add_instruction(make_neq_r8_r8_r8(r_res, r_res_lhs, r_res_rhs));
+				break;
+			}
+		}
+		break;
+		}
 	}
 
 	void generate_unary_op(node_id n, core_ast::ast &ast, program &p, code_gen_state &i)
@@ -518,7 +535,8 @@ namespace fe::vm
 		generate_bytecode(children[0], ast, p, i);
 		auto child_size = i.node_diff_stack_size(f_id, children[0]);
 		auto child_reg = *i.last_alloced_register(f_id, n);
-		bc.add_instruction(make_xor(child_reg, child_reg, 1));
+		assert(child_size == 1);
+		bc.add_instruction(make_xor_r8_r8_ui8(child_reg, child_reg, 1));
 	}
 
 	void generate_push(node_id n, core_ast::ast &ast, program &p, code_gen_state &i)
@@ -541,27 +559,41 @@ namespace fe::vm
 		       from.kind == core_ast::node_type::STATIC_OFFSET ||
 		       from.kind == core_ast::node_type::RELATIVE_OFFSET);
 
-		// Currently only implemented variables and params
+		// Currently only implemented these types
 		assert(from.kind == core_ast::node_type::VARIABLE ||
 		       from.kind == core_ast::node_type::PARAM ||
-					 from.kind == core_ast::node_type::RELATIVE_OFFSET);
+		       from.kind == core_ast::node_type::RELATIVE_OFFSET ||
+		       from.kind == core_ast::node_type::DYNAMIC_PARAM ||
+			   from.kind == core_ast::node_type::DYNAMIC_VARIABLE);
 
 		auto dst_base = i.last_alloced_register_after(f_id, n)->val;
 		auto src_base = 0;
+		bool src_is_location = false;
 
-		if(from.kind == core_ast::node_type::RELATIVE_OFFSET)
+		if (from.kind == core_ast::node_type::RELATIVE_OFFSET)
 		{
-			auto& data = ast.get_node_data<core_ast::relative_offset>(from);
+			auto &data = ast.get_node_data<core_ast::relative_offset>(from);
 			auto off = i.get_stack_label_size(data.label_id);
-			src_base = off + data.offset;
+			src_base = off + data.offset - 1;
 		}
-		else 
+		else if (from.kind == core_ast::node_type::DYNAMIC_PARAM
+		|| from.kind == core_ast::node_type::DYNAMIC_VARIABLE)
 		{
-			auto& data = ast.get_node_data<core_ast::var_data>(from);
+			// #security #fixme what if push size overrides variable index
+			src_is_location = true;
+			auto idx_reg = i.last_alloced_register(f_id, n);
+			auto &data = ast.get_node_data<core_ast::var_data>(from);
+			src_base = idx_reg->val;
+			assert(data.offset <= 255);
+			bc.add_instruction(make_add_r64_r64_ui8(src_base, src_base, data.offset + push_size - 1));
+		}
+		else
+		{
+			auto &data = ast.get_node_data<core_ast::var_data>(from);
 			src_base = data.offset + data.size - 1;
 		}
 
-
+		// Subdivide into bytecode moves
 		for (int j = 0; j < push_size;)
 		{
 			auto bytes_left = push_size - j;
@@ -570,22 +602,37 @@ namespace fe::vm
 
 			if (bytes_left >= 8)
 			{
-				bc.add_instruction(make_mv64_reg_reg(dst_reg, src_reg));
+				if (src_is_location)
+					bc.add_instruction(make_mv_r64_l64(dst_reg, src_reg));
+				else
+					bc.add_instruction(make_mv64_reg_reg(dst_reg, src_reg));
 				j += 8;
 			}
 			else if (bytes_left >= 4)
 			{
-				bc.add_instruction(make_mv32_reg_reg(dst_reg, src_reg));
+				if (src_is_location)
+					throw std::runtime_error(
+					  "Moving 32 bits from location not yet implemented");
+				else
+					bc.add_instruction(make_mv32_reg_reg(dst_reg, src_reg));
 				j += 4;
 			}
 			else if (bytes_left >= 2)
 			{
-				bc.add_instruction(make_mv16_reg_reg(dst_reg, src_reg));
+				if (src_is_location)
+					throw std::runtime_error(
+					  "Moving 16 bits from location not yet implemented");
+				else
+					bc.add_instruction(make_mv16_reg_reg(dst_reg, src_reg));
 				j += 2;
 			}
 			else if (bytes_left == 1)
 			{
-				bc.add_instruction(make_mv8_reg_reg(dst_reg, src_reg));
+				if (src_is_location)
+					throw std::runtime_error(
+					  "Moving 8 bits from location not yet implemented");
+				else
+					bc.add_instruction(make_mv8_reg_reg(dst_reg, src_reg));
 				break;
 			}
 		}

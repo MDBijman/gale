@@ -27,50 +27,54 @@ namespace fe::vm
 		 */
 
 		// reg[b0] <- reg[b1] + reg[b2]
-		ADD_REG_REG_REG,
-		ADD_REG_REG_UI8,
+		ADD_R64_R64_R64,
+		ADD_R64_R64_UI8,
 		// reg[b0] <- reg[b1] - reg[b2]
-		SUB_REG_REG_REG,
-		SUB_REG_REG_UI8,
+		SUB_R64_R64_R64,
+		SUB_R64_R64_UI8,
 		// reg[b0] <- reg[b1] * reg[b2]
-		MUL_REG_REG_REG,
+		MUL_R64_R64_R64,
 		// reg[b0] <- reg[b1] / reg[b2]
-		DIV_REG_REG_REG,
+		DIV_R64_R64_R64,
 		// reg[b0] <- reg[b1] % reg[b2]
-		MOD_REG_REG_REG,
+		MOD_R64_R64_R64,
 
 		/*
 		 * Logic
 		 */
 
 		// if reg[b1] > reg[b2] { reg[b0] <- 1 } else { reg[b0] <- 0 }
-		GT_REG_REG_REG,
+		GT_R8_R64_R64,
+		GT_R8_R8_R8,
 		// if reg[b1] >= reg[b2] { reg[b0] <- 1 } else { reg[b0] <- 0 }
-		GTE_REG_REG_REG,
+		GTE_R8_R64_R64,
+		GTE_R8_R8_R8,
 		// if reg[b1] < reg[b2] { reg[b0] <- 1 } else { reg[b0] <- 0 }
-		LT_REG_REG_REG,
+		LT_R8_R64_R64,
+		LT_R8_R8_R8,
 		// if reg[b1] <= reg[b2] { reg[b0] <- 1 } else { reg[b0] <- 0 }
-		LTE_REG_REG_REG,
-		LTE_REG_REG_I8,
+		LTE_R8_R64_R64,
+		LTE_R8_R8_R8,
 		// if reg[b1] == reg[b2] { reg[b0] <- 1 } else { reg[b0] <- 0 }
-		EQ_REG_REG_REG,
+		EQ_R8_R64_R64,
+		EQ_R8_R8_R8,
 		// if reg[b1] != reg[b2] { reg[b0] <- 1 } else { reg[b0] <- 0 }
-		NEQ_REG_REG_REG,
+		NEQ_R8_R64_R64,
+		NEQ_R8_R8_R8,
 		// reg[b0] <- reg[b1] & reg[b2]
-		AND_REG_REG_REG,
-		AND_REG_REG_UI8,
+		AND_R64_R64_R64,
+		AND_R8_R8_R8,
+		AND_R8_R8_UI8,
 		// reg[b0] <- reg[b1] | reg[b2]
-		OR_REG_REG_REG,
+		OR_R64_R64_R64,
+		OR_R8_R8_R8,
 		// reg[b0] <- reg[b1] ^ b2
-		XOR_REG_REG_UI8,
+		XOR_R8_R8_UI8,
 
 		/*
-		 * Control
+		 * Data
 		 */
 
-		// #security -> leaks information about addresses ?
-		// reg[b0] <- ip
-		MV_REG_IP,
 		// reg[b0] <- b1
 		MV_REG_UI8,
 		MV_REG_UI16,
@@ -85,6 +89,12 @@ namespace fe::vm
 		MV16_REG_REG,
 		MV32_REG_REG,
 		MV64_REG_REG,
+		// reg[b0] <- reg[reg[b2]], dynamic indexing
+		MV_R64_L64,
+
+		/*
+		 * Control
+		 */
 
 		// jump relative: ip += b0
 		JMPR_I32,
@@ -96,7 +106,7 @@ namespace fe::vm
 		// register)
 		CALL_UI64_UI8_UI8_UI8,
 		CALL_NATIVE_UI64_UI8_UI8,
-
+		// Used at the start of a new scope to allocate registers
 		ALLOC_UI8,
 
 		// Ret(argument count, additional frame size, first return register, return register
@@ -120,25 +130,31 @@ namespace fe::vm
 		switch (o)
 		{
 		case op_kind::NOP: return 1;
-		case op_kind::ADD_REG_REG_REG: return 4;
-		case op_kind::ADD_REG_REG_UI8: return 4;
-		case op_kind::SUB_REG_REG_REG: return 4;
-		case op_kind::SUB_REG_REG_UI8: return 4;
-		case op_kind::MUL_REG_REG_REG: return 4;
-		case op_kind::DIV_REG_REG_REG: return 4;
-		case op_kind::MOD_REG_REG_REG: return 4;
-		case op_kind::GT_REG_REG_REG: return 4;
-		case op_kind::GTE_REG_REG_REG: return 4;
-		case op_kind::LT_REG_REG_REG: return 4;
-		case op_kind::LTE_REG_REG_REG: return 4;
-		case op_kind::LTE_REG_REG_I8: return 4;
-		case op_kind::EQ_REG_REG_REG: return 4;
-		case op_kind::NEQ_REG_REG_REG: return 4;
-		case op_kind::AND_REG_REG_REG: return 4;
-		case op_kind::AND_REG_REG_UI8: return 4;
-		case op_kind::OR_REG_REG_REG: return 4;
-		case op_kind::XOR_REG_REG_UI8: return 4;
-		case op_kind::MV_REG_IP: return 2;
+		case op_kind::ADD_R64_R64_R64: return 4;
+		case op_kind::ADD_R64_R64_UI8: return 4;
+		case op_kind::SUB_R64_R64_R64: return 4;
+		case op_kind::SUB_R64_R64_UI8: return 4;
+		case op_kind::MUL_R64_R64_R64: return 4;
+		case op_kind::DIV_R64_R64_R64: return 4;
+		case op_kind::MOD_R64_R64_R64: return 4;
+		case op_kind::GT_R8_R64_R64: return 4;
+		case op_kind::GT_R8_R8_R8: return 4;
+		case op_kind::GTE_R8_R64_R64: return 4;
+		case op_kind::GTE_R8_R8_R8: return 4;
+		case op_kind::LT_R8_R64_R64: return 4;
+		case op_kind::LT_R8_R8_R8: return 4;
+		case op_kind::LTE_R8_R64_R64: return 4;
+		case op_kind::LTE_R8_R8_R8: return 4;
+		case op_kind::EQ_R8_R64_R64: return 4;
+		case op_kind::EQ_R8_R8_R8: return 4;
+		case op_kind::NEQ_R8_R64_R64: return 4;
+		case op_kind::NEQ_R8_R8_R8: return 4;
+		case op_kind::AND_R64_R64_R64: return 4;
+		case op_kind::AND_R8_R8_R8: return 4;
+		case op_kind::AND_R8_R8_UI8: return 4;
+		case op_kind::OR_R64_R64_R64: return 4;
+		case op_kind::OR_R8_R8_R8: return 4;
+		case op_kind::XOR_R8_R8_UI8: return 4;
 		case op_kind::MV_REG_UI8: return 3;
 		case op_kind::MV_REG_UI16: return 4;
 		case op_kind::MV_REG_UI32: return 6;
@@ -151,6 +167,7 @@ namespace fe::vm
 		case op_kind::MV16_REG_REG: return 3;
 		case op_kind::MV32_REG_REG: return 3;
 		case op_kind::MV64_REG_REG: return 3;
+		case op_kind::MV_R64_L64: return 3;
 		case op_kind::LBL_UI32: return 5;
 		case op_kind::JMPR_I32: return 5;
 		case op_kind::JRNZ_REG_I32: return 6;
@@ -160,7 +177,7 @@ namespace fe::vm
 		case op_kind::ALLOC_UI8: return 2;
 		case op_kind::RET_UI8_UI8_UI8_UI8: return 5;
 		case op_kind::EXIT: return 1;
-		default: assert(!"Unknown op"); return -1;
+		default: throw std::runtime_error("Unknown Op");
 		}
 	}
 
@@ -240,24 +257,31 @@ namespace fe::vm
 
 	// Operator construction methods
 	bytes<1> make_nop();
-	bytes<4> make_add(reg dest, reg a, reg b);
-	bytes<4> make_add(reg dest, reg a, byte b);
-	bytes<4> make_sub(reg dest, reg a, reg b);
-	bytes<4> make_sub(reg dest, reg a, byte b);
-	bytes<4> make_mul(reg dest, reg a, reg b);
-	bytes<4> make_div(reg dest, reg a, reg b);
-	bytes<4> make_mod(reg dest, reg a, reg b);
-	bytes<4> make_and(reg dest, reg a, reg b);
-	bytes<4> make_and(reg dest, reg a, byte b);
-	bytes<4> make_or(reg dest, reg a, reg b);
-	bytes<4> make_gt(reg dest, reg a, reg b);
-	bytes<4> make_gte(reg dest, reg a, reg b);
-	bytes<4> make_lt(reg dest, reg a, reg b);
-	bytes<4> make_lte(reg dest, reg a, reg b);
-	bytes<4> make_lte(reg dest, reg a, byte b);
-	bytes<4> make_eq(reg dest, reg a, reg b);
-	bytes<4> make_neq(reg dest, reg a, reg b);
-	bytes<4> make_xor(reg dest, reg a, int8_t b);
+	bytes<4> make_add_r64_r64_r64(reg dest, reg a, reg b);
+	bytes<4> make_add_r64_r64_ui8(reg dest, reg a, byte b);
+	bytes<4> make_sub_r64_r64_r64(reg dest, reg a, reg b);
+	bytes<4> make_sub_r64_r64_ui8(reg dest, reg a, byte b);
+	bytes<4> make_mul_r64_r64_r64(reg dest, reg a, reg b);
+	bytes<4> make_div_r64_r64_r64(reg dest, reg a, reg b);
+	bytes<4> make_mod_r64_r64_r64(reg dest, reg a, reg b);
+	bytes<4> make_gt_r8_r64_r64(reg dest, reg a, reg b);
+	bytes<4> make_gt_r8_r8_r8(reg dest, reg a, reg b);
+	bytes<4> make_gte_r8_r64_r64(reg dest, reg a, reg b);
+	bytes<4> make_gte_r8_r8_r8(reg dest, reg a, reg b);
+	bytes<4> make_lt_r8_r64_r64(reg dest, reg a, reg b);
+	bytes<4> make_lt_r8_r8_r8(reg dest, reg a, reg b);
+	bytes<4> make_lte_r8_r64_r64(reg dest, reg a, reg b);
+	bytes<4> make_lte_r8_r8_r8(reg dest, reg a, reg b);
+	bytes<4> make_eq_r8_r64_r64(reg dest, reg a, reg b);
+	bytes<4> make_eq_r8_r8_r8(reg dest, reg a, reg b);
+	bytes<4> make_neq_r8_r64_r64(reg dest, reg a, reg b);
+	bytes<4> make_neq_r8_r8_r8(reg dest, reg a, reg b);
+	bytes<4> make_and_r64_r64_r64(reg dest, reg a, reg b);
+	bytes<4> make_and_r8_r8_r8(reg dest, reg a, reg b);
+	bytes<4> make_and_r8_r8_ui8(reg dest, reg a, reg b);
+	bytes<4> make_or_r64_r64_r64(reg dest, reg a, reg b);
+	bytes<4> make_or_r8_r8_r8(reg dest, reg a, reg b);
+	bytes<4> make_xor_r8_r8_ui8(reg dest, reg a, int8_t b);
 	bytes<3> make_mv_reg_ui8(reg dest, uint8_t a);
 	bytes<4> make_mv_reg_ui16(reg dest, uint16_t a);
 	bytes<6> make_mv_reg_ui32(reg dest, uint32_t a);
@@ -271,6 +295,7 @@ namespace fe::vm
 	bytes<3> make_mv16_reg_reg(reg dest, reg src);
 	bytes<3> make_mv32_reg_reg(reg dest, reg src);
 	bytes<3> make_mv64_reg_reg(reg dest, reg src);
+	bytes<3> make_mv_r64_l64(reg dest, reg src);
 	bytes<2> make_alloc_ui8(uint8_t size);
 	bytes<12> make_call_ui64_ui8_ui8_ui8(uint64_t ip, uint8_t reg, uint8_t regc,
 					     uint8_t ret_reg);
@@ -507,6 +532,8 @@ namespace fe::vm
 		bytecode::iterator begin();
 		bytecode::iterator end();
 		byte *operator[](uint64_t i);
+
+		size_t byte_length() const;
 	};
 
 	// A direct threaded executable is a platform dependent executable where op_kinds in the

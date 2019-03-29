@@ -59,19 +59,19 @@ namespace fe::vm
 
 				switch (kind)
 				{
-				case op_kind::ADD_REG_REG_REG:
-				case op_kind::SUB_REG_REG_REG:
-				case op_kind::MUL_REG_REG_REG:
-				case op_kind::DIV_REG_REG_REG:
-				case op_kind::MOD_REG_REG_REG:
-				case op_kind::GT_REG_REG_REG:
-				case op_kind::GTE_REG_REG_REG:
-				case op_kind::LT_REG_REG_REG:
-				case op_kind::LTE_REG_REG_REG:
-				case op_kind::EQ_REG_REG_REG:
-				case op_kind::NEQ_REG_REG_REG:
-				case op_kind::AND_REG_REG_REG:
-				case op_kind::OR_REG_REG_REG:
+				case op_kind::ADD_R64_R64_R64:
+				case op_kind::SUB_R64_R64_R64:
+				case op_kind::MUL_R64_R64_R64:
+				case op_kind::DIV_R64_R64_R64:
+				case op_kind::MOD_R64_R64_R64:
+				case op_kind::GT_R8_R64_R64:
+				case op_kind::GTE_R8_R64_R64:
+				case op_kind::LT_R8_R64_R64:
+				case op_kind::LTE_R8_R64_R64:
+				case op_kind::EQ_R8_R64_R64:
+				case op_kind::NEQ_R8_R64_R64:
+				case op_kind::AND_R64_R64_R64:
+				case op_kind::OR_R64_R64_R64:
 				{
 					reg dest = current_instruction[1].val;
 					reg src1 = current_instruction[2].val;

@@ -74,24 +74,26 @@ namespace fe::vm
 		case op_kind::NOP:
 			bc.add_instruction(make_nop());
 			break;
-		case op_kind::ADD_REG_REG_REG:
-		case op_kind::ADD_REG_REG_UI8:
-		case op_kind::SUB_REG_REG_REG:
-		case op_kind::SUB_REG_REG_UI8:
-		case op_kind::MUL_REG_REG_REG:
-		case op_kind::DIV_REG_REG_REG:
-		case op_kind::MOD_REG_REG_REG:
-		case op_kind::GT_REG_REG_REG:
-		case op_kind::GTE_REG_REG_REG:
-		case op_kind::LT_REG_REG_REG:
-		case op_kind::LTE_REG_REG_REG:
-		case op_kind::LTE_REG_REG_I8:
-		case op_kind::EQ_REG_REG_REG:
-		case op_kind::NEQ_REG_REG_REG:
-		case op_kind::AND_REG_REG_REG:
-		case op_kind::AND_REG_REG_UI8:
-		case op_kind::OR_REG_REG_REG:
-		case op_kind::XOR_REG_REG_UI8:
+		case op_kind::ADD_R64_R64_R64:
+		case op_kind::ADD_R64_R64_UI8:
+		case op_kind::SUB_R64_R64_R64:
+		case op_kind::SUB_R64_R64_UI8:
+		case op_kind::MUL_R64_R64_R64:
+		case op_kind::DIV_R64_R64_R64:
+		case op_kind::MOD_R64_R64_R64:
+		case op_kind::GT_R8_R64_R64:
+		case op_kind::GTE_R8_R64_R64:
+		case op_kind::LT_R8_R64_R64:
+		case op_kind::LTE_R8_R64_R64:
+		case op_kind::EQ_R8_R64_R64:
+		case op_kind::EQ_R8_R8_R8:
+		case op_kind::NEQ_R8_R64_R64:
+		case op_kind::AND_R64_R64_R64:
+		case op_kind::AND_R8_R8_UI8:
+		case op_kind::AND_R8_R8_R8:
+		case op_kind::OR_R64_R64_R64:
+		case op_kind::OR_R8_R8_R8:
+		case op_kind::XOR_R8_R8_UI8:
 		{
 			uint8_t a = parse_uint8(iss);
 			uint8_t b = parse_uint8(iss);
@@ -159,6 +161,7 @@ namespace fe::vm
 		case op_kind::MV16_REG_REG:
 		case op_kind::MV32_REG_REG:
 		case op_kind::MV64_REG_REG:
+		case op_kind::MV_R64_L64:
 		{
 			uint8_t a = parse_uint8(iss);
 			uint8_t b = parse_uint8(iss);
@@ -224,6 +227,8 @@ namespace fe::vm
 			bc.add_instruction(make_exit());
 			break;
 		}
+		default:
+		throw std::runtime_error("Unknown op in bytecode");
 		}
 	}
 
