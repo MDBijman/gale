@@ -42,11 +42,8 @@ namespace fe::vm
 		case op_kind::MV_REG_I16: return "mv_r16_i16";
 		case op_kind::MV_REG_I32: return "mv_r32_i32";
 		case op_kind::MV_REG_I64: return "mv_r64_i64";
-		case op_kind::MV8_REG_REG: return "mv_r8_r8";
-		case op_kind::MV16_REG_REG: return "mv_r16_r16";
-		case op_kind::MV32_REG_REG: return "mv_r32_r32";
-		case op_kind::MV64_REG_REG: return "mv_r64_r64";
-		case op_kind::MV_R64_L64: return "mv_r64_l64";
+		case op_kind::MV_RN_RN: return "mv_rn_rn";
+		case op_kind::MV_RN_LN: return "mv_rn_ln";
 		case op_kind::LBL_UI32: return "lbl_ui32";
 		case op_kind::JMPR_I32: return "jmpr_i32";
 		case op_kind::JRNZ_REG_I32: return "jrnz_reg_i32";
@@ -91,11 +88,8 @@ namespace fe::vm
 		if (o == "mv_r16_i16") return op_kind::MV_REG_I16;
 		if (o == "mv_r32_i32") return op_kind::MV_REG_I32;
 		if (o == "mv_r64_i64") return op_kind::MV_REG_I64;
-		if (o == "mv_r8_r8") return op_kind::MV8_REG_REG;
-		if (o == "mv_r16_r16") return op_kind::MV16_REG_REG;
-		if (o == "mv_r32_r32") return op_kind::MV32_REG_REG;
-		if (o == "mv_r64_r64") return op_kind::MV64_REG_REG;
-		if (o == "mv_r64_l64") return op_kind::MV_R64_L64;
+		if (o == "mv_rn_rn") return op_kind::MV_RN_RN;
+		if (o == "mv_rn_ln") return op_kind::MV_RN_LN;
 		if (o == "lbl_ui32") return op_kind::LBL_UI32;
 		if (o == "jmpr_i32") return op_kind::JMPR_I32;
 		if (o == "jrnz_reg_i32") return op_kind::JRNZ_REG_I32;
@@ -136,11 +130,7 @@ namespace fe::vm
 		case op_kind::MV_REG_I16:
 		case op_kind::MV_REG_I32:
 		case op_kind::MV_REG_I64:
-		case op_kind::MV8_REG_REG:
-		case op_kind::MV16_REG_REG:
-		case op_kind::MV32_REG_REG:
-		case op_kind::MV64_REG_REG:
-		case op_kind::MV_R64_L64: return (op + 1)->val == r.val;
+		return (op + 1)->val == r.val;
 		default: return false;
 		}
 	}
@@ -167,10 +157,7 @@ namespace fe::vm
 
 		case op_kind::ADD_R64_R64_UI8:
 		case op_kind::SUB_R64_R64_UI8:
-		case op_kind::MV8_REG_REG:
-		case op_kind::MV16_REG_REG:
-		case op_kind::MV32_REG_REG:
-		case op_kind::MV64_REG_REG: return (op + 2)->val == r.val;
+		return (op + 2)->val == r.val;
 
 		case op_kind::JRNZ_REG_I32:
 		case op_kind::JRZ_REG_I32:
@@ -320,10 +307,6 @@ namespace fe::vm
 	{
 		return bytes<4>{ op_to_byte(op_kind::XOR_R8_R8_UI8), dest.val, a.val, byte(b) };
 	}
-	bytes<3> make_mv64(reg dest, reg src)
-	{
-		return bytes<3>{ op_to_byte(op_kind::MV64_REG_REG), dest.val, src.val };
-	}
 	bytes<3> make_mv_reg_ui8(reg dest, uint8_t a)
 	{
 		return bytes<3>{ op_to_byte(op_kind::MV_REG_UI8), dest.val, a };
@@ -385,37 +368,13 @@ namespace fe::vm
 				  lit[6],
 				  lit[7] };
 	}
-	bytes<3> make_mv_reg_reg(uint8_t bytes, reg dest, reg a)
+	bytes<4> make_mv_rn_rn(byte count, reg dest, reg src)
 	{
-		switch (bytes)
-		{
-		case 1: return make_mv8_reg_reg(dest, a);
-		case 2: return make_mv16_reg_reg(dest, a);
-		case 4: return make_mv32_reg_reg(dest, a);
-		case 8: return make_mv64_reg_reg(dest, a);
-		default: assert(!"Invalid mv bit count");
-		}
-		throw std::runtime_error("Bytecode Generation Error: Invalid mv bit count");
+		return bytes<4>{ op_to_byte(op_kind::MV_RN_RN), count, dest.val, src.val };
 	}
-	bytes<3> make_mv8_reg_reg(reg dest, reg src)
+	bytes<4> make_mv_rn_ln(byte count, reg dest, reg src)
 	{
-		return bytes<3>{ op_to_byte(op_kind::MV8_REG_REG), dest.val, src.val };
-	}
-	bytes<3> make_mv16_reg_reg(reg dest, reg src)
-	{
-		return bytes<3>{ op_to_byte(op_kind::MV16_REG_REG), dest.val, src.val };
-	}
-	bytes<3> make_mv32_reg_reg(reg dest, reg src)
-	{
-		return bytes<3>{ op_to_byte(op_kind::MV32_REG_REG), dest.val, src.val };
-	}
-	bytes<3> make_mv64_reg_reg(reg dest, reg src)
-	{
-		return bytes<3>{ op_to_byte(op_kind::MV64_REG_REG), dest.val, src.val };
-	}
-	bytes<3> make_mv_r64_l64(reg dest, reg src)
-	{
-		return bytes<3>{ op_to_byte(op_kind::MV_R64_L64), dest.val, src.val };
+		return bytes<4>{ op_to_byte(op_kind::MV_RN_LN), count.val, dest.val, src.val };
 	}
 	bytes<12> make_call_ui64_ui8_ui8_ui8(uint64_t ip, uint8_t reg, uint8_t regc,
 					     uint8_t ret_reg)
