@@ -42,12 +42,12 @@ namespace fe::vm
 
 			switch (op)
 			{
-			case op_kind::CALL_UI64:
+			case op_kind::CALL_UI64_UI8_UI8_UI8:
 			{
 				auto offset = read_i64(*reinterpret_cast<bytes<8> *>(i + 1));
 				auto add_offset = ops_between(e, i, i + offset);
 				*reinterpret_cast<bytes<8> *>(i + 1) =
-				    make_i64(offset + (offset > 0 ? add_offset : -add_offset));
+				  make_i64(offset + (offset > 0 ? add_offset : -add_offset));
 				break;
 			}
 			case op_kind::JMPR_I32:
@@ -58,23 +58,19 @@ namespace fe::vm
 				auto offset_offset = (op == op_kind::JMPR_I32) ? 1 : 2;
 
 				auto offset =
-				    read_i32(*reinterpret_cast<bytes<4> *>(i + offset_offset));
+				  read_i32(*reinterpret_cast<bytes<4> *>(i + offset_offset));
 
 				auto add_offset = ops_between(e, i, i + offset);
 
 				*reinterpret_cast<bytes<4> *>(i + offset_offset) =
-				    make_i32(offset + (offset > 0 ? add_offset : -add_offset));
+				  make_i32(offset + (offset > 0 ? add_offset : -add_offset));
 				break;
 			}
-			default:
-				break;
+			default: break;
 			}
 
 			// Push parameters
-			for (int j = 1; j < size; j++)
-			{
-				byte_data.push_back(j[i].val);
-			}
+			for (int j = 1; j < size; j++) { byte_data.push_back(j[i].val); }
 		}
 
 		return direct_threaded_executable(bc);

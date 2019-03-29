@@ -74,44 +74,31 @@ namespace fe::vm
 		case op_kind::NOP:
 			bc.add_instruction(make_nop());
 			break;
-		case op_kind::ADD_REG_REG_REG:
-		case op_kind::ADD_REG_REG_UI8:
-		case op_kind::SUB_REG_REG_REG:
-		case op_kind::SUB_REG_REG_UI8:
-		case op_kind::MUL_REG_REG_REG:
-		case op_kind::DIV_REG_REG_REG:
-		case op_kind::MOD_REG_REG_REG:
-		case op_kind::GT_REG_REG_REG:
-		case op_kind::GTE_REG_REG_REG:
-		case op_kind::LT_REG_REG_REG:
-		case op_kind::LTE_REG_REG_REG:
-		case op_kind::LTE_REG_REG_I8:
-		case op_kind::EQ_REG_REG_REG:
-		case op_kind::NEQ_REG_REG_REG:
-		case op_kind::AND_REG_REG_REG:
-		case op_kind::AND_REG_REG_UI8:
-		case op_kind::OR_REG_REG_REG:
-		case op_kind::XOR_REG_REG_UI8:
+		case op_kind::ADD_R64_R64_R64:
+		case op_kind::ADD_R64_R64_UI8:
+		case op_kind::SUB_R64_R64_R64:
+		case op_kind::SUB_R64_R64_UI8:
+		case op_kind::MUL_R64_R64_R64:
+		case op_kind::DIV_R64_R64_R64:
+		case op_kind::MOD_R64_R64_R64:
+		case op_kind::GT_R8_R64_R64:
+		case op_kind::GTE_R8_R64_R64:
+		case op_kind::LT_R8_R64_R64:
+		case op_kind::LTE_R8_R64_R64:
+		case op_kind::EQ_R8_R64_R64:
+		case op_kind::EQ_R8_R8_R8:
+		case op_kind::NEQ_R8_R64_R64:
+		case op_kind::AND_R64_R64_R64:
+		case op_kind::AND_R8_R8_UI8:
+		case op_kind::AND_R8_R8_R8:
+		case op_kind::OR_R64_R64_R64:
+		case op_kind::OR_R8_R8_R8:
+		case op_kind::XOR_R8_R8_UI8:
 		{
 			uint8_t a = parse_uint8(iss);
 			uint8_t b = parse_uint8(iss);
 			uint8_t c = parse_uint8(iss);
 			bc.add_instruction(bytes<4>{ op_to_byte(op), a, b, c });
-			break;
-		}
-		case op_kind::MV_REG_SP:
-		case op_kind::MV_REG_IP:
-		case op_kind::PUSH8_REG:
-		case op_kind::PUSH16_REG:
-		case op_kind::PUSH32_REG:
-		case op_kind::PUSH64_REG:
-		case op_kind::POP8_REG:
-		case op_kind::POP16_REG:
-		case op_kind::POP32_REG:
-		case op_kind::POP64_REG:
-		{
-			uint8_t a = parse_uint8(iss);
-			bc.add_instruction(bytes<2>{ op_to_byte(op), a });
 			break;
 		}
 		case op_kind::MV_REG_UI8:
@@ -170,22 +157,13 @@ namespace fe::vm
 			bc.add_instruction(make_mv_reg_i64(reg, val));
 			break;
 		}
-		case op_kind::MV8_REG_REG:
-		case op_kind::MV16_REG_REG:
-		case op_kind::MV32_REG_REG:
-		case op_kind::MV64_REG_REG:
-		case op_kind::MV8_LOC_REG:
-		case op_kind::MV16_LOC_REG:
-		case op_kind::MV32_LOC_REG:
-		case op_kind::MV64_LOC_REG:
-		case op_kind::MV8_REG_LOC:
-		case op_kind::MV16_REG_LOC:
-		case op_kind::MV32_REG_LOC:
-		case op_kind::MV64_REG_LOC:
+		case op_kind::MV_RN_LN:
+		case op_kind::MV_RN_RN:
 		{
+			uint8_t c = parse_uint8(iss);
 			uint8_t a = parse_uint8(iss);
 			uint8_t b = parse_uint8(iss);
-			bc.add_instruction(bytes<3>{ op_to_byte(op), a, b });
+			bc.add_instruction(bytes<4>{ op_to_byte(op), c, a, b });
 			break;
 		}
 		case op_kind::LBL_UI32:
@@ -210,35 +188,36 @@ namespace fe::vm
 			bc.add_instruction(make_jrz_i32(a, b));
 			break;
 		}
-		case op_kind::CALL_UI64:
+		case op_kind::CALL_UI64_UI8_UI8_UI8:
 		{
 			uint64_t a = parse_uint64(iss);
-			bc.add_instruction(make_call_ui64(a));
+			uint8_t b = parse_uint8(iss);
+			uint8_t c = parse_uint8(iss);
+			uint8_t d = parse_uint8(iss);
+			bc.add_instruction(make_call_ui64_ui8_ui8_ui8(a, b, c, d));
 			break;
 		}
-		case op_kind::CALL_NATIVE_UI64:
+		case op_kind::CALL_NATIVE_UI64_UI8_UI8:
 		{
 			uint64_t a = parse_uint64(iss);
-			bc.add_instruction(make_call_native_ui64(a));
+			uint8_t b = parse_uint8(iss);
+			uint8_t c = parse_uint8(iss);
+			bc.add_instruction(make_call_native_ui64_ui8_ui8(a, b, c));
 			break;
 		}
-		case op_kind::RET_UI8:
-		{
-			uint8_t a = parse_uint8(iss);
-			bc.add_instruction(make_ret(a));
-			break;
-		}
-		case op_kind::SALLOC_REG_UI8:
+		case op_kind::RET_UI8_UI8_UI8_UI8:
 		{
 			uint8_t a = parse_uint8(iss);
 			uint8_t b = parse_uint8(iss);
-			bc.add_instruction(make_salloc_reg_ui8(a, b));
+			uint8_t c = parse_uint8(iss);
+			uint8_t d = parse_uint8(iss);
+			bc.add_instruction(make_ret(a, b, c, d));
 			break;
 		}
-		case op_kind::SDEALLOC_UI8:
+		case op_kind::ALLOC_UI8:
 		{
 			uint8_t a = parse_uint8(iss);
-			bc.add_instruction(make_sdealloc_ui8(a));
+			bc.add_instruction(make_alloc_ui8(a));
 			break;
 		}
 		case op_kind::EXIT:
@@ -246,6 +225,8 @@ namespace fe::vm
 			bc.add_instruction(make_exit());
 			break;
 		}
+		default:
+		throw std::runtime_error("Unknown op in bytecode");
 		}
 	}
 

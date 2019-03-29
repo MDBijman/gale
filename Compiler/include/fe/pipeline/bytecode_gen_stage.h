@@ -5,19 +5,25 @@
 #include "fe/pipeline/core_stack_analysis.h"
 #include <unordered_map>
 #include <bitset>
+#include <optional>
 
 namespace fe::vm
 {
 	using memory_location = uint64_t;
 	using variable_location = std::variant<reg, memory_location>;
 
+	struct code_gen_scope
+	{
+		code_gen_scope();
+		explicit code_gen_scope(core_ast::function_data);
+
+		core_ast::function_data current_function;
+	};
+
 	class code_gen_state
 	{
 		// Mapping of nodes to bytecode chunks
 		std::unordered_map<node_id, uint8_t> node_to_chunk;
-
-		// Bitfield with 64 entries, one for each register, 1 indicates register is allocated
-		std::bitset<64> used_registers;
 
 		// Mapping from function names to code labels
 		std::unordered_map<std::string, core_ast::label> functions;
@@ -28,14 +34,15 @@ namespace fe::vm
 		core_ast::label next_label;
 
 	public:
-		code_gen_state(core_ast::label first_label);
+		explicit code_gen_state(core_ast::label);
 
-		core_ast::function_data current_scope;
+		code_gen_scope scope;
 
-		std::vector<reg> clear_registers();
-		void set_saved_registers(std::vector<reg>);
-		reg alloc_register();
-		void dealloc_register(reg r);
+		code_gen_scope set_scope(code_gen_scope);
+
+		reg next_register(uint32_t fid, uint32_t nid);
+		std::optional<reg> last_alloced_register(uint32_t fid, uint32_t nid);
+		std::optional<reg> last_alloced_register_after(uint32_t fid, uint32_t nid);
 
 		void link_node_chunk(node_id, uint8_t);
 		uint8_t chunk_of(node_id);

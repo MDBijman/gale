@@ -1,21 +1,18 @@
 #pragma once
-#include <vector>
+#include "fe/vm/runtime_info.h"
+#include <algorithm>
 #include <array>
-#include <variant>
 #include <assert.h>
 #include <unordered_map>
-#include <algorithm>
-#include "fe/vm/runtime_info.h"
+#include <variant>
+#include <vector>
 
 namespace fe::vm
 {
-	constexpr size_t stack_size = 2*8192;
+	constexpr size_t stack_size = 2 * 8192;
 	constexpr size_t register_count = 64;
-	constexpr uint8_t
-		ip_reg = register_count - 1,
-		sp_reg = register_count - 2,
-		fp_reg = register_count - 3,
-		ret_reg = register_count - 4;
+	constexpr uint8_t ip_reg = register_count - 1, sp_reg = register_count - 2,
+			  fp_reg = register_count - 3, ret_reg = register_count - 4;
 
 	enum class op_kind : uint8_t
 	{
@@ -25,57 +22,59 @@ namespace fe::vm
 		// temporary label with id
 		LBL_UI32,
 
-
 		/*
-		* Arithmetic
-		*/
+		 * Arithmetic
+		 */
 
 		// reg[b0] <- reg[b1] + reg[b2]
-		ADD_REG_REG_REG,
-		ADD_REG_REG_UI8,
+		ADD_R64_R64_R64,
+		ADD_R64_R64_UI8,
 		// reg[b0] <- reg[b1] - reg[b2]
-		SUB_REG_REG_REG,
-		SUB_REG_REG_UI8,
+		SUB_R64_R64_R64,
+		SUB_R64_R64_UI8,
 		// reg[b0] <- reg[b1] * reg[b2]
-		MUL_REG_REG_REG,
+		MUL_R64_R64_R64,
 		// reg[b0] <- reg[b1] / reg[b2]
-		DIV_REG_REG_REG,
+		DIV_R64_R64_R64,
 		// reg[b0] <- reg[b1] % reg[b2]
-		MOD_REG_REG_REG,
+		MOD_R64_R64_R64,
 
 		/*
-		* Logic
-		*/
+		 * Logic
+		 */
 
 		// if reg[b1] > reg[b2] { reg[b0] <- 1 } else { reg[b0] <- 0 }
-		GT_REG_REG_REG,
+		GT_R8_R64_R64,
+		GT_R8_R8_R8,
 		// if reg[b1] >= reg[b2] { reg[b0] <- 1 } else { reg[b0] <- 0 }
-		GTE_REG_REG_REG,
+		GTE_R8_R64_R64,
+		GTE_R8_R8_R8,
 		// if reg[b1] < reg[b2] { reg[b0] <- 1 } else { reg[b0] <- 0 }
-		LT_REG_REG_REG,
+		LT_R8_R64_R64,
+		LT_R8_R8_R8,
 		// if reg[b1] <= reg[b2] { reg[b0] <- 1 } else { reg[b0] <- 0 }
-		LTE_REG_REG_REG,
-		LTE_REG_REG_I8,
+		LTE_R8_R64_R64,
+		LTE_R8_R8_R8,
 		// if reg[b1] == reg[b2] { reg[b0] <- 1 } else { reg[b0] <- 0 }
-		EQ_REG_REG_REG,
+		EQ_R8_R64_R64,
+		EQ_R8_R8_R8,
 		// if reg[b1] != reg[b2] { reg[b0] <- 1 } else { reg[b0] <- 0 }
-		NEQ_REG_REG_REG,
+		NEQ_R8_R64_R64,
+		NEQ_R8_R8_R8,
 		// reg[b0] <- reg[b1] & reg[b2]
-		AND_REG_REG_REG,
-		AND_REG_REG_UI8,
+		AND_R64_R64_R64,
+		AND_R8_R8_R8,
+		AND_R8_R8_UI8,
 		// reg[b0] <- reg[b1] | reg[b2]
-		OR_REG_REG_REG,
+		OR_R64_R64_R64,
+		OR_R8_R8_R8,
 		// reg[b0] <- reg[b1] ^ b2
-		XOR_REG_REG_UI8,
+		XOR_R8_R8_UI8,
 
 		/*
-		* Control
-		*/
+		 * Data
+		 */
 
-		// reg[b0] <- sp
-		MV_REG_SP,
-		// reg[b0] <- ip
-		MV_REG_IP,
 		// reg[b0] <- b1
 		MV_REG_UI8,
 		MV_REG_UI16,
@@ -85,48 +84,32 @@ namespace fe::vm
 		MV_REG_I16,
 		MV_REG_I32,
 		MV_REG_I64,
-		// reg[b0] <- reg[b1]
-		MV8_REG_REG,
-		MV16_REG_REG,
-		MV32_REG_REG,
-		MV64_REG_REG,
-		// stack[reg[b0]] <- reg[b1]
-		MV8_LOC_REG,
-		MV16_LOC_REG,
-		MV32_LOC_REG,
-		MV64_LOC_REG,
-		// reg[b0] <- stack[reg[b1]]
-		MV8_REG_LOC,
-		MV16_REG_LOC,
-		MV32_REG_LOC,
-		MV64_REG_LOC,
-		// stack[esp] <- reg[b0], esp++
-		PUSH8_REG,
-		PUSH16_REG,
-		PUSH32_REG,
-		PUSH64_REG,
-		// reg[b0] <- stack[esp - 1], esp--
-		POP8_REG,
-		POP16_REG,
-		POP32_REG,
-		POP64_REG,
+
+		// Moves N bytes from source register to destination register
+		MV_RN_RN,
+		// Moves N bytes from source location to destination register
+		MV_RN_LN,
+
+		/*
+		 * Control
+		 */
+
 		// jump relative: ip += b0
 		JMPR_I32,
 		// jump relative not zero: if reg[b0] != 0 { ip += b1 } else { ip++ }
 		JRNZ_REG_I32,
 		// jump relative zero: if reg[b0] == 0 { ip += b1 } else { ip++ }
 		JRZ_REG_I32,
-		// push bp, push ip, ip <- reg[b1]
-		CALL_UI64,
-		CALL_NATIVE_UI64,
-		CALL_REG,
-		// reg[x] <- pop, ip <- reg[x]
-		RET_UI8,
+		// Call(target ip address, first argument register, argument count, first return
+		// register)
+		CALL_UI64_UI8_UI8_UI8,
+		CALL_NATIVE_UI64_UI8_UI8,
+		// Used at the start of a new scope to allocate registers
+		ALLOC_UI8,
 
-		// allocate ui8 bytes of memory, put address in reg
-		SALLOC_REG_UI8,
-		// deallocate ui8 bytes of memory
-		SDEALLOC_UI8
+		// Ret(argument count, additional frame size, first return register, return register
+		// count)
+		RET_UI8_UI8_UI8_UI8,
 	};
 
 	// Returns the byte representation of the given kind
@@ -136,7 +119,7 @@ namespace fe::vm
 	// Returns a string representation of the given kind
 	std::string op_to_string(op_kind);
 	// Returns a kind (enum) parsed from the given string
-	op_kind string_to_op(const std::string&);
+	op_kind string_to_op(const std::string &);
 
 	// Returns max uint8_t value on error
 	constexpr uint8_t op_size(op_kind o)
@@ -145,26 +128,31 @@ namespace fe::vm
 		switch (o)
 		{
 		case op_kind::NOP: return 1;
-		case op_kind::ADD_REG_REG_REG: return 4;
-		case op_kind::ADD_REG_REG_UI8: return 4;
-		case op_kind::SUB_REG_REG_REG: return 4;
-		case op_kind::SUB_REG_REG_UI8: return 4;
-		case op_kind::MUL_REG_REG_REG: return 4;
-		case op_kind::DIV_REG_REG_REG: return 4;
-		case op_kind::MOD_REG_REG_REG: return 4;
-		case op_kind::GT_REG_REG_REG: return 4;
-		case op_kind::GTE_REG_REG_REG: return 4;
-		case op_kind::LT_REG_REG_REG: return 4;
-		case op_kind::LTE_REG_REG_REG: return 4;
-		case op_kind::LTE_REG_REG_I8: return 4;
-		case op_kind::EQ_REG_REG_REG: return 4;
-		case op_kind::NEQ_REG_REG_REG: return 4;
-		case op_kind::AND_REG_REG_REG: return 4;
-		case op_kind::AND_REG_REG_UI8: return 4;
-		case op_kind::OR_REG_REG_REG: return 4;
-		case op_kind::XOR_REG_REG_UI8: return 4;
-		case op_kind::MV_REG_SP: return 2;
-		case op_kind::MV_REG_IP: return 2;
+		case op_kind::ADD_R64_R64_R64: return 4;
+		case op_kind::ADD_R64_R64_UI8: return 4;
+		case op_kind::SUB_R64_R64_R64: return 4;
+		case op_kind::SUB_R64_R64_UI8: return 4;
+		case op_kind::MUL_R64_R64_R64: return 4;
+		case op_kind::DIV_R64_R64_R64: return 4;
+		case op_kind::MOD_R64_R64_R64: return 4;
+		case op_kind::GT_R8_R64_R64: return 4;
+		case op_kind::GT_R8_R8_R8: return 4;
+		case op_kind::GTE_R8_R64_R64: return 4;
+		case op_kind::GTE_R8_R8_R8: return 4;
+		case op_kind::LT_R8_R64_R64: return 4;
+		case op_kind::LT_R8_R8_R8: return 4;
+		case op_kind::LTE_R8_R64_R64: return 4;
+		case op_kind::LTE_R8_R8_R8: return 4;
+		case op_kind::EQ_R8_R64_R64: return 4;
+		case op_kind::EQ_R8_R8_R8: return 4;
+		case op_kind::NEQ_R8_R64_R64: return 4;
+		case op_kind::NEQ_R8_R8_R8: return 4;
+		case op_kind::AND_R64_R64_R64: return 4;
+		case op_kind::AND_R8_R8_R8: return 4;
+		case op_kind::AND_R8_R8_UI8: return 4;
+		case op_kind::OR_R64_R64_R64: return 4;
+		case op_kind::OR_R8_R8_R8: return 4;
+		case op_kind::XOR_R8_R8_UI8: return 4;
 		case op_kind::MV_REG_UI8: return 3;
 		case op_kind::MV_REG_UI16: return 4;
 		case op_kind::MV_REG_UI32: return 6;
@@ -173,43 +161,26 @@ namespace fe::vm
 		case op_kind::MV_REG_I16: return 4;
 		case op_kind::MV_REG_I32: return 6;
 		case op_kind::MV_REG_I64: return 10;
-		case op_kind::MV8_REG_REG: return 3;
-		case op_kind::MV16_REG_REG: return 3;
-		case op_kind::MV32_REG_REG: return 3;
-		case op_kind::MV64_REG_REG: return 3;
-		case op_kind::MV8_LOC_REG: return 3;
-		case op_kind::MV16_LOC_REG: return 3;
-		case op_kind::MV32_LOC_REG: return 3;
-		case op_kind::MV64_LOC_REG: return 3;
-		case op_kind::MV8_REG_LOC: return 3;
-		case op_kind::MV16_REG_LOC: return 3;
-		case op_kind::MV32_REG_LOC: return 3;
-		case op_kind::MV64_REG_LOC: return 3;
-		case op_kind::PUSH8_REG: return 2;
-		case op_kind::PUSH16_REG: return 2;
-		case op_kind::PUSH32_REG: return 2;
-		case op_kind::PUSH64_REG: return 2;
-		case op_kind::POP8_REG: return 2;
-		case op_kind::POP16_REG: return 2;
-		case op_kind::POP32_REG: return 2;
-		case op_kind::POP64_REG: return 2;
+		case op_kind::MV_RN_RN: return 4;
+		case op_kind::MV_RN_LN: return 4;
 		case op_kind::LBL_UI32: return 5;
 		case op_kind::JMPR_I32: return 5;
 		case op_kind::JRNZ_REG_I32: return 6;
 		case op_kind::JRZ_REG_I32: return 6;
-		case op_kind::CALL_UI64: return 9;
-		case op_kind::CALL_NATIVE_UI64: return 9;
-		case op_kind::CALL_REG: return 2;
-		case op_kind::RET_UI8: return 2;
-		case op_kind::SALLOC_REG_UI8: return 3;
-		case op_kind::SDEALLOC_UI8: return 2;
+		case op_kind::CALL_UI64_UI8_UI8_UI8: return 12;
+		case op_kind::CALL_NATIVE_UI64_UI8_UI8: return 11;
+		case op_kind::ALLOC_UI8: return 2;
+		case op_kind::RET_UI8_UI8_UI8_UI8: return 5;
 		case op_kind::EXIT: return 1;
-		default: assert(!"Unknown op"); return -1;
+		default: throw std::runtime_error("Unknown Op");
 		}
 	}
 
 	// Compile time op size struct
-	template<op_kind Op> struct ct_op_size { static constexpr uint8_t value = op_size(Op); };
+	template <op_kind Op> struct ct_op_size
+	{
+		static constexpr uint8_t value = op_size(Op);
+	};
 
 	// A byte is, as the name suggests, a single byte of a bytecode object
 	struct byte
@@ -218,11 +189,11 @@ namespace fe::vm
 		byte(uint8_t v) : val(v) {}
 		uint8_t val;
 	};
-	inline byte operator+(const byte& a, const byte& b) { return byte(a.val + b.val); }
-	inline byte operator-(const byte& a, const byte& b) { return byte(a.val - b.val); }
-	inline byte operator*(const byte& a, const byte& b) { return byte(a.val * b.val); }
-	inline byte operator%(const byte& a, const byte& b) { return byte(a.val % b.val); }
-	inline bool operator>(const byte& a, const byte& b) { return (a.val > b.val); }
+	inline byte operator+(const byte &a, const byte &b) { return byte(a.val + b.val); }
+	inline byte operator-(const byte &a, const byte &b) { return byte(a.val - b.val); }
+	inline byte operator*(const byte &a, const byte &b) { return byte(a.val * b.val); }
+	inline byte operator%(const byte &a, const byte &b) { return byte(a.val % b.val); }
+	inline bool operator>(const byte &a, const byte &b) { return (a.val > b.val); }
 
 	// A reg is an index corresponding to a register
 	struct reg
@@ -230,78 +201,82 @@ namespace fe::vm
 		reg(uint8_t v) : val(v) {}
 		uint8_t val;
 	};
-	inline bool operator==(const reg& a, const reg& b) { return a.val == b.val; }
+	inline bool operator==(const reg &a, const reg &b) { return a.val == b.val; }
 
 	// Return true if the op writes to the given register
-	bool writes_to(const byte* op, reg r);
+	bool writes_to(const byte *op, reg r);
 	// Return true if the op reads from the given register
-	bool reads_from(const byte* op, reg r);
+	bool reads_from(const byte *op, reg r);
 
-	template<size_t C>
-	using bytes = std::array<byte, C>;
+	template <size_t C> using bytes = std::array<byte, C>;
 
-	template<int C> bytes<C> make_nops()
+	template <int C> bytes<C> make_nops()
 	{
 		bytes<C> out;
-		for (int i = 0; i < C; i++)
-			out[i] = op_to_byte(op_kind::NOP);
+		for (int i = 0; i < C; i++) out[i] = op_to_byte(op_kind::NOP);
 		return out;
 	}
 
 	// Helper functions for creating bytecode literals
 	bytes<8> make_i64(int64_t);
-	int64_t read_i64(const uint8_t*);
+	int64_t read_i64(const uint8_t *);
 	int64_t read_i64(bytes<8>);
 
 	bytes<8> make_ui64(uint64_t);
-	uint64_t read_ui64(const uint8_t*);
+	uint64_t read_ui64(const uint8_t *);
 	uint64_t read_ui64(bytes<8>);
 
 	bytes<4> make_i32(int32_t);
-	int32_t read_i32(const uint8_t*);
+	int32_t read_i32(const uint8_t *);
 	int32_t read_i32(bytes<4>);
 
 	bytes<4> make_ui32(uint32_t);
-	uint32_t read_ui32(const uint8_t*);
+	uint32_t read_ui32(const uint8_t *);
 	uint32_t read_ui32(bytes<4>);
 
 	bytes<2> make_ui16(uint16_t);
-	uint16_t read_ui16(const uint8_t*);
+	uint16_t read_ui16(const uint8_t *);
 	uint16_t read_ui16(bytes<2>);
 
 	bytes<2> make_i16(int16_t);
-	int16_t read_i16(const uint8_t*);
+	int16_t read_i16(const uint8_t *);
 	int16_t read_i16(bytes<2>);
 
 	bytes<1> make_ui8(uint8_t);
-	uint8_t read_ui8(const uint8_t*);
+	uint8_t read_ui8(const uint8_t *);
 	uint8_t read_ui8(bytes<1>);
 
 	bytes<1> make_i8(int8_t);
-	int8_t read_i8(const uint8_t*);
+	int8_t read_i8(const uint8_t *);
 	int8_t read_i8(bytes<1>);
 
 	// Operator construction methods
 	bytes<1> make_nop();
-	bytes<4> make_add(reg dest, reg a, reg b);
-	bytes<4> make_add(reg dest, reg a, byte b);
-	bytes<4> make_sub(reg dest, reg a, reg b);
-	bytes<4> make_sub(reg dest, reg a, byte b);
-	bytes<4> make_mul(reg dest, reg a, reg b);
-	bytes<4> make_div(reg dest, reg a, reg b);
-	bytes<4> make_mod(reg dest, reg a, reg b);
-	bytes<4> make_and(reg dest, reg a, reg b);
-	bytes<4> make_and(reg dest, reg a, byte b);
-	bytes<4> make_or(reg dest, reg a, reg b);
-	bytes<4> make_gt(reg dest, reg a, reg b);
-	bytes<4> make_gte(reg dest, reg a, reg b);
-	bytes<4> make_lt(reg dest, reg a, reg b);
-	bytes<4> make_lte(reg dest, reg a, reg b);
-	bytes<4> make_lte(reg dest, reg a, byte b);
-	bytes<4> make_eq(reg dest, reg a, reg b);
-	bytes<4> make_neq(reg dest, reg a, reg b);
-	bytes<4> make_xor(reg dest, reg a, int8_t b);
-	bytes<2> make_mv_reg_sp(reg dest);
+	bytes<4> make_add_r64_r64_r64(reg dest, reg a, reg b);
+	bytes<4> make_add_r64_r64_ui8(reg dest, reg a, byte b);
+	bytes<4> make_sub_r64_r64_r64(reg dest, reg a, reg b);
+	bytes<4> make_sub_r64_r64_ui8(reg dest, reg a, byte b);
+	bytes<4> make_mul_r64_r64_r64(reg dest, reg a, reg b);
+	bytes<4> make_div_r64_r64_r64(reg dest, reg a, reg b);
+	bytes<4> make_mod_r64_r64_r64(reg dest, reg a, reg b);
+	bytes<4> make_gt_r8_r64_r64(reg dest, reg a, reg b);
+	bytes<4> make_gt_r8_r8_r8(reg dest, reg a, reg b);
+	bytes<4> make_gte_r8_r64_r64(reg dest, reg a, reg b);
+	bytes<4> make_gte_r8_r8_r8(reg dest, reg a, reg b);
+	bytes<4> make_lt_r8_r64_r64(reg dest, reg a, reg b);
+	bytes<4> make_lt_r8_r8_r8(reg dest, reg a, reg b);
+	bytes<4> make_lte_r8_r64_r64(reg dest, reg a, reg b);
+	bytes<4> make_lte_r8_r8_r8(reg dest, reg a, reg b);
+	bytes<4> make_eq_r8_r64_r64(reg dest, reg a, reg b);
+	bytes<4> make_eq_r8_r8_r8(reg dest, reg a, reg b);
+	bytes<4> make_neq_r8_r64_r64(reg dest, reg a, reg b);
+	bytes<4> make_neq_r8_r8_r8(reg dest, reg a, reg b);
+	bytes<4> make_and_r64_r64_r64(reg dest, reg a, reg b);
+	bytes<4> make_and_r8_r8_r8(reg dest, reg a, reg b);
+	bytes<4> make_and_r8_r8_ui8(reg dest, reg a, reg b);
+	bytes<4> make_or_r64_r64_r64(reg dest, reg a, reg b);
+	bytes<4> make_or_r8_r8_r8(reg dest, reg a, reg b);
+	bytes<4> make_xor_r8_r8_ui8(reg dest, reg a, int8_t b);
 	bytes<3> make_mv_reg_ui8(reg dest, uint8_t a);
 	bytes<4> make_mv_reg_ui16(reg dest, uint16_t a);
 	bytes<6> make_mv_reg_ui32(reg dest, uint32_t a);
@@ -311,40 +286,17 @@ namespace fe::vm
 	bytes<6> make_mv_reg_i32(reg dest, int32_t a);
 	bytes<10> make_mv_reg_i64(reg dest, int64_t a);
 	bytes<3> make_mv_reg_reg(uint8_t bytes, reg dest, reg a);
-	bytes<3> make_mv8_reg_reg(reg dest, reg src);
-	bytes<3> make_mv16_reg_reg(reg dest, reg src);
-	bytes<3> make_mv32_reg_reg(reg dest, reg src);
-	bytes<3> make_mv64_reg_reg(reg dest, reg src);
-	bytes<3> make_mv_reg_loc(uint8_t bytes, reg dest, reg src);
-	bytes<3> make_mv8_reg_loc(reg dest, reg src);
-	bytes<3> make_mv16_reg_loc(reg dest, reg src);
-	bytes<3> make_mv32_reg_loc(reg dest, reg src);
-	bytes<3> make_mv64_reg_loc(reg dest, reg src);
-	bytes<3> make_mv_loc_reg(uint8_t bytes, reg dest, reg src);
-	bytes<3> make_mv8_loc_reg(reg dest, reg src);
-	bytes<3> make_mv16_loc_reg(reg dest, reg src);
-	bytes<3> make_mv32_loc_reg(reg dest, reg src);
-	bytes<3> make_mv64_loc_reg(reg dest, reg src);
-	bytes<2> make_push(uint8_t bytes, reg src);
-	bytes<2> make_push8(reg src);
-	bytes<2> make_push16(reg src);
-	bytes<2> make_push32(reg src);
-	bytes<2> make_push64(reg src);
-	bytes<2> make_pop(uint8_t bytes, reg src);
-	bytes<2> make_pop8(reg dest);
-	bytes<2> make_pop16(reg dest);
-	bytes<2> make_pop32(reg dest);
-	bytes<2> make_pop64(reg dest);
-	bytes<9> make_call_ui64(uint64_t ip);
-	bytes<9> make_call_native_ui64(uint64_t ip);
-	bytes<2> make_call_reg(reg r);
-	bytes<2> make_ret(byte a);
+	bytes<4> make_mv_rn_rn(byte count, reg dest, reg src);
+	bytes<4> make_mv_rn_ln(byte count, reg dest, reg src);
+	bytes<2> make_alloc_ui8(uint8_t size);
+	bytes<12> make_call_ui64_ui8_ui8_ui8(uint64_t ip, uint8_t reg, uint8_t regc,
+					     uint8_t ret_reg);
+	bytes<11> make_call_native_ui64_ui8_ui8(uint64_t ip, uint8_t reg, uint8_t regc);
+	bytes<5> make_ret(byte paramc, byte fs, byte first_reg, byte retc);
 	bytes<5> make_jmpr_i32(int32_t offset);
 	bytes<6> make_jrnz_i32(reg a, int32_t offset);
 	bytes<6> make_jrz_i32(reg a, int32_t offset);
 	bytes<5> make_lbl(uint32_t id);
-	bytes<3> make_salloc_reg_ui8(reg r, uint8_t size);
-	bytes<2> make_sdealloc_ui8(uint8_t size);
 	bytes<1> make_exit();
 
 	// A far_lbl is used to refer to an instruction and the bytecode chunk it is a part of
@@ -354,10 +306,7 @@ namespace fe::vm
 		far_lbl(uint64_t chunk, uint64_t ip) : chunk_id(chunk), ip(ip) {}
 		uint64_t chunk_id;
 		uint64_t ip;
-		uint64_t make_ip()
-		{
-			return (chunk_id << 32) | ip;
-		}
+		uint64_t make_ip() { return (chunk_id << 32) | ip; }
 	};
 
 	// A near_lbl is used to refer to an instruction within a single bytecode
@@ -366,93 +315,104 @@ namespace fe::vm
 		near_lbl(uint64_t i) : ip(i) {}
 		uint64_t ip;
 	};
-	inline near_lbl operator+(const near_lbl& a, const near_lbl& b) { return near_lbl(a.ip + b.ip); }
-	inline near_lbl operator-(const near_lbl& a, const near_lbl& b) { return near_lbl(a.ip - b.ip); }
+	inline near_lbl operator+(const near_lbl &a, const near_lbl &b)
+	{
+		return near_lbl(a.ip + b.ip);
+	}
+	inline near_lbl operator-(const near_lbl &a, const near_lbl &b)
+	{
+		return near_lbl(a.ip - b.ip);
+	}
 
 	// A bytecode object is a linear vector of instructions that can be executed.
 	class bytecode
 	{
-	public:
+	      public:
 		class iterator
 		{
 			friend class bytecode;
 
-			std::vector<byte>& data;
+			std::vector<byte> &data;
 			uint64_t i;
 
-			iterator(std::vector<byte>& c);
-			iterator(std::vector<byte>& c, uint64_t i);
+			iterator(std::vector<byte> &c);
+			iterator(std::vector<byte> &c, uint64_t i);
 
-		public:
-			using value_type = byte * ;
+		      public:
+			using value_type = byte *;
 			using reference = value_type;
-			using pointer = byte * *;
+			using pointer = byte **;
 			using iterator_category = std::input_iterator_tag;
 			using difference_type = int;
 
-			iterator(const iterator& o);
-			iterator& operator=(const iterator& o);
+			iterator(const iterator &o);
+			iterator &operator=(const iterator &o);
 			iterator add_unsafe(uint64_t offset);
 			// postfix
 			iterator operator++(int);
 			// prefix
-			iterator& operator++();
-			bool operator==(const iterator& o);
-			bool operator!=(const iterator& o);
-			byte* operator*();
-			byte* operator->();
+			iterator &operator++();
+			bool operator==(const iterator &o);
+			bool operator!=(const iterator &o);
+			byte *operator*();
+			byte *operator->();
 		};
 
-	private:
+	      private:
 		std::vector<byte> instructions;
 
-	public:
+	      public:
 		bytecode();
 		bytecode(std::vector<byte> bs);
 
 		// Adds the bytes to this bytecode at the given address
-		template<size_t C> near_lbl add_instruction(near_lbl l, bytes<C> in)
+		template <size_t C> near_lbl add_instruction(near_lbl l, bytes<C> in)
 		{
 			for (int i = 0; i < C; i++)
 				instructions.insert(instructions.begin() + l.ip + i, in[i]);
 			return l;
 		}
 
-		// Adds the bytes to the end of this bytecode, returning the address of the first byte
-		template<size_t C> std::pair<near_lbl, uint32_t> add_instruction(bytes<C> in)
+		// Adds the bytes to the end of this bytecode, returning the address of the first
+		// byte
+		template <size_t C> std::pair<near_lbl, uint32_t> add_instruction(bytes<C> in)
 		{
 			near_lbl l(instructions.size());
 			for (int i = 0; i < C; i++) instructions.push_back(in[i]);
 			return std::make_pair(l, static_cast<uint32_t>(in.size()));
 		}
 
-		// Adds the vector of bytes to the end of this bytecode, returning the address of the first byte
-		template<size_t... Cs> std::pair<near_lbl, uint32_t> add_instructions(bytes<Cs>... in)
+		// Adds the vector of bytes to the end of this bytecode, returning the address of
+		// the first byte
+		template <size_t... Cs>
+		std::pair<near_lbl, uint32_t> add_instructions(bytes<Cs>... in)
 		{
 			near_lbl l(instructions.size());
 			(add_instruction(in), ...);
 			return std::make_pair(l, (Cs + ... + 0));
 		}
 
-		const byte* get_instruction(near_lbl l) const;
+		const byte *get_instruction(near_lbl l) const;
 
 		// Returns the C bytes starting at the given address, padded with op_kind::ERR bytes
-		template<size_t C> bytes<C> get_instruction(near_lbl l) const
+		template <size_t C> bytes<C> get_instruction(near_lbl l) const
 		{
 			bytes<C> res;
-			for (int i = 0; i < C; i++) res[i] = i + l.ip < instructions.size() ? instructions[l.ip + i] : op_to_byte(op_kind::ERR);
+			for (int i = 0; i < C; i++)
+				res[i] = i + l.ip < instructions.size() ? instructions[l.ip + i]
+									: op_to_byte(op_kind::ERR);
 			return res;
 		}
 
-		// Sets the instruction at the given address to the new bytes 
-		template<size_t C> void set_instruction(near_lbl l, bytes<C> b)
+		// Sets the instruction at the given address to the new bytes
+		template <size_t C> void set_instruction(near_lbl l, bytes<C> b)
 		{
 			for (int i = 0; i < C; i++) instructions[l.ip + i] = b[i];
 		}
 
-		byte* operator[](uint64_t index);
+		byte *operator[](uint64_t index);
 
-		void append(bytecode& other);
+		void append(bytecode &other);
 
 		// Returns true if the given address maps to an instruction
 		bool has_instruction(near_lbl) const;
@@ -461,7 +421,7 @@ namespace fe::vm
 
 		size_t size() const;
 
-		std::vector<byte>& data();
+		std::vector<byte> &data();
 
 		iterator begin();
 
@@ -473,17 +433,16 @@ namespace fe::vm
 	{
 		bytecode bc;
 
-	public:
-
+	      public:
 		// Adds the bytes to the end of the bytecode
-		template<long unsigned int C> bytecode_builder& add(bytes<C> in)
+		template <long unsigned int C> bytecode_builder &add(bytes<C> in)
 		{
 			bc.add_instruction(in);
 			return *this;
 		}
 
 		// Adds the vector of bytes to the end of the bytecode
-		template<long unsigned int... Cs> bytecode_builder& add(bytes<Cs>... in)
+		template <long unsigned int... Cs> bytecode_builder &add(bytes<Cs>... in)
 		{
 			bc.add_instructions(in...);
 			return *this;
@@ -503,18 +462,18 @@ namespace fe::vm
 		std::variant<bytecode, native_function_id> code;
 		symbols externals;
 
-	public:
+	      public:
 		function(name n, bytecode c, symbols s);
 		function(name n, bytecode c);
 		function(name n, native_function_id c, symbols s);
 		function(name n, native_function_id c);
 		function();
 
-		name& get_name();
-		symbols& get_symbols();
+		name &get_name();
+		symbols &get_symbols();
 		bool is_bytecode();
 		bool is_native();
-		bytecode& get_bytecode();
+		bytecode &get_bytecode();
 		native_function_id get_native_function_id();
 	};
 
@@ -526,19 +485,19 @@ namespace fe::vm
 	{
 		std::vector<function> code;
 
-	public:
+	      public:
 		program() {}
 
 		function_id add_function(function);
-		function& get_function(function_id);
-		function& get_function(name);
+		function &get_function(function_id);
+		function &get_function(name);
 		size_t function_count();
 
 		void insert_padding(far_lbl loc, uint8_t size);
 
-		std::vector<function>& get_code();
+		std::vector<function> &get_code();
 
-		template<int C> bytes<C> operator[](far_lbl l)
+		template <int C> bytes<C> operator[](far_lbl l)
 		{
 			return code.at(l.chunk_id).get_bytecode().get_instruction<C>(l.ip);
 		}
@@ -546,15 +505,16 @@ namespace fe::vm
 		std::string to_string();
 	};
 
-	// An executable is a single monolithic bytecode object combined with a set of native functions.
+	// An executable is a single monolithic bytecode object combined with a set of native
+	// functions.
 	class executable
 	{
-	public:
+	      public:
 		bytecode code;
 
 		executable(bytecode code);
 
-		template<int C> bytes<C> get_instruction(uint64_t loc)
+		template <int C> bytes<C> get_instruction(uint64_t loc)
 		{
 			return code.get_instruction<C>(loc);
 		}
@@ -563,27 +523,29 @@ namespace fe::vm
 
 		bytecode::iterator begin();
 		bytecode::iterator end();
-		byte* operator[](uint64_t i);
+		byte *operator[](uint64_t i);
+
+		size_t byte_length() const;
 	};
 
-	// A direct threaded executable is a platform dependent executable where op_kinds in the bytecode are replaced with
-	// offsets in the interpreter code.
+	// A direct threaded executable is a platform dependent executable where op_kinds in the
+	// bytecode are replaced with offsets in the interpreter code.
 	class direct_threaded_executable
 	{
-	public:
+	      public:
 		direct_threaded_executable(bytecode code);
 
 		bytecode code;
 	};
-}
+} // namespace fe::vm
 
 namespace std
 {
-	template<> struct hash<fe::vm::reg>
+	template <> struct hash<fe::vm::reg>
 	{
-		size_t operator()(const fe::vm::reg& r) const
+		size_t operator()(const fe::vm::reg &r) const
 		{
 			return std::hash<uint64_t>()(r.val);
 		}
 	};
-}
+} // namespace std
