@@ -14,37 +14,39 @@ namespace fe::vm
 		switch (o)
 		{
 		case op_kind::NOP: return "nop";
-		case op_kind::ADD_REG_REG_REG: return "add_reg_reg_reg";
-		case op_kind::ADD_REG_REG_UI8: return "add_reg_reg_ui8";
-		case op_kind::SUB_REG_REG_REG: return "sub_reg_reg_reg";
-		case op_kind::SUB_REG_REG_UI8: return "sub_reg_reg_ui8";
-		case op_kind::MUL_REG_REG_REG: return "mul_reg_reg_reg";
-		case op_kind::DIV_REG_REG_REG: return "div_reg_reg_reg";
-		case op_kind::MOD_REG_REG_REG: return "mod_reg_reg_reg";
-		case op_kind::GT_REG_REG_REG: return "gt_reg_reg_reg";
-		case op_kind::GTE_REG_REG_REG: return "gte_reg_reg_reg";
-		case op_kind::LT_REG_REG_REG: return "lt_reg_reg_reg";
-		case op_kind::LTE_REG_REG_REG: return "lte_reg_reg_reg";
-		case op_kind::LTE_REG_REG_I8: return "lte_reg_reg_i8";
-		case op_kind::EQ_REG_REG_REG: return "eq_reg_reg_reg";
-		case op_kind::NEQ_REG_REG_REG: return "neq_reg_reg_reg";
-		case op_kind::AND_REG_REG_REG: return "and_reg_reg_reg";
-		case op_kind::AND_REG_REG_UI8: return "and_reg_reg_ui8";
-		case op_kind::OR_REG_REG_REG: return "or_reg_reg_reg";
-		case op_kind::XOR_REG_REG_UI8: return "xor_reg_reg_ui8";
-		case op_kind::MV_REG_IP: return "mv_reg_ip";
-		case op_kind::MV_REG_UI8: return "mv_reg_ui8";
-		case op_kind::MV_REG_UI16: return "mv_reg_ui16";
-		case op_kind::MV_REG_UI32: return "mv_reg_ui32";
-		case op_kind::MV_REG_UI64: return "mv_reg_ui64";
-		case op_kind::MV_REG_I8: return "mv_reg_i8";
-		case op_kind::MV_REG_I16: return "mv_reg_i16";
-		case op_kind::MV_REG_I32: return "mv_reg_i32";
-		case op_kind::MV_REG_I64: return "mv_reg_i64";
-		case op_kind::MV8_REG_REG: return "mv8_reg_reg";
-		case op_kind::MV16_REG_REG: return "mv16_reg_reg";
-		case op_kind::MV32_REG_REG: return "mv32_reg_reg";
-		case op_kind::MV64_REG_REG: return "mv64_reg_reg";
+		case op_kind::ADD_R64_R64_R64: return "add_r64_r64_r64";
+		case op_kind::ADD_R64_R64_UI8: return "add_r64_r64_ui8";
+		case op_kind::SUB_R64_R64_R64: return "sub_r64_r64_r64";
+		case op_kind::SUB_R64_R64_UI8: return "sub_r64_r64_ui8";
+		case op_kind::MUL_R64_R64_R64: return "mul_r64_r64_r64";
+		case op_kind::DIV_R64_R64_R64: return "div_r64_r64_r64";
+		case op_kind::MOD_R64_R64_R64: return "mod_r64_r64_r64";
+		case op_kind::GT_R8_R64_R64: return "gt_r8_r64_r64";
+		case op_kind::GTE_R8_R64_R64: return "gte_r8_r64_r64";
+		case op_kind::LT_R8_R64_R64: return "lt_r8_r64_r64";
+		case op_kind::LTE_R8_R64_R64: return "lte_r8_r64_r64";
+		case op_kind::EQ_R8_R64_R64: return "eq_r8_r64_r64";
+		case op_kind::EQ_R8_R8_R8: return "eq_r8_r8_r8";
+		case op_kind::NEQ_R8_R64_R64: return "neq_r8_r64_r64";
+		case op_kind::AND_R64_R64_R64: return "and_r64_r64_r64";
+		case op_kind::AND_R8_R8_UI8: return "and_r8_r8_ui8";
+		case op_kind::AND_R8_R8_R8: return "and_r8_r8_r8";
+		case op_kind::OR_R64_R64_R64: return "or_r64_r64_r64";
+		case op_kind::OR_R8_R8_R8: return "or_r8_r8_r8";
+		case op_kind::XOR_R8_R8_UI8: return "xor_r8_r8_ui8";
+		case op_kind::MV_REG_UI8: return "mv_r8_ui8";
+		case op_kind::MV_REG_UI16: return "mv_r16_ui16";
+		case op_kind::MV_REG_UI32: return "mv_r32_ui32";
+		case op_kind::MV_REG_UI64: return "mv_r64_ui64";
+		case op_kind::MV_REG_I8: return "mv_r8_i8";
+		case op_kind::MV_REG_I16: return "mv_r16_i16";
+		case op_kind::MV_REG_I32: return "mv_r32_i32";
+		case op_kind::MV_REG_I64: return "mv_r64_i64";
+		case op_kind::MV8_REG_REG: return "mv_r8_r8";
+		case op_kind::MV16_REG_REG: return "mv_r16_r16";
+		case op_kind::MV32_REG_REG: return "mv_r32_r32";
+		case op_kind::MV64_REG_REG: return "mv_r64_r64";
+		case op_kind::MV_R64_L64: return "mv_r64_l64";
 		case op_kind::LBL_UI32: return "lbl_ui32";
 		case op_kind::JMPR_I32: return "jmpr_i32";
 		case op_kind::JRNZ_REG_I32: return "jrnz_reg_i32";
@@ -61,37 +63,39 @@ namespace fe::vm
 	op_kind string_to_op(const std::string &o)
 	{
 		if (o == "nop") return op_kind::NOP;
-		if (o == "add_reg_reg_reg") return op_kind::ADD_REG_REG_REG;
-		if (o == "add_reg_reg_ui8") return op_kind::ADD_REG_REG_UI8;
-		if (o == "sub_reg_reg_reg") return op_kind::SUB_REG_REG_REG;
-		if (o == "sub_reg_reg_ui8") return op_kind::SUB_REG_REG_UI8;
-		if (o == "mul_reg_reg_reg") return op_kind::MUL_REG_REG_REG;
-		if (o == "div_reg_reg_reg") return op_kind::DIV_REG_REG_REG;
-		if (o == "mod_reg_reg_reg") return op_kind::MOD_REG_REG_REG;
-		if (o == "gt_reg_reg_reg") return op_kind::GT_REG_REG_REG;
-		if (o == "gte_reg_reg_reg") return op_kind::GTE_REG_REG_REG;
-		if (o == "lt_reg_reg_reg") return op_kind::LT_REG_REG_REG;
-		if (o == "lte_reg_reg_reg") return op_kind::LTE_REG_REG_REG;
-		if (o == "lte_reg_reg_i8") return op_kind::LTE_REG_REG_I8;
-		if (o == "eq_reg_reg_reg") return op_kind::EQ_REG_REG_REG;
-		if (o == "neq_reg_reg_reg") return op_kind::NEQ_REG_REG_REG;
-		if (o == "and_reg_reg_reg") return op_kind::AND_REG_REG_REG;
-		if (o == "and_reg_reg_ui8") return op_kind::AND_REG_REG_UI8;
-		if (o == "or_reg_reg_reg") return op_kind::OR_REG_REG_REG;
-		if (o == "xor_reg_reg_ui8") return op_kind::XOR_REG_REG_UI8;
-		if (o == "mv_reg_ip") return op_kind::MV_REG_IP;
-		if (o == "mv_reg_ui8") return op_kind::MV_REG_UI8;
-		if (o == "mv_reg_ui16") return op_kind::MV_REG_UI16;
-		if (o == "mv_reg_ui32") return op_kind::MV_REG_UI32;
-		if (o == "mv_reg_ui64") return op_kind::MV_REG_UI64;
-		if (o == "mv_reg_i8") return op_kind::MV_REG_I8;
-		if (o == "mv_reg_i16") return op_kind::MV_REG_I16;
-		if (o == "mv_reg_i32") return op_kind::MV_REG_I32;
-		if (o == "mv_reg_i64") return op_kind::MV_REG_I64;
-		if (o == "mv8_reg_reg") return op_kind::MV8_REG_REG;
-		if (o == "mv16_reg_reg") return op_kind::MV16_REG_REG;
-		if (o == "mv32_reg_reg") return op_kind::MV32_REG_REG;
-		if (o == "mv64_reg_reg") return op_kind::MV64_REG_REG;
+		if (o == "add_r64_r64_r64") return op_kind::ADD_R64_R64_R64;
+		if (o == "add_r64_r64_ui8") return op_kind::ADD_R64_R64_UI8;
+		if (o == "sub_r64_r64_r64") return op_kind::SUB_R64_R64_R64;
+		if (o == "sub_r64_r64_ui8") return op_kind::SUB_R64_R64_UI8;
+		if (o == "mul_r64_r64_r64") return op_kind::MUL_R64_R64_R64;
+		if (o == "div_r64_r64_r64") return op_kind::DIV_R64_R64_R64;
+		if (o == "mod_r64_r64_r64") return op_kind::MOD_R64_R64_R64;
+		if (o == "gt_r8_r64_r64") return op_kind::GT_R8_R64_R64;
+		if (o == "gte_r8_r64_r64") return op_kind::GTE_R8_R64_R64;
+		if (o == "lt_r8_r64_r64") return op_kind::LT_R8_R64_R64;
+		if (o == "lte_r8_r64_r64") return op_kind::LTE_R8_R64_R64;
+		if (o == "eq_r8_r64_r64") return op_kind::EQ_R8_R64_R64;
+		if (o == "eq_r8_r8_r8") return op_kind::EQ_R8_R8_R8;
+		if (o == "neq_r8_r64_r64") return op_kind::NEQ_R8_R64_R64;
+		if (o == "and_r64_r64_r64") return op_kind::AND_R64_R64_R64;
+		if (o == "and_r8_r8_ui8") return op_kind::AND_R8_R8_UI8;
+		if (o == "and_r8_r8_r8") return op_kind::AND_R8_R8_R8;
+		if (o == "or_r64_r64_r64") return op_kind::OR_R64_R64_R64;
+		if (o == "or_r8_r8_r8") return op_kind::OR_R8_R8_R8;
+		if (o == "xor_r8_r8_ui8") return op_kind::XOR_R8_R8_UI8;
+		if (o == "mv_r8_ui8") return op_kind::MV_REG_UI8;
+		if (o == "mv_r16_ui16") return op_kind::MV_REG_UI16;
+		if (o == "mv_r32_ui32") return op_kind::MV_REG_UI32;
+		if (o == "mv_r64_ui64") return op_kind::MV_REG_UI64;
+		if (o == "mv_r8_i8") return op_kind::MV_REG_I8;
+		if (o == "mv_r16_i16") return op_kind::MV_REG_I16;
+		if (o == "mv_r32_i32") return op_kind::MV_REG_I32;
+		if (o == "mv_r64_i64") return op_kind::MV_REG_I64;
+		if (o == "mv_r8_r8") return op_kind::MV8_REG_REG;
+		if (o == "mv_r16_r16") return op_kind::MV16_REG_REG;
+		if (o == "mv_r32_r32") return op_kind::MV32_REG_REG;
+		if (o == "mv_r64_r64") return op_kind::MV64_REG_REG;
+		if (o == "mv_r64_l64") return op_kind::MV_R64_L64;
 		if (o == "lbl_ui32") return op_kind::LBL_UI32;
 		if (o == "jmpr_i32") return op_kind::JMPR_I32;
 		if (o == "jrnz_reg_i32") return op_kind::JRNZ_REG_I32;
@@ -108,23 +112,22 @@ namespace fe::vm
 	{
 		switch (byte_to_op(op->val))
 		{
-		case op_kind::ADD_REG_REG_REG:
-		case op_kind::ADD_REG_REG_UI8:
-		case op_kind::SUB_REG_REG_REG:
-		case op_kind::SUB_REG_REG_UI8:
-		case op_kind::MUL_REG_REG_REG:
-		case op_kind::DIV_REG_REG_REG:
-		case op_kind::MOD_REG_REG_REG:
-		case op_kind::GT_REG_REG_REG:
-		case op_kind::GTE_REG_REG_REG:
-		case op_kind::LT_REG_REG_REG:
-		case op_kind::LTE_REG_REG_REG:
-		case op_kind::EQ_REG_REG_REG:
-		case op_kind::NEQ_REG_REG_REG:
-		case op_kind::AND_REG_REG_REG:
-		case op_kind::AND_REG_REG_UI8:
-		case op_kind::OR_REG_REG_REG:
-		case op_kind::MV_REG_IP:
+		case op_kind::ADD_R64_R64_R64:
+		case op_kind::ADD_R64_R64_UI8:
+		case op_kind::SUB_R64_R64_R64:
+		case op_kind::SUB_R64_R64_UI8:
+		case op_kind::MUL_R64_R64_R64:
+		case op_kind::DIV_R64_R64_R64:
+		case op_kind::MOD_R64_R64_R64:
+		case op_kind::GT_R8_R64_R64:
+		case op_kind::GTE_R8_R64_R64:
+		case op_kind::LT_R8_R64_R64:
+		case op_kind::LTE_R8_R64_R64:
+		case op_kind::EQ_R8_R64_R64:
+		case op_kind::NEQ_R8_R64_R64:
+		case op_kind::AND_R64_R64_R64:
+		case op_kind::AND_R8_R8_UI8:
+		case op_kind::OR_R64_R64_R64:
 		case op_kind::MV_REG_UI8:
 		case op_kind::MV_REG_UI16:
 		case op_kind::MV_REG_UI32:
@@ -136,7 +139,8 @@ namespace fe::vm
 		case op_kind::MV8_REG_REG:
 		case op_kind::MV16_REG_REG:
 		case op_kind::MV32_REG_REG:
-		case op_kind::MV64_REG_REG: return (op + 1)->val == r.val;
+		case op_kind::MV64_REG_REG:
+		case op_kind::MV_R64_L64: return (op + 1)->val == r.val;
 		default: return false;
 		}
 	}
@@ -145,24 +149,24 @@ namespace fe::vm
 	{
 		switch (byte_to_op(op->val))
 		{
-		case op_kind::ADD_REG_REG_REG:
-		case op_kind::SUB_REG_REG_REG:
-		case op_kind::MUL_REG_REG_REG:
-		case op_kind::DIV_REG_REG_REG:
-		case op_kind::MOD_REG_REG_REG:
-		case op_kind::GT_REG_REG_REG:
-		case op_kind::GTE_REG_REG_REG:
-		case op_kind::LT_REG_REG_REG:
-		case op_kind::LTE_REG_REG_REG:
-		case op_kind::EQ_REG_REG_REG:
-		case op_kind::NEQ_REG_REG_REG:
-		case op_kind::AND_REG_REG_REG:
-		case op_kind::AND_REG_REG_UI8:
-		case op_kind::OR_REG_REG_REG:
+		case op_kind::ADD_R64_R64_R64:
+		case op_kind::SUB_R64_R64_R64:
+		case op_kind::MUL_R64_R64_R64:
+		case op_kind::DIV_R64_R64_R64:
+		case op_kind::MOD_R64_R64_R64:
+		case op_kind::GT_R8_R64_R64:
+		case op_kind::GTE_R8_R64_R64:
+		case op_kind::LT_R8_R64_R64:
+		case op_kind::LTE_R8_R64_R64:
+		case op_kind::EQ_R8_R64_R64:
+		case op_kind::NEQ_R8_R64_R64:
+		case op_kind::AND_R64_R64_R64:
+		case op_kind::AND_R8_R8_UI8:
+		case op_kind::OR_R64_R64_R64:
 			return (op + 2)->val == r.val || (op + 3)->val == r.val;
 
-		case op_kind::ADD_REG_REG_UI8:
-		case op_kind::SUB_REG_REG_UI8:
+		case op_kind::ADD_R64_R64_UI8:
+		case op_kind::SUB_R64_R64_UI8:
 		case op_kind::MV8_REG_REG:
 		case op_kind::MV16_REG_REG:
 		case op_kind::MV32_REG_REG:
@@ -216,77 +220,105 @@ namespace fe::vm
 	 */
 
 	bytes<1> make_nop() { return bytes<1>{ op_to_byte(op_kind::NOP) }; }
-	bytes<4> make_add(reg dest, reg a, reg b)
+	bytes<4> make_add_r64_r64_r64(reg dest, reg a, reg b)
 	{
-		return bytes<4>{ op_to_byte(op_kind::ADD_REG_REG_REG), dest.val, a.val, b.val };
+		return bytes<4>{ op_to_byte(op_kind::ADD_R64_R64_R64), dest.val, a.val, b.val };
 	}
-	bytes<4> make_add(reg dest, reg a, byte b)
+	bytes<4> make_add_r64_r64_ui8(reg dest, reg a, byte b)
 	{
-		return bytes<4>{ op_to_byte(op_kind::ADD_REG_REG_UI8), dest.val, a.val, b.val };
+		return bytes<4>{ op_to_byte(op_kind::ADD_R64_R64_UI8), dest.val, a.val, b.val };
 	}
-	bytes<4> make_sub(reg dest, reg a, reg b)
+	bytes<4> make_sub_r64_r64_r64(reg dest, reg a, reg b)
 	{
-		return bytes<4>{ op_to_byte(op_kind::SUB_REG_REG_REG), dest.val, a.val, b.val };
+		return bytes<4>{ op_to_byte(op_kind::SUB_R64_R64_R64), dest.val, a.val, b.val };
 	}
-	bytes<4> make_sub(reg dest, reg a, byte b)
+	bytes<4> make_sub_r64_r64_ui8(reg dest, reg a, byte b)
 	{
-		return bytes<4>{ op_to_byte(op_kind::SUB_REG_REG_UI8), dest.val, a.val, b.val };
+		return bytes<4>{ op_to_byte(op_kind::SUB_R64_R64_UI8), dest.val, a.val, b.val };
 	}
-	bytes<4> make_mul(reg dest, reg a, reg b)
+	bytes<4> make_mul_r64_r64_r64(reg dest, reg a, reg b)
 	{
-		return bytes<4>{ op_to_byte(op_kind::MUL_REG_REG_REG), dest.val, a.val, b.val };
+		return bytes<4>{ op_to_byte(op_kind::MUL_R64_R64_R64), dest.val, a.val, b.val };
 	}
-	bytes<4> make_div(reg dest, reg a, reg b)
+	bytes<4> make_div_r64_r64_r64(reg dest, reg a, reg b)
 	{
-		return bytes<4>{ op_to_byte(op_kind::DIV_REG_REG_REG), dest.val, a.val, b.val };
+		return bytes<4>{ op_to_byte(op_kind::DIV_R64_R64_R64), dest.val, a.val, b.val };
 	}
-	bytes<4> make_mod(reg dest, reg a, reg b)
+	bytes<4> make_mod_r64_r64_r64(reg dest, reg a, reg b)
 	{
-		return bytes<4>{ op_to_byte(op_kind::MOD_REG_REG_REG), dest.val, a.val, b.val };
+		return bytes<4>{ op_to_byte(op_kind::MOD_R64_R64_R64), dest.val, a.val, b.val };
 	}
-	bytes<4> make_and(reg dest, reg a, reg b)
+	bytes<4> make_gt_r8_r64_r64(reg dest, reg a, reg b)
 	{
-		return bytes<4>{ op_to_byte(op_kind::AND_REG_REG_REG), dest.val, a.val, b.val };
+		return bytes<4>{ op_to_byte(op_kind::GT_R8_R64_R64), dest.val, a.val, b.val };
 	}
-	bytes<4> make_and(reg dest, reg a, byte b)
+	bytes<4> make_gt_r8_r8_r8(reg dest, reg a, reg b)
 	{
-		return bytes<4>{ op_to_byte(op_kind::AND_REG_REG_UI8), dest.val, a.val, b.val };
+		return bytes<4>{ op_to_byte(op_kind::GT_R8_R8_R8), dest.val, a.val, b.val };
 	}
-	bytes<4> make_or(reg dest, reg a, reg b)
+	bytes<4> make_gte_r8_r64_r64(reg dest, reg a, reg b)
 	{
-		return bytes<4>{ op_to_byte(op_kind::OR_REG_REG_REG), dest.val, a.val, b.val };
+		return bytes<4>{ op_to_byte(op_kind::GTE_R8_R64_R64), dest.val, a.val, b.val };
 	}
-	bytes<4> make_gt(reg dest, reg a, reg b)
+	bytes<4> make_gte_r8_r8_r8(reg dest, reg a, reg b)
 	{
-		return bytes<4>{ op_to_byte(op_kind::GT_REG_REG_REG), dest.val, a.val, b.val };
+		return bytes<4>{ op_to_byte(op_kind::GTE_R8_R8_R8), dest.val, a.val, b.val };
 	}
-	bytes<4> make_gte(reg dest, reg a, reg b)
+	bytes<4> make_lt_r8_r64_r64(reg dest, reg a, reg b)
 	{
-		return bytes<4>{ op_to_byte(op_kind::GTE_REG_REG_REG), dest.val, a.val, b.val };
+		return bytes<4>{ op_to_byte(op_kind::LT_R8_R64_R64), dest.val, a.val, b.val };
 	}
-	bytes<4> make_lt(reg dest, reg a, reg b)
+	bytes<4> make_lt_r8_r8_r8(reg dest, reg a, reg b)
 	{
-		return bytes<4>{ op_to_byte(op_kind::LT_REG_REG_REG), dest.val, a.val, b.val };
+		return bytes<4>{ op_to_byte(op_kind::LT_R8_R8_R8), dest.val, a.val, b.val };
 	}
-	bytes<4> make_lte(reg dest, reg a, reg b)
+	bytes<4> make_lte_r8_r64_r64(reg dest, reg a, reg b)
 	{
-		return bytes<4>{ op_to_byte(op_kind::LTE_REG_REG_REG), dest.val, a.val, b.val };
+		return bytes<4>{ op_to_byte(op_kind::LTE_R8_R64_R64), dest.val, a.val, b.val };
 	}
-	bytes<4> make_lte(reg dest, reg a, byte b)
+	bytes<4> make_lte_r8_r8_r8(reg dest, reg a, reg b)
 	{
-		return bytes<4>{ op_to_byte(op_kind::LTE_REG_REG_I8), dest.val, a.val, b.val };
+		return bytes<4>{ op_to_byte(op_kind::LTE_R8_R8_R8), dest.val, a.val, b.val };
 	}
-	bytes<4> make_eq(reg dest, reg a, reg b)
+	bytes<4> make_eq_r8_r64_r64(reg dest, reg a, reg b)
 	{
-		return bytes<4>{ op_to_byte(op_kind::EQ_REG_REG_REG), dest.val, a.val, b.val };
+		return bytes<4>{ op_to_byte(op_kind::EQ_R8_R64_R64), dest.val, a.val, b.val };
 	}
-	bytes<4> make_neq(reg dest, reg a, reg b)
+	bytes<4> make_eq_r8_r8_r8(reg dest, reg a, reg b)
 	{
-		return bytes<4>{ op_to_byte(op_kind::NEQ_REG_REG_REG), dest.val, a.val, b.val };
+		return bytes<4>{ op_to_byte(op_kind::EQ_R8_R8_R8), dest.val, a.val, b.val };
 	}
-	bytes<4> make_xor(reg dest, reg a, int8_t b)
+	bytes<4> make_neq_r8_r64_r64(reg dest, reg a, reg b)
 	{
-		return bytes<4>{ op_to_byte(op_kind::XOR_REG_REG_UI8), dest.val, a.val, byte(b) };
+		return bytes<4>{ op_to_byte(op_kind::NEQ_R8_R64_R64), dest.val, a.val, b.val };
+	}
+	bytes<4> make_neq_r8_r8_r8(reg dest, reg a, reg b)
+	{
+		return bytes<4>{ op_to_byte(op_kind::NEQ_R8_R8_R8), dest.val, a.val, b.val };
+	}
+	bytes<4> make_and_r64_r64_r64(reg dest, reg a, reg b)
+	{
+		return bytes<4>{ op_to_byte(op_kind::AND_R64_R64_R64), dest.val, a.val, b.val };
+	}
+	bytes<4> make_and_r8_r8_r8(reg dest, reg a, reg b)
+	{
+		return bytes<4>{ op_to_byte(op_kind::AND_R8_R8_R8), dest.val, a.val, b.val };
+	}
+	bytes<4> make_and_r8_r8_ui8(reg dest, reg a, byte b)
+	{
+		return bytes<4>{ op_to_byte(op_kind::AND_R8_R8_UI8), dest.val, a.val, b.val };
+	}
+	bytes<4> make_or_r64_r64_r64(reg dest, reg a, reg b)
+	{
+		return bytes<4>{ op_to_byte(op_kind::OR_R64_R64_R64), dest.val, a.val, b.val };
+	}
+	bytes<4> make_or_r8_r8_r8(reg dest, reg a, reg b)
+	{
+		return bytes<4>{ op_to_byte(op_kind::OR_R8_R8_R8), dest.val, a.val, b.val };
+	}
+	bytes<4> make_xor_r8_r8_ui8(reg dest, reg a, int8_t b)
+	{
+		return bytes<4>{ op_to_byte(op_kind::XOR_R8_R8_UI8), dest.val, a.val, byte(b) };
 	}
 	bytes<3> make_mv64(reg dest, reg src)
 	{
@@ -380,6 +412,10 @@ namespace fe::vm
 	bytes<3> make_mv64_reg_reg(reg dest, reg src)
 	{
 		return bytes<3>{ op_to_byte(op_kind::MV64_REG_REG), dest.val, src.val };
+	}
+	bytes<3> make_mv_r64_l64(reg dest, reg src)
+	{
+		return bytes<3>{ op_to_byte(op_kind::MV_R64_L64), dest.val, src.val };
 	}
 	bytes<12> make_call_ui64_ui8_ui8_ui8(uint64_t ip, uint8_t reg, uint8_t regc,
 					     uint8_t ret_reg)
@@ -621,6 +657,7 @@ namespace fe::vm
 	bytecode::iterator executable::begin() { return code.begin(); }
 	bytecode::iterator executable::end() { return code.end(); }
 	byte *executable::operator[](uint64_t i) { return &code.data()[i]; }
+	size_t executable::byte_length() const { return this->code.size(); }
 
 	/*
 	 * Direct Threaded Executable

@@ -1,6 +1,6 @@
 PUBLIC vm_interpret, vm_init
 .data
-handlers  WORD 64 dup (?) ; dispatch target locations, initialized in vm_init
+handlers  WORD 128 dup (?) ; dispatch target locations, initialized in vm_init
 native_functions QWORD (0) ; pointer to array of native functions
 .code
 
@@ -52,7 +52,7 @@ nop_ LABEL NEAR PTR WORD
 ; END nop
 
 ; BEGIN add reg reg reg
-add_reg_reg_reg LABEL NEAR PTR WORD
+add_r64_r64_r64 LABEL NEAR PTR WORD
 	shr r9, 16
 	mov rax, r9
 	mov rbx, r9
@@ -84,7 +84,7 @@ add_reg_reg_reg LABEL NEAR PTR WORD
 
 
 ; BEGIN add reg reg ui8
-add_reg_reg_ui8 LABEL NEAR PTR WORD
+add_r64_r64_ui8 LABEL NEAR PTR WORD
 	shr r9, 16
 	mov rax, r9
 	mov rbx, r9
@@ -113,7 +113,7 @@ add_reg_reg_ui8 LABEL NEAR PTR WORD
 ; END add reg reg ui8
 
 ; BEGIN sub reg reg reg
-sub_reg_reg_reg LABEL NEAR PTR WORD
+sub_r64_r64_r64 LABEL NEAR PTR WORD
 	shr r9, 16
 	mov rax, r9
 	mov rbx, r9
@@ -144,7 +144,7 @@ sub_reg_reg_reg LABEL NEAR PTR WORD
 ; END sub reg reg reg
 
 ; BEGIN sub reg reg ui8
-sub_reg_reg_ui8 LABEL NEAR PTR WORD
+sub_r64_r64_ui8 LABEL NEAR PTR WORD
 	shr r9, 16
 	mov rax, r9
 	mov rbx, r9
@@ -174,7 +174,7 @@ sub_reg_reg_ui8 LABEL NEAR PTR WORD
 ; END sub reg reg ui8
 
 ; BEGIN mul reg reg reg
-mul_reg_reg_reg LABEL NEAR PTR WORD
+mul_r64_r64_r64 LABEL NEAR PTR WORD
 	shr r9, 16
 	mov rax, r9
 	mov rbx, r9
@@ -205,7 +205,7 @@ mul_reg_reg_reg LABEL NEAR PTR WORD
 ; END mul reg reg reg
 
 ; BEGIN div reg reg reg
-div_reg_reg_reg LABEL NEAR PTR WORD
+div_r64_r64_r64 LABEL NEAR PTR WORD
 	shr r9, 16
 	mov rax, r9
 	mov rbx, r9
@@ -240,7 +240,7 @@ div_reg_reg_reg LABEL NEAR PTR WORD
 ; END div reg reg reg
 
 ; BEGIN mod reg reg reg
-mod_reg_reg_reg LABEL NEAR PTR WORD
+mod_r64_r64_r64 LABEL NEAR PTR WORD
 	shr r9, 16
 	mov rax, r9
 	mov rbx, r9
@@ -275,7 +275,7 @@ mod_reg_reg_reg LABEL NEAR PTR WORD
 ; END mod reg reg reg
 
 ; BEGIN gt reg reg reg
-gt_reg_reg_reg LABEL NEAR PTR WORD
+gt_r8_r64_r64 LABEL NEAR PTR WORD
 	shr r9, 16
 	mov rax, r9
 	mov rbx, r9
@@ -306,14 +306,53 @@ gt_reg_reg_reg LABEL NEAR PTR WORD
 	cmp rax, r9
 	cmovg rdx, rcx
 
-	mov [r13 + rbx], rdx
+	mov BYTE PTR [r13 + rbx], dl
+
+	add r8, 5
+	DISPATCH
+; END gt reg reg reg
+
+
+; BEGIN gt r8 r8 r8
+gt_r8_r8_r8 LABEL NEAR PTR WORD
+	shr r9, 16
+	mov rax, r9
+	mov rbx, r9
+
+	; rbx gets target
+	; rax gets first source
+	; r9  gets second source
+
+	shr rax, 8
+	and rax, 0ffh
+	neg rax
+
+	shr r9, 16
+	and r9, 0ffh
+	neg r9
+
+	and rbx, 0ffh
+	neg rbx
+
+	; perform ops
+
+	mov r9b, BYTE PTR [r13 + r9]
+	mov al, BYTE PTR [r13 + rax]
+	; default move 0 into rbx
+	mov rdx, 0
+	; conditional move 1 into rbx
+	mov rcx, 1
+	cmp al, r9b
+	cmovg rdx, rcx
+
+	mov BYTE PTR [r13 + rbx], dl
 
 	add r8, 5
 	DISPATCH
 ; END gt reg reg reg
 
 ; BEGIN gte reg reg reg
-gte_reg_reg_reg LABEL NEAR PTR WORD
+gte_r8_r64_r64 LABEL NEAR PTR WORD
 	shr r9, 16
 	mov rax, r9
 	mov rbx, r9
@@ -343,14 +382,52 @@ gte_reg_reg_reg LABEL NEAR PTR WORD
 	mov rcx, 1
 	cmp rax, r9
 	cmovge rdx, rcx
-	mov [r13 + rbx], rdx
+	mov BYTE PTR [r13 + rbx], dl
+
+	add r8, 5
+	DISPATCH
+; END gte reg reg reg
+
+
+; BEGIN gte reg reg reg
+gte_r8_r8_r8 LABEL NEAR PTR WORD
+	shr r9, 16
+	mov rax, r9
+	mov rbx, r9
+
+	; rbx gets target
+	; rax gets first source
+	; r9  gets second source
+
+	shr rax, 8
+	and rax, 0ffh
+	neg rax
+
+	shr r9, 16
+	and r9, 0ffh
+	neg r9
+
+	and rbx, 0ffh
+	neg rbx
+
+	; perform ops
+
+	mov r9b, BYTE PTR [r13 + r9]
+	mov al, BYTE PTR [r13 + rax]
+	; default move 0 into rbx
+	mov rdx, 0
+	; conditional move 1 into rbx
+	mov rcx, 1
+	cmp rax, r9
+	cmovge rdx, rcx
+	mov BYTE PTR [r13 + rbx], dl
 
 	add r8, 5
 	DISPATCH
 ; END gte reg reg reg
 
 ; BEGIN lt reg reg reg
-lt_reg_reg_reg LABEL NEAR PTR WORD
+lt_r8_r64_r64 LABEL NEAR PTR WORD
 	shr r9, 16
 	mov rax, r9
 	mov rbx, r9
@@ -380,14 +457,51 @@ lt_reg_reg_reg LABEL NEAR PTR WORD
 	mov rcx, 1
 	cmp rax, r9
 	cmovl rdx, rcx
-	mov [r13 + rbx], rdx
+	mov BYTE PTR [r13 + rbx], dl
+
+	add r8, 5
+	DISPATCH
+; END lt reg reg reg
+
+; BEGIN lt reg reg reg
+lt_r8_r8_r8 LABEL NEAR PTR WORD
+	shr r9, 16
+	mov rax, r9
+	mov rbx, r9
+
+	; rbx gets target
+	; rax gets first source
+	; r9  gets second source
+
+	shr rax, 8
+	and rax, 0ffh
+	neg rax
+
+	shr r9, 16
+	and r9, 0ffh
+	neg r9
+
+	and rbx, 0ffh
+	neg rbx
+
+	; perform ops
+
+	mov r9b, BYTE PTR [r13 + r9]
+	mov al, BYTE PTR [r13 + rax]
+	; default move 0 into rbx
+	mov rdx, 0
+	; conditional move 1 into rbx
+	mov rcx, 1
+	cmp rax, r9
+	cmovl rdx, rcx
+	mov BYTE PTR [r13 + rbx], dl
 
 	add r8, 5
 	DISPATCH
 ; END lt reg reg reg
 
 ; BEGIN lte reg reg reg
-lte_reg_reg_reg LABEL NEAR PTR WORD
+lte_r8_r64_r64 LABEL NEAR PTR WORD
 	shr r9, 16
 	mov rax, r9
 	mov rbx, r9
@@ -417,21 +531,22 @@ lte_reg_reg_reg LABEL NEAR PTR WORD
 	mov rcx, 1
 	cmp rax, r9
 	cmovle rdx, rcx
-	mov [r13 + rbx], rdx
+	mov BYTE PTR [r13 + rbx], dl
 
 	add r8, 5
 	DISPATCH
 ; END lte reg reg reg
 
-; BEGIN lte reg reg ui8
-lte_reg_reg_ui8 LABEL NEAR PTR WORD
+
+; BEGIN lte reg reg reg
+lte_r8_r8_r8 LABEL NEAR PTR WORD
 	shr r9, 16
 	mov rax, r9
 	mov rbx, r9
 
 	; rbx gets target
 	; rax gets first source
-	; r9  gets literal
+	; r9  gets second source
 
 	shr rax, 8
 	and rax, 0ffh
@@ -439,27 +554,29 @@ lte_reg_reg_ui8 LABEL NEAR PTR WORD
 
 	shr r9, 16
 	and r9, 0ffh
+	neg r9
 
 	and rbx, 0ffh
 	neg rbx
 
 	; perform ops
 
-	mov rax, [r13 + rax]
+	mov r9b, BYTE PTR [r13 + r9]
+	mov al, BYTE PTR [r13 + rax]
 	; default move 0 into rbx
 	mov rdx, 0
 	; conditional move 1 into rbx
 	mov rcx, 1
 	cmp rax, r9
 	cmovle rdx, rcx
-	mov [r13 + rbx], rdx
+	mov BYTE PTR [r13 + rbx], dl
 
 	add r8, 5
 	DISPATCH
-; END lte reg reg ui8
+; END lte reg reg reg
 
 ; BEGIN eq reg reg reg
-eq_reg_reg_reg LABEL NEAR PTR WORD
+eq_r8_r64_r64 LABEL NEAR PTR WORD
 	shr r9, 16
 	mov rax, r9
 	mov rbx, r9
@@ -489,14 +606,51 @@ eq_reg_reg_reg LABEL NEAR PTR WORD
 	mov rcx, 1
 	cmp rax, r9
 	cmove rdx, rcx
-	mov [r13 + rbx], rdx
+	mov BYTE PTR [r13 + rbx], dl
+
+	add r8, 5
+	DISPATCH
+; END eq reg reg reg
+
+; BEGIN eq reg reg reg
+eq_r8_r8_r8 LABEL NEAR PTR WORD
+	shr r9, 16
+	mov rax, r9
+	mov rbx, r9
+
+	; r9  gets second source
+	; rax gets first source
+	; rbx gets target
+
+	shr r9, 16
+	and r9, 0ffh
+	neg r9
+
+	shr rax, 8
+	and rax, 0ffh
+	neg rax
+
+	and rbx, 0ffh
+	neg rbx
+
+	; perform ops
+
+	mov r9b, BYTE PTR [r13 + r9]
+	mov al, BYTE PTR [r13 + rax]
+	; default move 0 into rdx
+	mov rdx, 0
+	; conditional move 1 into rdx
+	mov rcx, 1
+	cmp rax, r9
+	cmove rdx, rcx
+	mov BYTE PTR [r13 + rbx], dl
 
 	add r8, 5
 	DISPATCH
 ; END eq reg reg reg
 
 ; BEGIN neq reg reg reg
-neq_reg_reg_reg LABEL NEAR PTR WORD
+neq_r8_r64_r64 LABEL NEAR PTR WORD
 	shr r9, 16
 	mov rax, r9
 	mov rbx, r9
@@ -526,14 +680,51 @@ neq_reg_reg_reg LABEL NEAR PTR WORD
 	mov rcx, 1
 	cmp rax, r9
 	cmovne rdx, rcx
-	mov [r13 + rbx], rdx
+	mov BYTE PTR [r13 + rbx], dl
+
+	add r8, 5
+	DISPATCH
+; END neq reg reg reg 
+
+; BEGIN neq reg reg reg
+neq_r8_r8_r8 LABEL NEAR PTR WORD
+	shr r9, 16
+	mov rax, r9
+	mov rbx, r9
+
+	; r9  gets second source
+	; rax gets first source
+	; rbx gets target
+
+	shr r9, 16
+	and r9, 0ffh
+	neg r9
+
+	shr rax, 8
+	and rax, 0ffh
+	neg rax
+
+	and rbx, 0ffh
+	neg rbx
+
+	; perform ops
+
+	mov r9b, BYTE PTR [r13 + r9]
+	mov al, BYTE PTR [r13 + rax]
+	; default move 0 into rbx
+	mov rdx, 0
+	; conditional move 1 into rbx
+	mov rcx, 1
+	cmp rax, r9
+	cmovne rdx, rcx
+	mov BYTE PTR [r13 + rbx], dl
 
 	add r8, 5
 	DISPATCH
 ; END neq reg reg reg 
 
 ; BEGIN and reg reg reg
-and_reg_reg_reg LABEL NEAR PTR WORD
+and_r64_r64_r64 LABEL NEAR PTR WORD
 	shr r9, 16
 	mov rax, r9
 	mov rbx, r9
@@ -563,8 +754,39 @@ and_reg_reg_reg LABEL NEAR PTR WORD
 	DISPATCH
 ; END and reg reg reg 
 
+; BEGIN and reg reg reg
+and_r8_r8_r8 LABEL NEAR PTR WORD
+	shr r9, 16
+	mov rax, r9
+	mov rbx, r9
+
+	; r9  gets second source
+	; rax gets first source
+	; rbx gets target
+
+	shr r9, 16
+	and r9, 0ffh
+	neg r9
+
+	shr rax, 8
+	and rax, 0ffh
+	neg rax
+
+	and rbx, 0ffh
+	neg rbx
+
+	; perform ops
+
+	mov r9b, BYTE PTR [r13 + r9]
+	and r9b, BYTE PTR [r13 + rax]
+	mov BYTE PTR [r13 + rbx], r9b
+
+	add r8, 5
+	DISPATCH
+; END and reg reg reg 
+
 ; BEGIN and reg reg ui8
-and_reg_reg_ui8 LABEL NEAR PTR WORD
+and_r8_r8_ui8 LABEL NEAR PTR WORD
 	shr r9, 16
 	mov rax, r9
 	mov rbx, r9
@@ -585,16 +807,16 @@ and_reg_reg_ui8 LABEL NEAR PTR WORD
 
 	; perform ops
 
-	mov rax, [r13 + rax]
-	and r9, rax
-	mov [r13 + rbx], r9
+	mov al, BYTE PTR [r13 + rax]
+	and r9b, al
+	mov BYTE PTR [r13 + rbx], r9b
 
 	add r8, 5
 	DISPATCH
 ; END and reg reg ui8 
 
 ; BEGIN or reg reg reg
-or_reg_reg_reg LABEL NEAR PTR WORD
+or_r64_r64_r64 LABEL NEAR PTR WORD
 	shr r9, 16
 	mov rax, r9
 	mov rbx, r9
@@ -624,8 +846,39 @@ or_reg_reg_reg LABEL NEAR PTR WORD
 	DISPATCH
 ; END or reg reg reg 
 
+; BEGIN or reg reg reg
+or_r8_r8_r8 LABEL NEAR PTR WORD
+	shr r9, 16
+	mov rax, r9
+	mov rbx, r9
+
+	; r9  gets second source
+	; rax gets first source
+	; rbx gets target
+
+	shr r9, 16
+	and r9, 0ffh
+	neg r9
+
+	shr rax, 8
+	and rax, 0ffh
+	neg rax
+
+	and rbx, 0ffh
+	neg rbx
+
+	; perform ops
+
+	mov r9b, BYTE PTR [r13 + r9]
+	or r9b, BYTE PTR [r13 + rax]
+	mov BYTE PTR [r13 + rbx], r9b
+
+	add r8, 5
+	DISPATCH
+; END or reg reg reg 
+
 ; BEGIN xor reg reg ui8
-xor_reg_reg_ui8 LABEL NEAR PTR WORD
+xor_r8_r8_ui8 LABEL NEAR PTR WORD
 	shr r9, 16
 	mov rax, r9
 	mov rbx, r9
@@ -646,9 +899,9 @@ xor_reg_reg_ui8 LABEL NEAR PTR WORD
 
 	; perform ops
 
-	mov rcx, QWORD PTR [r13 + rbx]
-	xor rcx, r9
-	mov QWORD PTR [r13 + rax], rcx
+	mov cl, BYTE PTR [r13 + rbx]
+	xor cl, r9b
+	mov BYTE PTR [r13 + rax], cl
 
 	add r8, 5
 	DISPATCH
@@ -832,6 +1085,30 @@ mv64_reg_reg LABEL NEAR PTR WORD
 	DISPATCH
 ; END mv64 reg reg
 
+; BEGIN mv r64 l64
+mv_r64_l64 LABEL NEAR PTR WORD
+	shr r9, 16
+
+	; rax gets target
+	xor rax, rax
+	mov al, r9b
+	neg rax
+
+	; rbx gets location source
+	shr r9, 8
+	xor rbx, rbx
+	mov bl, r9b
+	neg rbx
+
+	mov rcx, QWORD PTR [r13 + rbx]
+	neg rcx
+	mov rcx, QWORD PTR [r13 + rcx]
+	mov QWORD PTR [r13 + rax], rcx
+
+	add r8, 4
+	DISPATCH
+; END mv r64 l64
+
 ; BEGIN jmpr i32
 jmpr_i32 LABEL NEAR PTR WORD
 	; r9 gets offset
@@ -949,6 +1226,11 @@ before_args:
 	jmp before_args
 skip_args:
 
+	; put operands in r9
+	mov r9, QWORD PTR [r8] 
+	movzx rax, r9w
+	add rax, r12
+	jmp rax
 	DISPATCH
 ; END call ui64 ui8 ui8 ui8
 
@@ -1099,98 +1381,127 @@ sub rcx, rbx
 mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, add_reg_reg_reg
+lea rcx, add_r64_r64_r64
 sub rcx, rbx
 mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, add_reg_reg_ui8
+lea rcx, add_r64_r64_ui8
 sub rcx, rbx
 mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, sub_reg_reg_reg
+lea rcx, sub_r64_r64_r64
 sub rcx, rbx
 mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, sub_reg_reg_ui8
+lea rcx, sub_r64_r64_ui8
 sub rcx, rbx
 mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, mul_reg_reg_reg
+lea rcx, mul_r64_r64_r64
 sub rcx, rbx
 mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, div_reg_reg_reg
+lea rcx, div_r64_r64_r64
 sub rcx, rbx
 mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, mod_reg_reg_reg
+lea rcx, mod_r64_r64_r64
 sub rcx, rbx
 mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, gt_reg_reg_reg
+lea rcx, gt_r8_r64_r64
 sub rcx, rbx
 mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, gte_reg_reg_reg
+lea rcx, gt_r8_r8_r8
 sub rcx, rbx
 mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, lt_reg_reg_reg
+lea rcx, gte_r8_r64_r64
 sub rcx, rbx
 mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, lte_reg_reg_reg
+lea rcx, gte_r8_r8_r8
 sub rcx, rbx
 mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, lte_reg_reg_ui8
+lea rcx, lt_r8_r64_r64
 sub rcx, rbx
 mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, eq_reg_reg_reg
+lea rcx, lt_r8_r8_r8
 sub rcx, rbx
 mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, neq_reg_reg_reg
+lea rcx, lte_r8_r64_r64
 sub rcx, rbx
 mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, and_reg_reg_reg
+lea rcx, lte_r8_r8_r8
 sub rcx, rbx
 mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, and_reg_reg_ui8
+lea rcx, eq_r8_r64_r64
 sub rcx, rbx
 mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, or_reg_reg_reg
+lea rcx, eq_r8_r8_r8
 sub rcx, rbx
 mov [rax + rdx*2], cx
 
 inc rdx
-lea rcx, xor_reg_reg_ui8
+lea rcx, neq_r8_r64_r64
 sub rcx, rbx
 mov [rax + rdx*2], cx
 
-; #todo remove? #security
 inc rdx
-lea rcx, mv_reg_ip
+lea rcx, neq_r8_r8_r8
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, and_r64_r64_r64
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, and_r8_r8_r8
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, and_r8_r8_ui8
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, or_r64_r64_r64
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, or_r8_r8_r8
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, xor_r8_r8_ui8
 sub rcx, rbx
 mov [rax + rdx*2], cx
 
@@ -1251,6 +1562,11 @@ mov [rax + rdx*2], cx
 
 inc rdx
 lea rcx, mv64_reg_reg
+sub rcx, rbx
+mov [rax + rdx*2], cx
+
+inc rdx
+lea rcx, mv_r64_l64
 sub rcx, rbx
 mov [rax + rdx*2], cx
 

@@ -386,8 +386,16 @@ namespace fe::ext_ast
 	generate_pattern_test(node &n, ast &ast, core_ast::ast &new_ast, stack_label_index sl,
 			      int32_t offset, types::type &curr_type, lowering_context &context)
 	{
+		/*
+		 * A pattern can take one of several forms.
+		 * - Constr Pattern, e.g. Pair (x, y)
+		 * - Ident, e.g. x
+		 * - Literal, e.g. 1
+		 * - Tuple, e.g. (x, y)
+		 */
 		switch (n.kind)
 		{
+		// A constructor pattern is parsed as a function call.
 		case node_type::FUNCTION_CALL:
 		{
 			auto &children = ast.get_children(n.children_id);
@@ -401,7 +409,7 @@ namespace fe::ext_ast
 			new_ast.get_node_data<core_ast::size>(move).val = 1;
 			auto sd = new_ast.create_node(core_ast::node_type::RELATIVE_OFFSET, move);
 			new_ast.get_node_data<core_ast::relative_offset>(
-			  sd) = { sl, -1 }; // #fixme account for offset
+			  sd) = { sl, 0 }; // #fixme account for offset
 
 			// Push static tag bit onto the stack
 			auto tag = dynamic_cast<types::sum_type *>(&curr_type)->index_of(id.full);
@@ -415,6 +423,7 @@ namespace fe::ext_ast
 			assert(children.size() == 2);
 			auto param_test = generate_pattern_test(
 			  ast.get_node(children[1]), ast, new_ast, sl, offset - 1, inner, context);
+
 			if (param_test.first)
 			{
 				auto new_and = new_ast.create_node(core_ast::node_type::AND);
@@ -431,7 +440,7 @@ namespace fe::ext_ast
 			auto size = (*ast.get_type_scope(n.type_scope_id)
 					.resolve_variable(id, ast.type_scope_cb()))
 				      .type.calculate_size();
-			id.referenced_stack_label = { sl, offset - size };
+			id.referenced_stack_label = { sl, offset };
 			return std::pair(std::nullopt, size);
 		}
 		case node_type::TUPLE:
@@ -442,12 +451,14 @@ namespace fe::ext_ast
 
 			std::optional<node_id> root;
 			int32_t size_sum = 0;
-			for (int i = 0; i < children.size(); i++)
+			for (int i = children.size() - 1; i >= 0; i--)
 			{
 				auto pattern_test =
 				  generate_pattern_test(ast.get_node(children[i]), ast, new_ast, sl,
 							offset - size_sum, *product[i], context);
+
 				size_sum += pattern_test.second;
+
 				if (pattern_test.first)
 				{
 					if (!root) { root = pattern_test.first; }
@@ -477,8 +488,7 @@ namespace fe::ext_ast
 			auto move = new_ast.create_node(core_ast::node_type::PUSH, eq);
 			new_ast.get_node_data<core_ast::size>(move).val = num_byte_size;
 			auto sd = new_ast.create_node(core_ast::node_type::RELATIVE_OFFSET, move);
-			new_ast.get_node_data<core_ast::relative_offset>(
-			  sd) = { sl, offset - num_byte_size };
+			new_ast.get_node_data<core_ast::relative_offset>(sd) = { sl, offset };
 
 			// Create number
 			auto new_num = new_ast.create_node(core_ast::node_type::NUMBER, eq);
@@ -498,8 +508,7 @@ namespace fe::ext_ast
 			auto move = new_ast.create_node(core_ast::node_type::PUSH, eq);
 			new_ast.get_node_data<core_ast::size>(move).val = size;
 			auto sd = new_ast.create_node(core_ast::node_type::RELATIVE_OFFSET, move);
-			new_ast.get_node_data<core_ast::relative_offset>(sd) = { sl,
-										 offset - size };
+			new_ast.get_node_data<core_ast::relative_offset>(sd) = { sl, offset };
 
 			// Create number
 			auto new_bool = new_ast.create_node(core_ast::node_type::BOOLEAN, eq);
@@ -958,7 +967,7 @@ namespace fe::ext_ast
 			auto &fn_data = new_ast.get_data<core_ast::function_data>(
 			  *new_ast.get_node(fn).data_index);
 			fn_data.in_size = in_size;
-			fn_data.out_size = in_size + 1; /*output is written to space allocated by caller*/
+			fn_data.out_size = in_size + 1;
 			fn_data.name = id.name;
 			fn_data.locals_size = 0;
 			context.curr_fn_context = function_context();
@@ -972,9 +981,6 @@ namespace fe::ext_ast
 			auto block = new_ast.create_node(core_ast::node_type::BLOCK, ret);
 
 			{
-				auto tag = new_ast.create_node(core_ast::node_type::NUMBER, block);
-				new_ast.get_node_data<number>(tag) = { i / 2, number_type::UI8 };
-
 				auto move = new_ast.create_node(core_ast::node_type::PUSH, block);
 				new_ast.get_node_data<core_ast::size>(move).val = in_size;
 				// Resolve source (param at offset 0)
@@ -982,6 +988,9 @@ namespace fe::ext_ast
 				new_ast.get_node_data<core_ast::var_data>(from) = {
 					context.get_offset(input_var), context.get_size(input_var)
 				};
+
+				auto tag = new_ast.create_node(core_ast::node_type::NUMBER, block);
+				new_ast.get_node_data<number>(tag) = { i / 2, number_type::UI8 };
 			}
 		}
 
@@ -1069,8 +1078,6 @@ namespace fe::ext_ast
 		}
 
 		auto new_node = new_ast.create_node(new_node_type, p);
-
-		// #todo or short circuiting
 
 		// AND short circuiting
 		if (n.kind == node_type::AND)
