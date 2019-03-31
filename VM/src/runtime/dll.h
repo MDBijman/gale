@@ -9,6 +9,6 @@ namespace fe::vm
     struct dll;
     struct fn;
 
-    extern "C" dll *load_dll(uint64_t);
-    extern "C" fn *load_fn(dll *, const char *name);
+	extern "C" void load_dll(uint8_t *, uint8_t, uint8_t);
+	extern "C" void load_fn(uint8_t *, uint8_t, uint8_t);
 } // namespace fe::vm
