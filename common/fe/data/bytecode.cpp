@@ -393,7 +393,7 @@ namespace fe::vm
 				  regc,
 				  ret_reg };
 	}
-	bytes<11> make_call_native_ui64_ui8_ui8(uint64_t ip, uint8_t reg, uint8_t regc)
+	bytes<11> make_call_native_ui64_ui8_ui8(uint64_t ip, uint8_t in_reg, uint8_t out_reg)
 	{
 		auto to = make_ui64(ip);
 		return bytes<11>{ op_to_byte(op_kind::CALL_NATIVE_UI64_UI8_UI8),
@@ -405,8 +405,8 @@ namespace fe::vm
 				  to[5],
 				  to[6],
 				  to[7],
-				  reg,
-				  regc };
+				  in_reg,
+				  out_reg };
 	}
 	bytes<2> make_alloc_ui8(uint8_t size)
 	{

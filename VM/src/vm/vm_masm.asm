@@ -1342,28 +1342,29 @@ skip_return_vals:
 	DISPATCH
 ; END ret ui8 ui8 ui8 ui8
 
-; BEGIN call native ui64 ui8 ui8
+; BEGIN call native ui64 ui8 ui8 
 call_native_ui64_ui8_ui8 LABEL NEAR PTR WORD
 	mov rax, QWORD PTR [r8 + 2]
 	mov rbx, [native_functions]
 	mov rbx, [rbx + rax*8]
 	mov r9, QWORD PTR [r8 + 10]
 
-	; rcx gets first register 
+	; rcx gets base register 
 	xor rcx, rcx
-	mov cl, r9b
-	neg rcx
+	mov rcx, r13
 
-	; rdx gets register count
-	shr r9, 8
+	; rdx gets first input register
 	xor rdx, rdx
 	mov dl, r9b
 
 	; save r8 in non-volatile and restore after
 	mov r14, r8
 
-	; push right to left, stack pointer then register pointer
-	lea rcx, [r13 + rcx]
+	; r8 gets first return register
+	shr r9, 8
+	xor r9, r9
+	mov r8b, r9b
+
 	sub rsp, 32
 	call rbx
 	add rsp, 32
@@ -1371,7 +1372,7 @@ call_native_ui64_ui8_ui8 LABEL NEAR PTR WORD
 
 	add r8, 12
 	DISPATCH
-; END call native ui64 ui8 ui8
+; END call native ui64 ui8 ui8 
 
 ; BEGIN exit
 exit LABEL NEAR PTR WORD

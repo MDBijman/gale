@@ -1,20 +1,18 @@
 #include "io.h"
-#include <iostream>
 #include <assert.h>
+#include <iostream>
+#include <string>
 
 namespace fe::vm
 {
-	uint64_t print(const uint8_t *first, uint8_t count)
+	void print(uint8_t *regs, uint8_t first_in, uint8_t first_out)
 	{
-		assert(count == 8);
-		std::cout << *(uint64_t*)(first);
-		return 8;
+		//std::cout << "executing print " << std::to_string(first_in) << "\n";
+		std::cout << *(uint64_t *)(regs - first_in);
 	}
 
-	uint64_t println(const uint8_t *first, uint8_t count)
+	void println(uint8_t *regs, uint8_t first_in, uint8_t first_out)
 	{
-		assert(count == 8);
-		std::cout << *(uint64_t*)(first) << "\n";
-		return 8;
+		std::cout << *(uint64_t *)(regs - first_in) << "\n";
 	}
 } // namespace fe::vm
