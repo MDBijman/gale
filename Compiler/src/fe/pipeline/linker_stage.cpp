@@ -120,8 +120,9 @@ namespace fe::vm
 					data[i] = op_to_byte(op_kind::CALL_NATIVE_UI64_UI8_UI8);
 					*(reinterpret_cast<uint64_t *>(&data[i + 1])) =
 					  native_function_locations[function_name];
-					// Zero the last byte
-					data[i + 11] = 0;
+
+					data[i + 10] = data[i + 11];
+					data[i + 11] = op_to_byte(op_kind::NOP);
 				}
 
 				break;
