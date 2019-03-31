@@ -9,13 +9,12 @@
 
 namespace fe::vm
 {
-	constexpr size_t stack_size = 2 * 8192;
-	constexpr size_t register_count = 64;
-	constexpr uint8_t ip_reg = register_count - 1, sp_reg = register_count - 2,
-			  fp_reg = register_count - 3, ret_reg = register_count - 4;
-
 	enum class op_kind : uint8_t
 	{
+		/*
+		 * Other
+		 */
+
 		NOP = 0,
 		EXIT,
 		ERR,
@@ -75,19 +74,21 @@ namespace fe::vm
 		 * Data
 		 */
 
-		// reg[b0] <- b1
+		// Moves unsigned literal into destination registers
 		MV_REG_UI8,
 		MV_REG_UI16,
 		MV_REG_UI32,
 		MV_REG_UI64,
+
+		// Moves literal into destination registers
 		MV_REG_I8,
 		MV_REG_I16,
 		MV_REG_I32,
 		MV_REG_I64,
 
-		// Moves N bytes from source register to destination register
+		// Moves N bytes from source registers to destination registers
 		MV_RN_RN,
-		// Moves N bytes from source location to destination register
+		// Moves N bytes from source location to destination registers
 		MV_RN_LN,
 
 		/*
@@ -100,10 +101,12 @@ namespace fe::vm
 		JRNZ_REG_I32,
 		// jump relative zero: if reg[b0] == 0 { ip += b1 } else { ip++ }
 		JRZ_REG_I32,
+
 		// Call(target ip address, first argument register, argument count, first return
 		// register)
 		CALL_UI64_UI8_UI8_UI8,
 		CALL_NATIVE_UI64_UI8_UI8,
+
 		// Used at the start of a new scope to allocate registers
 		ALLOC_UI8,
 
@@ -291,7 +294,7 @@ namespace fe::vm
 	bytes<2> make_alloc_ui8(uint8_t size);
 	bytes<12> make_call_ui64_ui8_ui8_ui8(uint64_t ip, uint8_t reg, uint8_t regc,
 					     uint8_t ret_reg);
-	bytes<11> make_call_native_ui64_ui8_ui8(uint64_t ip, uint8_t reg, uint8_t regc);
+	bytes<11> make_call_native_ui64_ui8_ui8(uint64_t ip, uint8_t in_reg, uint8_t out_reg);
 	bytes<5> make_ret(byte paramc, byte fs, byte first_reg, byte retc);
 	bytes<5> make_jmpr_i32(int32_t offset);
 	bytes<6> make_jrnz_i32(reg a, int32_t offset);
