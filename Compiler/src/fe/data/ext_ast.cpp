@@ -61,6 +61,11 @@ namespace fe::ext_ast
 		return nodes.get_at(id);
 	}
 
+	node& ast::operator[](node_id id)
+	{
+		return get_node(id);
+	}
+
 	std::optional<identifier> ast::get_module_name()
 	{
 		auto module_dec_id = find_node(node_type::MODULE_DECLARATION);
