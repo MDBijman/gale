@@ -456,7 +456,7 @@ namespace recursive_descent
 
 	fe::node_id parse_lambda(tree &t, token_stream_reader &ts)
 	{
-		auto function_id = t.create_node(fe::ext_ast::node_type::FUNCTION);
+		auto function_id = t.create_node(fe::ext_ast::node_type::LAMBDA);
 
 		ts.consume(token_kind::BACKSLASH);
 		link_child_parent(parse_assignable(t, ts), function_id, t);
