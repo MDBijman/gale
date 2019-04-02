@@ -45,6 +45,12 @@ namespace fe
 			return *this;
 		}
 
+		build_settings &set_main_module(const std::string& module)
+		{
+			this->main_module = module;
+			return *this;
+		}
+
 		bool has_available_module(const std::string &name)
 		{
 			return std::find(modules.begin(), modules.end(), name) != modules.end();
@@ -52,7 +58,9 @@ namespace fe
 
 		std::vector<std::string> input_files;
 		std::string output_file;
+
 		std::vector<std::string> modules;
+		std::string main_module;
 
 		bool print_code, print_result, print_time, should_optimize;
 	};

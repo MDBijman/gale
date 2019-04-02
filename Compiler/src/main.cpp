@@ -1,4 +1,5 @@
 #include "fe/modes/build.h"
+#include "utils/argparsing/argument_parser.h"
 
 #define CATCH_CONFIG_RUNNER
 #define CATCH_CONFIG_FAST_COMPILE
@@ -19,52 +20,15 @@ int on_test(int argc, char **argv)
 
 int on_build(const std::vector<std::string> &args)
 {
-	std::vector<std::string> input_files;
-	auto begin_input_files = std::find(args.begin(), args.end(), "-i");
-	auto end_input_files =
-	  std::find_if(begin_input_files + 1, args.end(), [](auto &s) { return s[0] == '-'; });
-
-	if (
-	  // The -i flag must be present
-	  begin_input_files == args.end()
-	  // The flag cannot be at the end
-	  || begin_input_files + 1 == args.end()
-	  // There must be at least one file name
-	  || end_input_files - begin_input_files == 1)
-	{
-		std::cerr << "Expected input files\n";
-		return 1;
-	}
-
-	// We searched for '-i' so the actual first file is one further
-	begin_input_files++;
-
-	// Gather list of input files
-	while (begin_input_files != end_input_files)
-	{
-		input_files.push_back(*begin_input_files);
-		begin_input_files++;
-	}
-
-	auto begin_output_file = std::find(args.begin(), args.end(), "-o");
-	if (
-	  // The -o flag must be present
-	  begin_output_file == args.end()
-	  // There must be a file name
-	  || begin_output_file + 1 == args.end()
-	  // The next string cannot be a flag
-	  || ((*(begin_output_file + 1))[0] == '-'))
-	{
-		std::cerr << "Expected output file name\n";
-		return 1;
-	}
-
-	const std::string &output_file = *(begin_output_file + 1);
+	std::vector<std::string> input_files = parse_list_option(args, "i");
+	std::string output_file = parse_atom_option(args, "o");
+	std::string main_module = parse_atom_option(args, "e");
 
 	fe::build_settings settings(false, false, false, false);
 	settings.set_input_files(input_files)
 	  .set_output_file(output_file)
-	  .set_available_modules({ "std.io", "std" });
+	  .set_available_modules({ "std.io", "std" })
+	  .set_main_module(main_module);
 
 	return fe::builder(settings).run();
 }
@@ -73,7 +37,7 @@ int on_help()
 {
 	std::cout << "The Gale toolset v0.0.1\n"
 		  << "Commands:\n"
-		  << "gale build -f <files...> -o <exec_name>\n"
+		  << "gale build -f <files...> -e <main_module> -o <out_name>\n"
 		  << "\tProcesses each of the files to build a single bytecode executable\n"
 		  << std::endl;
 	return 0;
