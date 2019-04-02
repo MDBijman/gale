@@ -64,7 +64,8 @@ namespace lexing
 		IF_KEYWORD,
 		ELSEIF_KEYWORD,
 		ELSE_KEYWORD,
-		REF_KEYWORD
+		REF_KEYWORD,
+		FN_KEYWORD
 	};
 
 	/*
@@ -196,6 +197,7 @@ namespace lexing
 			goto identifier;
 		case 'f': // false
 			if (match(range.first, "false")) { advance(range, 5); return token_kind::FALSE_KEYWORD; }
+			else if (match(range.first, "fn")) { advance(range, 2); return token_kind::FN_KEYWORD; }
 			goto identifier;
 		case 'l': // false
 			if (match(range.first, "let")) { advance(range, 3); return token_kind::LET_KEYWORD; }
