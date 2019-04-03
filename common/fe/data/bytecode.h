@@ -16,7 +16,7 @@ namespace fe::vm
 		 */
 
 		NOP = 0,
-		EXIT,
+		EXIT, // Dealloc remaining space? Return code?
 		ERR,
 		// temporary label with id
 		LBL_UI32,

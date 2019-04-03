@@ -146,6 +146,12 @@ namespace recursive_descent
 		auto type_tuple_id = t.create_node(fe::ext_ast::node_type::TUPLE_TYPE);
 
 		ts.consume(token_kind::LEFT_BRACKET);
+		if (ts.peek().value == token_kind::RIGHT_BRACKET)
+		{
+			ts.consume(token_kind::RIGHT_BRACKET);
+			return type_tuple_id;
+		}
+
 		link_child_parent(parse_sum_type(t, ts), type_tuple_id, t);
 		while (ts.peek().value == token_kind::COMMA)
 		{
@@ -252,6 +258,15 @@ namespace recursive_descent
 		auto identifier_tuple_id = t.create_node(fe::ext_ast::node_type::IDENTIFIER_TUPLE);
 
 		ts.consume(token_kind::LEFT_BRACKET);
+
+		// Empty tuples are allowed
+		if (ts.peek().value == token_kind::RIGHT_BRACKET)
+		{
+			ts.consume(token_kind::RIGHT_BRACKET);
+			return identifier_tuple_id;
+		}
+
+		// Non empty tuples must have > 1 element
 		link_child_parent(parse_identifier(t, ts), identifier_tuple_id, t);
 		ts.consume(token_kind::COMMA);
 		link_child_parent(parse_identifier(t, ts), identifier_tuple_id, t);
@@ -791,7 +806,8 @@ namespace recursive_descent
 		return stmt;
 	}
 
-	fe::node_id parse_function(tree &t, token_stream_reader &ts) {
+	fe::node_id parse_function(tree &t, token_stream_reader &ts)
+	{
 
 		auto function_id = t.create_node(fe::ext_ast::node_type::FUNCTION);
 

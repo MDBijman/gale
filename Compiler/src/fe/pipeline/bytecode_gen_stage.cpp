@@ -257,6 +257,7 @@ namespace fe::vm
 
 		if (is_root)
 		{ p.get_function(info.chunk_of(n)).get_bytecode().add_instruction(make_exit()); }
+
 		} // weird clang #format
 
 	void generate_function_call(node_id n, core_ast::ast &ast, program &p, code_gen_state &i)
@@ -624,7 +625,8 @@ namespace fe::vm
 		auto &to_var = ast.get_node_data<core_ast::var_data>(to);
 		auto base = i.last_alloced_register(fid, n)->val;
 
-		bc.add_instruction(make_mv_rn_rn(to_var.size, reg(to_var.offset + to_var.size - 1), reg(base)));
+		bc.add_instruction(
+		  make_mv_rn_rn(to_var.size, reg(to_var.offset + to_var.size - 1), reg(base)));
 	}
 
 	void generate_bytecode(node_id n, core_ast::ast &ast, program &p, code_gen_state &i)
@@ -682,6 +684,7 @@ namespace fe::vm
 		// chunk mapping etc.
 		code_gen_state i(max_lbl);
 
+		// A bit hacky, for code in root
 		auto stack_analysis_res = core_ast::stack_analysis_result();
 		stack_analysis_res.pre_node_stack_sizes.insert({ 1, 0 });
 		stack_analysis_res.node_stack_sizes.insert({ 1, 0 });

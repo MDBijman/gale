@@ -124,6 +124,11 @@ namespace fe::vm
 					data[i + 10] = data[i + 11];
 					data[i + 11] = op_to_byte(op_kind::NOP);
 				}
+				else
+				{
+					throw std::runtime_error("Cannot find function location: " + function_name);
+				}
+				
 
 				break;
 			}

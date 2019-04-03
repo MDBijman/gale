@@ -10,9 +10,9 @@ int main(int argc, char **argv)
 		std::exit(1);
 	}
 
-	if (argv[1] != "-i")
+	if (strcmp(argv[1], "-i") != 0)
 	{
-		std::cerr << "Expected a single bytecode file as input\n";
+		std::cerr << "Expected -i flag, got " << argv[1] << "\n";
 		std::exit(1);
 	}
 
