@@ -140,6 +140,8 @@ namespace fe::ext_ast
 
 	class ast
 	{
+		friend class ast_helper;
+
 		memory::dynamic_store<node> nodes;
 		memory::dynamic_store<node_children> children;
 		memory::dynamic_store<name_scope> name_scopes;
@@ -165,11 +167,10 @@ namespace fe::ext_ast
 		node_children &children_of(node &n);
 		node_id create_node(node_type t);
 		node &get_node(node_id id);
-		node& operator[](node_id id);
+		node &operator[](node_id id);
 
 		std::optional<identifier> get_module_name();
 		std::optional<std::vector<identifier>> get_imports();
-
 
 		// Scopes
 		scope_index create_name_scope();
@@ -203,4 +204,40 @@ namespace fe::ext_ast
 		template <> string &get_data<string>(ast &a, data_index_t i);
 		template <> number &get_data<number>(ast &a, data_index_t i);
 	} // namespace detail
+
+	class ast_helper
+	{
+		ast &a;
+
+	      public:
+		ast_helper(ast &a) : a(a) {}
+
+		template <typename F> void for_all_t(ext_ast::node_type t, F f)
+		{
+			for (auto i = 0; i < a.nodes.size(); i++)
+			{
+				if (a.nodes.is_occupied(i) && a.nodes.get_at(i).kind == t)
+				{ f(a.nodes.get_at(i)); } }
+		}
+
+		template <typename F> void for_all(F f)
+		{
+			for (auto i = 0; i < a.nodes.size(); i++)
+			{
+				if (a.nodes.is_occupied(i)) { f(a.nodes.get_at(i)); }
+			}
+		}
+
+		template <typename F> std::optional<node_id> find_if(F f)
+		{
+			for (auto i = 0; i < a.nodes.size(); i++)
+			{
+				if (a.nodes.is_occupied(i))
+				{
+					if (f(a.nodes.get_at(i))) return a.nodes.get_at(i).id;
+				}
+			}
+			return std::nullopt;
+		}
+	};
 } // namespace fe::ext_ast
