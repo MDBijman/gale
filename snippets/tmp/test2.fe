@@ -1,0 +1,8 @@
+module test2
+import [std]
+
+fn add_one: std.ui64 -> std.ui64 = \n => {
+	n = n + 1;
+	n
+};
+
