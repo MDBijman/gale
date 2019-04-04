@@ -20,6 +20,8 @@ namespace fe::ext_ast
 		return ast.get_children(n.children_id).size() > 0;
 	}
 
+	void typecheck(node &n, ast &ast);
+
 	// Typeof
 	types::unique_type typeof_identifier(node &n, ast &ast, type_constraints tc)
 	{
@@ -932,7 +934,6 @@ namespace fe::ext_ast
 
 		auto fun_type = typeof(ast[children[1]], ast);
 		type_constraints ts({ equality_constraint(*fun_type) });
-		declare_assignable(ast[children[0]], ast, *fun_type);
 		typeof_lambda(ast[children[2]], ast, ts);
 	}
 
@@ -958,6 +959,20 @@ namespace fe::ext_ast
 		case node_type::IMPORT_DECLARATION: break;
 		default: assert(!"This node cannot be typechecked");
 		}
+	}
+
+	void register_root_fn_types(ast &ast)
+	{
+		ast_helper(ast).for_all_t(node_type::FUNCTION, [&ast](node &n) {
+			copy_parent_scope(n, ast);
+			auto &children = ast.children_of(n);
+			auto &id_data =
+			  ast.get_data<ext_ast::identifier>(ast.get_node(children[0]).data_index);
+			auto fun_type = typeof(ast[children[1]], ast);
+			declare_assignable(ast[children[0]], ast, *fun_type);
+			ast.get_type_scope(n.type_scope_id)
+			  .set_type(id_data.name, types::unique_type(fun_type->copy()));
+		});
 	}
 
 	types::unique_type typeof(node &n, ast &ast, type_constraints tc)
@@ -989,5 +1004,12 @@ namespace fe::ext_ast
 			assert(!"This node cannot be typeofed");
 			throw std::runtime_error("Internal Error: Node cannot be typeofed");
 		}
+	}
+
+	void typecheck(ast &ast)
+	{
+		register_root_fn_types(ast);
+		auto root = ast.root_id();
+		typecheck(ast.get_node(root), ast);
 	}
 } // namespace fe::ext_ast

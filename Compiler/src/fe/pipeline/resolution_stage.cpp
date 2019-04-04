@@ -13,6 +13,8 @@ namespace fe::ext_ast
 		n.name_scope_id = parent.name_scope_id;
 	}
 
+	void resolve(node &n, ast &ast);
+
 	// Node resolvers
 	void resolve_assignment(node &n, ast &ast)
 	{
@@ -376,8 +378,7 @@ namespace fe::ext_ast
 	{
 		/*
 		 * A function has 3 children: id, type, and lambda
-		 * #todo skip declaring the function since we should do that in seperate pass
-		 * For now add it here
+		 * Skip declaring the function since we do that in an earlier pass
 		 */
 
 		assert(n.kind == node_type::FUNCTION);
@@ -385,15 +386,11 @@ namespace fe::ext_ast
 		assert(children.size() == 3);
 
 		auto &lhs_node = ast[children[0]];
-		lhs_node.name_scope_id = n.name_scope_id;
 		auto &type_node = ast[children[1]];
+		lhs_node.name_scope_id = n.name_scope_id;
 		type_node.name_scope_id = n.name_scope_id;
 		resolve(type_node, ast);
-		declare_lhs(lhs_node, ast, type_node);
-
 		resolve_lambda(ast[children[2]], ast);
-
-		define_lhs(lhs_node, ast);
 	}
 
 	void resolve_reference(node &n, ast &ast)
@@ -498,6 +495,19 @@ namespace fe::ext_ast
 		resolve(child, ast);
 	}
 
+	void register_root_fns(ast &ast)
+	{
+		ast_helper(ast).for_all_t(node_type::FUNCTION, [&ast](node &n) {
+			auto &children = ast.children_of(n);
+			auto &lhs_node = ast[children[0]];
+			auto &type_node = ast[children[1]];
+			lhs_node.name_scope_id = n.name_scope_id;
+			type_node.name_scope_id = n.name_scope_id;
+			declare_lhs(lhs_node, ast, type_node);
+			define_lhs(lhs_node, ast);
+		});
+	}
+
 	void resolve(node &n, ast &ast)
 	{
 		switch (n.kind)
@@ -544,5 +554,13 @@ namespace fe::ext_ast
 			assert(!"Node type not resolvable");
 			throw std::runtime_error("Node type not resolvable");
 		}
+	}
+
+	void resolve(ast &ast)
+	{
+		register_root_fns(ast);
+
+		auto root = ast.root_id();
+		resolve(ast.get_node(root), ast);
 	}
 } // namespace fe::ext_ast
