@@ -3,43 +3,79 @@
 
 namespace fe
 {
-	struct typecheck_error
+	struct error
 	{
-		std::string message;
+		virtual ~error() = 0;
+		virtual std::string what() const = 0;
 	};
 
-	struct lower_error
+	struct typecheck_error : public error
 	{
+		typecheck_error(std::string msg) : message(msg)
+		{
+		}
+
 		std::string message;
+
+		virtual std::string what() const
+		{
+			return "Typechecking error: " + message;
+		}
 	};
 
-	struct parse_error
+	struct lower_error : public error
 	{
+		lower_error(std::string msg) : message(msg)
+		{
+		}
+
 		std::string message;
+
+		virtual std::string what() const
+		{
+			return "Lowering error: " + message;
+		}
 	};
 
-	struct interp_error
+	struct parse_error : public error
 	{
+		parse_error(std::string msg) : message(msg)
+		{
+		}
+
 		std::string message;
+
+		virtual std::string what() const
+		{
+			return "Parse error: " + message;
+		}
 	};
 
-	struct type_env_error
+	struct resolution_error : public error
 	{
+		resolution_error(std::string msg) : message(msg)
+		{
+		}
+
 		std::string message;
+
+		virtual std::string what() const
+		{
+			return "Resolution error: " + message;
+		}
 	};
 
-	struct value_env_error
+	struct other_error : public error
 	{
-		std::string message;
-	};
+		other_error(std::string msg) : message(msg)
+		{
+		}
 
-	struct resolution_error
-	{
 		std::string message;
-	};
 
-	struct other_error
-	{
-		std::string message;
+		virtual std::string what() const
+		{
+			return message;
+		}
 	};
-}
+} // namespace fe
