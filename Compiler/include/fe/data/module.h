@@ -9,6 +9,19 @@ namespace fe
 {
 	using module_name = std::vector<std::string>;
 
+	struct interface
+	{
+		interface() {}
+		interface(module_name n, ext_ast::type_scope ts, ext_ast::name_scope ns)
+		    : name(n), types(ts), names(ns)
+		{
+		}
+
+		module_name name;
+		ext_ast::type_scope types;
+		ext_ast::name_scope names;
+	};
+
 	struct module
 	{
 		module() {}
