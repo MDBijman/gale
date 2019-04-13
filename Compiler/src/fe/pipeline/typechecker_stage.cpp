@@ -115,7 +115,10 @@ namespace fe::ext_ast
 			return types::unique_type(new types::ui64());
 		}
 
-		if (tc.satisfied_by(types::f32())) { return types::unique_type(new types::f32()); }
+		if (tc.satisfied_by(types::f32()))
+		{
+			return types::unique_type(new types::f32());
+		}
 
 		throw typecheck_error{ "Cannot infer number literal type" };
 	}
@@ -578,7 +581,9 @@ namespace fe::ext_ast
 		std::vector<types::unique_type> types;
 		auto &children = ast.children_of(n);
 		for (auto &child : children)
-		{ types.push_back(typeof(ast.get_node(child), ast, tc)); }
+		{
+			types.push_back(typeof(ast.get_node(child), ast, tc));
+		}
 		return types::unique_type(new types::product_type(std::move(types)));
 	}
 
@@ -795,7 +800,9 @@ namespace fe::ext_ast
 	types::unique_type product_type_element(types::type &t, ast &ast, size_t offsets)
 	{
 		if (auto pt = dynamic_cast<types::product_type *>(&t))
-		{ return types::unique_type(pt->product.at(offsets)->copy()); }
+		{
+			return types::unique_type(pt->product.at(offsets)->copy());
+		}
 
 		assert(!"Cannot get element of this type, not a product");
 	}
@@ -961,20 +968,6 @@ namespace fe::ext_ast
 		}
 	}
 
-	void register_root_fn_types(ast &ast)
-	{
-		ast_helper(ast).for_all_t(node_type::FUNCTION, [&ast](node &n) {
-			copy_parent_scope(n, ast);
-			auto &children = ast.children_of(n);
-			auto &id_data =
-			  ast.get_data<ext_ast::identifier>(ast.get_node(children[0]).data_index);
-			auto fun_type = typeof(ast[children[1]], ast);
-			declare_assignable(ast[children[0]], ast, *fun_type);
-			ast.get_type_scope(n.type_scope_id)
-			  .set_type(id_data.name, types::unique_type(fun_type->copy()));
-		});
-	}
-
 	types::unique_type typeof(node &n, ast &ast, type_constraints tc)
 	{
 		switch (n.kind)
@@ -1006,9 +999,8 @@ namespace fe::ext_ast
 		}
 	}
 
-	void typecheck(ast &ast)
+	void typecheck(ast &ast, const interfaces &ifaces)
 	{
-		register_root_fn_types(ast);
 		auto root = ast.root_id();
 		typecheck(ast.get_node(root), ast);
 	}

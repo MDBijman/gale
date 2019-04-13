@@ -1,13 +1,7 @@
 #pragma once
-#include "fe/data/ext_ast.h"
 #include "fe/data/module.h"
-#include "fe/language_definition.h"
 #include "fe/pipeline/pipeline.h"
-#include "fe/pipeline/pretty_print_stage.h"
-#include "fe/runtime/io.h"
-#include "fe/runtime/types.h"
-#include "utils/reading/reader.h"
-#include <filesystem>
+
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -24,7 +18,7 @@ namespace fe
 		build_settings &set_available_modules(std::vector<std::string> modules);
 		build_settings &set_main_module(const std::string &module);
 
-		bool has_available_module(const std::string &name);
+		bool has_available_module(const std::string &name) const;
 
 		std::vector<std::string> input_files;
 		std::string output_file;
@@ -44,14 +38,6 @@ namespace fe
 		int run();
 
 	      private:
-		// Loads each code file that was passed as argument
-		std::unordered_map<std::string, std::string> load_files(std::vector<std::string> filenames) const;
-
-		// Compiles the string argument containing the code into a module.
-		module compile(const std::string &code);
-
-		interface extract_interface(const std::string &code);
-
 		// Adds the given module to the builder to expose it to programs.
 		void add_module(module m);
 

@@ -36,6 +36,7 @@ namespace fe::ext_ast
 		* that can be referenced. When a new variable is declared of a type that is nested, all the inner types must
 		* be resolvable within the same scope.
 		*
+		* #todo update
 		* Example:
 		*	# Nested type declaration
 		*	type Pair = (std.i32 a, std.i32 b)

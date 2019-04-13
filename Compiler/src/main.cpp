@@ -24,7 +24,7 @@ int on_build(const std::vector<std::string> &args)
 	std::string output_file = parse_atom_option(args, "o");
 	std::string main_module = parse_atom_option(args, "e");
 
-	fe::build_settings settings(false, false, false, false);
+	auto settings = fe::build_settings(false, false, false, false);
 	settings.set_input_files(input_files)
 	  .set_output_file(output_file)
 	  .set_available_modules({ "std.io", "std" })
@@ -46,7 +46,10 @@ int on_help()
 int main(int argc, char **argv)
 {
 	std::vector<std::string> args;
-	for (int i = 1; i < argc; i++) { args.push_back(std::string(argv[i])); }
+	for (int i = 1; i < argc; i++)
+	{
+		args.push_back(std::string(argv[i]));
+	}
 
 	const std::string &mode = args.empty() ? "help" : args[0];
 	auto possible_modes = { "build", "help" };
