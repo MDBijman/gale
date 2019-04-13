@@ -495,19 +495,6 @@ namespace fe::ext_ast
 		resolve(child, ast);
 	}
 
-	void register_root_fns(ast &ast)
-	{
-		ast_helper(ast).for_all_t(node_type::FUNCTION, [&ast](node &n) {
-			auto &children = ast.children_of(n);
-			auto &lhs_node = ast[children[0]];
-			auto &type_node = ast[children[1]];
-			lhs_node.name_scope_id = n.name_scope_id;
-			type_node.name_scope_id = n.name_scope_id;
-			declare_lhs(lhs_node, ast, type_node);
-			define_lhs(lhs_node, ast);
-		});
-	}
-
 	void resolve(node &n, ast &ast)
 	{
 		switch (n.kind)
@@ -556,10 +543,8 @@ namespace fe::ext_ast
 		}
 	}
 
-	void resolve(ast &ast)
+	void resolve(ast &ast, const interfaces& module_ifaces)
 	{
-		register_root_fns(ast);
-
 		auto root = ast.root_id();
 		resolve(ast.get_node(root), ast);
 	}

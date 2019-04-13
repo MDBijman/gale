@@ -5,7 +5,7 @@ namespace fe
 {
 	struct error
 	{
-		virtual ~error() = 0;
+		virtual ~error() {};
 		virtual std::string what() const = 0;
 	};
 

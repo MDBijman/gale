@@ -1,5 +1,8 @@
 #include "fe/modes/build.h"
 
+#include "fe/runtime/io.h"
+#include "fe/runtime/types.h"
+
 namespace fe
 {
 	/*
@@ -31,7 +34,7 @@ namespace fe
 
 	build_settings &build_settings::set_available_modules(std::vector<std::string> modules)
 	{
-		this->modules = modules;
+		this->modules = std::move(modules);
 		return *this;
 	}
 
@@ -41,7 +44,7 @@ namespace fe
 		return *this;
 	}
 
-	bool build_settings::has_available_module(const std::string &name)
+	bool build_settings::has_available_module(const std::string &name) const
 	{
 		return std::find(modules.begin(), modules.end(), name) != modules.end();
 	}
@@ -64,11 +67,19 @@ namespace fe
 		try
 		{
 
+			/*
+			 * Load code files
+			 */
+
 			std::unordered_map<std::string, std::string> filename_to_code;
 			for (auto file : settings.input_files)
 			{
 				filename_to_code.insert({ file, pl.read(file) });
 			}
+
+			/*
+			 * Parse input files
+			 */
 
 			std::unordered_map<std::string, ext_ast::ast> filename_to_ast;
 			for (auto pair : filename_to_code)
@@ -76,43 +87,62 @@ namespace fe
 				filename_to_ast.insert({ pair.first, pl.parse(pair.second) });
 			}
 
-			/*std::unordered_map<std::string, interface> module_to_interface;
+			/*
+			 * Parse interfaces from ASTs
+			 */
+
+			interfaces project_interfaces;
 			for (auto pair : filename_to_ast)
 			{
-				module_to_interface.insert(
-				  { pair.first, pl.extract_interface(pair.second) });
-			}*/
+				project_interfaces.push_back(pl.extract_interface(pair.second));
+			}
+
+			/*
+			 * Lower ASTs
+			 */
 
 			std::unordered_map<std::string, core_ast::ast> module_to_core_ast;
 			for (auto pair : filename_to_ast)
 			{
-                // #todo Pass interfaces
-				pl.typecheck(pair.second);
+				pl.typecheck(pair.second, project_interfaces);
 				module_to_core_ast.insert({ pair.first, pl.lower(pair.second) });
 			}
 
-			std::unordered_map<std::string, module> module_to_module;
+			/*
+			 * Generate module bytecode (and optionally optimize)
+			 */
+
+			std::unordered_map<std::string, vm::module> module_to_module;
 			for (auto pair : module_to_core_ast)
 			{
-				module_to_module.insert({ pair.first, pl.generate(pair.second) });
+				auto module = pl.generate(pair.second);
+
+				if (settings.should_optimize) pl.optimize_module(module);
+
+				module_to_module.insert({ pair.first, module });
 			}
 
-			auto program = pl.link(module_to_module);
+			/*
+			 * Link bytecode modules together (and optionally optimize)
+			 */
 
-			if (settings.should_optimize)
-			{
-				pl.optimize_program(program);
-			}
+			auto executable = pl.link(module_to_module);
 
-			pl.print_bytecode("out/test.bc", program);
+			if (settings.should_optimize) pl.optimize_executable(executable);
+
+			/*
+			 * Print bytecode to file
+			 */
+
+			pl.print_bytecode("out/test.bc", executable);
 
 			return 0;
 		}
-        catch (const fe::error& e)
-        {
-            std::cout << e.what() << std::endl;
-            return 1;
-        }
+		catch (const fe::error &e)
+		{
+			std::cout << e.what() << std::endl;
+			return 1;
+		}
 		catch (const std::runtime_error &e)
 		{
 			std::cout << e.what() << std::endl;
@@ -120,87 +150,53 @@ namespace fe
 		}
 	}
 
-	module builder::compile(const std::string &code)
+	// Add name and type scopes of imports
+	/*auto imports = e_ast.get_imports();
+	if (imports)
 	{
-		auto e_ast = pl.parse(code);
-
-		auto &root_node = e_ast.get_node(e_ast.root_id());
-		root_node.type_scope_id = e_ast.create_type_scope();
-		root_node.name_scope_id = e_ast.create_name_scope();
-
-		// Add name and type scopes of imports
-		auto imports = e_ast.get_imports();
-		if (imports)
+		for (const ext_ast::identifier &imp : *imports)
 		{
-			for (const ext_ast::identifier &imp : *imports)
+			auto pos = modules.find(imp.full_path());
+
+			if (pos == modules.end())
 			{
-				auto pos = modules.find(imp.full_path());
-
-				if (pos == modules.end())
-				{
-					throw other_error{ "Cannot find module: " +
-							   imp.operator std::string() };
-				}
-
-				auto module_name_scope = e_ast.create_name_scope();
-				e_ast.get_name_scope(module_name_scope).merge(pos->second.names);
-				e_ast.get_name_scope(root_node.name_scope_id)
-				  .add_module(imp.full_path(), module_name_scope);
-
-				auto module_type_scope = e_ast.create_type_scope();
-				e_ast.get_type_scope(module_type_scope).merge(pos->second.types);
-				e_ast.get_type_scope(root_node.type_scope_id)
-				  .add_module(imp.full_path(), module_type_scope);
+				throw other_error{ "Cannot find module: " +
+						   imp.operator std::string() };
 			}
+
+			auto module_name_scope = e_ast.create_name_scope();
+			e_ast.get_name_scope(module_name_scope).merge(pos->second.names);
+			e_ast.get_name_scope(root_node.name_scope_id)
+			  .add_module(imp.full_path(), module_name_scope);
+
+			auto module_type_scope = e_ast.create_type_scope();
+			e_ast.get_type_scope(module_type_scope).merge(pos->second.types);
+			e_ast.get_type_scope(root_node.type_scope_id)
+			  .add_module(imp.full_path(), module_type_scope);
 		}
-
-		// Stage 1: typecheck
-		pl.typecheck(e_ast);
-
-		// Stage 2: lower (desugar)
-		auto c_ast = pl.lower(e_ast);
-		auto &core_root_node = c_ast.get_node(c_ast.root_id());
-
-		// Stage 3: generate
-		auto bytecode = pl.generate(c_ast);
-
-		if (imports)
-		{
-			for (const ext_ast::identifier &imp : *imports)
-			{
-				auto pos = modules.find(imp.full_path());
-				if (pos == modules.end())
-					throw other_error{ "Cannot find module: " +
-							   imp.operator std::string() };
-
-				for (auto c : pos->second.code)
-				{
-					auto full_name = imp.full + "." + c.get_name();
-					bytecode.add_function(
-					  c.is_bytecode()
-					    ? vm::function(full_name, c.get_bytecode())
-					    : vm::function(full_name, c.get_native_function_id()));
-				}
-			}
-		}
-
-		if (settings.should_optimize)
-		{
-			pl.optimize_program(bytecode);
-		}
-
-		if (settings.print_code)
-		{
-			std::cout << bytecode.to_string();
-		}
-
-		auto executable = pl.link(bytecode);
-
-		// optimize
-		pl.optimize_executable(executable);
-
-		return executable;
 	}
+
+
+
+	if (imports)
+	{
+		for (const ext_ast::identifier &imp : *imports)
+		{
+			auto pos = modules.find(imp.full_path());
+			if (pos == modules.end())
+				throw other_error{ "Cannot find module: " +
+						   imp.operator std::string() };
+
+			for (auto c : pos->second.code)
+			{
+				auto full_name = imp.full + "." + c.get_name();
+				bytecode.add_function(
+				  c.is_bytecode()
+				    ? vm::function(full_name, c.get_bytecode())
+				    : vm::function(full_name, c.get_native_function_id()));
+			}
+		}
+	}*/
 
 	void builder::add_module(module m)
 	{

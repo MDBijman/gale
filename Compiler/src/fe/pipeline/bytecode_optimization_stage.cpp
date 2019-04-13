@@ -8,9 +8,9 @@
 
 namespace fe::vm
 {
-	void optimize_program(program &e, optimization_settings &s)
+	void optimize_module(module &e, optimization_settings &s)
 	{
-		program_dependency_graph dg = build_dependency_graph(e);
+		module_dependency_graph dg = build_dependency_graph(e);
 		while ( // optimize_dependencies(e, dg, s)
 		  /*||*/ optimize_single_ops(e, dg, s) || remove_dependantless_instructions(e, dg))
 			;
@@ -25,9 +25,9 @@ namespace fe::vm
 		}
 	}
 
-	program_dependency_graph build_dependency_graph(program &e)
+	module_dependency_graph build_dependency_graph(module &e)
 	{
-		program_dependency_graph graph;
+		module_dependency_graph graph;
 
 		auto &functions = e.get_code();
 
@@ -139,9 +139,9 @@ namespace fe::vm
 	 * E.g. mov r1 1, mov r2 r1 becomes mov r2 1.
 	 * Dependencies are updated so that the new instruction depends on all old dependencies, and
 	 * all old dependants depend on the new instruction. Returns true if any changes to the
-	 * program were made
+	 * module were made
 	 */
-	// bool optimize_dependencies(program& e, program_dependency_graph& g,
+	// bool optimize_dependencies(module& e, module_dependency_graph& g,
 	// optimization_settings& s)
 	//{
 	//	bool change_made = false;
@@ -259,7 +259,7 @@ namespace fe::vm
 
 	} // namespace peephole_optimizations
 
-	bool optimize_single_ops(program &e, program_dependency_graph &g, optimization_settings &s)
+	bool optimize_single_ops(module &e, module_dependency_graph &g, optimization_settings &s)
 	{
 		bool change_made = false;
 
@@ -353,9 +353,9 @@ namespace fe::vm
 	 * Removes operations that have no dependants, and thus no observed side-effects.
 	 * E.g. mov r1 r2, with no operation reading the result.
 	 * Dependencies of the instruction are removed.
-	 * Returns true if any changes to the program were made.
+	 * Returns true if any changes to the module were made.
 	 */
-	bool remove_dependantless_instructions(program &e, program_dependency_graph &g)
+	bool remove_dependantless_instructions(module &e, module_dependency_graph &g)
 	{
 		bool change_made = false;
 		for (auto i = 0; i < e.get_code().size(); i++)
