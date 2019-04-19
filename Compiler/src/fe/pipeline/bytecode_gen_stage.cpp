@@ -187,18 +187,16 @@ namespace fe::vm
 
 	void generate_function(node_id n, core_ast::ast &ast, module &p, code_gen_state &i)
 	{
-		auto id = p.add_function(function());
-		i.link_node_chunk(n, id);
-
 		auto &node = ast.get_node(n);
 		assert(node.children.size() == 1);
+		auto &func_data = ast.get_data<core_ast::function_data>(*node.data_index);
 
 		auto stack_analysis = core_ast::analyze_stack(node.id, ast);
+
+		auto id = p.add_function(function(func_data.name, bytecode()));
+		i.link_node_chunk(n, id);
 		i.analyzed_functions[id] = stack_analysis;
 
-		// Register function
-		auto &func_data = ast.get_data<core_ast::function_data>(*node.data_index);
-		p.get_function(id).get_name() = func_data.name;
 		auto prev_scope = i.set_scope(code_gen_scope(func_data));
 
 		// Generate body
