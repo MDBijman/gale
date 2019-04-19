@@ -19,7 +19,9 @@ namespace fe::ext_ast
 		});
 		res.name = module_name;
 
+		ast[ast.root_id()].type_scope_id = ast.create_type_scope();
 		ast_helper(ast).for_all_t(node_type::FUNCTION, [&ast, &res](node &n) {
+			n.type_scope_id = ast[n.parent_id].type_scope_id;
 			auto &children = ast.children_of(n);
 			auto &lhs_node = ast[children[0]];
 			auto &type_node = ast[children[1]];

@@ -102,6 +102,7 @@ namespace fe::ext_ast
 			kind == node_type::BOOLEAN || kind == node_type::NUMBER);
 	}
 
+// Packing the data together gives is more speed because we create so many nodes
 #pragma pack(push, 1)
 	struct node
 	{
@@ -111,9 +112,9 @@ namespace fe::ext_ast
 		node_id parent_id;
 
 		data_index_t data_index;
-		scope_index name_scope_id;
+		scope_index name_scope_id = no_scope;
 		// #performance we can use a single scope id instead of 2 saving 4 bytes per node
-		scope_index type_scope_id;
+		scope_index type_scope_id = no_scope;
 	};
 #pragma pack(pop)
 
