@@ -8,7 +8,7 @@ namespace fe::stdlib::io
 	{
 		using namespace types;
 		return module_builder()
-		  .set_name({ "std", "io" })
+		  .set_name("std.io")
 		  .add_native_function(
 		    vm::PRINT, "print",
 		    make_unique(function_type(make_unique(ui64()), make_unique(voidt()))))

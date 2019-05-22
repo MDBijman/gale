@@ -42,7 +42,7 @@ namespace fe
 		void add_module(module m);
 
 		// Contains the modules that can be imported by programs.
-		std::unordered_map<module_name, module> modules;
+		std::unordered_map<std::string, module> modules;
 		// Contains the build settings that are applied in various stages.
 		build_settings settings;
 		// The pipeline that exposes the compilation logic.

@@ -11,19 +11,22 @@ file(GLOB_RECURSE SOURCES src/*.cpp)
 file(GLOB_RECURSE COMMON_SOURCES ${Language_SOURCE_DIR}/common/*.cpp)
 list(APPEND SOURCES ${COMMON_SOURCES})
 
-# Choose the right .asm implementation for the interpreter
-# Currently we have a NASM (linux + other?) and MASM (windows) implementation
+# Choose the right implementation for the interpreter
+# Currently we have a C, NASM (linux + other?), and MASM (windows) implementation
+set(USE_CPP_INTERP TRUE)
 check_language(ASM_NASM)
 check_language(ASM_MASM)
 
-if(CMAKE_ASM_NASM_COMPILER)
+if(USE_CPP_INTERP)
+    list(APPEND SOURCES "src/vm/vm_c.cpp")
+elseif(CMAKE_ASM_NASM_COMPILER)
     enable_language(ASM_NASM)
     list(APPEND SOURCES "src/vm/vm_nasm.asm")
 elseif(CMAKE_ASM_MASM_COMPILER)
     enable_language(ASM_MASM)
     list(APPEND SOURCES "src/vm/vm_masm.asm")
 else()
-    message(FATAL_ERROR "No suitable asm compiler found")
+    message(FATAL_ERROR "No suitable interpreter implementation found")
 endif()
 
 # Define executable sources
