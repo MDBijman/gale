@@ -92,6 +92,12 @@ namespace fe
 			 */
 
 			interfaces project_interfaces;
+			
+			for (auto pair : modules)
+			{
+				project_interfaces.push_back(pair.second.iface);
+			}
+
 			for (auto pair : filename_to_ast)
 			{
 				project_interfaces.push_back(pl.extract_interface(pair.second));
@@ -105,7 +111,7 @@ namespace fe
 			for (auto pair : filename_to_ast)
 			{
 				pl.typecheck(pair.second, project_interfaces);
-				module_to_core_ast.insert({ pair.first, pl.lower(pair.second) });
+				module_to_core_ast.insert({ pair.second.get_module_name()->full, pl.lower(pair.second) });
 			}
 
 			/*
@@ -113,6 +119,12 @@ namespace fe
 			 */
 
 			std::unordered_map<std::string, vm::module> module_to_module;
+
+			for (auto pair : modules)
+			{
+				module_to_module.insert({ pair.first, pair.second.implementation });
+			}
+
 			for (auto pair : module_to_core_ast)
 			{
 				auto module = pl.generate(pair.second);
@@ -152,7 +164,7 @@ namespace fe
 
 	void builder::add_module(module m)
 	{
-		modules.insert({ m.name, m });
+		modules.insert({ m.iface.name, m });
 	}
 
 } // namespace fe

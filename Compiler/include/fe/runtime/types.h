@@ -9,7 +9,7 @@ static module load()
 {
 	using namespace types;
 	return module_builder()
-		.set_name({"std"})
+		.set_name("std")
 		.add_type("i8", make_unique(i8()))
 		.add_type("ui8", make_unique(ui8()))
 		.add_type("i16", make_unique(i16()))
