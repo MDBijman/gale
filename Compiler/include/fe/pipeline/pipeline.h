@@ -73,9 +73,9 @@ namespace fe
 			return ext_ast::lower(ast);
 		}
 
-		vm::module generate(core_ast::ast &ast, bool is_main) const
+		vm::module generate(core_ast::ast &ast, std::string module) const
 		{
-			return vm::generate_bytecode(ast, is_main);
+			return vm::generate_bytecode(ast, module);
 		}
 
 		void optimize_module(vm::module &e) const

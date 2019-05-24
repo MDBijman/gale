@@ -391,8 +391,10 @@ namespace fe::ext_ast
 
 		auto &lhs_node = ast[children[0]];
 		auto &type_node = ast[children[1]];
-		lhs_node.name_scope_id = n.name_scope_id;
-		type_node.name_scope_id = n.name_scope_id;
+
+		declare_lhs(lhs_node, ast, type_node);
+		define_lhs(lhs_node, ast);
+
 		resolve(type_node, ast);
 		resolve_lambda(ast[children[2]], ast);
 	}

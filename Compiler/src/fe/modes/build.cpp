@@ -159,7 +159,7 @@ namespace fe
 
 			for (auto pair : module_to_core_ast)
 			{
-				auto module = pl.generate(pair.second, pair.first == "mod");
+				auto module = pl.generate(pair.second, pair.first);
 
 				if (settings.should_optimize) pl.optimize_module(module);
 
