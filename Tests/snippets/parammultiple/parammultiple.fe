@@ -1,6 +1,0 @@
-module parammultiple
-import [std std.io]
-
-let add: (std.ui64, std.ui64) -> std.ui64 = \(a, b) => { a + b };
-
-std.io.print (add (5, 5));

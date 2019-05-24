@@ -1,8 +1,0 @@
-module paramarray
-import [std std.io]
-
-let y: [std.ui64; 3] = [1,2,3];
-
-let first: [std.ui64; 3] -> std.ui64 = \arr => (arr!!0);
-
-std.io.print (first y);

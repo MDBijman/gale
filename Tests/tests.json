@@ -3,7 +3,7 @@
     "tests": [
         {
             "args": [
-                "./snippets/mod",
+                "./snippets/mod.fe",
                 "mod"
             ],
             "match": {
@@ -13,7 +13,7 @@
         },
         {
             "args": [
-                "./snippets/mod2",
+                "./snippets/mod2.fe",
                 "mod"
             ],
             "match": {
@@ -23,7 +23,7 @@
         },
         {
             "args": [
-                "./snippets/fib",
+                "./snippets/fib.fe",
                 "fib"
             ],
             "match": {
@@ -33,7 +33,7 @@
         },
         {
             "args": [
-                "./snippets/scope",
+                "./snippets/scope.fe",
                 "scope"
             ],
             "match": {
@@ -43,7 +43,7 @@
         },
         {
             "args": [
-                "./snippets/block_vars",
+                "./snippets/block_vars.fe",
                 "blockvars"
             ],
             "match": {
@@ -53,7 +53,7 @@
         },
         {
             "args": [
-                "./snippets/if",
+                "./snippets/if.fe",
                 "m_if"
             ],
             "match": {
@@ -63,7 +63,7 @@
         },
         {
             "args": [
-                "./snippets/while",
+                "./snippets/while.fe",
                 "m_while"
             ],
             "match": {
@@ -73,7 +73,7 @@
         },
         {
             "args": [
-                "./snippets/func",
+                "./snippets/func.fe",
                 "func"
             ],
             "match": {
@@ -83,7 +83,7 @@
         },
         {
             "args": [
-                "./snippets/euler1",
+                "./snippets/euler1.fe",
                 "euler1"
             ],
             "match": {
@@ -93,7 +93,7 @@
         },
         {
             "args": [
-                "./snippets/euler2",
+                "./snippets/euler2.fe",
                 "euler2"
             ],
             "match": {
@@ -103,7 +103,7 @@
         },
         {
             "args": [
-                "./snippets/euler3",
+                "./snippets/euler3.fe",
                 "euler3"
             ],
             "match": {
@@ -113,7 +113,7 @@
         },
         {
             "args": [
-                "./snippets/funcvar",
+                "./snippets/funcvar.fe",
                 "funcvar"
             ],
             "match": {
@@ -123,7 +123,7 @@
         },
         {
             "args": [
-                "./snippets/param",
+                "./snippets/param.fe",
                 "param"
             ],
             "match": {
@@ -133,7 +133,7 @@
         },
         {
             "args": [
-                "./snippets/parammultiple",
+                "./snippets/parammultiple.fe",
                 "parammultiple"
             ],
             "match": {
@@ -143,7 +143,7 @@
         },
         {
             "args": [
-                "./snippets/and_short_circuit",
+                "./snippets/and_short_circuit.fe",
                 "short"
             ],
             "match": {
@@ -153,7 +153,7 @@
         },
         {
             "args": [
-                "./snippets/or_short_circuit",
+                "./snippets/or_short_circuit.fe",
                 "short"
             ],
             "match": {
@@ -163,7 +163,7 @@
         },
         {
             "args": [
-                "./snippets/tuple2",
+                "./snippets/tuple2.fe",
                 "tuple2"
             ],
             "match": {
@@ -173,7 +173,7 @@
         },
         {
             "args": [
-                "./snippets/tuple3",
+                "./snippets/tuple3.fe",
                 "tuple3"
             ],
             "match": {
@@ -183,7 +183,7 @@
         },
         {
             "args": [
-                "./snippets/sumint",
+                "./snippets/sumint.fe",
                 "sumint"
             ],
             "match": {
@@ -193,7 +193,7 @@
         },
         {
             "args": [
-                "./snippets/sumbool",
+                "./snippets/sumbool.fe",
                 "sumbool"
             ],
             "match": {
@@ -203,7 +203,7 @@
         },
         {
             "args": [
-                "./snippets/sumpair",
+                "./snippets/sumpair.fe",
                 "sumpair"
             ],
             "match": {
@@ -213,7 +213,7 @@
         },
         {
             "args": [
-                "./snippets/sumpairdestr",
+                "./snippets/sumpairdestr.fe",
                 "sumpairdestr"
             ],
             "match": {
@@ -223,7 +223,7 @@
         },
         {
             "args": [
-                "./snippets/sumintmatch",
+                "./snippets/sumintmatch.fe",
                 "sumintmatch"
             ],
             "match": {
@@ -233,7 +233,7 @@
         },
         {
             "args": [
-                "./snippets/sumtuplematch",
+                "./snippets/sumtuplematch.fe",
                 "sumtuplematch"
             ],
             "match": {
@@ -243,7 +243,7 @@
         },
         {
             "args": [
-                "./snippets/sumboolmatch",
+                "./snippets/sumboolmatch.fe",
                 "sumboolmatch"
             ],
             "match": {
@@ -253,7 +253,7 @@
         },
         {
             "args": [
-                "./snippets/sumboolmatch2",
+                "./snippets/sumboolmatch2.fe",
                 "sumboolmatch"
             ],
             "match": {
@@ -263,7 +263,7 @@
         },
         {
             "args": [
-                "./snippets/sumvarbind",
+                "./snippets/sumvarbind.fe.fe",
                 "sumvarbind"
             ],
             "match": {
@@ -273,7 +273,7 @@
         },
         {
             "args": [
-                "./snippets/sumvarbind2",
+                "./snippets/sumvarbind2.fe.fe",
                 "sumvarbind"
             ],
             "match": {
@@ -283,7 +283,7 @@
         },
         {
             "args": [
-                "./snippets/sumvarbind3",
+                "./snippets/sumvarbind3.fe.fe",
                 "sumvarbind"
             ],
             "match": {
@@ -293,7 +293,7 @@
         },
         {
             "args": [
-                "./snippets/paramarray",
+                "./snippets/paramarray.fe",
                 "paramarray"
             ],
             "match": {
@@ -303,7 +303,7 @@
         },
         {
             "args": [
-                "./snippets/paramarray3",
+                "./snippets/paramarray3.fe",
                 "paramarray"
             ],
             "match": {
@@ -313,7 +313,7 @@
         },
         {
             "args": [
-                "./snippets/array",
+                "./snippets/array.fe",
                 "array"
             ],
             "match": {
@@ -323,7 +323,7 @@
         },
         {
             "args": [
-                "./snippets/array2",
+                "./snippets/array2.fe",
                 "array"
             ],
             "match": {

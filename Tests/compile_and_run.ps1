@@ -6,14 +6,14 @@ param(
 )
 
 Function cleanup {
-    Remove-Item -Recurse ./out
+    #Remove-Item -Recurse ./out
 }
 
 $compilerLocation = "../build/Compiler/Debug/galec.exe"
 $vmLocation = "../build/VM/Debug/galevm.exe"
 
 # Invoke Compiler
-$compilerExpression = "$compilerLocation project $file $module"
+$compilerExpression = "$compilerLocation build -i $file -e $module -o ./out/test.bc"
 Write-Debug "Running compiler as: $compilerExpression"
 $out = Invoke-Expression $compilerExpression
 if ($LASTEXITCODE -ne 0) {
@@ -22,7 +22,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # Invoke VM
-$vmExpression = "$vmLocation ./out/test.bc"
+$vmExpression = "$vmLocation -i ./out/test.bc"
 Write-Debug "Running vm as: $vmExpression"
 Invoke-Expression $vmExpression
 if ($LASTEXITCODE -ne 0) {
