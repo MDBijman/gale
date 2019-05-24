@@ -1,0 +1,17 @@
+module mode
+import [std std.io foo]
+
+fn qux: () -> std.ui64 = \() => {
+	0
+};
+
+fn main: () -> () = \() => {
+	let a: std.ui64 = 0;
+
+	if (qux () == 1) {
+		std.io.print 0;
+	} else {
+		std.io.print 1;
+	};
+	()
+};

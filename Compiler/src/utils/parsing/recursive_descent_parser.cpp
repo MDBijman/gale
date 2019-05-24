@@ -28,7 +28,10 @@ namespace recursive_descent
 	void token_stream_reader::consume(lexing::token_kind t)
 	{
 		auto n = next();
-		assert(n.value == t);
+		if(n.value != t)
+		{
+			throw std::runtime_error("Expected " + std::to_string(uint8_t(t)) + ", but found " + std::string(n.text));
+		}
 	}
 
 	bool token_stream_reader::has_next() { return curr != in.end(); }

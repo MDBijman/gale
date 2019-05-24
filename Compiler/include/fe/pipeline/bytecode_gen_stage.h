@@ -36,6 +36,7 @@ namespace fe::vm
 	public:
 		explicit code_gen_state(core_ast::label);
 
+		std::string module_name;
 		code_gen_scope scope;
 
 		code_gen_scope set_scope(code_gen_scope);
@@ -65,5 +66,5 @@ namespace fe::vm
 	};
 
 	class module;
-	module generate_bytecode(core_ast::ast& n);
+	module generate_bytecode(core_ast::ast& n, std::string module_name);
 }

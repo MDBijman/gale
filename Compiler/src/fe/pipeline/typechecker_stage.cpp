@@ -3,6 +3,7 @@
 #include "fe/data/ext_ast.h"
 #include "fe/data/type_scope.h"
 #include "fe/pipeline/error.h"
+#include "fe/data/interface.h"
 
 namespace fe::ext_ast
 {
@@ -143,7 +144,7 @@ namespace fe::ext_ast
 
 		auto t = types::unique_type(new types::str());
 		if (!tc.satisfied_by(*t))
-			throw typecheck_error{ "string type does not match constraints\n" +
+			throw typecheck_error{"string type does not match constraints\n" +
 					       tc.operator std::string() };
 		return t;
 	}
@@ -940,6 +941,7 @@ namespace fe::ext_ast
 		copy_parent_scope(n, ast);
 
 		auto fun_type = typeof(ast[children[1]], ast);
+		declare_assignable(ast[children[0]], ast, *fun_type);
 		type_constraints ts({ equality_constraint(*fun_type) });
 		typeof_lambda(ast[children[2]], ast, ts);
 	}
@@ -1002,6 +1004,23 @@ namespace fe::ext_ast
 	void typecheck(ast &ast, const interfaces &ifaces)
 	{
 		auto root = ast.root_id();
+		auto root_typescope = ast.create_type_scope();
+		ast[root].type_scope_id = root_typescope;
+
+		auto imports = *ast.get_imports();
+		for(auto id : imports)
+		{
+			auto pos = std::find_if(ifaces.begin(), ifaces.end(), [&id](const interface& iface) { return iface.name == id.full; });
+			if(pos == ifaces.end())
+				continue;
+
+			auto module_typescope = ast.create_type_scope();
+			ast.get_type_scope(module_typescope).merge(pos->types);
+			module_name mn = id.module_path;
+			mn.push_back(id.name);
+			ast.get_type_scope(root_typescope).add_module(mn, module_typescope);
+		}
+
 		typecheck(ast.get_node(root), ast);
 	}
 } // namespace fe::ext_ast
