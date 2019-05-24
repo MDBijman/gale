@@ -6,5 +6,5 @@
 
 namespace fe::vm
 {
-	executable link(const std::unordered_map<std::string, module>& modules);
+	executable link(const std::unordered_map<std::string, module>& modules, const std::string& main_module);
 }

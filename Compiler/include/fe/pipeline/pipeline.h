@@ -73,9 +73,9 @@ namespace fe
 			return ext_ast::lower(ast);
 		}
 
-		vm::module generate(core_ast::ast &ast) const
+		vm::module generate(core_ast::ast &ast, std::string module) const
 		{
-			return vm::generate_bytecode(ast);
+			return vm::generate_bytecode(ast, module);
 		}
 
 		void optimize_module(vm::module &e) const
@@ -84,9 +84,9 @@ namespace fe
 			vm::optimize_module(e, s);
 		}
 
-		vm::executable link(std::unordered_map<std::string, vm::module> &modules) const
+		vm::executable link(std::unordered_map<std::string, vm::module> &modules, const std::string& main) const
 		{
-			return vm::link(modules);
+			return vm::link(modules, main);
 		}
 
 		void optimize_executable(vm::executable &e) const

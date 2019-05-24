@@ -1,6 +1,7 @@
 #include "fe/pipeline/resolution_stage.h"
 #include "fe/data/ext_ast.h"
 #include "fe/pipeline/error.h"
+#include "fe/data/interface.h"
 
 // Resolving
 namespace fe::ext_ast
@@ -56,7 +57,9 @@ namespace fe::ext_ast
 		}
 		// If we dont have a parent we already have a name scope.
 		else
+		{
 			assert(n.name_scope_id != no_scope);
+		}
 
 		for (auto child : children) resolve(ast[child], ast);
 	}
@@ -384,11 +387,14 @@ namespace fe::ext_ast
 		assert(n.kind == node_type::FUNCTION);
 		auto &children = ast.children_of(n);
 		assert(children.size() == 3);
+		copy_parent_scope(n, ast);
 
 		auto &lhs_node = ast[children[0]];
 		auto &type_node = ast[children[1]];
-		lhs_node.name_scope_id = n.name_scope_id;
-		type_node.name_scope_id = n.name_scope_id;
+
+		declare_lhs(lhs_node, ast, type_node);
+		define_lhs(lhs_node, ast);
+
 		resolve(type_node, ast);
 		resolve_lambda(ast[children[2]], ast);
 	}
@@ -546,6 +552,23 @@ namespace fe::ext_ast
 	void resolve(ast &ast, const interfaces& module_ifaces)
 	{
 		auto root = ast.root_id();
+		auto root_namescope = ast.create_name_scope();
+		ast[root].name_scope_id = root_namescope;
+
+		auto imports = *ast.get_imports();
+		for(auto id : imports)
+		{
+			auto pos = std::find_if(module_ifaces.begin(), module_ifaces.end(), [&id](const interface& iface) { return iface.name == id.full; });
+			if(pos == module_ifaces.end())
+				continue;
+
+			auto module_namescope = ast.create_name_scope();
+			ast.get_name_scope(module_namescope).merge(pos->names);
+			module_name mn = id.module_path;
+			mn.push_back(id.name);
+			ast.get_name_scope(root_namescope).add_module(mn, module_namescope);
+		}
+
 		resolve(ast.get_node(root), ast);
 	}
 } // namespace fe::ext_ast

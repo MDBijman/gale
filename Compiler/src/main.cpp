@@ -9,6 +9,7 @@
 #include <vector>
 
 // #todo Currently unused until unit testing strategy is devised
+// End-to-end tests are run via Tests/main.py
 int on_test(int argc, char **argv)
 {
 	std::vector<char *> commands;
@@ -37,7 +38,7 @@ int on_help()
 {
 	std::cout << "The Gale toolset v0.0.1\n"
 		  << "Commands:\n"
-		  << "gale build -f <files...> -e <main_module> -o <out_name>\n"
+		  << "gale build -i <files...> -e <main_module> -o <out_name>\n"
 		  << "\tProcesses each of the files to build a single bytecode executable\n"
 		  << std::endl;
 	return 0;

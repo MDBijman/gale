@@ -82,8 +82,23 @@ namespace fe::vm
 	void interpret(executable &e, vm_settings &s)
 	{
 		uint16_t *op_handlers = vm_init(native_functions);
-		auto direct_threaded = preprocess(e, op_handlers);
 
-		vm_interpret(direct_threaded.code.get_instruction(0));
+		const byte* first;
+
+		if(s.direct_thread)
+		{
+			// If we use direct threading, we need to have a list of valid op handlers
+			// For the C implementation direct threading is not possible thus it returns a nullptr
+			assert(op_handlers);
+
+			auto direct_threaded = preprocess(e, op_handlers);
+			first = direct_threaded.code.get_instruction(0);
+		}
+		else
+		{
+			first = e.code.get_instruction(0);
+		}
+		
+		vm_interpret(first);
 	}
 } // namespace fe::vm

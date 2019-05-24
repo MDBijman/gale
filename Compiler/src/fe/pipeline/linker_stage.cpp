@@ -72,7 +72,7 @@ namespace fe::vm
 			{
 				layout.module_chunk_locations[mod_name].push_back(layout.total_size);
 				layout.function_locations.insert(
-				  { fn.get_name(), layout.total_size });
+				  { mod_name + "." + fn.get_name(), layout.total_size });
 				layout.total_size += fn.get_bytecode().size();
 
 				gather_label_locations(fn, layout);
@@ -80,11 +80,12 @@ namespace fe::vm
 			else if (fn.is_native())
 			{
 				layout.native_function_locations.insert(
-				  { fn.get_name(), fn.get_native_function_id() });
+				  { mod_name + "." + fn.get_name(), fn.get_native_function_id() });
 			}
 		}
 
-		assert(layout.total_size > before);
+		// This assert doesn't work for purely native modules
+		// assert(layout.total_size > before);
 	}
 
 	/*
@@ -100,9 +101,10 @@ namespace fe::vm
 
 		for (int i = 0; i < data.size();)
 		{
-			byte op = data[i];
+			op_kind op = byte_to_op(data[i].val);
+			auto size = op_size(op);
 
-			switch (byte_to_op(op.val))
+			switch (op)
 			{
 
 			case op_kind::LBL_UI32:
@@ -110,6 +112,7 @@ namespace fe::vm
 				// Replace label with nops as labels don't do anything
 				for (int k = 0; k < op_size(op_kind::LBL_UI32); k++)
 					data[i + k] = op_to_byte(op_kind::NOP);
+				break;
 			}
 
 				// Jumps are all relative to a label within the same bytecode
@@ -136,6 +139,8 @@ namespace fe::vm
 				break;
 			}
 			}
+
+			i += size;
 		}
 	}
 
@@ -155,8 +160,10 @@ namespace fe::vm
 
 		for (int i = 0; i < code.size();)
 		{
-			byte op = data[i];
-			switch (byte_to_op(op.val))
+			op_kind op = byte_to_op(data[i].val);
+			auto size = op_size(op);
+
+			switch (op)
 			{
 
 				// Calls reference other bytecode
@@ -171,7 +178,7 @@ namespace fe::vm
 				    it != layout.function_locations.end())
 				{
 					*(reinterpret_cast<uint64_t *>(&data[i + 1])) =
-					  it->second - i;
+					  it->second;
 				}
 				else if (auto it = layout.native_function_locations.find(function_name);
 					 it != layout.native_function_locations.end())
@@ -192,7 +199,7 @@ namespace fe::vm
 			}
 			}
 
-			i += op_size(byte_to_op(op.val));
+			i += size;
 		}
 	}
 
@@ -216,15 +223,24 @@ namespace fe::vm
 		}
 	}
 
-	executable link(const std::unordered_map<std::string, module> &modules)
+	executable link(const std::unordered_map<std::string, module> &modules, const std::string& main_module)
 	{
 		bytecode code;
 		executable_layout layout;
+
+		// main call + exit
+		layout.total_size = 12 + 1;
 
 		for (const auto name_and_module : modules)
 		{
 			add_to_layout(name_and_module.first, name_and_module.second, layout);
 		}
+
+		auto main_location = layout.function_locations.find(main_module + ".main")->second;
+		auto res = code.add_instructions(
+			make_call_ui64_ui8_ui8_ui8(main_location, 0, 0, 0),
+			make_exit()
+		);
 
 		for (auto name_and_module : modules)
 		{
