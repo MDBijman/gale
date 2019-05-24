@@ -41,6 +41,9 @@ namespace fe
 		// Adds the given module to the builder to expose it to programs.
 		void add_module(module m);
 
+		// Returns the names of modules in a topological order
+		std::vector<std::string> topological_module_order(const std::string& root, const std::unordered_map<std::string, std::vector<std::string>>& graph) const;
+
 		// Contains the modules that can be imported by programs.
 		std::unordered_map<std::string, module> modules;
 		// Contains the build settings that are applied in various stages.

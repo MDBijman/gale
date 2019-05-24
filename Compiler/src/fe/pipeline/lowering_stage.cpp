@@ -1327,12 +1327,6 @@ namespace fe::ext_ast
 		core_ast::ast new_ast(core_ast::node_type::BLOCK);
 		auto root_block = new_ast.root_id();
 
-		auto bootstrap =
-		  new_ast.create_node(core_ast::node_type::FUNCTION_CALL, root_block);
-		new_ast.get_node_data<core_ast::function_call_data>(bootstrap) =
-		  core_ast::function_call_data("mod.main", 0, 0);
-		new_ast.create_node(core_ast::node_type::TUPLE, bootstrap);
-
 		for (auto child : children)
 		{
 			auto new_child =

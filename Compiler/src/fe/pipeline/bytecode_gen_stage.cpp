@@ -231,32 +231,19 @@ namespace fe::vm
 
 	void generate_block(node_id n, core_ast::ast &ast, module &p, code_gen_state &info)
 	{
-		auto chunk_id = 0;
 		bool is_root = ast.root_id() == n;
 
-		if (is_root) // Create new chunk
-		{
-			chunk_id = p.add_function(function{ "_main", bytecode(), {} });
-			info.link_node_chunk(n, chunk_id);
-		}
-		else // Link to parent chunk
+		if (!is_root)
 		{
 			link_to_parent_chunk(n, ast, info);
-			chunk_id = info.chunk_of(n);
 		}
 
 		auto &children = ast.children_of(n);
 		assert(children.size() > 0);
 
-		far_lbl location(chunk_id, p.get_function(chunk_id).get_bytecode().size());
-
 		for (auto i = 0; i < children.size(); i++)
 			generate_bytecode(children[i], ast, p, info);
-
-		if (is_root)
-		{ p.get_function(info.chunk_of(n)).get_bytecode().add_instruction(make_exit()); }
-
-		} // weird clang #format
+	} 
 
 	void generate_function_call(node_id n, core_ast::ast &ast, module &p, code_gen_state &i)
 	{
@@ -662,7 +649,7 @@ namespace fe::vm
 		}
 	}
 
-	module generate_bytecode(core_ast::ast &ast)
+	module generate_bytecode(core_ast::ast &ast, bool is_main)
 	{
 		// module that will contain the chunks containing the bytecode
 		module p;
@@ -681,6 +668,7 @@ namespace fe::vm
 		// Meta information about intersection between core_ast and bytecode e.g. ast to
 		// chunk mapping etc.
 		code_gen_state i(max_lbl);
+		i.generate_main = is_main;
 
 		// A bit hacky, for code in root
 		auto stack_analysis_res = core_ast::stack_analysis_result();

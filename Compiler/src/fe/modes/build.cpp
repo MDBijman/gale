@@ -2,6 +2,8 @@
 
 #include "fe/runtime/io.h"
 #include "fe/runtime/types.h"
+#include <stack>
+#include <unordered_set>
 
 namespace fe
 {
@@ -81,26 +83,57 @@ namespace fe
 			 * Parse input files
 			 */
 
-			std::unordered_map<std::string, ext_ast::ast> filename_to_ast;
+			std::unordered_map<std::string, ext_ast::ast> module_name_to_ast;
 			for (auto pair : filename_to_code)
 			{
-				filename_to_ast.insert({ pair.first, pl.parse(pair.second) });
+				auto ast = pl.parse(pair.second);
+				module_name_to_ast.insert({ ast.get_module_name()->full, ast });
 			}
 
 			/*
-			 * Parse interfaces from ASTs
+			 * Generate topological order of modules.
 			 */
+
+			std::unordered_map<std::string, std::vector<std::string>> import_graph;
+			for(auto& pair : module_name_to_ast)
+			{
+				std::vector<std::string> imports;
+				auto& import_identifiers = pair.second.get_imports();
+				if(import_identifiers)
+				{
+					for(auto& id : *import_identifiers)
+						imports.push_back(id.full);
+				}
+				import_graph.insert({ pair.first, imports });
+			}
+
+			for(auto pair : modules)
+			{
+				import_graph.insert({ pair.first, {} });
+			}
+
+			auto topological_order = topological_module_order(settings.main_module, import_graph);
+
+			/*
+			* Typecheck ASTs in reverse topological order.
+			*/
 
 			interfaces project_interfaces;
 			
-			for (auto pair : modules)
+			for (auto it = topological_order.rbegin(); it != topological_order.rend(); it++)
 			{
-				project_interfaces.push_back(pair.second.iface);
-			}
-
-			for (auto pair : filename_to_ast)
-			{
-				project_interfaces.push_back(pl.extract_interface(pair.second));
+				// If built-in module
+				if(modules.find(*it) != modules.end())
+				{
+					project_interfaces.push_back(modules.find(*it)->second.iface);
+				}
+				// If user defined module
+				else
+				{
+					auto& ast = module_name_to_ast.find(*it)->second;
+					pl.typecheck(ast, project_interfaces);
+					project_interfaces.push_back(pl.extract_interface(ast));
+				}
 			}
 
 			/*
@@ -108,10 +141,9 @@ namespace fe
 			 */
 
 			std::unordered_map<std::string, core_ast::ast> module_to_core_ast;
-			for (auto pair : filename_to_ast)
+			for (auto pair : module_name_to_ast)
 			{
-				pl.typecheck(pair.second, project_interfaces);
-				module_to_core_ast.insert({ pair.second.get_module_name()->full, pl.lower(pair.second) });
+				module_to_core_ast.insert({ pair.first, pl.lower(pair.second) });
 			}
 
 			/*
@@ -127,7 +159,7 @@ namespace fe
 
 			for (auto pair : module_to_core_ast)
 			{
-				auto module = pl.generate(pair.second);
+				auto module = pl.generate(pair.second, pair.first == "mod");
 
 				if (settings.should_optimize) pl.optimize_module(module);
 
@@ -138,7 +170,7 @@ namespace fe
 			 * Link bytecode modules together (and optionally optimize)
 			 */
 
-			auto executable = pl.link(module_to_module);
+			auto executable = pl.link(module_to_module, settings.main_module);
 
 			if (settings.should_optimize) pl.optimize_executable(executable);
 
@@ -165,6 +197,34 @@ namespace fe
 	void builder::add_module(module m)
 	{
 		modules.insert({ m.iface.name, m });
+	}
+
+	std::vector<std::string> builder::topological_module_order(const std::string& root, const std::unordered_map<std::string, std::vector<std::string>>& graph) const
+	{
+		std::vector<std::string> result;
+		std::unordered_set<std::string> done;
+
+		std::stack<std::string> module_stack;
+
+		module_stack.push(root);
+
+		while (!module_stack.empty())
+		{
+			auto current = module_stack.top();
+			module_stack.pop();
+			for (auto& child : graph.at(current))
+			{
+				module_stack.push(child);
+			}
+
+			if (done.find(current) == done.end())
+			{
+				result.push_back(current);
+				done.insert(current);
+			}
+		}
+
+		return result;
 	}
 
 } // namespace fe

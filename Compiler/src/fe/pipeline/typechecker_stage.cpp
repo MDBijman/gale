@@ -1003,8 +1003,8 @@ namespace fe::ext_ast
 	void typecheck(ast &ast, const interfaces &ifaces)
 	{
 		auto root = ast.root_id();
-		auto typescope = ast.create_type_scope();
-		ast[root].type_scope_id = typescope;
+		auto root_typescope = ast.create_type_scope();
+		ast[root].type_scope_id = root_typescope;
 
 		auto imports = *ast.get_imports();
 		for(auto id : imports)
@@ -1017,7 +1017,7 @@ namespace fe::ext_ast
 			ast.get_type_scope(module_typescope).merge(pos->types);
 			module_name mn = id.module_path;
 			mn.push_back(id.name);
-			ast.get_type_scope(typescope).add_module(mn, module_typescope);
+			ast.get_type_scope(root_typescope).add_module(mn, module_typescope);
 		}
 
 		typecheck(ast.get_node(root), ast);

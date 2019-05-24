@@ -206,6 +206,11 @@ extern "C" uint64_t *vm_interpret(const fe::vm::byte* ops)
 				auto return_register = stack.back().return_register;
 
 				// #todo put return values into return register
+				for (int i = 0; i < return_count; i++)
+				{
+					(stack.rbegin() + 1)->registers[return_register - i] = 
+						stack.back().registers[first_return_register - 1 - i];
+				}
 
 				ip = stack.back().return_ip;
 
