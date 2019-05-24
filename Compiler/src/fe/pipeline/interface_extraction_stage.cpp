@@ -11,15 +11,15 @@ namespace fe::ext_ast
 		fe::interface res;
 		auto helper = ast_helper(ast);
 
-		std::string module_name;
-		helper.for_all_t(node_type::MODULE_DECLARATION, [&ast, &module_name](auto &n) {
-			auto &module_id_node = ast[ast.get_children(n.children_id)[0]];
-			auto &id_data = ast.get_data<identifier>(module_id_node.data_index);
-			module_name = id_data.name;
-		});
-		res.name = module_name;
+		res.name = ast.get_module_name()->name;
 
-		ast[ast.root_id()].type_scope_id = ast.create_type_scope();
+		auto& import_identifiers = ast.get_imports();
+		if(import_identifiers)
+		{
+			for(auto& id : *import_identifiers)
+				res.imports.push_back(id.full);
+		}
+
 		ast_helper(ast).for_all_t(node_type::FUNCTION, [&ast, &res](node &n) {
 			n.type_scope_id = ast[n.parent_id].type_scope_id;
 			auto &children = ast.children_of(n);

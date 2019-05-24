@@ -550,8 +550,8 @@ namespace fe::ext_ast
 	void resolve(ast &ast, const interfaces& module_ifaces)
 	{
 		auto root = ast.root_id();
-		auto namescope = ast.create_name_scope();
-		ast[root].name_scope_id = namescope;
+		auto root_namescope = ast.create_name_scope();
+		ast[root].name_scope_id = root_namescope;
 
 		auto imports = *ast.get_imports();
 		for(auto id : imports)
@@ -564,7 +564,7 @@ namespace fe::ext_ast
 			ast.get_name_scope(module_namescope).merge(pos->names);
 			module_name mn = id.module_path;
 			mn.push_back(id.name);
-			ast.get_name_scope(namescope).add_module(mn, module_namescope);
+			ast.get_name_scope(root_namescope).add_module(mn, module_namescope);
 		}
 
 		resolve(ast.get_node(root), ast);

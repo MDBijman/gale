@@ -13,12 +13,13 @@ namespace fe
 		{
 		}
 
-		interface(std::string n, ext_ast::type_scope ts, ext_ast::name_scope ns)
-		    : name(n), types(ts), names(ns)
+		interface(std::string n, std::vector<std::string> i, ext_ast::type_scope ts, ext_ast::name_scope ns)
+		    : name(n), imports(i), types(ts), names(ns)
 		{
 		}
 
 		std::string name;
+		std::vector<std::string> imports;
 		ext_ast::type_scope types;
 		ext_ast::name_scope names;
 	};

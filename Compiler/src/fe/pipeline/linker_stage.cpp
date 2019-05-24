@@ -178,7 +178,7 @@ namespace fe::vm
 				    it != layout.function_locations.end())
 				{
 					*(reinterpret_cast<uint64_t *>(&data[i + 1])) =
-					  it->second - i;
+					  it->second;
 				}
 				else if (auto it = layout.native_function_locations.find(function_name);
 					 it != layout.native_function_locations.end())
@@ -223,15 +223,24 @@ namespace fe::vm
 		}
 	}
 
-	executable link(const std::unordered_map<std::string, module> &modules)
+	executable link(const std::unordered_map<std::string, module> &modules, const std::string& main_module)
 	{
 		bytecode code;
 		executable_layout layout;
+
+		// main call + exit
+		layout.total_size = 12 + 1;
 
 		for (const auto name_and_module : modules)
 		{
 			add_to_layout(name_and_module.first, name_and_module.second, layout);
 		}
+
+		auto main_location = layout.function_locations.find(main_module + ".main")->second;
+		auto res = code.add_instructions(
+			make_call_ui64_ui8_ui8_ui8(main_location, 0, 0, 0),
+			make_exit()
+		);
 
 		for (auto name_and_module : modules)
 		{
