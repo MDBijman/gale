@@ -1,0 +1,12 @@
+module funcvar
+import [std std.io]
+
+fn add_one: std.ui64 -> std.ui64 = \n => {
+	let x: std.ui64 = 1;
+	x + n
+};
+
+fn main: () -> () = \() => {
+	std.io.print (add_one 5);
+	()
+};

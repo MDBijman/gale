@@ -1,0 +1,12 @@
+module sumvarbind
+import [std std.io]
+
+fn main: () -> () = \() => {
+	let sum : Num: std.ui64 | Bool: std.bool = Bool true;
+
+	sum match {
+		| Bool x -> if (x) { std.io.print 1; } else { std.io.print 2; }
+		| Num x -> { std.io.print x; }
+	};
+	()
+};

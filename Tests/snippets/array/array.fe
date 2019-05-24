@@ -1,5 +1,0 @@
-module array
-import [std std.io]
-
-let a : [std.ui64; 3] = [1, 2, 3];
-std.io.print (a!!0);
