@@ -212,7 +212,15 @@ namespace fe
 		{
 			auto current = module_stack.top();
 			module_stack.pop();
-			for (auto& child : graph.at(current))
+
+			auto children = graph.find(current);
+			// #fixme move this to somewhere more appropriate
+			if (children == graph.end())
+			{
+				throw fe::other_error{ "Unknown module: " + current };
+			}
+
+			for (auto& child : children->second)
 			{
 				module_stack.push(child);
 			}
