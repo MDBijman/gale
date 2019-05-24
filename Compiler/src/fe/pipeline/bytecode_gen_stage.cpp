@@ -254,9 +254,16 @@ namespace fe::vm
 
 		auto &call_data = ast.get_data<core_ast::function_call_data>(*node.data_index);
 		core_ast::label func_label = i.get_function_label(call_data.name);
+
+		auto symbol_name = call_data.name;
+		if(symbol_name.find('.') == std::string::npos)
+		{
+			symbol_name = i.module_name + "." + symbol_name;
+		}
+
 		p.get_function(i.chunk_of(n))
 		  .get_symbols()
-		  .insert({ func_label.id, call_data.name });
+		  .insert({ func_label.id, symbol_name });
 
 		for (auto &child : node.children) { generate_bytecode(child, ast, p, i); }
 
@@ -649,7 +656,7 @@ namespace fe::vm
 		}
 	}
 
-	module generate_bytecode(core_ast::ast &ast, bool is_main)
+	module generate_bytecode(core_ast::ast &ast, std::string module_name)
 	{
 		// module that will contain the chunks containing the bytecode
 		module p;
@@ -668,7 +675,7 @@ namespace fe::vm
 		// Meta information about intersection between core_ast and bytecode e.g. ast to
 		// chunk mapping etc.
 		code_gen_state i(max_lbl);
-		i.generate_main = is_main;
+		i.module_name = module_name;
 
 		// A bit hacky, for code in root
 		auto stack_analysis_res = core_ast::stack_analysis_result();

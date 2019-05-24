@@ -941,6 +941,7 @@ namespace fe::ext_ast
 		copy_parent_scope(n, ast);
 
 		auto fun_type = typeof(ast[children[1]], ast);
+		declare_assignable(ast[children[0]], ast, *fun_type);
 		type_constraints ts({ equality_constraint(*fun_type) });
 		typeof_lambda(ast[children[2]], ast, ts);
 	}

@@ -96,6 +96,16 @@ namespace fe::ext_ast
 			path.push_back(name);
 			return path;
 		}
+
+		void recompute_full()
+		{
+			full = "";
+			for(auto& segment : module_path)
+			{
+				full += segment + ".";
+			}
+			full += name;
+		}
 	};
 
 	inline bool operator==(const identifier& a, const identifier& b)
