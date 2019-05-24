@@ -11,11 +11,11 @@ file(GLOB_RECURSE COMMON_SOURCES ${Language_SOURCE_DIR}/common/*.cpp)
 list(APPEND SOURCES ${COMMON_SOURCES})
 
 # Define executable sources
-add_executable(Compiler ${SOURCES})
+add_executable(galec ${SOURCES})
 
 # Include catch library 
-target_include_directories(Compiler PRIVATE ${Compiler_SOURCE_DIR}/lib)
+target_include_directories(galec PRIVATE ${Compiler_SOURCE_DIR}/lib)
 # Include own headers
-target_include_directories(Compiler PRIVATE ${Compiler_SOURCE_DIR}/include)
+target_include_directories(galec PRIVATE ${Compiler_SOURCE_DIR}/include)
 # Include common headers
-target_include_directories(Compiler PRIVATE ${Language_SOURCE_DIR}/common)
+target_include_directories(galec PRIVATE ${Language_SOURCE_DIR}/common)

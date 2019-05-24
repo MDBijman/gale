@@ -16,7 +16,7 @@ namespace fe::vm
 		 */
 
 		NOP = 0,
-		EXIT,
+		EXIT, // Dealloc remaining space? Return code?
 		ERR,
 		// temporary label with id
 		LBL_UI32,
@@ -188,23 +188,47 @@ namespace fe::vm
 	// A byte is, as the name suggests, a single byte of a bytecode object
 	struct byte
 	{
-		byte() : val(0) {}
-		byte(uint8_t v) : val(v) {}
+		byte() : val(0)
+		{
+		}
+		byte(uint8_t v) : val(v)
+		{
+		}
 		uint8_t val;
 	};
-	inline byte operator+(const byte &a, const byte &b) { return byte(a.val + b.val); }
-	inline byte operator-(const byte &a, const byte &b) { return byte(a.val - b.val); }
-	inline byte operator*(const byte &a, const byte &b) { return byte(a.val * b.val); }
-	inline byte operator%(const byte &a, const byte &b) { return byte(a.val % b.val); }
-	inline bool operator>(const byte &a, const byte &b) { return (a.val > b.val); }
+	inline byte operator+(const byte &a, const byte &b)
+	{
+		return byte(a.val + b.val);
+	}
+	inline byte operator-(const byte &a, const byte &b)
+	{
+		return byte(a.val - b.val);
+	}
+	inline byte operator*(const byte &a, const byte &b)
+	{
+		return byte(a.val * b.val);
+	}
+	inline byte operator%(const byte &a, const byte &b)
+	{
+		return byte(a.val % b.val);
+	}
+	inline bool operator>(const byte &a, const byte &b)
+	{
+		return (a.val > b.val);
+	}
 
 	// A reg is an index corresponding to a register
 	struct reg
 	{
-		reg(uint8_t v) : val(v) {}
+		reg(uint8_t v) : val(v)
+		{
+		}
 		uint8_t val;
 	};
-	inline bool operator==(const reg &a, const reg &b) { return a.val == b.val; }
+	inline bool operator==(const reg &a, const reg &b)
+	{
+		return a.val == b.val;
+	}
 
 	// Return true if the op writes to the given register
 	bool writes_to(const byte *op, reg r);
@@ -305,17 +329,26 @@ namespace fe::vm
 	// A far_lbl is used to refer to an instruction and the bytecode chunk it is a part of
 	struct far_lbl
 	{
-		far_lbl() : chunk_id(0), ip(0) {}
-		far_lbl(uint64_t chunk, uint64_t ip) : chunk_id(chunk), ip(ip) {}
+		far_lbl() : chunk_id(0), ip(0)
+		{
+		}
+		far_lbl(uint64_t chunk, uint64_t ip) : chunk_id(chunk), ip(ip)
+		{
+		}
 		uint64_t chunk_id;
 		uint64_t ip;
-		uint64_t make_ip() { return (chunk_id << 32) | ip; }
+		uint64_t make_ip()
+		{
+			return (chunk_id << 32) | ip;
+		}
 	};
 
 	// A near_lbl is used to refer to an instruction within a single bytecode
 	struct near_lbl
 	{
-		near_lbl(uint64_t i) : ip(i) {}
+		near_lbl(uint64_t i) : ip(i)
+		{
+		}
 		uint64_t ip;
 	};
 	inline near_lbl operator+(const near_lbl &a, const near_lbl &b)
@@ -415,7 +448,7 @@ namespace fe::vm
 
 		byte *operator[](uint64_t index);
 
-		void append(bytecode &other);
+		void append(const bytecode &other);
 
 		// Returns true if the given address maps to an instruction
 		bool has_instruction(near_lbl) const;
@@ -425,9 +458,9 @@ namespace fe::vm
 		size_t size() const;
 
 		std::vector<byte> &data();
+		const std::vector<byte> &data() const;
 
 		iterator begin();
-
 		iterator end();
 	};
 
@@ -472,33 +505,39 @@ namespace fe::vm
 		function(name n, native_function_id c);
 		function();
 
-		name &get_name();
+		const name &get_name() const;
 		symbols &get_symbols();
-		bool is_bytecode();
-		bool is_native();
+
+		bool is_bytecode() const;
 		bytecode &get_bytecode();
-		native_function_id get_native_function_id();
+		const bytecode &get_bytecode() const;
+
+		bool is_native() const;
+		native_function_id get_native_function_id() const;
 	};
 
 	// A function id is a unique id for a function
 	using function_id = uint16_t;
 
-	// A program is a set of functions that can call each other.
-	class program
+	// A module is a set of functions
+	class module
 	{
 		std::vector<function> code;
 
 	      public:
-		program() {}
+		module()
+		{
+		}
 
 		function_id add_function(function);
 		function &get_function(function_id);
 		function &get_function(name);
-		size_t function_count();
+		size_t function_count() const;
 
 		void insert_padding(far_lbl loc, uint8_t size);
 
 		std::vector<function> &get_code();
+		const std::vector<function> &get_code() const;
 
 		template <int C> bytes<C> operator[](far_lbl l)
 		{

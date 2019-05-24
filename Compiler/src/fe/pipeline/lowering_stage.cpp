@@ -5,6 +5,15 @@
 #include <tuple>
 #include <unordered_map>
 
+/*
+ * This file contains the lowering (i.e. desugaring) logic that turns ext_ast nodes into core_ast
+ * nodes. It contains the following items, chronologically:
+ * - Context and result data types
+ * - A lower_<node>() function for each node type
+ * - A lower() function that dispatches based on the node kind
+ * - A public lower() function that is callable from outside this file
+ */
+
 namespace fe::ext_ast
 {
 	// Helper
@@ -75,6 +84,8 @@ namespace fe::ext_ast
 	{
 		label_index next_label = 0;
 
+		uint32_t next_lambda = 0;
+
 		function_context curr_fn_context;
 
 		variable_index alloc_variable(uint32_t size)
@@ -96,6 +107,8 @@ namespace fe::ext_ast
 		stack_label_index new_stack_label() { return curr_fn_context.new_stack_label(); }
 
 		label_index new_label() { return next_label++; }
+
+		uint32_t new_lambda() { return next_lambda++; }
 	};
 
 	static bool has_children(node &n, ast &ast)
@@ -210,18 +223,19 @@ namespace fe::ext_ast
 		return lower(p, child, ast, new_ast, context);
 	}
 
-	lowering_result lower_function(node_id p, node &n, ast &ast, core_ast::ast &new_ast,
-				       lowering_context &context)
+	void make_root_fn(std::string name, node &n, ast &ast, core_ast::ast &new_ast,
+			  lowering_context &context)
 	{
-		assert(n.kind == node_type::FUNCTION);
+		auto ast_root = new_ast.root_id();
+
+		assert(n.kind == node_type::LAMBDA);
 		auto &children = ast.children_of(n);
 		assert(children.size() == 2);
 
 		auto fn_before = context.curr_fn_context;
 		context.curr_fn_context = function_context();
 
-		auto function_id = new_ast.create_node(core_ast::node_type::FUNCTION, p);
-		// Assignment of function_id data is done in lower_declaration, except local size
+		auto core_fn = new_ast.create_node(core_ast::node_type::FUNCTION, ast_root);
 
 		// Parameters
 		auto &param_node = ast.get_node(children[0]);
@@ -233,6 +247,7 @@ namespace fe::ext_ast
 			      .resolve_variable(ast.get_data<identifier>(param_node.data_index),
 						ast.type_scope_cb()))
 			    .type.calculate_size();
+
 			auto var_id = context.alloc_param(in_size);
 			ast.get_data<ext_ast::identifier>(param_node.data_index).index_in_function =
 			  var_id;
@@ -260,7 +275,7 @@ namespace fe::ext_ast
 		else
 			throw std::runtime_error("Error: parameter node type invalid");
 
-		auto ret = new_ast.create_node(core_ast::node_type::RET, function_id);
+		auto ret = new_ast.create_node(core_ast::node_type::RET, core_fn);
 		new_ast.get_node_data<core_ast::return_data>(ret).in_size = in_size;
 
 		auto block = new_ast.create_node(core_ast::node_type::BLOCK, ret);
@@ -274,14 +289,43 @@ namespace fe::ext_ast
 		new_ast.get_node_data<core_ast::return_data>(ret).out_size =
 		  new_body.allocated_stack_space;
 
-		new_ast.get_node_data<core_ast::function_data>(function_id).locals_size =
-		  context.curr_fn_context.total_var_size;
+		new_ast.get_node_data<core_ast::function_data>(core_fn) =
+		  core_ast::function_data(name, in_size, new_body.allocated_stack_space,
+					  context.curr_fn_context.total_var_size);
+
 		new_ast.get_node_data<core_ast::return_data>(ret).frame_size =
 		  context.curr_fn_context.total_var_size + context.curr_fn_context.total_param_size;
 
 		context.curr_fn_context = fn_before;
+	}
 
-		// #todo functions should be root-scope only
+	lowering_result lower_lambda(node_id p, node &n, ast &ast, core_ast::ast &new_ast,
+				     lowering_context &context)
+	{
+		std::string lambda_name = "_lambda" + context.new_lambda();
+
+		// Create a new root level function node with a fresh/unique name
+		make_root_fn(lambda_name, n, ast, new_ast, context);
+
+		// Create a child of p that returns the address of the new function
+		auto fref = new_ast.create_node(core_ast::node_type::FUNCTION_REF, p);
+		new_ast.get_node_data<core_ast::function_ref_data>(fref).name = lambda_name;
+
+		return lowering_result();
+	}
+
+	lowering_result lower_function(node_id p, node &n, ast &ast, core_ast::ast &new_ast,
+				       lowering_context &context)
+	{
+		assert(n.kind == node_type::FUNCTION);
+		auto &children = ast.children_of(n);
+		assert(children.size() == 3);
+		auto &id_node = ast[children[0]];
+		auto &id_data = ast.get_data<ext_ast::identifier>(id_node.data_index);
+
+		// Create a new root level function node with the proper name
+		make_root_fn(id_data.full, ast[children[2]], ast, new_ast, context);
+
 		return lowering_result();
 	}
 
@@ -1288,23 +1332,12 @@ namespace fe::ext_ast
 		new_ast.get_node_data<core_ast::function_call_data>(bootstrap) =
 		  core_ast::function_call_data("main", 0, 0);
 		new_ast.create_node(core_ast::node_type::TUPLE, bootstrap);
-		new_ast.get_node(bootstrap).size = 0;
-
-		auto main = new_ast.create_node(core_ast::node_type::FUNCTION, root_block);
-		new_ast.get_node_data<core_ast::function_data>(main) = core_ast::function_data{
-			"main", 0, 0, 0 /*these are all temporary*/
-		};
-		auto block = new_ast.create_node(core_ast::node_type::BLOCK, main);
 
 		for (auto child : children)
-		{ auto new_child = lower(block, ast.get_node(child), ast, new_ast, context); }
-
-		new_ast.get_node_data<core_ast::function_data>(main).locals_size =
-		  context.curr_fn_context.total_var_size;
-
-		auto ret = new_ast.create_node(core_ast::node_type::RET, block);
-		new_ast.get_node_data<core_ast::return_data>(ret) = { 0, 0, 0 };
-		auto num = new_ast.create_node(core_ast::node_type::TUPLE, ret);
+		{
+			auto new_child =
+			  lower(root_block, ast.get_node(child), ast, new_ast, context);
+		}
 
 		return new_ast;
 	}

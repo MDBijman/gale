@@ -27,9 +27,9 @@ else()
 endif()
 
 # Define executable sources
-add_executable(VM ${SOURCES})
+add_executable(galevm ${SOURCES})
 
 # Include own headers
-target_include_directories(VM PRIVATE ${VM_SOURCE_DIR}/src)
+target_include_directories(galevm PRIVATE ${VM_SOURCE_DIR}/src)
 # Include common headers
-target_include_directories(VM PRIVATE ${Language_SOURCE_DIR}/common)
+target_include_directories(galevm PRIVATE ${Language_SOURCE_DIR}/common)

@@ -9,8 +9,8 @@ Function cleanup {
     Remove-Item -Recurse ./out
 }
 
-$compilerLocation = "../build/Compiler/Debug/Compiler.exe"
-$vmLocation = "../build/VM/Debug/VM.exe"
+$compilerLocation = "../build/Compiler/Debug/galec.exe"
+$vmLocation = "../build/VM/Debug/galevm.exe"
 
 # Invoke Compiler
 $compilerExpression = "$compilerLocation project $file $module"

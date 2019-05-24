@@ -10,7 +10,6 @@ ContinuationIndentWidth: 2
 ColumnLimit: 100
 Cpp11BracedListStyle: false
 AllowShortCaseLabelsOnASingleLine: true
-AllowShortFunctionsOnASingleLine: true
-AllowShortBlocksOnASingleLine: true
+AllowShortFunctionsOnASingleLine: false
 AllowShortIfStatementsOnASingleLine: true
 AllowShortLoopsOnASingleLine: true

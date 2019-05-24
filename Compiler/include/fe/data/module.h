@@ -5,24 +5,26 @@
 #include "fe/data/type_scope.h"
 #include "fe/vm/runtime_info.h"
 
+#include <vector>
+
 namespace fe
 {
 	using module_name = std::vector<std::string>;
 
 	struct module
 	{
-		module() {}
-		module(module_name n, ext_ast::type_scope ts, ext_ast::name_scope ns,
-		       constants_store cs, std::vector<vm::function> c)
-		    : name(n), types(ts), names(ns), constants(cs), code(c)
+		module()
+		{
+		}
+		module(module_name n, ext_ast::type_scope ts, ext_ast::name_scope ns, vm::module c)
+		    : name(n), types(ts), names(ns), code(c)
 		{
 		}
 
 		module_name name;
 		ext_ast::type_scope types;
 		ext_ast::name_scope names;
-		constants_store constants;
-		std::vector<vm::function> code;
+		vm::module code;
 	};
 
 	class module_builder
@@ -30,7 +32,9 @@ namespace fe
 		module m;
 
 	      public:
-		module_builder() {}
+		module_builder()
+		{
+		}
 
 		module_builder &set_name(module_name mn)
 		{
@@ -43,7 +47,7 @@ namespace fe
 			m.names.declare_variable(f.get_name(), -1);
 			m.names.define_variable(f.get_name());
 			m.types.set_type(f.get_name(), std::move(t));
-			m.code.push_back(f);
+			m.code.add_function(f);
 			return *this;
 		}
 
@@ -53,7 +57,7 @@ namespace fe
 			m.names.declare_variable(name, -1);
 			m.names.define_variable(name);
 			m.types.set_type(name, std::move(t));
-			m.code.push_back(fe::vm::function(name, id));
+			m.code.add_function(fe::vm::function(name, id));
 			return *this;
 		}
 
@@ -64,6 +68,9 @@ namespace fe
 			return *this;
 		}
 
-		module build() { return m; }
+		module build()
+		{
+			return m;
+		}
 	};
 } // namespace fe

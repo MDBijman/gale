@@ -40,6 +40,7 @@ namespace fe::core_ast
 		// Functions and scopes
 		FUNCTION,
 		FUNCTION_CALL,
+		FUNCTION_REF,
 		RET,
 		BLOCK,
 
@@ -108,6 +109,7 @@ namespace fe::core_ast
 		memory::dynamic_store<node> nodes;
 		memory::dynamic_store<function_data> function_data_store;
 		memory::dynamic_store<function_call_data> function_call_data_store;
+		memory::dynamic_store<function_ref_data> function_ref_data_store;
 		memory::dynamic_store<label> label_store;
 		memory::dynamic_store<relative_offset> relative_offset_store;
 		memory::dynamic_store<stack_label> stack_label_store;
@@ -157,6 +159,7 @@ namespace fe::core_ast
 		template <> function_data &get_data<function_data>(ast &a, data_index_t i);
 		template <>
 		function_call_data &get_data<function_call_data>(ast &a, data_index_t i);
+		template <> function_ref_data &get_data<function_ref_data>(ast &a, data_index_t i);
 		template <> label &get_data<label>(ast &a, data_index_t i);
 		template <> relative_offset &get_data<relative_offset>(ast &a, data_index_t i);
 		template <> stack_label &get_data<stack_label>(ast &a, data_index_t i);

@@ -9,7 +9,7 @@ namespace fe::vm
 		bool print_bytecode = false;
 	};
 
-	void optimize_program(program& p, optimization_settings& s);
+	void optimize_module(module& p, optimization_settings& s);
 
 	struct dependency
 	{
@@ -24,13 +24,13 @@ namespace fe::vm
 		void add_offset(uint64_t loc, uint32_t size);
 	};
 
-	using program_dependency_graph = std::unordered_map<uint64_t, function_dependency_graph>;
+	using module_dependency_graph = std::unordered_map<uint64_t, function_dependency_graph>;
 
-	program_dependency_graph build_dependency_graph(program& e);
-	//bool optimize_dependencies(program& e, program_dependency_graph& g, optimization_settings& s);
-	bool optimize_single_ops(program& e, program_dependency_graph& g, optimization_settings& s);
+	module_dependency_graph build_dependency_graph(module& e);
 
-	bool remove_dependantless_instructions(program& e, program_dependency_graph& g);
+	bool optimize_single_ops(module& e, module_dependency_graph& g, optimization_settings& s);
+
+	bool remove_dependantless_instructions(module& e, module_dependency_graph& g);
 
 	/*
 	* Executable object optimization

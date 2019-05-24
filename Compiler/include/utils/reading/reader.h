@@ -2,10 +2,7 @@
 #include <string>
 #include <variant>
 
-namespace utils
+namespace utils::files
 {
-	namespace files
-	{
-		std::variant<std::string, std::exception> read_file(const std::string& name);
-	}
+	std::variant<std::string, std::exception> read_file(const std::string &name);
 }
