@@ -64,6 +64,6 @@ namespace fe::vm
 		code_gen_result();
 	};
 
-	class program;
-	program generate_bytecode(core_ast::ast& n);
+	class module;
+	module generate_bytecode(core_ast::ast& n);
 }

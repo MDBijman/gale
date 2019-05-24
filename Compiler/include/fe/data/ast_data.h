@@ -191,6 +191,14 @@ namespace fe::core_ast
 		std::string name;
 		uint32_t out_size, in_size;
 	};
+
+	struct function_ref_data
+	{
+		function_ref_data() {}
+		function_ref_data(const std::string& name) : name(name) {}
+
+		std::string name;
+	};
 }
 
 namespace std

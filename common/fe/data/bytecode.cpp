@@ -5,9 +5,15 @@
 
 namespace fe::vm
 {
-	uint8_t op_to_byte(op_kind o) { return static_cast<uint8_t>(o); }
+	uint8_t op_to_byte(op_kind o)
+	{
+		return static_cast<uint8_t>(o);
+	}
 
-	op_kind byte_to_op(uint8_t b) { return static_cast<op_kind>(b); }
+	op_kind byte_to_op(uint8_t b)
+	{
+		return static_cast<op_kind>(b);
+	}
 
 	std::string op_to_string(op_kind o)
 	{
@@ -129,8 +135,7 @@ namespace fe::vm
 		case op_kind::MV_REG_I8:
 		case op_kind::MV_REG_I16:
 		case op_kind::MV_REG_I32:
-		case op_kind::MV_REG_I64:
-		return (op + 1)->val == r.val;
+		case op_kind::MV_REG_I64: return (op + 1)->val == r.val;
 		default: return false;
 		}
 	}
@@ -156,8 +161,7 @@ namespace fe::vm
 			return (op + 2)->val == r.val || (op + 3)->val == r.val;
 
 		case op_kind::ADD_R64_R64_UI8:
-		case op_kind::SUB_R64_R64_UI8:
-		return (op + 2)->val == r.val;
+		case op_kind::SUB_R64_R64_UI8: return (op + 2)->val == r.val;
 
 		case op_kind::JRNZ_REG_I32:
 		case op_kind::JRZ_REG_I32:
@@ -170,43 +174,118 @@ namespace fe::vm
 	 * Op data helpers
 	 */
 
-	bytes<8> make_i64(int64_t a) { return *reinterpret_cast<bytes<8> *>(&a); }
-	int64_t read_i64(const uint8_t *b) { return *reinterpret_cast<const int64_t *>(b); }
-	int64_t read_i64(bytes<8> in) { return read_i64(&in[0].val); }
+	bytes<8> make_i64(int64_t a)
+	{
+		return *reinterpret_cast<bytes<8> *>(&a);
+	}
+	int64_t read_i64(const uint8_t *b)
+	{
+		return *reinterpret_cast<const int64_t *>(b);
+	}
+	int64_t read_i64(bytes<8> in)
+	{
+		return read_i64(&in[0].val);
+	}
 
-	bytes<8> make_ui64(uint64_t a) { return *reinterpret_cast<bytes<8> *>(&a); }
-	uint64_t read_ui64(const uint8_t *in) { return *reinterpret_cast<const uint64_t *>(in); }
-	uint64_t read_ui64(bytes<8> in) { return static_cast<uint64_t>(read_i64(in)); }
+	bytes<8> make_ui64(uint64_t a)
+	{
+		return *reinterpret_cast<bytes<8> *>(&a);
+	}
+	uint64_t read_ui64(const uint8_t *in)
+	{
+		return *reinterpret_cast<const uint64_t *>(in);
+	}
+	uint64_t read_ui64(bytes<8> in)
+	{
+		return static_cast<uint64_t>(read_i64(in));
+	}
 
-	bytes<4> make_i32(int32_t a) { return *reinterpret_cast<bytes<4> *>(&a); }
-	int32_t read_i32(const uint8_t *in) { return *reinterpret_cast<const int32_t *>(in); }
-	int32_t read_i32(bytes<4> in) { return read_i32(&in[0].val); }
+	bytes<4> make_i32(int32_t a)
+	{
+		return *reinterpret_cast<bytes<4> *>(&a);
+	}
+	int32_t read_i32(const uint8_t *in)
+	{
+		return *reinterpret_cast<const int32_t *>(in);
+	}
+	int32_t read_i32(bytes<4> in)
+	{
+		return read_i32(&in[0].val);
+	}
 
-	bytes<4> make_ui32(uint32_t a) { return make_i32(static_cast<int32_t>(a)); }
-	uint32_t read_ui32(const uint8_t *in) { return static_cast<uint32_t>(read_i32(in)); }
-	uint32_t read_ui32(bytes<4> in) { return static_cast<uint32_t>(read_i32(in)); }
+	bytes<4> make_ui32(uint32_t a)
+	{
+		return make_i32(static_cast<int32_t>(a));
+	}
+	uint32_t read_ui32(const uint8_t *in)
+	{
+		return static_cast<uint32_t>(read_i32(in));
+	}
+	uint32_t read_ui32(bytes<4> in)
+	{
+		return static_cast<uint32_t>(read_i32(in));
+	}
 
-	bytes<2> make_i16(int16_t a) { return *reinterpret_cast<bytes<2> *>(&a); }
-	int16_t read_i16(const uint8_t *in) { return *reinterpret_cast<const int16_t *>(in); }
-	int16_t read_i16(bytes<2> in) { return read_i16(&in[0].val); }
+	bytes<2> make_i16(int16_t a)
+	{
+		return *reinterpret_cast<bytes<2> *>(&a);
+	}
+	int16_t read_i16(const uint8_t *in)
+	{
+		return *reinterpret_cast<const int16_t *>(in);
+	}
+	int16_t read_i16(bytes<2> in)
+	{
+		return read_i16(&in[0].val);
+	}
 
-	bytes<2> make_ui16(uint16_t a) { return make_i16(static_cast<int16_t>(a)); }
-	uint16_t read_ui16(const uint8_t *in) { return static_cast<uint16_t>(read_i16(in)); }
-	uint16_t read_ui16(bytes<2> in) { return static_cast<uint16_t>(read_i16(in)); }
+	bytes<2> make_ui16(uint16_t a)
+	{
+		return make_i16(static_cast<int16_t>(a));
+	}
+	uint16_t read_ui16(const uint8_t *in)
+	{
+		return static_cast<uint16_t>(read_i16(in));
+	}
+	uint16_t read_ui16(bytes<2> in)
+	{
+		return static_cast<uint16_t>(read_i16(in));
+	}
 
-	bytes<1> make_i8(int8_t a) { return *reinterpret_cast<bytes<1> *>(&a); }
-	int8_t read_i8(const uint8_t *in) { return *reinterpret_cast<const int8_t *>(in); }
-	int8_t read_i8(bytes<1> in) { return read_i8(&in[0].val); }
+	bytes<1> make_i8(int8_t a)
+	{
+		return *reinterpret_cast<bytes<1> *>(&a);
+	}
+	int8_t read_i8(const uint8_t *in)
+	{
+		return *reinterpret_cast<const int8_t *>(in);
+	}
+	int8_t read_i8(bytes<1> in)
+	{
+		return read_i8(&in[0].val);
+	}
 
-	bytes<1> make_ui8(uint8_t a) { return make_i8(static_cast<int8_t>(a)); }
-	uint8_t read_ui8(const uint8_t *in) { return static_cast<uint8_t>(read_i8(in)); }
-	uint8_t read_ui8(bytes<1> in) { return static_cast<uint8_t>(read_i8(in)); }
+	bytes<1> make_ui8(uint8_t a)
+	{
+		return make_i8(static_cast<int8_t>(a));
+	}
+	uint8_t read_ui8(const uint8_t *in)
+	{
+		return static_cast<uint8_t>(read_i8(in));
+	}
+	uint8_t read_ui8(bytes<1> in)
+	{
+		return static_cast<uint8_t>(read_i8(in));
+	}
 
 	/*
 	 * Op helpers
 	 */
 
-	bytes<1> make_nop() { return bytes<1>{ op_to_byte(op_kind::NOP) }; }
+	bytes<1> make_nop()
+	{
+		return bytes<1>{ op_to_byte(op_kind::NOP) };
+	}
 	bytes<4> make_add_r64_r64_r64(reg dest, reg a, reg b)
 	{
 		return bytes<4>{ op_to_byte(op_kind::ADD_R64_R64_R64), dest.val, a.val, b.val };
@@ -441,25 +520,41 @@ namespace fe::vm
 		auto lit = make_ui32(id);
 		return bytes<5>{ op_to_byte(op_kind::LBL_UI32), lit[0], lit[1], lit[2], lit[3] };
 	}
-	bytes<1> make_exit() { return bytes<1>{ op_to_byte(op_kind::EXIT) }; }
+	bytes<1> make_exit()
+	{
+		return bytes<1>{ op_to_byte(op_kind::EXIT) };
+	}
 
 	/*
 	 * Bytecode
 	 */
 
-	bytecode::bytecode() {}
-	bytecode::bytecode(std::vector<byte> bs) : instructions(bs) {}
+	bytecode::bytecode()
+	{
+	}
+	bytecode::bytecode(std::vector<byte> bs) : instructions(bs)
+	{
+	}
 
-	const byte *bytecode::get_instruction(near_lbl l) const { return &(instructions[l.ip]); }
+	const byte *bytecode::get_instruction(near_lbl l) const
+	{
+		return &(instructions[l.ip]);
+	}
 
-	byte *bytecode::operator[](uint64_t index) { return &instructions[index]; }
+	byte *bytecode::operator[](uint64_t index)
+	{
+		return &instructions[index];
+	}
 
-	void bytecode::append(bytecode &other)
+	void bytecode::append(const bytecode &other)
 	{
 		instructions.insert(instructions.end(), other.data().begin(), other.data().end());
 	}
 
-	bool bytecode::has_instruction(near_lbl i) const { return i.ip < instructions.size(); }
+	bool bytecode::has_instruction(near_lbl i) const
+	{
+		return i.ip < instructions.size();
+	}
 
 	bytecode::operator std::string() const
 	{
@@ -477,22 +572,45 @@ namespace fe::vm
 		return out;
 	}
 
-	size_t bytecode::size() const { return instructions.size(); }
+	size_t bytecode::size() const
+	{
+		return instructions.size();
+	}
 
-	std::vector<byte> &bytecode::data() { return this->instructions; }
+	std::vector<byte> &bytecode::data()
+	{
+		return this->instructions;
+	}
 
-	bytecode::iterator bytecode::begin() { return iterator(instructions); }
+	const std::vector<byte> &bytecode::data() const
+	{
+		return this->instructions;
+	}
 
-	bytecode::iterator bytecode::end() { return iterator(instructions, instructions.size()); }
+	bytecode::iterator bytecode::begin()
+	{
+		return iterator(instructions);
+	}
+
+	bytecode::iterator bytecode::end()
+	{
+		return iterator(instructions, instructions.size());
+	}
 
 	/*
 	 * Bytecode iterator
 	 */
 
-	bytecode::iterator::iterator(std::vector<byte> &c) : i(0), data(c) {}
-	bytecode::iterator::iterator(std::vector<byte> &c, uint64_t i) : i(i), data(c) {}
+	bytecode::iterator::iterator(std::vector<byte> &c) : i(0), data(c)
+	{
+	}
+	bytecode::iterator::iterator(std::vector<byte> &c, uint64_t i) : i(i), data(c)
+	{
+	}
 
-	bytecode::iterator::iterator(const iterator &o) : i(o.i), data(o.data) {}
+	bytecode::iterator::iterator(const iterator &o) : i(o.i), data(o.data)
+	{
+	}
 	bytecode::iterator &bytecode::iterator::operator=(const iterator &o)
 	{
 		data = o.data;
@@ -524,55 +642,91 @@ namespace fe::vm
 	{
 		return (i != o.i) || (&data != &o.data);
 	}
-	byte *bytecode::iterator::operator*() { return &data[i]; }
-	byte *bytecode::iterator::operator->() { return this->operator*(); }
+	byte *bytecode::iterator::operator*()
+	{
+		return &data[i];
+	}
+	byte *bytecode::iterator::operator->()
+	{
+		return this->operator*();
+	}
 
 	/*
 	 * Bytecode Builder
 	 */
 
-	bytecode bytecode_builder::build() { return bc; }
+	bytecode bytecode_builder::build()
+	{
+		return bc;
+	}
 
 	/*
 	 * Function
 	 */
 
-	function::function(name n, bytecode c, symbols s) : signature(n), code(c), externals(s) {}
-	function::function(name n, bytecode c) : signature(n), code(c) {}
+	function::function(name n, bytecode c, symbols s) : signature(n), code(c), externals(s)
+	{
+	}
+	function::function(name n, bytecode c) : signature(n), code(c)
+	{
+	}
 	function::function(name n, native_function_id c, symbols s)
 	    : signature(n), code(c), externals(s)
 	{
 	}
-	function::function(name n, native_function_id c) : signature(n), code(c) {}
-	function::function() {}
+	function::function(name n, native_function_id c) : signature(n), code(c)
+	{
+	}
+	function::function()
+	{
+	}
 
-	name &function::get_name() { return signature; }
-	symbols &function::get_symbols() { return externals; }
-	bool function::is_bytecode() { return std::holds_alternative<bytecode>(code); }
-	bool function::is_native() { return std::holds_alternative<native_function_id>(code); }
-	bytecode &function::get_bytecode() { return std::get<bytecode>(code); }
-	native_function_id function::get_native_function_id()
+	const name &function::get_name() const
+	{
+		return signature;
+	}
+	symbols &function::get_symbols()
+	{
+		return externals;
+	}
+	bool function::is_bytecode() const
+	{
+		return std::holds_alternative<bytecode>(code);
+	}
+	bool function::is_native() const
+	{
+		return std::holds_alternative<native_function_id>(code);
+	}
+	bytecode &function::get_bytecode()
+	{
+		return std::get<bytecode>(code);
+	}
+	const bytecode &function::get_bytecode() const
+	{
+		return std::get<bytecode>(code);
+	}
+	native_function_id function::get_native_function_id() const
 	{
 		return std::get<native_function_id>(code);
 	}
 
 	/*
-	 * Program
+	 * Module
 	 */
 
-	function_id program::add_function(function fn)
+	function_id module::add_function(function fn)
 	{
 		code.push_back(fn);
 		return code.size() - 1;
 	}
 
-	function &program::get_function(function_id i)
+	function &module::get_function(function_id i)
 	{
 		assert(i < code.size());
 		return code.at(i);
 	}
 
-	function &program::get_function(name n)
+	function &module::get_function(name n)
 	{
 		auto loc = std::find_if(code.begin(), code.end(),
 					[&n](auto &fn) { return fn.get_name() == n; });
@@ -580,18 +734,29 @@ namespace fe::vm
 		return *loc;
 	}
 
-	size_t program::function_count() { return code.size(); }
+	size_t module::function_count() const
+	{
+		return code.size();
+	}
 
-	void program::insert_padding(far_lbl loc, uint8_t size)
+	void module::insert_padding(far_lbl loc, uint8_t size)
 	{
 		if (size == 0) return;
 		auto &bc = code.at(loc.chunk_id).get_bytecode().data();
 		bc.insert(bc.begin() + loc.ip, size, byte(0));
 	}
 
-	std::vector<function> &program::get_code() { return code; }
+	std::vector<function> &module::get_code()
+	{
+		return code;
+	}
 
-	std::string program::to_string()
+	const std::vector<function> &module::get_code() const
+	{
+		return code;
+	}
+
+	std::string module::to_string()
 	{
 		std::string r;
 		for (auto &chunk : this->code)
@@ -609,18 +774,37 @@ namespace fe::vm
 	 * Executable
 	 */
 
-	executable::executable(bytecode code) : code(code) {}
+	executable::executable(bytecode code) : code(code)
+	{
+	}
 
-	std::string executable::to_string() { return code.operator std::string(); }
+	std::string executable::to_string()
+	{
+		return code.operator std::string();
+	}
 
-	bytecode::iterator executable::begin() { return code.begin(); }
-	bytecode::iterator executable::end() { return code.end(); }
-	byte *executable::operator[](uint64_t i) { return &code.data()[i]; }
-	size_t executable::byte_length() const { return this->code.size(); }
+	bytecode::iterator executable::begin()
+	{
+		return code.begin();
+	}
+	bytecode::iterator executable::end()
+	{
+		return code.end();
+	}
+	byte *executable::operator[](uint64_t i)
+	{
+		return &code.data()[i];
+	}
+	size_t executable::byte_length() const
+	{
+		return this->code.size();
+	}
 
 	/*
 	 * Direct Threaded Executable
 	 */
 
-	direct_threaded_executable::direct_threaded_executable(bytecode code) : code(code) {}
+	direct_threaded_executable::direct_threaded_executable(bytecode code) : code(code)
+	{
+	}
 } // namespace fe::vm
