@@ -10,4 +10,4 @@ fn main: () -> () = \() => {
 		| Bool false -> { std.io.print 2; }
 	};
 	()
-}
+};

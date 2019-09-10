@@ -1,11 +1,12 @@
 module short
 import [std std.io]
 
+fn is_false: std.ui64 -> std.bool = \n => { false };
+fn side_effect: std.ui64 -> std.bool = \n => { std.io.println 3; true };
+
 fn main: () -> () = \() => {
 	let a: std.ui64 = 1;
 	let b: std.ui64 = 2;
-	let is_false: std.ui64 -> std.bool = \n => { false };
-	let side_effect: std.ui64 -> std.bool = \n => { std.io.println 3; true };
 	if(is_false a && side_effect b) {
 		std.io.print 0;
 	} else {
