@@ -1,4 +1,4 @@
-module test
+module euler2
 import [std std.io]
 
 fn fib: ([std.ui64; 2], std.ui64, std.ui64) -> std.ui64 = \(arr, acc, max) => {

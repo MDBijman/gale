@@ -1,0 +1,11 @@
+module func
+import [std std.io]
+
+fn test: std.ui64 -> std.ui64 = \n => n;
+
+fn main: () -> () = \() => {
+    let a: std.ui64 = test 6;
+    std.io.print a;
+	()
+};
+

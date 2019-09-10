@@ -1,9 +1,0 @@
-module sumvarbind
-import [std std.io]
-
-let sum : Num: std.ui64 | Bool: std.bool = Bool true;
-
-sum match {
-	| Bool x -> { std.io.print 1; }
-	| Num x -> { std.io.print x; }
-};

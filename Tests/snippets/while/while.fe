@@ -1,6 +1,0 @@
-module m_while
-import [std std.io]
-
-let a: std.ui64 = 5;
-while (a > 2) { a = a - 1; };
-std.io.print a;

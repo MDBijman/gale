@@ -40,12 +40,26 @@ extern "C" uint64_t *vm_interpret(const fe::vm::byte* ops)
 			return nullptr;
 
 			case op_kind::ERR:assert(!"error");break;
-			case op_kind::ADD_R64_R64_R64:assert(!"todo");break;
-			case op_kind::ADD_R64_R64_UI8:assert(!"todo");break;
-			case op_kind::SUB_R64_R64_R64:assert(!"todo");break;
 			case op_kind::SUB_R64_R64_UI8:assert(!"todo");break;
-			case op_kind::MUL_R64_R64_R64:assert(!"todo");break;
-			case op_kind::DIV_R64_R64_R64:assert(!"todo");break;
+			case op_kind::ADD_R64_R64_UI8: {
+				auto destination = (op + 1)->val;
+				auto lhs_register = (op + 2)->val;
+				auto rhs_literal = (op + 3)->val;
+
+				auto lhs = *(uint64_t*)(&stack.back().registers[lhs_register - 7]);
+
+				*(uint64_t*)(&stack.back().registers[destination - 7]) = 
+					byte_to_op(op->val) == op_kind::ADD_R64_R64_UI8 ? lhs + rhs_literal :
+					throw std::runtime_error("Impossibility");
+
+				ip += 4;
+				break;
+			}
+
+			case op_kind::MUL_R64_R64_R64:
+			case op_kind::DIV_R64_R64_R64:
+			case op_kind::ADD_R64_R64_R64:
+			case op_kind::SUB_R64_R64_R64:
 			case op_kind::MOD_R64_R64_R64: {
 				auto destination = (op + 1)->val;
 				auto lhs_register = (op + 2)->val;
@@ -54,19 +68,50 @@ extern "C" uint64_t *vm_interpret(const fe::vm::byte* ops)
 				auto lhs = *(uint64_t*)(&stack.back().registers[lhs_register - 7]);
 				auto rhs = *(uint64_t*)(&stack.back().registers[rhs_register - 7]);
 
-				*(uint64_t*)(&stack.back().registers[destination - 7]) = lhs % rhs;
+				*(uint64_t*)(&stack.back().registers[destination - 7]) = 
+					byte_to_op(op->val) == op_kind::MOD_R64_R64_R64 ? lhs % rhs :
+					byte_to_op(op->val) == op_kind::SUB_R64_R64_R64 ? lhs - rhs :
+					byte_to_op(op->val) == op_kind::ADD_R64_R64_R64 ? lhs + rhs :
+					byte_to_op(op->val) == op_kind::DIV_R64_R64_R64 ? lhs / rhs :
+					byte_to_op(op->val) == op_kind::MUL_R64_R64_R64 ? lhs * rhs :
+					throw std::runtime_error("Impossibility");
 
 				ip += 4;
 				break;
 			}
-			case op_kind::GT_R8_R64_R64:assert(!"todo");break;
 			case op_kind::GT_R8_R8_R8:assert(!"todo");break;
-			case op_kind::GTE_R8_R64_R64:assert(!"todo");break;
-			case op_kind::GTE_R8_R8_R8:assert(!"todo");break;
-			case op_kind::LT_R8_R64_R64:assert(!"todo");break;
 			case op_kind::LT_R8_R8_R8:assert(!"todo");break;
-			case op_kind::LTE_R8_R64_R64:assert(!"todo");break;
 			case op_kind::LTE_R8_R8_R8:assert(!"todo");break;
+			case op_kind::GTE_R8_R8_R8:assert(!"todo");break;
+			case op_kind::NEQ_R8_R8_R8:assert(!"todo");break;
+			case op_kind::EQ_R8_R8_R8:
+			case op_kind::AND_R8_R8_R8:
+			case op_kind::OR_R8_R8_R8: {
+				auto destination = (op + 1)->val;
+				auto lhs_register = (op + 2)->val;
+				auto rhs_register = (op + 3)->val;
+
+				auto lhs = stack.back().registers[lhs_register];
+				auto rhs = stack.back().registers[rhs_register];
+
+				stack.back().registers[destination] = 
+					byte_to_op(op->val) == op_kind::OR_R8_R8_R8 ? lhs | rhs :
+					byte_to_op(op->val) == op_kind::AND_R8_R8_R8 ? lhs & rhs :
+					byte_to_op(op->val) == op_kind::EQ_R8_R8_R8 ? lhs == rhs :
+					throw std::runtime_error("Impossibility");
+
+				ip += 4;
+				break;
+			}
+
+			case op_kind::AND_R64_R64_R64:assert(!"todo");break;
+			case op_kind::OR_R64_R64_R64:assert(!"todo");break;
+
+			case op_kind::NEQ_R8_R64_R64:assert(!"todo");break;
+			case op_kind::LT_R8_R64_R64:
+			case op_kind::GT_R8_R64_R64:
+			case op_kind::GTE_R8_R64_R64:
+			case op_kind::LTE_R8_R64_R64:
 			case op_kind::EQ_R8_R64_R64: {
 				auto destination = (op + 1)->val;
 				auto lhs_register = (op + 2)->val;
@@ -75,19 +120,19 @@ extern "C" uint64_t *vm_interpret(const fe::vm::byte* ops)
 				auto lhs = *(uint64_t*)(&stack.back().registers[lhs_register - 7]);
 				auto rhs = *(uint64_t*)(&stack.back().registers[rhs_register - 7]);
 
-				stack.back().registers[destination] = (uint8_t)(lhs == rhs);
+				stack.back().registers[destination] = 
+					byte_to_op(op->val) == op_kind::EQ_R8_R64_R64 ? lhs == rhs :
+					byte_to_op(op->val) == op_kind::LTE_R8_R64_R64 ? lhs <= rhs :
+					byte_to_op(op->val) == op_kind::GTE_R8_R64_R64 ? lhs >= rhs :
+					byte_to_op(op->val) == op_kind::GT_R8_R64_R64 ? lhs > rhs :
+					byte_to_op(op->val) == op_kind::LT_R8_R64_R64 ? lhs < rhs :
+					throw std::runtime_error("Impossibility");
 
 				ip += 4;
 				break;
 			}
-			case op_kind::EQ_R8_R8_R8:assert(!"todo");break;
-			case op_kind::NEQ_R8_R64_R64:assert(!"todo");break;
-			case op_kind::NEQ_R8_R8_R8:assert(!"todo");break;
-			case op_kind::AND_R64_R64_R64:assert(!"todo");break;
-			case op_kind::AND_R8_R8_R8:assert(!"todo");break;
+
 			case op_kind::AND_R8_R8_UI8:assert(!"todo");break;
-			case op_kind::OR_R64_R64_R64:assert(!"todo");break;
-			case op_kind::OR_R8_R8_R8:assert(!"todo");break;
 			case op_kind::XOR_R8_R8_UI8:assert(!"todo");break;
 
 			case op_kind::MV_REG_UI8:{
@@ -124,10 +169,14 @@ extern "C" uint64_t *vm_interpret(const fe::vm::byte* ops)
 			case op_kind::MV_REG_I32:assert(!"todo");break;
 			case op_kind::MV_REG_I64:assert(!"todo");break;
 
+			case op_kind::MV_RN_LN:
 			case op_kind::MV_RN_RN: {
 				auto count = (op + 1)->val;
 				auto destination = (op + 2)->val;
-				auto source = (op + 3)->val;
+				uint64_t source = (op + 3)->val;
+
+				if(byte_to_op(op->val) == op_kind::MV_RN_LN)
+					source = *(uint64_t*)(&stack.back().registers[source - 7]);
 
 				for(int i = 0; i < count; i++)
 				{
@@ -138,7 +187,6 @@ extern "C" uint64_t *vm_interpret(const fe::vm::byte* ops)
 				break;
 			}
 
-			case op_kind::MV_RN_LN:assert(!"todo");break;
 			case op_kind::JMPR_I32: {
 				auto offset = read_i32(&(op + 1)->val);
 				ip += offset;
@@ -169,10 +217,9 @@ extern "C" uint64_t *vm_interpret(const fe::vm::byte* ops)
 				new_frame.return_register = ret_reg;
 				new_frame.return_ip = ip + 12;
 
+				new_frame.registers.resize(arg_count);
 				for(int i = 0; i < arg_count; i++)
-				{
-					new_frame.registers.push_back(stack.back().registers[i - first_arg]);
-				}
+					new_frame.registers[i] = stack.back().registers[first_arg - (arg_count - 1) + i];
 
 				stack.push_back(new_frame);
 
@@ -205,11 +252,10 @@ extern "C" uint64_t *vm_interpret(const fe::vm::byte* ops)
 
 				auto return_register = stack.back().return_register;
 
-				// #todo put return values into return register
 				for (int i = 0; i < return_count; i++)
 				{
 					(stack.rbegin() + 1)->registers[return_register - i] = 
-						stack.back().registers[first_return_register - 1 - i];
+						stack.back().registers[first_return_register - i];
 				}
 
 				ip = stack.back().return_ip;

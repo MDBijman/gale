@@ -1,0 +1,12 @@
+module sumtuplematch
+import [std std.io]
+
+fn main: () -> () = \() => {
+	let sum : Num: std.ui64 | Bool: std.bool | Pair: (std.ui64, std.ui64) = Pair (3, 5);
+
+	sum match {
+		| Pair (x, 4) -> { std.io.print x; }
+		| Pair (3, y) -> { std.io.print y; }
+	};
+	()
+};
