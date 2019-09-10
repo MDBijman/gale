@@ -107,9 +107,9 @@ for test_case in validated_test_cases:
 
     result = { 'result': 'success' }
 
-    # Execute the process, the default timeout is 5, maybe change/make configurable
+    # Execute the process, the default timeout is 10, maybe change/make configurable
     try:
-        out, err = process.communicate(timeout = 5)
+        out, err = process.communicate(timeout = 10)
         result['time'] = "{0:.2f}".format(time.time() - before)
     except subprocess.TimeoutExpired:
         process.kill()

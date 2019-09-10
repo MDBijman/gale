@@ -1,7 +1,7 @@
 module parammultiple
 import [std std.io]
 
-let add: (std.ui64, std.ui64) -> std.ui64 = \(a, b) => { a + b };
+fn add: (std.ui64, std.ui64) -> std.ui64 = \(a, b) => { a + b };
 
 fn main: () -> () = \() => {
     std.io.print (add (5, 5));

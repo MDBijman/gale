@@ -28,7 +28,7 @@
             ],
             "match": {
                 "exitcode": 0,
-                "stdout": "1346269\n"
+                "stdout": "75025\n"
             }
         },
         {
@@ -263,7 +263,7 @@
         },
         {
             "args": [
-                "./snippets/sumvarbind.fe.fe",
+                "./snippets/sumvarbind.fe",
                 "sumvarbind"
             ],
             "match": {
@@ -273,7 +273,7 @@
         },
         {
             "args": [
-                "./snippets/sumvarbind2.fe.fe",
+                "./snippets/sumvarbind2.fe",
                 "sumvarbind"
             ],
             "match": {
@@ -283,7 +283,7 @@
         },
         {
             "args": [
-                "./snippets/sumvarbind3.fe.fe",
+                "./snippets/sumvarbind3.fe",
                 "sumvarbind"
             ],
             "match": {

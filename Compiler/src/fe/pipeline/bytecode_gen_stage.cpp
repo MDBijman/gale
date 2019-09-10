@@ -292,7 +292,6 @@ namespace fe::vm
 		auto &node = ast.get_node(n);
 		assert(node.children.size() == 1);
 		auto f_id = i.chunk_of(n);
-		auto &bc = p.get_function(f_id).get_bytecode();
 
 		generate_bytecode(node.children[0], ast, p, i);
 
@@ -304,6 +303,7 @@ namespace fe::vm
 			if (size.second > max_size) max_size = size.second;
 		auto locals_size = i.scope.current_function.locals_size;
 
+		auto &bc = p.get_function(f_id).get_bytecode();
 		bc.add_instruction(make_ret(
 		  static_cast<uint8_t>(ret_data.in_size), max_size - ret_data.in_size,
 		  i.last_alloced_register(f_id, n)->val + ret_data.out_size, ret_data.out_size));

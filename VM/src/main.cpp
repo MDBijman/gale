@@ -1,6 +1,7 @@
 #include "bytecode_parser.h"
 #include "vm/vm_stage.h"
 #include <iostream>
+#include <chrono>
 
 int main(int argc, char **argv)
 {
@@ -25,7 +26,12 @@ int main(int argc, char **argv)
 		std::exit(1);
 	}
 
+
+	// auto before = std::chrono::high_resolution_clock::now();
+
 	fe::vm::interpret(executable);
+
+	// std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - before).count();
 
 	return 0;
 }

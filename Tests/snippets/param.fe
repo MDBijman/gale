@@ -1,7 +1,7 @@
 module param
 import [std std.io]
 
-let add_one: std.ui64 -> std.ui64 = \n => {
+fn add_one: std.ui64 -> std.ui64 = \n => {
 	n = n + 1;
 	n
 };

@@ -6,7 +6,7 @@ param(
 )
 
 Function cleanup {
-    #Remove-Item -Recurse ./out
+    Remove-Item -Recurse ./out
 }
 
 $compilerLocation = "../build/Compiler/Debug/galec.exe"

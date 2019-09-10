@@ -478,8 +478,10 @@ namespace fe::ext_ast
 		for (int i = 0; i < children.size(); i += 2)
 		{
 			auto &id = ast.get_node(children[i]);
+			copy_parent_scope(id, ast);
 			auto &id_data = ast.get_data<identifier>(id.data_index);
 			auto &child = ast.get_node(children[i + 1]);
+			copy_parent_scope(child, ast);
 			auto child_type = typeof(child, ast, type_constraints());
 			types.push_back(types::unique_type(
 			  new types::nominal_type(id_data.full, std::move(child_type))));
@@ -821,6 +823,8 @@ namespace fe::ext_ast
 
 		auto &scope = ast.get_type_scope(n.type_scope_id);
 		auto &lhs_node = ast.get_node(children[0]);
+		copy_parent_scope(lhs_node, ast);
+
 		if (lhs_node.kind == node_type::IDENTIFIER)
 		{
 			auto &id_data = ast.get_data<identifier>(lhs_node.data_index);
@@ -834,6 +838,7 @@ namespace fe::ext_ast
 			for (auto child : lhs_children)
 			{
 				auto &child_node = ast.get_node(child);
+				copy_parent_scope(child_node, ast);
 				auto &child_id = ast.get_data<identifier>(child_node.data_index);
 
 				auto res = product_type_element(*type, ast, i);
