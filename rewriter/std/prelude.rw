@@ -1,0 +1,2 @@
+bottomup[.f]: n -> .all[.bottomup[.f]] > .f;
+try[.f]: n -> .f n + n;

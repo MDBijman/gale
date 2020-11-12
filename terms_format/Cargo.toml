@@ -1,0 +1,11 @@
+[package]
+name = "terms_format"
+version = "0.1.0"
+authors = ["Matthijs Bijman <matthijs@bijman.org>"]
+edition = "2018"
+
+[lib]
+name = "terms_format"
+
+[dependencies]
+nom = "6.0.0"

@@ -1,0 +1,7 @@
+
+main: n -> .bottomup[.try[.compute]] n;
+
+compute: Add(l, r) -> .add (l, r);
+compute: Mul(l, r) -> .mul (l, r);
+compute: Div(l, r) -> .div (l, r);
+compute: n -> n;
