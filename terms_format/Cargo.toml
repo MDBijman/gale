@@ -9,3 +9,4 @@ name = "terms_format"
 
 [dependencies]
 nom = "6.0.0"
+indenter = "0.2"

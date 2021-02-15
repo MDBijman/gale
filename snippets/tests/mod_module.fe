@@ -1,6 +1,0 @@
-module foo
-import [std]
-
-fn bar: () -> std.ui64 = \() => {
-    1
-};

@@ -11,7 +11,7 @@ impl File {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Function {
     pub name: String,
     pub meta: Vec<Expr>,
@@ -23,10 +23,14 @@ pub struct Function {
 pub enum Expr {
     Invoke(Invocation),
     Tuple(Tuple),
+    List(List),
+    Term(Term),
     Ref(Ref),
     FRef(FRef),
     Number(Number),
+    Text(Text),
     Op(Op),
+    Annotation(Annotation),
     This
 }
 
@@ -34,6 +38,12 @@ pub enum Expr {
 pub struct Invocation {
     pub name: FRef,
     pub arg: Box<Expr>
+}
+
+#[derive(Debug, Clone)]
+pub struct Term {
+    pub constructor: Ref,
+    pub terms: Vec<Expr>
 }
 
 #[derive(Debug, Clone)]
@@ -59,7 +69,17 @@ pub struct Number {
 }
 
 #[derive(Debug, Clone)]
+pub struct Text {
+    pub value: String
+}
+
+#[derive(Debug, Clone)]
 pub struct Tuple {
+    pub values: Vec<Expr>
+}
+
+#[derive(Debug, Clone)]
+pub struct List {
     pub values: Vec<Expr>
 }
 
@@ -69,32 +89,53 @@ pub enum Op {
     And(Box<Expr>, Box<Expr>)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
+pub struct Annotation {
+    pub inner: Box<Expr>,
+    pub annotations: Vec<Expr>
+}
+
+#[derive(Debug, Clone)]
 pub enum Match {
     TermMatcher(TermMatcher),
     VariableMatcher(VariableMatcher),
     StringMatcher(StringMatcher),
     NumberMatcher(NumberMatcher),
+    ListMatcher(ListMatcher),
+    TupleMatcher(TupleMatcher),
     AnyMatcher
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TermMatcher {
     pub constructor: String,
-    pub terms: Vec<Match>
+    pub terms: Vec<Match>,
+    pub annotations: Vec<Match>
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct VariableMatcher {
-    pub name: String
+    pub name: String,
+    pub annotations: Vec<Match>
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StringMatcher {
     pub value: String
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct NumberMatcher {
     pub value: f64
+}
+
+#[derive(Debug, Clone)]
+pub struct ListMatcher {
+    pub head: String,
+    pub tail: Option<String>
+}
+
+#[derive(Debug, Clone)]
+pub struct TupleMatcher {
+    pub elems: Vec<Match>
 }

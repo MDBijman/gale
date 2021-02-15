@@ -1,0 +1,5 @@
+
+main: f -> .collect[.check] f
+
+check: Let(n, t'{Type(tt), ..}, e'{Type(et), ..}) -> .neq (tt, et) > Error("Expression type differs from declared type")
+check: Appl(e1'{Type(FunctionType(pt, ..)), ..}, e2'{Type(at), ..}) -> .neq (pt, at) > Error("Argument types differ from parameter types")

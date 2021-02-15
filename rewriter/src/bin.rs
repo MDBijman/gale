@@ -2,6 +2,7 @@ mod parser;
 mod interp;
 
 extern crate terms_format;
+extern crate itertools;
 extern crate clap;
 use clap::{App, Arg};
 use std::fs;
@@ -36,14 +37,12 @@ fn main() {
     let rw_name   = matches.value_of("rewriter_file").unwrap();
     let term_name = matches.value_of("input_file").unwrap();
     let out_name  = matches.value_of("output_file").unwrap();
-    let prelude_path = "std/prelude.rw";
 
-    let prelude       = parser::parser::parse_rw_file(&String::from(prelude_path));
     let input_term    = terms_format::parse_term_file(&String::from(term_name));
-    let input_rewrite = parser::parser::parse_rw_file(&String::from(rw_name));
-    let interpreter   = interp::interp::Program::new(parser::rwfile::File::merge(prelude, input_rewrite));
+    let input_rewrite = parser::parser::parse_rw_file(&String::from(rw_name)).unwrap();
+    let mut interpreter = interp::interp::Rewriter::new_with_prelude(input_rewrite);
 
-    let result = interpreter.rewrite_term(input_term);
+    let result = interpreter.rewrite(input_term);
 
     let mut o = fs::File::create(out_name).unwrap();
     o.write(format!("{}", result).as_bytes()).unwrap();

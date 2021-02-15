@@ -1,13 +1,12 @@
 extern crate terms_format;
 use nom::{
-    IResult, Parser, error::ParseError, eof, named,
+    IResult, Parser, error::ParseError, named,
     number::complete::double,
-    character::{is_alphanumeric},
-    character::complete::{multispace0, char, anychar, none_of, one_of},
+    character::complete::{multispace0, char, anychar, none_of},
     sequence::{delimited, preceded, separated_pair, pair},
     branch::alt,
     multi::{separated_list0, many0, fold_many0},
-    bytes::complete::{take_until, take, take_till1, take_while, take_while1, tag},
+    bytes::complete::{tag},
     combinator::{ map_res, opt, map_opt, map, verify }
 };
 use terms_format::*;
@@ -70,7 +69,7 @@ fn character(input: &str) -> IResult<&str, char> {
 // Parsers
 
 named!(parse_name(&str) -> &str, take_while1!(|c| { char::is_alphanumeric(c) || c == '_' }));
-named!(parse_number(&str) -> Term, map_res!(double, |d| -> Result<Term, String> { Ok(Term::NTerm(NTerm { value: d })) }));
+named!(parse_number(&str) -> Term, map_res!(double, |d| -> Result<Term, String> { Ok(Term::new_rec_term("Int", vec![Term::new_number_term(d)])) }));
 
 named!(parse_ref(&str) -> Term, map_res!(separated_list1!(tag("."), parse_name), |names: Vec<&str>| -> Result<Term, String> { Ok(Term::new_rec_term("Ref", names.iter().map(|n| Term::new_string_term(n)).collect())) }));
 
@@ -83,7 +82,7 @@ pub fn parse_string(input: &str) -> IResult<&str, Term> {
         }),
         char('"'),
     )(input)?;
-    Ok((input, Term::RTerm(RTerm { constructor: String::from("String"), terms: vec![Term::STerm(STerm { value: t })] })))
+    Ok((input, Term::new_rec_term("String", vec![Term::new_string_term(&t)])))
 }
 
 fn parse_type_array(input: &str) -> IResult<&str, Term> {
@@ -134,7 +133,7 @@ fn parse_lambda(input: &str) -> IResult<&str, Term> {
 }
 
 fn parse_array(input: &str) -> IResult<&str, Term> {
-    map_res(delimited(char('['), separated_list0(ws(char(',')), parse_expr), char(']')), |r| -> Result<Term, String> { Ok(Term::new_rec_term("Array", r)) })(input)
+    map_res(delimited(char('['), separated_list0(ws(char(',')), parse_expr), char(']')), |r| -> Result<Term, String> { Ok(Term::new_rec_term("Array", vec![Term::new_list_term(r)])) })(input)
 }
 
 fn parse_tuple(input: &str) -> IResult<&str, Term> {
@@ -154,7 +153,7 @@ fn parse_arr_index(input: &str) -> IResult<&str, Term> {
     let (input, lhs) = parse_value(input)?;
     match ws::<_, (_, _), _>(tag("!!")).parse(input) {
         Ok((input, _)) => {
-            let (input, rhs) = parse_value(input)?;
+            let (input, rhs) = parse_arr_index(input)?;
 
             Ok((input, Term::new_rec_term("ArrIndex", vec![lhs, rhs])))
         },
@@ -164,8 +163,21 @@ fn parse_arr_index(input: &str) -> IResult<&str, Term> {
     }
 }
 
+fn parse_binop(input: &str) -> IResult<&str, Term> {
+    let (input, lhs) = parse_arr_index(input)?;
+    match ws::<_, (_, _), _>(tag("+")).parse(input) {
+        Ok((input, _)) => {
+            let (input, rhs) = parse_expr(input)?;
+
+            Ok((input, Term::new_rec_term("Add", vec![lhs, rhs])))
+        },
+        _ => {
+            Ok((input, lhs))
+        }
+    }}
+
 fn parse_appl(input: &str) -> IResult<&str, Term> {
-    let (input, n) = parse_arr_index(input)?;
+    let (input, n) = parse_binop(input)?;
 
     match ws(parse_expr).parse(input) {
         Ok((input, rhs)) => Ok((input, Term::new_rec_term("Appl", vec![n, rhs]))),
@@ -184,7 +196,7 @@ fn parse_block(input: &str) -> IResult<&str, Term> {
                 None    => { Term::new_rec_term("Return", vec![])  }
             };
             let (input, _) = ws::<_, (_, _), _>(tag("}")).parse(input).unwrap();
-            Ok((input, Term::new_rec_term("Block", [stmts, vec![ret]].concat())))
+            Ok((input, Term::new_rec_term("Block", vec![Term::new_list_term([stmts, vec![ret]].concat())])))
         },
         _ => {
             parse_appl(input)
@@ -213,16 +225,16 @@ fn parse_let(input: &str) -> IResult<&str, Term> {
     Ok((input, Term::new_rec_term("Let", vec![Term::new_string_term(name), fn_type, value])))
 }
 
-fn parse_file(input: &str) -> IResult<&str, Term> {
+pub fn parse_gale_string(input: &str) -> IResult<&str, Term> {
     let (input, r) = many0(pair(ws(parse_let), ws(tag(";"))))(input)?;
     if input.len() > 0 {
         panic!(format!("Input left after parsing:\n{}", input));
     }
-    Ok((input, Term::new_rec_term("File", r.into_iter().map(|(a, _)| a).collect())))
+    Ok((input, Term::new_rec_term("File", vec![Term::new_list_term(r.into_iter().map(|(a, _)| a).collect())])))
 }
 
 pub fn parse_gale_file(filename: &String) -> Term {
     let f = fs::read_to_string(filename).unwrap();
-    let (_, res) = parse_file(String::as_str(&f)).unwrap();
+    let (_, res) = parse_gale_string(String::as_str(&f)).unwrap();
     res
 }

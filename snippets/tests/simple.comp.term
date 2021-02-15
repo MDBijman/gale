@@ -1,0 +1,17 @@
+File([Function(
+    "main"
+  , Meta(
+      InSize(1)
+    , OutSize(1)
+    )
+  , Scope(
+      Size(10)
+    , [
+        Store(
+          "c"
+        , UI8(1)
+        )
+      , Load("c")
+      ]
+    )
+  )])

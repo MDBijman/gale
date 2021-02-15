@@ -1,2 +1,6 @@
 bottomup[.f]: n -> .all[.bottomup[.f]] > .f;
+
 try[.f]: n -> .f n + n;
+map[.f]: e -> .all[.f] e;
+id: e -> e;
+annotate[a]: t -> t {a}; 

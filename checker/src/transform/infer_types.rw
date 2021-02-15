@@ -1,0 +1,22 @@
+
+main: File(lets) -> File(.all[.typecheck] lets);
+typecheck: Let(_, t, e) -> Let(_, t, .typecheck e {.typeof t});
+typecheck: Lambda(p, b){Type(t)} -> Lambda(p, .typecheck b {Type(.get_out_type t), ReturnType(.get_out_type t)}) {Type(t)};
+typecheck: Block(stmts){Type(t), ReturnType(rt)} ->
+  Block(.all[.annotate[ReturnType(rt)]] stmts
+      > .all[.typecheck]){Type(t)};
+typecheck: Int(i){Type(t)} -> .is_integer_type t > Int(i){Type(t)} + Int(i){TypeError("Cannot cast to expected type")};
+typecheck: Return(e){ReturnType(t)} -> .typecheck e {Type(t)};
+typecheck: Ref(n){Type(t)} -> .id; 
+
+
+is_integer_type: Builtin(ui8) -> .id;
+
+typeof: t -> Type(.typeof_type t);
+typeof_type: TypeId("ui8") -> Builtin("ui8");
+typeof_type: TypeId(n)     -> Ref(n);
+typeof_type: TypeTuple()   -> Tuple();
+typeof_type: FnType(i, o)  -> Func(.typeof_type i, .typeof_type o);
+
+get_out_type: Func(i, o) -> o;
+get_out_type: Type(Func(i, o)) -> o;

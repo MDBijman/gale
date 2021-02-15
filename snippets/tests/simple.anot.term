@@ -1,0 +1,21 @@
+File([Let(
+    "main"
+  , FnType(
+      TypeId("ui8")
+    , TypeId("ui8")
+    )
+  , Lambda(
+      Params("a")
+    , Block([
+        Let(
+          "c"
+        , TypeId("ui8")
+        , Int(1){Type(Builtin("ui8"))}
+        )
+      , Ref("c"){Type(Builtin("ui8"))}
+      ]){Type(Builtin("ui8"))}
+    ){Type(Func(
+      Builtin("ui8")
+    , Builtin("ui8")
+    ))}
+  )])

@@ -1,5 +1,5 @@
 [package]
-name = "rewriter"
+name = "compiler"
 version = "0.1.0"
 authors = ["Matthijs Bijman <matthijs@bijman.org>"]
 edition = "2018"
@@ -8,17 +8,15 @@ edition = "2018"
 
 [dependencies]
 clap = "2.33.3"
-nom = "6.0.0"
-itertools = "0.9.0"
 
 [dependencies.terms_format]
 path = "../terms_format"
 version = "0.1.0"
 
-[lib]
-name = "rewriter"
-path = "src/lib.rs"
+[dependencies.rewriter]
+path = "../rewriter"
+version = "0.1.0"
 
 [[bin]]
-name = "rewriterx"
+name = "compiler"
 path = "src/bin.rs"
