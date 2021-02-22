@@ -1,22 +1,49 @@
 
-main: File(lets) -> File(.all[.typecheck] lets);
-typecheck: Let(_, t, e) -> Let(_, t, .typecheck e {.typeof t});
-typecheck: Lambda(p, b){Type(t)} -> Lambda(p, .typecheck b {Type(.get_out_type t), ReturnType(.get_out_type t)}) {Type(t)};
-typecheck: Block(stmts){Type(t), ReturnType(rt)} ->
-  Block(.all[.annotate[ReturnType(rt)]] stmts
-      > .all[.typecheck]){Type(t)};
-typecheck: Int(i){Type(t)} -> .is_integer_type t > Int(i){Type(t)} + Int(i){TypeError("Cannot cast to expected type")};
-typecheck: Return(e){ReturnType(t)} -> .typecheck e {Type(t)};
-typecheck: Ref(n){Type(t)} -> .id; 
+main: File(lets) -> File(.env_all[.typecheck] (.new_map, lets) > .second);
 
+typecheck: (env, Let(n, t, e)) ->
+  as_type := !typeof_type t
+  in (.put[n, as_type] env, Let(n, Type(as_type), !typecheck (env, e {!typeof t}) > .second));
+
+typecheck: (in_env, Lambda(p, b) {Type(t)}) ->
+    (_, checked_body) := !typecheck (in_env, b {Type(!get_out_type t), ReturnType(!get_out_type t)}) 
+  in (in_env, Lambda(p, checked_body) {ReturnType(!get_out_type t), Type(t)});
+
+typecheck: (env, Block(stmts){Type(t), ReturnType(rt)}) ->
+     annotated_stmts    := !all[.annotate[ReturnType(rt)]] stmts
+  in (_, checked_stmts) := !env_all[.typecheck] (env, annotated_stmts)
+  in (env, Block(checked_stmts){Type(t)});
+
+typecheck: (env, Int(i){Type(t)}) ->
+    .is_integer_type t
+  > (env, Int(i) {Type(t)})
+  + (env, Int(i) {TypeError("Cannot cast to expected type")});
+
+typecheck: (env, Return(e){ReturnType(t)}) ->
+  !typecheck (env, e {Type(t)});
+
+typecheck: (env, Array(elems){Type(Array(elemtype, size))}) ->
+     annotated_elems := !all[.annotate[Type(elemtype)]]  elems
+  in checked_elems   := !all[.typecheck_env[env]] annotated_elems
+  in (env, Array(checked_elems){Type(Array(elemtype, size))});
+
+typecheck: (env, Ref(n){Type(t)}) ->
+     lt := .get[n] env
+  in (env, .eq (lt, t) > Ref(n){Type(t)} + Ref(n){TypeError("Different type")});
+
+# Some helpers
+typecheck: any -> .fail;
+typecheck_env[env]: t -> .typecheck (env, t) > .second;
+debug_typecheck: t -> .debug > .typecheck t;
 
 is_integer_type: Builtin(ui8) -> .id;
 
-typeof: t -> Type(.typeof_type t);
+typeof: t -> Type(!typeof_type t);
 typeof_type: TypeId("ui8") -> Builtin("ui8");
 typeof_type: TypeId(n)     -> Ref(n);
 typeof_type: TypeTuple()   -> Tuple();
-typeof_type: FnType(i, o)  -> Func(.typeof_type i, .typeof_type o);
+typeof_type: TypeArray(ts, s) -> Array(!typeof_type ts, s);
+typeof_type: FnType(i, o)  -> Func(!typeof_type i, !typeof_type o);
 
 get_out_type: Func(i, o) -> o;
 get_out_type: Type(Func(i, o)) -> o;

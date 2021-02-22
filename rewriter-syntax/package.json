@@ -1,0 +1,35 @@
+{
+    "name": "rewriter-syntax",
+    "displayName": "ReWriter-Syntax",
+    "description": "Syntax highlighting for term rewriter language",
+    "version": "0.0.1",
+    "publisher": "mbijman",
+    "engines": {
+        "vscode": "^1.53.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [
+            {
+                "id": "rewriter-syntax",
+                "aliases": [
+                    "ReWriter",
+                    "rewriter-syntax"
+                ],
+                "extensions": [
+                    ".rw"
+                ],
+                "configuration": "./language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "rewriter-syntax",
+                "scopeName": "source.rewrite",
+                "path": "./syntaxes/rewriter-syntax.tmLanguage.json"
+            }
+        ]
+    }
+}

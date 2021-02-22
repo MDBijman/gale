@@ -19,6 +19,10 @@ version = "0.1.0"
 path = "../compiler"
 version = "0.1.0"
 
+[dependencies.terms_format]
+path = "../terms_format"
+version = "0.1.0"
+
 [[bin]]
 name = "gale"
 path = "src/bin.rs"
