@@ -1,6 +1,45 @@
 bottomup[.f]: n -> .all[.bottomup[.f]] > .f;
+topdown[.f]: n -> .f > .all[.bottomup[.f]]; 
+
+env_bottomup[.f]: (e, n) -> .env_all[.env_bottomup[.f]];
+
+env_all[.f]: (env, list) -> .env_all_acc[.f] (env, list, []);
+env_all_acc[.f]: (env, [], r) -> (env, .reverse r);
+env_all_acc[.f]: (env, [n | t], r) -> 
+    (new_env, o) := .f (env, n)
+  in .env_all_acc[.f] (new_env, t, [o | r]);
+  
+all[.f]: [h|t] -> .all_acc[.f] ([h|t], []);
+all_acc[.f]: ([], acc)    -> acc > .reverse;
+all_acc[.f]: ([h|t], acc) -> .all_acc[.f] (t, [.f h | acc]);
+all[.f]: t -> .subterms t > .all[.f];
 
 try[.f]: n -> .f n + n;
+
 map[.f]: e -> .all[.f] e;
+env_map[.f]: e -> .env_all[.f] e;
+second: (_, b) -> b;
+first:  (a, _) -> a;
+
 id: e -> e;
+
 annotate[a]: t -> t {a}; 
+
+# Base case: empty list
+reverse: [] -> [];
+# Dispatch to internal accumulator based impl. 
+reverse: [h|t] -> .reverse_internal ([h|t], []);
+# Base case: empty list
+reverse_internal: ([],  acc)   -> acc;
+# Recursive case: prepend head to accumulator and recurse
+reverse_internal: ([h|t], acc) -> .reverse_internal (t, [h | acc]);
+
+new_map: _ -> [];
+remove[needle]: [] -> [];
+remove[needle]: [(k, v)|t] -> .eq (needle, k) > t + [(k,v)|.remove[needle] t];
+put[key, value]: [] -> [(key, value)]; 
+put[key, value]: [h|t] -> 
+  new_list := .remove[key] [h|t] in
+    [(key, value)|new_list];
+get[needle]: [] -> .fail;
+get[needle]: [(k,v)|t] -> .eq (needle, k) > v + .get[needle] t;

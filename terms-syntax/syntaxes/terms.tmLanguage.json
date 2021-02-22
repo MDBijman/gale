@@ -1,0 +1,37 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "Terms",
+	"patterns": [
+		{
+			"include": "#strings"
+		},
+		{
+			"include": "#numbers"
+		},
+		{
+			"include": "#punctuation"
+		}
+	],
+	"repository": {
+		"punctuation": {
+			"name": "punctuation.terms",
+			"match": "(\\[|\\]|\\(|\\)|\\{|\\})"
+		},
+		"numbers": {
+			"name": "constant.numeric.terms",
+			"match": "\\b[0-9]+\\b"
+		},
+		"strings": {
+			"name": "string.quoted.double.terms",
+			"begin": "\"",
+			"end": "\"",
+			"patterns": [
+				{
+					"name": "constant.character.escape.terms",
+					"match": "\\\\."
+				}
+			]
+		}
+	},
+	"scopeName": "source.terms"
+}

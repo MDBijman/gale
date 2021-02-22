@@ -1,0 +1,1 @@
+typecheck: a -> b := .all[.annotate[Thing()]] a > .debug in a

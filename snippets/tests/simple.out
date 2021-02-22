@@ -5,9 +5,17 @@ File([Function(
     , OutSize(1)
     )
   , Scope(
-      Size(10)
+      Size(9)
     , [
         Store(
+          "d"
+        , Array([
+            UI8(1)
+          , UI8(2)
+          , UI8(3)
+          ])
+        )
+      , Store(
           "c"
         , UI8(1)
         )

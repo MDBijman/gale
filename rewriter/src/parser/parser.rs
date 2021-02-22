@@ -2,11 +2,11 @@ extern crate nom;
 use nom::{
     IResult, Parser, error::ParseError, error::ErrorKind, error::Error,
     number::complete::double,
-    character::complete::{multispace0, char},
-    sequence::{delimited},
+    character::complete::{multispace0, char, one_of},
+    sequence::{delimited, tuple},
     branch::alt,
     multi::{separated_list0, many0},
-    bytes::complete::{take_till1, tag},
+    bytes::complete::{take_till1, tag, is_not, take_while},
     combinator::{ map_res, opt }
 };
 use std::fs;
@@ -27,15 +27,38 @@ fn parse_name(input: &str) -> IResult<&str, &str> {
     }
 }
 
-fn parse_function_name(input: &str) -> IResult<&str, &str> {
-    let (input, _) = char('.').parse(input)?;
-    Ok(parse_name(input)?)
+
+fn parse_function_name(input: &str) -> IResult<&str, (FunctionReferenceType, &str)> {
+    let (input, c) = alt((char('.'), char('!'))).parse(input)?;
+    let reftype = match c {
+        '.' => FunctionReferenceType::Try,
+        '!' => FunctionReferenceType::Force,
+        _ => panic!("Unexpected function name begin character")
+    };
+    let (input, name) = parse_name(input)?;
+    Ok((input, (reftype, name)))
 }
+
+fn try_parse_comment(input: &str) -> IResult<&str, ()> {
+    let (input, _ ) = tuple((char('#'), is_not("\n\r"), take_while(|c| c == '\n' || c == '\r'))).parse(input)?;
+    Ok((input, ()))
+}
+
+fn parse_comment(input: &str) -> &str {
+    match try_parse_comment(input) {
+        Ok((output, _)) => output,
+        Err(_) => input
+    }
+}
+
+/*
+* Matching
+*/
 
 fn parse_term_match(input: &str) -> IResult<&str, Match> {
     let (input, con) = parse_name(input)?;
     let (input, r) = delimited(char('('), ws(separated_list0(ws(tag(",")), parse_match)), char(')'))(input)?;
-    let (input, a) = opt(delimited(char('{'), ws(separated_list0(ws(tag(",")), parse_match)), char('}')))(input)?;
+    let (input, a) = opt(delimited(ws(char('{')), ws(separated_list0(ws(tag(",")), parse_match)), char('}')))(input)?;
     Ok((input, Match::TermMatcher(TermMatcher { constructor: con.to_string(), terms: r, annotations: a.unwrap_or(Vec::new()) })))
 }
 
@@ -67,23 +90,34 @@ fn parse_tuple_match(input: &str) -> IResult<&str, Match> {
 
 fn parse_list_match(input: &str) -> IResult<&str, Match> {
     let (input, _ ) = ws(tag("[")).parse(input)?;
-    let (input, head_name) = parse_name(input)?;
-    let (mut input, sep) = opt(ws(tag("|"))).parse(input)?;
+    let (input, opt_head_match) = opt(parse_match)(input)?;
+    match opt_head_match {
+        Some(head_match) => {
+            let (mut input, sep) = opt(ws(tag("|"))).parse(input)?;
 
-    let tail_name = match sep {
-        None => None,
-        Some(_) => {
-            let (_input, tail_name) = parse_name(input)?;
-            input = _input;
-            Some(String::from(tail_name))
+            let tail_match = match sep {
+                None => None,
+                Some(_) => {
+                    let (_input, tail_match) = parse_match(input)?;
+                    input = _input;
+                    Some(Box::from(tail_match))
+                }
+            };
+
+            let (input, _ ) = ws(tag("]")).parse(input)?;
+
+            let res = Match::ListMatcher(ListMatcher { head: Some(Box::from(head_match)), tail: tail_match });
+
+            Ok((input, res))
+        },
+        _ => {
+            let (input, _ ) = ws(tag("]")).parse(input)?;
+
+            let res = Match::ListMatcher(ListMatcher { head: None, tail: None });
+
+            Ok((input, res))
         }
-    };
-
-    let (input, _ ) = ws(tag("]")).parse(input)?;
-
-    let res = Match::ListMatcher(ListMatcher { head: String::from(head_name), tail: tail_name });
-
-    Ok((input, res))
+    }
 }
 
 fn parse_match(input: &str) -> IResult<&str, Match> {
@@ -91,10 +125,14 @@ fn parse_match(input: &str) -> IResult<&str, Match> {
     Ok((input, m))
 }
 
+/*
+* Expressions
+*/
+
 fn parse_function_ref(input: &str) -> IResult<&str, Expr> {
-    let (input, func_name) = parse_function_name(input)?;
+    let (input, (ref_type, func_name)) = parse_function_name(input)?;
     let (input, meta) = parse_meta_args(input)?;
-    Ok((input, Expr::FRef(FRef::from(&func_name.to_string(), &meta))))
+    Ok((input, Expr::FRef(FRef::from(&func_name.to_string(), &meta, ref_type))))
 }
 
 fn parse_meta_args(input: &str) -> IResult<&str, Vec<Expr>> {
@@ -143,7 +181,12 @@ fn parse_tuple(input: &str) -> IResult<&str, Expr> {
 }
 
 fn parse_list(input: &str) -> IResult<&str, Expr> {
-    map_res(delimited(ws(char('[')), ws(separated_list0(ws(tag(",")), parse_expr)), ws(char(']'))), |r: Vec<Expr>| -> Result<Expr, String> { Ok(Expr::List(List { values: r })) })(input)
+    alt((
+        // [ a, b, c ]
+        map_res(delimited(ws(char('[')), ws(separated_list0(ws(tag(",")), parse_expr)), ws(char(']'))), |r: Vec<Expr>| -> Result<Expr, String> { Ok(Expr::List(List { values: r })) }),
+        // [ h | t ]
+        map_res(delimited(ws(char('[')), tuple((parse_expr, ws(char('|')), parse_expr)), ws(char(']'))), |t: (Expr, char, Expr)| -> Result<Expr, String> { Ok(Expr::ListCons(ListCons { head: Box::from(t.0), tail: Box::from(t.2) })) })
+    ))(input)
 }
 
 fn parse_term(input: &str) -> IResult<&str, Expr> {
@@ -159,7 +202,7 @@ fn parse_invocation(input: &str) -> IResult<&str, Expr> {
     let (input, fref) = opt(parse_function_ref)(input)?;
     match fref {
         Some(Expr::FRef(fref)) => {
-            let (input, arg) = opt(ws(parse_term))(input)?;
+            let (input, arg) = opt(ws(parse_invocation))(input)?;
             match arg {
                 Some(arg) => 
                     Ok((input, Expr::Invoke(Invocation { name: fref, arg: Box::from(arg) }))),
@@ -172,21 +215,31 @@ fn parse_invocation(input: &str) -> IResult<&str, Expr> {
     }
 }
 
-fn parse_comb(input: &str) -> IResult<&str, Expr> {
-    let (input, lhs) = parse_invocation(input)?;
-    let (input, r)   = opt(ws(char('+')))(input)?;
-    match r {
-        Some(_) => {
-            let (input, rhs) = parse_expr(input)?;
-            return Ok((input, Expr::Op(Op::Or(Box::from(lhs), Box::from(rhs)))));
+fn parse_let(old_input: &str) -> IResult<&str, Expr> {
+    let (input, opt_match) = opt(parse_match)(old_input)?;
+    match opt_match {
+        Some(m) => {
+            let (input, r) = opt(ws(tag(":=")))(input)?;
+            match r {
+                Some(_) => {
+                    let (input, rhs) = parse_expr(input)?;
+                    let (input, _) = ws(tag("in")).parse(input)?;
+                    let (input, body) = parse_expr(input)?;
+                    Ok((input, Expr::Let(Let { lhs: m, rhs: Box::from(rhs), body: Box::from(body) })))
+                },
+                _ => parse_invocation(old_input)
+            }
         },
-        _ => {}
+        _ => parse_invocation(old_input)
     }
+}
 
+fn parse_and(input: &str) -> IResult<&str, Expr> {
+    let (input, lhs) = parse_let(input)?;
     let (input, r)   = opt(ws(char('>')))(input)?;
     match r {
         Some(_) => {
-            let (input, rhs) = parse_expr(input)?;
+            let (input, rhs) = parse_and(input)?;
             return Ok((input, Expr::Op(Op::And(Box::from(lhs), Box::from(rhs)))));
         },
         _ => {}
@@ -195,11 +248,25 @@ fn parse_comb(input: &str) -> IResult<&str, Expr> {
     Ok((input, lhs))
 }
 
+fn parse_or(input: &str) -> IResult<&str, Expr> {
+    let (input, lhs) = parse_and(input)?;
+    let (input, r)   = opt(ws(char('+')))(input)?;
+    match r {
+        Some(_) => {
+            let (input, rhs) = parse_or(input)?;
+            return Ok((input, Expr::Op(Op::Or(Box::from(lhs), Box::from(rhs)))));
+        },
+        _ => {}
+    }
+    Ok((input, lhs))
+}
+
 fn parse_expr(input: &str) -> IResult<&str, Expr> {
-    parse_comb(input)
+    parse_or(input)
 }
 
 fn parse_function(input: &str) -> IResult<&str, Function> {
+    let input = parse_comment(input);
     let (input, name) = parse_name(input)?;
     let (input, meta) = parse_meta_args(input).unwrap();
     let (input, _) = ws::<&str, (_, _), _>(tag(":")).parse(input).unwrap();

@@ -1,3 +1,4 @@
+use terms_format as tf;
 
 #[derive(Debug)]
 pub struct File {
@@ -24,6 +25,7 @@ pub enum Expr {
     Invoke(Invocation),
     Tuple(Tuple),
     List(List),
+    ListCons(ListCons),
     Term(Term),
     Ref(Ref),
     FRef(FRef),
@@ -31,7 +33,38 @@ pub enum Expr {
     Text(Text),
     Op(Op),
     Annotation(Annotation),
+    Let(Let),
+    SimpleTerm(tf::Term),
     This
+}
+
+impl Expr {
+    pub fn to_term(&self) -> Option<tf::Term> {
+        match &self {
+            Expr::SimpleTerm(t) => Some(t.clone()),
+            Expr::Tuple(t) => {
+                let mut sub_t: Vec<tf::Term> = vec![];
+                for elem in &t.values {
+                    sub_t.push(elem.to_term()?);
+                }
+                Some(tf::Term::new_tuple_term(sub_t))
+            },
+            Expr::List(t) => {
+                let mut sub_t: Vec<tf::Term> = vec![];
+                for elem in &t.values {
+                    sub_t.push(elem.to_term()?);
+                }
+                Some(tf::Term::new_list_term(sub_t))
+            },
+            Expr::Number(t) => {
+                Some(tf::Term::new_number_term(t.value))
+            },
+            Expr::Text(t) => {
+                Some(tf::Term::new_string_term(&t.value))
+            },
+            _ => None
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -51,15 +84,21 @@ pub struct Ref {
     pub name: String
 }
 
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum FunctionReferenceType {
+    Force, Try
+}
+
 #[derive(Debug, Clone)]
 pub struct FRef {
     pub name: String,
-    pub meta: Vec<Expr>
+    pub meta: Vec<Expr>,
+    pub ref_type: FunctionReferenceType
 }
 
 impl FRef {
-    pub fn from(name: &String, margs: &Vec<Expr>) -> FRef {
-        FRef { name: name.clone(), meta: margs.clone() }
+    pub fn from(name: &String, margs: &Vec<Expr>, ref_type: FunctionReferenceType) -> FRef {
+        FRef { name: name.clone(), meta: margs.clone(), ref_type: ref_type }
     }
 }
 
@@ -84,6 +123,12 @@ pub struct List {
 }
 
 #[derive(Debug, Clone)]
+pub struct ListCons {
+    pub head: Box<Expr>,
+    pub tail: Box<Expr>
+}
+
+#[derive(Debug, Clone)]
 pub enum Op {
     Or(Box<Expr>, Box<Expr>),
     And(Box<Expr>, Box<Expr>)
@@ -93,6 +138,13 @@ pub enum Op {
 pub struct Annotation {
     pub inner: Box<Expr>,
     pub annotations: Vec<Expr>
+}
+
+#[derive(Debug, Clone)]
+pub struct Let {
+    pub lhs: Match,
+    pub rhs: Box<Expr>,
+    pub body: Box<Expr>
 }
 
 #[derive(Debug, Clone)]
@@ -131,8 +183,8 @@ pub struct NumberMatcher {
 
 #[derive(Debug, Clone)]
 pub struct ListMatcher {
-    pub head: String,
-    pub tail: Option<String>
+    pub head: Option<Box<Match>>,
+    pub tail: Option<Box<Match>>
 }
 
 #[derive(Debug, Clone)]

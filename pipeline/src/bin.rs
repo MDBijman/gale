@@ -3,7 +3,8 @@ extern crate clap;
 use parser::parse_gale_file;
 use checker::check;
 use compiler::compile;
-
+use terms_format::Term;
+use std::fs;
 use clap::{App, Arg};
 
 fn main() {
@@ -17,7 +18,7 @@ fn main() {
             .value_name("INPUT_FILE")
             .help("The input .gale file")
             .required(true))
-        .arg(Arg::with_name("output")
+        .arg(Arg::with_name("output_file")
             .short("o")
             .long("output")
             .value_name("OUTPUT_FILE")
@@ -29,6 +30,8 @@ fn main() {
     let out_file = matches.value_of("output_file").unwrap();
 
     let term = parse_gale_file(&String::from(in_file));
-
+    let checked_term = check(&term);
+    let compiled_term = compile(&checked_term);
     
+    fs::write(out_file, format!("{}", compiled_term)).unwrap();
 }

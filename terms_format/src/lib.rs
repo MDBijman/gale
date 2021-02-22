@@ -31,6 +31,22 @@ impl Annotations {
     }
 }
 
+impl PartialEq for Annotations {
+    fn eq(&self, other: &Annotations) -> bool {
+        if self.elems.len() != other.elems.len() {
+            return false;
+        };
+
+        for elem in self.elems.iter() {
+            if !other.elems.contains(&elem) {
+                return false;
+            }
+        };
+
+        true
+    }
+}
+
 #[derive(Debug, Clone, Hash)]
 pub enum Term {
     RTerm(RTerm, Annotations),
@@ -38,6 +54,29 @@ pub enum Term {
     NTerm(NTerm, Annotations),
     TTerm(TTerm, Annotations),
     LTerm(LTerm, Annotations),
+}
+
+impl PartialEq for Term {
+    fn eq(&self, other: &Term) -> bool {
+        match (self, other) {
+            (Term::RTerm(lr, la), Term::RTerm(rr, ra)) => {
+                lr == rr && la == ra
+            },
+            (Term::STerm(lr, la), Term::STerm(rr, ra)) => {
+                lr == rr && la == ra
+            },
+            (Term::NTerm(lr, la), Term::NTerm(rr, ra)) => {
+                lr == rr && la == ra
+            },
+            (Term::TTerm(lr, la), Term::TTerm(rr, ra)) => {
+                lr == rr && la == ra
+            },
+            (Term::LTerm(lr, la), Term::LTerm(rr, ra)) => {
+                lr == rr && la == ra
+            },
+            (_, _) => false
+        }
+    }
 }
 
 impl Term {
@@ -97,16 +136,34 @@ pub struct RTerm {
     pub terms: Vec<Term>
 }
 
+impl PartialEq for RTerm {
+    fn eq(&self, other: &RTerm) -> bool {
+        self.constructor == other.constructor && self.terms == other.terms
+    }
+}
+
 // String Term
 #[derive(Debug, Clone, Hash)]
 pub struct STerm {
     pub value: String
 }
 
+impl PartialEq for STerm {
+    fn eq(&self, other: &STerm) -> bool {
+        self.value == other.value
+    }
+}
+
 // Numerical Term
 #[derive(Debug, Clone)]
 pub struct NTerm {
     pub value: f64
+}
+
+impl PartialEq for NTerm {
+    fn eq(&self, other: &NTerm) -> bool {
+        self.value == other.value
+    }
 }
 
 fn integer_decode(val: f64) -> (u64, i16, i8) {
@@ -135,6 +192,12 @@ pub struct TTerm {
     pub terms: Vec<Term>
 }
 
+impl PartialEq for TTerm {
+    fn eq(&self, other: &TTerm) -> bool {
+        self.terms == other.terms
+    }
+}
+
 impl TTerm {
     pub fn new() -> TTerm { TTerm { terms: Vec::new() } }
 }
@@ -143,6 +206,12 @@ impl TTerm {
 #[derive(Debug, Clone, Hash)]
 pub struct LTerm {
     pub terms: Vec<Term>
+}
+
+impl PartialEq for LTerm {
+    fn eq(&self, other: &LTerm) -> bool {
+        self.terms == other.terms
+    }
 }
 
 impl LTerm {
