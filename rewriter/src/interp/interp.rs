@@ -190,10 +190,13 @@ impl Rewriter {
         r
     }
 
+    pub fn reset_newname_count(&mut self, n: &String) {
+        self.newname_counts.remove(n);
+    }
     ///
      
     fn is_builtin(name: &str) -> bool {
-        ["add", "mul", "div", "min", "max", "subterms", "debug", "debug_context", "fail", "gen_name", "gen_num", "eq"].contains(&name)
+        ["add", "mul", "div", "min", "max", "subterms", "debug", "debug_context", "fail", "gen_name", "gen_num", "reset_num", "eq", "concat_str", "to_str"].contains(&name)
     }
 
     pub fn try_run_builtin_function(&mut self, c: Context, function: &FRef, t: tf::Term) -> Option<Expr> {
@@ -255,6 +258,26 @@ impl Rewriter {
 
                 Some(Rewriter::term_to_expr(&sterm))
             },
+            ("reset_num", tf::Term::STerm(st, a)) => {
+                self.reset_newname_count(&st.value);
+
+                Some(Rewriter::term_to_expr(&tf::Term::STerm(st, a)))
+            },
+            ("concat_str", tf::Term::LTerm(lt, _)) => {
+                let mut out: String = String::new();
+
+                for item in lt.terms {
+                    match item {
+                        tf::Term::STerm(s, _) => out.push_str(s.value.as_str()),
+                        _ => return None
+                    }
+                }
+
+                Some(Rewriter::term_to_expr(&tf::Term::new_string_term(&out)))
+            },
+            ("to_str", t) => {
+                Some(Rewriter::term_to_expr(&tf::Term::new_string_term(&format!("{}", t))))
+            }
             ("eq", tf::Term::TTerm(tt, _)) if tt.terms.len() == 2 => {
                 let lhs = &tt.terms[0];
                 let rhs = &tt.terms[1];
@@ -265,8 +288,7 @@ impl Rewriter {
                     None
                 }
             },
-            // This assumes built-ins are always resolved last
-            _ => None // panic!("No function with name {}", function.name)
+            _ => None
         }
     }
 
@@ -290,7 +312,6 @@ impl Rewriter {
             },
             Expr::Invoke(inv) => {
                 let arg = self.reduce(c.clone(), &inv.arg, t)?.to_term().unwrap();
-                //println!("-> {:?}", &inv);
                 self.interp_function(c, &inv.name, arg)
             },
             Expr::Ref(r) => {
@@ -440,6 +461,7 @@ impl Rewriter {
 
         if function.ref_type == FunctionReferenceType::Force {
             panic!(format!("Failed to compute function {}\n{:#?}\nenvironment {}", function.name, t, c));
+            //panic!(format!("Failed to compute function {}\nenvironment {}", function.name, c));
         } else {
             None
         }

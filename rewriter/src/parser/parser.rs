@@ -3,7 +3,7 @@ use nom::{
     IResult, Parser, error::ParseError, error::ErrorKind, error::Error,
     number::complete::double,
     character::complete::{multispace0, char, one_of},
-    sequence::{delimited, tuple},
+    sequence::{delimited, tuple, pair},
     branch::alt,
     multi::{separated_list0, many0},
     bytes::complete::{take_till1, tag, is_not, take_while},
@@ -22,9 +22,16 @@ fn parse_name(input: &str) -> IResult<&str, &str> {
     let (input, res) = take_till1(|c| { !(char::is_alphanumeric(c) || c == '_') })(input)?;
 
     match res.parse::<f64>() {
-        Ok(_)  => Err(nom::Err::Error(Error::from_error_kind(input, ErrorKind::Char))),
-        Err(_) => Ok((input, res))
+        Ok(_)  => return Err(nom::Err::Error(Error::from_error_kind(input, ErrorKind::Char))),
+        Err(_) => {}
+    };
+    
+    // Keywords
+    if ["in"].contains(&res) {
+        return Err(nom::Err::Error(Error::from_error_kind(input, ErrorKind::Char)));
     }
+
+    Ok((input, res))
 }
 
 
@@ -39,16 +46,13 @@ fn parse_function_name(input: &str) -> IResult<&str, (FunctionReferenceType, &st
     Ok((input, (reftype, name)))
 }
 
-fn try_parse_comment(input: &str) -> IResult<&str, ()> {
-    let (input, _ ) = tuple((char('#'), is_not("\n\r"), take_while(|c| c == '\n' || c == '\r'))).parse(input)?;
-    Ok((input, ()))
+fn parse_ws(input: &str) -> IResult<&str, &str> {
+    Ok(multispace0(input)?)
 }
 
-fn parse_comment(input: &str) -> &str {
-    match try_parse_comment(input) {
-        Ok((output, _)) => output,
-        Err(_) => input
-    }
+fn parse_comment(input: &str) -> IResult<&str, ()> {
+    let (input, _ ) = tuple((char('#'), is_not("\n\r"), take_while(|c| c == '\n' || c == '\r'))).parse(input)?;
+    Ok((input, ()))
 }
 
 /*
@@ -136,7 +140,7 @@ fn parse_function_ref(input: &str) -> IResult<&str, Expr> {
 }
 
 fn parse_meta_args(input: &str) -> IResult<&str, Vec<Expr>> {
-    let (input, meta) = opt(delimited(ws(char('[')), separated_list0(ws(char(',')), alt((
+    let (input, meta) = opt(delimited(char('['), separated_list0(ws(char(',')), alt((
         map_res(parse_function_ref,  |n| -> Result<Expr, String> { Ok(n) }),
         map_res(parse_expr,          |e| -> Result<Expr, String> { Ok(e) })
     ))), ws(char(']'))))(input)?;
@@ -266,7 +270,7 @@ fn parse_expr(input: &str) -> IResult<&str, Expr> {
 }
 
 fn parse_function(input: &str) -> IResult<&str, Function> {
-    let input = parse_comment(input);
+    let (input, _) = opt(many0(pair(parse_comment, opt(parse_ws))))(input)?;
     let (input, name) = parse_name(input)?;
     let (input, meta) = parse_meta_args(input).unwrap();
     let (input, _) = ws::<&str, (_, _), _>(tag(":")).parse(input).unwrap();
@@ -283,6 +287,7 @@ pub fn parse_rw_string(input: &str) -> Result<File, String> {
             if input.len() > 0 {
                 panic!(format!("Input left after parsing:\n{}", input));
             }
+
 
             Ok(File { functions: f })
         },

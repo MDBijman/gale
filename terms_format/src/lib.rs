@@ -7,7 +7,7 @@ use nom::{
     sequence::{ delimited, preceded, separated_pair },
     multi::{ separated_list0, fold_many0 },
     branch::alt,
-    number::complete::double
+    number::complete::double,
 };
 use std::fs;
 use std::fmt;

@@ -1,0 +1,25 @@
+main: Program(fns) ->
+     funstrs := !concat_str !intersperse["\n"] !flatmap_some[!print] fns
+  in funstrs;
+
+print: Function(name, params, body) ->
+     paramstr := !concat_str !flatmap_some[!print] params
+  in bodystr  := body
+  > !flatmap_some[!print] 
+  > !intersperse["\n"]
+  > !flatten_some
+  > !concat_str 
+  in !concat_str !flatten_some [
+      "def ", name, " [", paramstr, "]\n",
+      bodystr, "\n"
+    ];
+
+print: Call(fn, arg)     -> !concat_str ["call ", fn, " ", !print arg];
+print: Var(i)            -> !concat_str ["$", !to_str i, ""];
+print: Store(into, expr) -> !concat_str [!print into, " = ", !print expr];
+print: Load(from)        -> !concat_str [!print from];
+print: Return(e)         -> !concat_str ["return ", !print e];
+print: [h|t]             -> !flatmap_some[!print] [h|t];
+print: Array(elems) ->
+  !concat_str !flatten_some ["[", !intersperse[", "] !map[!print] elems, "]"];
+print: UI8(i) -> !to_str i;

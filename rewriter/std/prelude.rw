@@ -16,14 +16,51 @@ all[.f]: t -> .subterms t > .all[.f];
 
 try[.f]: n -> .f n + n;
 
+# Apply transformation on each term in e
 map[.f]: e -> .all[.f] e;
+# Apply transformation on each term and then flatten
+flatmap[.f]: e -> .all[.f] e > .flatten; 
+flatmap_some[.f]: e -> .all[.f] e > .flatten_some; 
+
+# Puts a value between each element of a list as separator
+intersperse[v]: [] -> [];
+# Here we put 1 value in the accumulator to prevent a separator before the first element later
+intersperse[v]: [h|t] -> .intersperse_acc[v] (t, [h]);
+intersperse_acc[v]: ([], acc) -> .reverse acc;
+intersperse_acc[v]: ([h|t], acc) -> .intersperse_acc[v] (t, [h|[v|acc]]);
+
+flatten: [] -> [];
+flatten: [h|t] -> .concat (h, .flatten t);
+
+flatten_some: a -> .flatten_some_acc (.reverse a, []);
+flatten_some_acc: ([], t) -> t;
+flatten_some_acc: ([[h|t]|t2], acc) -> .flatten_some_acc (t2, .concat ([h|t], acc));
+flatten_some_acc: ([[]|t], acc) -> .flatten_some_acc (t, acc);
+flatten_some_acc: ([h|t], acc) -> .not[.is_list] h > .flatten_some_acc (t, [h|acc]);
+
 env_map[.f]: e -> .env_all[.f] e;
 second: (_, b) -> b;
 first:  (a, _) -> a;
 
 id: e -> e;
+not[.f]: e -> .f e > .fail + .id;
 
 annotate[a]: t -> t {a}; 
+
+# Length of list
+len: l -> .is_list > .len_acc (l, 0);
+len_acc: ([h|t], n) -> .len_acc (t, .add (n, 1));
+len_acc: ([], n) -> n;
+
+# Repeats a value n times in the form of a list
+repeat[v]: n -> [];
+repeat_acc[v]: (n, [h|t]) -> .gt (n, 0) > .repeat_acc[v] (.sub (n, 1), [v|[h|t]]) + [h|t];
+repeat_acc[v]: (n, []) -> .repeat_acc[v] (.sub (n, 1), [v]);
+
+# Given [a, b, c] and [d, e, f] give [a, d, b, e, c, f]
+zip: ([h1|t1], [h2|t2]) -> .eq (.len t1, .len t2) > .zip_acc ([h1|t1], [h2|t2], []);
+zip_acc: ([h1|t1], [h2|t2], acc) -> .zip_acc (t1, t2, [h1|[h2|acc]]);
+zip_acc: ([], [], acc) -> acc;
 
 # Base case: empty list
 reverse: [] -> [];
@@ -34,12 +71,39 @@ reverse_internal: ([],  acc)   -> acc;
 # Recursive case: prepend head to accumulator and recurse
 reverse_internal: ([h|t], acc) -> .reverse_internal (t, [h | acc]);
 
+# One argument is an empty list
+concat: ([], [h|t]) -> [h|t]; 
+concat: ([h|t], []) -> [h|t]; 
+# Both are non-empty lists
+concat: ([h1|t1], [h2|t2]) -> .concat_acc (.reverse [h1|t1], .reverse [h2|t2], []);
+
+concat_acc: ([h1|t1], [h2|t2], acc) -> .concat_acc ([h1|t1], t2, [h2|acc]); 
+concat_acc: ([h1|t1], [], acc) -> .concat_acc (t1, [], [h1|acc]); 
+concat_acc: ([], [], acc) -> acc; 
+
+# Maps are just lists, so an empty map is an empty list
 new_map: _ -> [];
+
+# Base case: empty list
 remove[needle]: [] -> [];
+# Recursive case: check if head is needle, then return tail, otherwise recurse
 remove[needle]: [(k, v)|t] -> .eq (needle, k) > t + [(k,v)|.remove[needle] t];
+
+# Simple case: putting in empty list
 put[key, value]: [] -> [(key, value)]; 
+# Complex case: first remove key from map, then insert
 put[key, value]: [h|t] -> 
   new_list := .remove[key] [h|t] in
     [(key, value)|new_list];
+
+# Base case: empty list means not found
 get[needle]: [] -> .fail;
+# Recursive case: check if head is needle, then return value, otherwise recurse 
 get[needle]: [(k,v)|t] -> .eq (needle, k) > v + .get[needle] t;
+
+# 'Typechecker' rules 
+is_list: [t|h] -> .id;
+is_list: [] -> .id;
+is_pair: (_, _) -> .id;
+
+
