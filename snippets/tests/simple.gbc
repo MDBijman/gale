@@ -1,0 +1,9 @@
+def main [vars: 4]
+$1 = [1, 2, 3]
+$2 = 2
+$3 = call id $2
+print $3
+return $2
+
+def id [vars: 1]
+return $0

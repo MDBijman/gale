@@ -45,7 +45,7 @@
 				},
 				{
 					"comment": "Matches term constructor",
-					"match": "\\b([a-zA-Z_-]+)(?=\\()",
+					"match": "\\b([a-z0-9A-Z_-]+)(?=\\()",
 					"captures": {
 						"1": {
 							"name": "constant.language.rewriter-syntax"

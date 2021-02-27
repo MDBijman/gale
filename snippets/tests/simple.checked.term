@@ -1,0 +1,59 @@
+File([
+    FnDecl(
+      "main"
+    , FnType(
+        TypeId("ui8")
+      , TypeId("ui8")
+      )
+    )
+  , FnDef(
+      "main"
+    , "a"
+    , Let(
+        [
+          Decl(
+            "d"
+          , TypeArray(
+              TypeId("ui8")
+            , Int(3)
+            )
+          , Array([
+              Int(1){Type(Builtin("ui8"))}
+            , Int(2){Type(Builtin("ui8"))}
+            , Int(3){Type(Builtin("ui8"))}
+            ]){Type(Array(
+              Builtin("ui8")
+            , Int(3)
+            ))}
+          )
+        , Decl(
+            "c"
+          , TypeId("ui8")
+          , Int(2){Type(Builtin("ui8"))}
+          )
+        ]
+      , Appl(
+          "id"
+        , Ref("c")
+        ){Type(Builtin("ui8"))}
+      )
+    ){Type(Func(
+      Builtin("ui8")
+    , Builtin("ui8")
+    ))}
+  , FnDecl(
+      "id"
+    , FnType(
+        TypeId("ui8")
+      , TypeId("ui8")
+      )
+    )
+  , FnDef(
+      "id"
+    , "a"
+    , Ref("a"){Type(Builtin("ui8"))}
+    ){Type(Func(
+      Builtin("ui8")
+    , Builtin("ui8")
+    ))}
+  ])

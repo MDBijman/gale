@@ -1,25 +1,7 @@
-File([Function(
-    "main"
-  , Meta(
-      InSize(1)
-    , OutSize(1)
-    )
-  , Scope(
-      Size(9)
-    , [
-        Store(
-          "d"
-        , Array([
-            UI8(1)
-          , UI8(2)
-          , UI8(3)
-          ])
-        )
-      , Store(
-          "c"
-        , UI8(1)
-        )
-      , Load("c")
-      ]
-    )
-  )])
+def main [$0]
+$1 = [1, 2, 3]
+$2 = 2
+return call id $2
+
+def id [$0]
+$0

@@ -1,9 +1,11 @@
 main: ui8 -> ui8
-a = let
-      d: [ui8; 3] = [1, 2, 3],
-      c: (\b -> b) b
-    in
-      c a.
+main a =
+  let
+    d: [ui8; 3] = [1, 2, 3],
+    c: ui8 = 2
+  in
+    id c.
 
-
+id: ui8 -> ui8
+id a = a.
 

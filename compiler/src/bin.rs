@@ -29,6 +29,12 @@ fn main() {
     let term = parse_term_file(&in_file.to_string());
     let compiled = compile(&term);
 
-    let mut o = fs::File::create(out_file).unwrap();
-    o.write(format!("{}", compiled).as_bytes()).unwrap();
+    match compiled {
+        Term::STerm(s, _) => {
+            let mut o = fs::File::create(out_file).unwrap();
+            println!("{}", s.value);
+            o.write(format!("{}", s.value).as_bytes()).unwrap();
+        },
+        _ => panic!("Expected String term as output")
+    }
 }
