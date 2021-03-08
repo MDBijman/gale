@@ -1,0 +1,72 @@
+Program([
+    Function(
+      "main"
+    , In("a")
+    , [
+        Store(
+          "d"
+        , Array([
+            UI8(1)
+          , UI8(2)
+          , UI8(3)
+          , UI8(4)
+          ])
+        )
+      , Store(
+          "c"
+        , BinOp(
+            "+"
+          , UI8(3)
+          , UI8(1)
+          )
+        )
+      , Store(
+          "e"
+        , BinOp(
+            "+"
+          , Load("c")
+          , BinOp(
+              "-"
+            , UI8(500)
+            , UI8(100)
+            )
+          )
+        )
+      , Store(
+          "tmp_0"
+        , Call(
+            "inc"
+          , Load("e")
+          )
+        )
+      , Store(
+          "tmp_1"
+        , BinOp(
+            "+"
+          , UI8(1)
+          , Load("tmp_0")
+          )
+        )
+      , Return(Load("tmp_1"))
+      ]
+    )
+  , Function(
+      "inc"
+    , In("a")
+    , [
+        Store(
+          "tmp_2"
+        , BinOp(
+            "+"
+          , Load("a")
+          , BinOp(
+              "-"
+            , UI8(2)
+            , UI8(1)
+            )
+          )
+        )
+      , Return(Load("tmp_2"))
+      ]
+    )
+  ])

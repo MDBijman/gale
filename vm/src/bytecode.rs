@@ -24,7 +24,14 @@ impl Module {
 #[derive(Debug, Clone)]
 pub enum Value {
     U64(u64),
-    Array(Vec<Value>)
+    Array(Vec<Value>),
+    Null
+}
+
+#[derive(Debug, Clone)]
+pub enum Op {
+    Add,
+    Sub
 }
 
 impl fmt::Display for Value {
@@ -42,7 +49,8 @@ impl fmt::Display for Value {
                     first = false;
                 }
                 write!(f, "]")
-            }
+            },
+            Value::Null => write!(f, "null")
         }
     }
 }
@@ -50,8 +58,8 @@ impl fmt::Display for Value {
 #[derive(Debug)]
 pub enum Expression {
     Var(Location),
-    Array(Vec<Expression>),
     Value(Value),
+    Array(Vec<Expression>),
 }
 
 #[derive(Debug)]
@@ -64,7 +72,11 @@ pub enum Instruction {
     Store(Location, Expression),
     Return(Expression),
     Print(Expression),
-    Call(Location, String, Vec<Expression>)
+    Call(Location, String, Vec<Expression>),
+
+    Pop(Location),
+    Push(Expression),
+    Op(Op)
 }
 
 #[derive(Debug)]

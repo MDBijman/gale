@@ -1,20 +1,20 @@
 extern crate terms_format;
 use nom::{
     IResult, Parser, error::ParseError, named,
-    number::complete::double,
-    character::complete::{multispace0, char, anychar, none_of, one_of},
-    character::{is_space},
-    sequence::{delimited, preceded, separated_pair},
+    number::complete::{double},
+    character::complete::{multispace0, char, anychar, none_of, digit1},
+    sequence::{delimited, preceded, separated_pair, pair, tuple, terminated},
     branch::alt,
-    multi::{separated_list0, separated_list1, many0, fold_many0 },
+    multi::{separated_list0, separated_list1, many0, fold_many0},
     bytes::complete::{tag, take_while, take_while1},
-    combinator::{ map_res, opt, map_opt, map, verify, not }
+    combinator::{ map_res, opt, map_opt, map, verify, cut, all_consuming  },
 };
 use terms_format::*;
 
 use std::fs;
 
-fn ws<'a, O, E: ParseError<&'a str>, F: Parser<&'a str, O, E>>(f: F) -> impl Parser<&'a str, O, E> {
+fn ws<'a, O, E: ParseError<&'a str>, F: Parser<&'a str, O, E>>(f: F) -> impl Parser<&'a str, O, E>
+{
     delimited(multispace0, f, multispace0)
 }
 
@@ -75,19 +75,33 @@ fn character(input: &str) -> IResult<&str, char> {
 // Parsers
 
 pub fn parse_name(input: &str) -> IResult<&str, &str> {
-    not(tag("in"))(input)?;
-    not(tag("let"))(input)?;
-    take_while1(|c| { char::is_alphanumeric(c) || c == '_' })(input)
+    verify(take_while1(|c| { char::is_alphanumeric(c) || c == '_' }),
+        |s: &str|
+               s != "in"
+            && s != "let"
+        )(input)
 }
 
-named!(parse_number(&str) -> Term, map_res!(double, |d| -> Result<Term, String> { Ok(Term::new_rec_term("Int", vec![Term::new_number_term(d)])) }));
 
-named!(parse_ref(&str) -> Term, map_res!(
-    separated_list1!(tag("."), parse_name), 
-    |names: Vec<&str>| -> Result<Term, String> { 
-        Ok(Term::new_rec_term("Ref", names.iter().map(|n| Term::new_string_term(n)).collect()))
-    }
-));
+fn parse_i64(i: &str) -> IResult<&str, Term> {
+    map(digit1, 
+        |s: &str| Term::new_rec_term("Int", vec![Term::new_number_term(s.parse::<i64>().unwrap() as f64)]))(i)
+}
+
+fn parse_double(i: &str) -> IResult<&str, Term> {
+    map(double, 
+        |d| Term::new_rec_term("Double", vec![Term::new_number_term(d)]))(i)
+}
+
+fn parse_number(i: &str) -> IResult<&str, Term> {
+    alt((parse_i64, parse_double))(i)
+}
+
+fn parse_ref(i: &str) -> IResult<&str, Term> {
+    map(parse_name, 
+        |name: &str| Term::new_rec_term("Ref", vec![Term::new_string_term(name)])
+        )(i)
+}
 
 pub fn parse_string(input: &str) -> IResult<&str, Term> {
     let (input, t) = delimited(
@@ -179,37 +193,46 @@ fn parse_arr_index(input: &str) -> IResult<&str, Term> {
     }
 }
 
-fn parse_binop(input: &str) -> IResult<&str, Term> {
-    let (input, lhs) = parse_arr_index(input)?;
-    match ws::<_, (_, _), _>(tag("+")).parse(input) {
-        Ok((input, _)) => {
-            let (input, rhs) = parse_expr(input)?;
-
-            Ok((input, Term::new_rec_term("Add", vec![lhs, rhs])))
-        },
-        _ => {
-            Ok((input, lhs))
-        }
-    }
+#[derive(Debug)]
+enum Op {
+    Add,
+    Sub
 }
 
-fn parse_appl(input: &str) -> IResult<&str, Term> {
-    let (input, n) = parse_binop(input)?;
-
-    match ws(parse_expr).parse(input) {
-        Ok((input, rhs)) => Ok((input, Term::new_rec_term("Appl", vec![n, rhs]))),
-        _ => Ok((input, n))
-    }
+fn parse_op(i: &str) -> IResult<&str, Op> {
+    alt((
+        map(tag("+"), |_| Op::Add),
+        map(tag("-"), |_| Op::Sub)
+    ))(i)
 }
 
-fn parse_let_decl(input: &str) -> IResult<&str, Term> {
-    let (input, name) = parse_name(input)?;
-    let (input, _) = ws(tag(":")).parse(input)?;
-    let (input, type_) = parse_type(input)?;
-    let (input, _) = ws(tag("=")).parse(input)?;
-    let (input, expr) = parse_expr(input)?;
+fn parse_binop(i: &str) -> IResult<&str, Term> {
+    map(pair(parse_arr_index, opt(pair(ws(parse_op), parse_expr))), 
+        |(lhs, opt_rhs)| match opt_rhs {
+            Some((Op::Add, rhs)) => Term::new_rec_term("Add", vec![lhs, rhs]),
+            Some((Op::Sub, rhs)) => Term::new_rec_term("Sub", vec![lhs, rhs]),
+            None => lhs
+        })(i)
+}
 
-    Ok((input, Term::new_rec_term("Decl", vec![Term::new_string_term(name), type_, expr])))
+fn parse_appl(i: &str) -> IResult<&str, Term> {
+    map(pair(ws(parse_binop), opt(parse_expr)),
+        |(op, expr)| match expr {
+            Some(e) => Term::new_rec_term("Appl", vec![op, e]),
+            _ => op
+        })(i)
+}
+
+fn parse_let_decl(i: &str) -> IResult<&str, Term> {
+    map(tuple((
+        parse_name,
+        ws(tag(":")),
+        parse_type,
+        ws(tag("=")),
+        parse_expr
+    )), |(n, _, t, _, e)|
+        Term::new_rec_term("Decl", vec![Term::new_string_term(n), t, e])
+    )(i)
 }
 
 fn parse_let(input: &str) -> IResult<&str, Term> {
@@ -235,32 +258,40 @@ fn parse_expr(input: &str) -> IResult<&str, Term> {
 fn parse_function_declaration(input: &str) -> IResult<&str, Term> {
     let (input, name) = parse_name(input)?;
     let (input, _) = ws(tag(":")).parse(input)?;
-    let (input, fn_type) = parse_type(input)?;
+    let (input, fn_type) = cut(parse_type)(input)?;
     let (input, _) = newline(input)?;
 
     Ok((input, Term::new_rec_term("FnDecl", vec![Term::new_string_term(name), fn_type])))
 }
 
-fn parse_function_definition(input: &str) -> IResult<&str, Term> {
-    let (input, func) = parse_name(input)?;
-    let (input, param) = ws(parse_name).parse(input)?;
-    let (input, _) = ws(tag("=")).parse(input)?;
-    let (input, body) = parse_expr(input)?;
-    let (input, _) = ws(tag(".")).parse(input)?;
-
-    Ok((input, Term::new_rec_term("FnDef", vec![Term::new_string_term(func), Term::new_string_term(param), body])))
+fn parse_function_definition(i: &str) -> IResult<&str, Term> {
+    map(tuple((
+        parse_name,
+        ws(parse_name),
+        cut(ws(tag("="))),
+        cut(parse_expr),
+        cut(ws(tag(";")))
+    )), |(func, param, _, body, _)| {
+        Term::new_rec_term("FnDef", vec![Term::new_string_term(func), Term::new_string_term(param), body])
+    })(i)
 }
 
-pub fn parse_gale_string(input: &str) -> IResult<&str, Term> {
-    let (input, r) = many0(alt((parse_function_definition, parse_function_declaration)))(input)?;
-    if input.len() > 0 {
-        panic!(format!("Input left after parsing:\n{}", input));
+pub fn parse_gale_string(input: &str) -> Result<Term, &str> {
+    match all_consuming(many0(terminated(alt((parse_function_definition, parse_function_declaration)), multispace0)))(input) {
+        Ok((_, r)) => Ok(Term::new_rec_term("File", vec![Term::new_list_term(r)])),
+        Err(e) => panic!(format!("Failed parsing: {}", e))
     }
-    Ok((input, Term::new_rec_term("File", vec![Term::new_list_term(r)])))
+    
 }
 
-pub fn parse_gale_file(filename: &str) -> Term {
-    let f = fs::read_to_string(filename).unwrap();
-    let (_, res) = parse_gale_string(String::as_str(&f)).unwrap();
-    res
+pub fn parse_gale_file(filename: &str) -> Result<Term, &str> {
+    match fs::read_to_string(filename) {
+        Ok(file) => {
+            let r = parse_gale_string(file.as_str());
+            // This doesn't make much sense but the file contents (which are part of the error)
+            // cannot be returned from this function, so has to be refactored
+            Ok(r.unwrap())
+        },
+        _ => panic!(format!("Cannot find file {}", filename))
+    }
 }

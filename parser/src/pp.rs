@@ -31,6 +31,7 @@ fn delimit(lhs: &str, elems: &String, rhs: &str) -> String {
     String::from(lhs) + elems + rhs
 }
 
+#[allow(dead_code)]
 pub fn pretty_print_gale_term(term: &Term) -> String {
     match term {
         Term::RTerm(rt, _) => {

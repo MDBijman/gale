@@ -50,7 +50,7 @@ fn main() {
             let in_file = sub_m.value_of("input_file").unwrap();
             let out_file = sub_m.value_of("output_file").unwrap();
 
-            let term_file = parse_term_file(&in_file.to_string());
+            let term_file = parse_term_from_file(&in_file.to_string()).unwrap();
             let gale = pretty_print_gale_term(&term_file);
 
             let mut o = fs::File::create(out_file).unwrap();
@@ -60,7 +60,7 @@ fn main() {
             let in_file = matches.value_of("input_file").unwrap();
             let out_file = matches.value_of("output_file").unwrap();
 
-            let terms = parse_gale_file(&in_file.to_string());
+            let terms = parse_gale_file(&in_file.to_string()).unwrap();
 
             let mut o = fs::File::create(out_file).unwrap();
             o.write(format!("{}", terms).as_bytes()).unwrap();

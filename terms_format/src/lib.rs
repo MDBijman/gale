@@ -2,7 +2,7 @@ extern crate nom;
 use nom::{
     IResult, Parser, error::ParseError,
     character::complete::{ char, multispace0, none_of, anychar },
-    bytes::complete::{ tag, take_while, take },
+    bytes::complete::{ tag, take_while1, take },
     combinator::{ map, map_opt, opt, map_res, verify },
     sequence::{ delimited, preceded, separated_pair },
     multi::{ separated_list0, fold_many0 },
@@ -125,6 +125,16 @@ impl Term {
             Term::NTerm(_, a) => a.elems.push(annotation),
             Term::TTerm(_, a) => a.elems.push(annotation),
             Term::LTerm(_, a) => a.elems.push(annotation),
+        }
+    }
+    
+    pub fn clear_annotations(&mut self) {
+        match self {
+            Term::RTerm(_, a) => a.elems.clear(),
+            Term::STerm(_, a) => a.elems.clear(),
+            Term::NTerm(_, a) => a.elems.clear(),
+            Term::TTerm(_, a) => a.elems.clear(),
+            Term::LTerm(_, a) => a.elems.clear(),
         }
     }
 }
@@ -300,9 +310,14 @@ pub fn parse_string(input: &str) -> IResult<&str, Term> {
     Ok((input, Term::new_string_term(&t)))
 }
 
+pub fn parse_tuple(i: &str) -> IResult<&str, Term> {
+    map(delimited(char('('), ws(separated_list0(ws(char(',')), parse_any_term)), char(')')),
+        |ts| Term::new_tuple_term(ts))(i)
+}
+
 pub fn parse_list(input: &str) -> IResult<&str, Term> {
-    let (input, r) = delimited(char('['), ws(separated_list0(ws(tag(",")), alt((parse_term, parse_string, parse_number, parse_list)))), char(']'))(input)?;
-    let (input, maybe_annots) = opt(delimited(char('{'), ws(separated_list0(ws(tag(",")), alt((parse_term, parse_string, parse_number, parse_list)))), char('}')))(input)?;
+    let (input, r) = delimited(char('['), ws(separated_list0(ws(tag(",")), parse_any_term)), char(']'))(input)?;
+    let (input, maybe_annots) = opt(delimited(char('{'), ws(separated_list0(ws(tag(",")), parse_any_term)), char('}')))(input)?;
     match maybe_annots {
         Some(annots) => Ok((input, Term::new_anot_list_term(r, annots))),
         None         => Ok((input, Term::new_list_term(r))),
@@ -310,19 +325,37 @@ pub fn parse_list(input: &str) -> IResult<&str, Term> {
 }
 
 pub fn parse_term(input: &str) -> IResult<&str, Term> {
-    let (input, con) = take_while(char::is_alphanumeric)(input)?;
-    let (input, r) = delimited(char('('), ws(separated_list0(ws(tag(",")), alt((parse_term, parse_string, parse_number, parse_list)))), char(')'))(input)?;
-    let (input, maybe_annots) = opt(delimited(char('{'), ws(separated_list0(ws(tag(",")), alt((parse_term, parse_string, parse_number, parse_list)))), char('}')))(input)?;
+    let (input, con) = take_while1(char::is_alphanumeric)(input)?;
+    let (input, r) = delimited(char('('), ws(separated_list0(ws(tag(",")), parse_any_term)), char(')'))(input)?;
+    let (input, maybe_annots) = opt(delimited(char('{'), ws(separated_list0(ws(tag(",")), parse_any_term)), char('}')))(input)?;
     match maybe_annots {
         Some(annots) => Ok((input, Term::new_anot_rec_term(&con.to_string(), r, annots))),
         None         => Ok((input, Term::new_rec_term(&con.to_string(), r))),
     }
 }
 
-pub fn parse_term_file(path: &String) -> Term {
+pub fn parse_any_term(i: &str) -> IResult<&str, Term> {
+    alt((
+        parse_term,
+        parse_list,
+        parse_string,
+        parse_number,
+        parse_tuple
+    ))(i)
+}
+
+pub fn parse_term_from_string(i: &str) -> Result<Term, String> {
+    let r = parse_any_term(i);
+
+    match r {
+        Ok((_, t)) => Ok(t),
+        _ => Err(String::from("Parse error"))
+    }
+}
+
+pub fn parse_term_from_file(path: &String) -> Result<Term, String> {
     let f = fs::read_to_string(path).unwrap();
-    let (_, res) = parse_term(String::as_str(&f)).unwrap();
-    res
+    parse_term_from_string(f.as_str())
 }
 
 /*

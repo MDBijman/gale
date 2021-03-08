@@ -47,39 +47,35 @@ fn check_and_bind_match(m: &Match, t: &tf::Term) -> Option<HashMap<String, tf::T
     match (m, t) {
         (Match::AnyMatcher, _) => Some(HashMap::new()),
         (Match::TermMatcher(tm), tf::Term::RTerm(rec_term, term_annot)) => {
-                
-            if tm.constructor == rec_term.constructor && tm.terms.len() == rec_term.terms.len() {
-                let mut h: HashMap<String, tf::Term> = HashMap::new();
+            let head_binding = check_and_bind_match(&tm.constructor, &tf::Term::new_string_term(&rec_term.constructor));
+            let tuple_binding = check_and_bind_match(&tm.terms, &tf::Term::new_tuple_term(rec_term.terms.clone()));
 
-                for annot_match in tm.annotations.iter() {
-                    let mut found: bool = false;
-                    for annot in term_annot.elems.iter() {
-                        match check_and_bind_match(annot_match, annot) {
-                            None => { },
-                            Some(m) => {
-                                h.extend(m);
-                                found = true;
-                                break;
-                            }
+            if head_binding.is_none() || tuple_binding.is_none() {
+                return None;
+            }
+
+            let mut h: HashMap<String, tf::Term> = HashMap::new();
+            h.extend(head_binding.unwrap());
+            h.extend(tuple_binding.unwrap());
+
+            for annot_match in tm.annotations.iter() {
+                let mut found: bool = false;
+                for annot in term_annot.elems.iter() {
+                    match check_and_bind_match(annot_match, annot) {
+                        None => {},
+                        Some(m) => {
+                            h.extend(m);
+                            found = true;
+                            break;
                         }
                     }
-                    if !found {
-                        return None;
-                    }
                 }
-
-                let maps: Vec<Option<HashMap<String, tf::Term>>> = tm.terms.iter().zip(&rec_term.terms).map(|(match_term, val_term)| check_and_bind_match(&match_term, &val_term)).collect();
-                for map in maps {
-                    match map {
-                        None => { return None; },
-                        Some(bindings) => { h.extend(bindings); }
-                    }
+                if !found {
+                    return None;
                 }
-
-                Some(h)
-            } else {
-                None
             }
+
+            Some(h)
         },
         (Match::VariableMatcher(vm), t) => {
             let mut h: HashMap<String, tf::Term> = HashMap::new();
@@ -152,13 +148,27 @@ fn check_and_bind_match(m: &Match, t: &tf::Term) -> Option<HashMap<String, tf::T
             }
         }
         (Match::TupleMatcher(tm), tf::Term::TTerm(tt, _)) => {
+            // 1 to 1 matching elements with matcher
             let mut bindings: HashMap<String, tf::Term> = HashMap::new();
-            for (m, t) in tm.elems.iter().zip(tt.terms.iter()) {
-                let sub_bindings = check_and_bind_match(m, t)?;
-                bindings.extend(sub_bindings);
+            let mut i = 0;
+            for m in tm.elems.iter() {
+                match m {
+                    Match::VariadicElementMatcher(v) => {
+                        bindings.insert(v.name.clone(), tf::Term::new_list_term(tt.terms[i..].to_vec()));
+                        return Some(bindings);
+                    },
+                    _ => {
+                        if i > tt.terms.len() - 1 { return None };
+                        let sub_bindings = check_and_bind_match(m, &tt.terms[i])?;
+                        bindings.extend(sub_bindings);
+                    }
+                }
+                    
+                i += 1;
             }
+
             Some(bindings)
-        }
+        },
         _ => None
     }
 }
@@ -183,6 +193,10 @@ impl Rewriter {
             t).unwrap().to_term().unwrap()
     }
 
+    pub fn get_newname_count(&mut self, n: &String) -> u64 {
+        *self.newname_counts.entry(n.to_string()).or_insert(0)
+    }
+
     pub fn gen_newname_count(&mut self, n: &String) -> u64 {
         let e = self.newname_counts.entry(n.to_string()).or_insert(0);
         let r = *e;
@@ -196,7 +210,7 @@ impl Rewriter {
     ///
      
     fn is_builtin(name: &str) -> bool {
-        ["add", "mul", "div", "min", "max", "subterms", "debug", "debug_context", "fail", "gen_name", "gen_num", "reset_num", "eq", "concat_str", "to_str"].contains(&name)
+        ["add", "mul", "div", "min", "max", "subterms", "with_subterms", "debug", "debug_context", "fail", "gen_name", "gen_num", "get_num", "reset_num", "eq", "concat_str", "to_str"].contains(&name)
     }
 
     pub fn try_run_builtin_function(&mut self, c: Context, function: &FRef, t: tf::Term) -> Option<Expr> {
@@ -235,6 +249,14 @@ impl Rewriter {
             ("subterms", tf::Term::RTerm(rt, _)) if meta.len() == 0 => {
                 Some(Rewriter::term_to_expr(&tf::Term::new_list_term(rt.terms)))
             },
+            ("with_subterms", tf::Term::TTerm(rt, _)) if meta.len() == 0 => {
+                match (&rt.terms[0], &rt.terms[1]) {
+                    (tf::Term::RTerm(constr, _), tf::Term::LTerm(elems, _)) => {
+                        Some(Rewriter::term_to_expr(&tf::Term::new_rec_term(constr.constructor.as_str(), elems.terms.clone())))
+                    },
+                    _ => None
+                }
+            },
             ("debug", t) => {
                 println!("{}", t);
                 Some(Rewriter::term_to_expr(&t))
@@ -254,6 +276,12 @@ impl Rewriter {
             },
             ("gen_num", tf::Term::STerm(st, _)) => {
                 let id = self.gen_newname_count(&st.value);
+                let sterm = tf::Term::new_number_term(id as f64);
+
+                Some(Rewriter::term_to_expr(&sterm))
+            },
+            ("get_num", tf::Term::STerm(st, _)) => {
+                let id = self.get_newname_count(&st.value);
                 let sterm = tf::Term::new_number_term(id as f64);
 
                 Some(Rewriter::term_to_expr(&sterm))
@@ -296,19 +324,43 @@ impl Rewriter {
         match e {
             Expr::FRef(f) => {
                 let new_meta: Vec<Expr> = f.meta.iter().map(|e| self.reduce(c.clone(), e, t.clone()).unwrap()).collect();
-                Some(Expr::FRef(FRef {
-                    name: f.name.clone(),
-                    meta: new_meta,
-                    ref_type: f.ref_type
-                }))
+
+                match c.bound_functions.get(&f.name) {
+                    Some(f) => Some(Expr::FRef(FRef {
+                        name: f.name.clone(),
+                        meta: [f.meta.clone(), new_meta].concat(),
+                        ref_type: f.ref_type
+                    })),
+                    _ => Some(Expr::FRef(FRef {
+                        name: f.name.clone(),
+                        meta: new_meta,
+                        ref_type: f.ref_type
+                    }))
+                }
             },
             Expr::Tuple(tup) => {
-                let mut res = Tuple { values: Vec::new() };
+                let mut res: Vec<tf::Term> = vec![];
                 for e in &tup.values {
-                    res.values.push(self.reduce(c.clone(), &e, t.clone())?);
+                    match e {
+                        // Variadic unrolling such as (a, b, ..c)
+                        Expr::UnrollVariadic(l) => {
+                            let list = c.bound_variables.get(&l.name).expect(format!("Cannot resolve reference {}", l.name).as_str());
+                            match list {
+                                // Reference must resolve to list term
+                                tf::Term::LTerm(l, _) => {
+                                    for elem in &l.terms {
+                                        res.push(elem.clone());
+                                    }
+                                },
+                                _ => return None
+                            }
+                        },
+                        // Not variadic
+                        _ => res.push(Rewriter::expr_to_term(&self.reduce(c.clone(), &e, t.clone())?))
+                    }
                 }
 
-                Some(Expr::Tuple(res))
+                Some(Expr::SimpleTerm(tf::Term::new_tuple_term(res)))
             },
             Expr::Invoke(inv) => {
                 let arg = self.reduce(c.clone(), &inv.arg, t)?.to_term().unwrap();
@@ -316,6 +368,9 @@ impl Rewriter {
             },
             Expr::Ref(r) => {
                 Some(Rewriter::term_to_expr(&c.bound_variables.get(&r.name).expect(format!("Cannot resolve reference {}", r.name).as_str())))
+            },
+            Expr::UnrollVariadic(_) => {
+                panic!("Cannot interp Expr::UnrollVariadic");
             },
             Expr::Number(n) => Some(Rewriter::term_to_expr(&tf::Term::new_number_term(n.value))),
             Expr::Op(Op::Or(l, r)) => {
@@ -329,19 +384,37 @@ impl Rewriter {
                 self.reduce(c.clone(), &*r, lr)
             },
             Expr::Term(et) => {
-                let terms = et.terms.iter()
-                    .map(|subt| {
-                       let r = self.reduce(c.clone(), &subt, t.clone());
-                       if r.is_none() { panic!(format!("Failed to compute\n{:#?}\nenvironment {}", subt, c)) }
-                       
-                       r.unwrap().to_term().unwrap()
-                    }).collect::<Vec<tf::Term>>();
+                let head = self.reduce(c.clone(), &et.constructor, t.clone());
 
-                Some(Rewriter::term_to_expr(&tf::Term::new_rec_term(&et.constructor.name, terms)))
+                if head.is_none() { return None; }
+
+                // Interpret subterms as tuple
+                let terms = match self.reduce(c.clone(), &Expr::Tuple(Tuple { values: et.terms.clone() }), t.clone()) {
+                    Some(Expr::SimpleTerm(tf::Term::TTerm(ts, _))) => {
+                        ts.terms
+                    },
+                    _ => return None
+                };
+
+                match head.unwrap() {
+                    Expr::SimpleTerm(tf::Term::STerm(s, _)) => 
+                        Some(Rewriter::term_to_expr(&tf::Term::new_rec_term(&s.value, terms))),
+                    _ => None
+                }
             },
             Expr::This => Some(Rewriter::term_to_expr(&t)),
+            Expr::AddAnnotation(a) => {
+                let mut inner_term = self.reduce(c.clone(), &*a.inner, t.clone())?.to_term()?;
+                for subt in a.annotations.iter() {
+                    let r = self.reduce(c.clone(), &subt, t.clone())?.to_term()?;
+                    inner_term.add_annotation(r);
+                }
+
+                Some(Rewriter::term_to_expr(&inner_term))
+            },
             Expr::Annotation(a) => {
                 let mut inner_term = self.reduce(c.clone(), &*a.inner, t.clone())?.to_term()?;
+                inner_term.clear_annotations();
                 for subt in a.annotations.iter() {
                     let r = self.reduce(c.clone(), &subt, t.clone())?.to_term()?;
                     inner_term.add_annotation(r);
@@ -392,6 +465,20 @@ impl Rewriter {
         Expr::SimpleTerm(t.clone())
     }
 
+    fn expr_to_term(t: &Expr) -> tf::Term {
+        match t {
+            Expr::SimpleTerm(t) => t.clone(),
+            _ => panic!("Can only unwrap SimpleTerm")
+        }
+    }
+
+    fn check_is_term(e: Expr) -> Option<Expr> {
+        match e {
+            t@Expr::SimpleTerm(_) => Some(t),
+            _ => None
+        }
+    }
+
     fn try_interp_function_instance(&mut self, c: Context, f: &Function, meta: &Vec<Expr>, t: tf::Term) -> Option<Expr> {
         // Check matcher and bind variables to terms
         let bindings = check_and_bind_match(&f.matcher, &t)?;
@@ -403,11 +490,14 @@ impl Rewriter {
         // Bind metas
         for (p, a) in f.meta.iter().zip(meta.iter()) {
             match (p, a) {
-                (Expr::FRef(f), Expr::FRef(n)) => { 
-                    match c.bound_functions.get(&n.name) {
-                        Some(resolved_n) => new_context.bound_functions.insert(f.name.clone(), resolved_n.clone()), 
-                        None => new_context.bound_functions.insert(f.name.clone(), n.clone())
-                    };
+                (Expr::FRef(param), arg@Expr::FRef(_)) => { 
+                    let resolved_arg = self.reduce(c.clone(), arg, t.clone());
+                    match resolved_arg {
+                        Some(Expr::FRef(f)) => {
+                            new_context.bound_functions.insert(param.name.clone(), f);
+                        },
+                        _ => { return None; }
+                    }
                 },
                 (Expr::Ref(f), e)  => {
                     new_context.bound_variables.insert(
@@ -422,33 +512,34 @@ impl Rewriter {
     }
 
     pub fn interp_function(&mut self, c: Context, function: &FRef, t: tf::Term) -> Option<Expr> {
+        
         // Evaluate meta args
         let new_meta: Vec<Expr> = function.meta.iter().map(|e| self.reduce(c.clone(), e, t.clone()).unwrap()).collect();
 
-        // Try dynamically bound function
-        match c.bound_functions.get(&function.name) {
-            Some(f) => { 
+        // Try to dereference dynamically bound function
+        let derefed_function = match c.bound_functions.get(&function.name) {
+            Some(f) => {
                 let merged_meta = f.meta.clone().into_iter().chain(new_meta.into_iter()).collect::<Vec<Expr>>();
-                let new_fref = FRef { name: f.name.clone(), meta: merged_meta, ref_type: f.ref_type };
-                return self.interp_function(c.clone(), &new_fref, t)
+                FRef { name: f.name.clone(), meta: merged_meta, ref_type: f.ref_type }
             },
-            None => { }
-        }
+            None => { FRef { name: function.name.clone(), meta: new_meta, ref_type: function.ref_type } } 
+        };
+
 
         // Find user-defined functions
         let fns: Vec<Function> = self.rules.functions.iter()
-            .filter(|f| f.name == *function.name)
+            .filter(|f| f.name == *derefed_function.name)
             .map(|f| f.clone())
             .collect();
 
-        if fns.len() == 0 && !Rewriter::is_builtin(&function.name) {
-            panic!("No function with this name: {}", function.name);
+        if fns.len() == 0 && !Rewriter::is_builtin(&derefed_function.name) {
+            panic!("No function with this name: {}", derefed_function.name);
         }
 
         // Try user-defined function
         for f in fns {
-            match self.try_interp_function_instance(c.clone(), &f, &new_meta, t.clone()) {
-                Some(t) => { return Some(t); },
+            match self.try_interp_function_instance(c.clone(), &f, &derefed_function.meta, t.clone()) {
+                Some(t) => { return Some(Rewriter::check_is_term(t).unwrap()); },
                 None => {}
             }
         }
@@ -460,8 +551,7 @@ impl Rewriter {
        }
 
         if function.ref_type == FunctionReferenceType::Force {
-            panic!(format!("Failed to compute function {}\n{:#?}\nenvironment {}", function.name, t, c));
-            //panic!(format!("Failed to compute function {}\nenvironment {}", function.name, c));
+            panic!(format!("Failed to compute function {}\n\n{}\n\nenvironment {}", function.name, t, c));
         } else {
             None
         }

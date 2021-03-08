@@ -21,7 +21,7 @@
 	"repository": {
 		"punctuation": {
 			"name": "punctuation.rewriter-syntax",
-			"match": "(\\[|\\]|\\(|\\)|\\{|\\})"
+			"match": "(\\[|\\]|\\(|\\)|\\{|\\}|\\{\\+)"
 		},
 		"entities": {
 			"patterns": [

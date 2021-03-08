@@ -1,11 +1,11 @@
 extern crate nom;
 use nom::{
     IResult, Parser, error::ParseError,
-    character::complete::{ char, multispace0, alphanumeric1, digit1 },
+    character::complete::{ char, multispace0, alphanumeric1, digit1, space0 },
     bytes::complete::{ tag },
     combinator::{ map, cut },
     branch::{ alt },
-    sequence::{ delimited, tuple, pair, preceded },
+    sequence::{ delimited, tuple, preceded, terminated },
     multi::{ separated_list0, many1, many0 },
 };
 use crate::bytecode::*;
@@ -22,6 +22,17 @@ fn ws<'a, F: 'a, O, E: ParseError<&'a str>>(inner: F) -> impl FnMut(&'a str) -> 
   )
 }
 
+fn spaces_around<'a, F: 'a, O, E: ParseError<&'a str>>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O, E>
+  where
+  F: Fn(&'a str) -> IResult<&'a str, O, E>,
+{
+  delimited(
+    space0,
+    inner,
+    space0
+  )
+}
+
 /*
 * Other
 */
@@ -31,11 +42,18 @@ fn parse_u64(i: &str) -> IResult<&str, u64> {
 }
 
 fn parse_location(i: &str) -> IResult<&str, Location> {
-    map(preceded(ws(tag("$")), cut(parse_u64)), |s| Location::Var(s))(i)
+    map(preceded(tag("$"), cut(parse_u64)), |s| Location::Var(s))(i)
 }
 
 fn parse_identifier(i: &str) -> IResult<&str, String> {
-    map(ws(alphanumeric1), |s| String::from(s))(i)
+    map(alphanumeric1, |s| String::from(s))(i)
+}
+
+fn parse_op(i: &str) -> IResult<&str, Op> {
+    alt((
+        map(tag("+"), |_|Op::Add),
+        map(tag("-"), |_|Op::Sub)
+    ))(i)
 }
 
 /*
@@ -43,11 +61,11 @@ fn parse_identifier(i: &str) -> IResult<&str, String> {
 */
 
 fn parse_expression(i: &str) -> IResult<&str, Expression> {
-    alt((
-        map(ws(parse_u64), |n| Expression::Value(Value::U64(n))),
+    preceded(space0, alt((
+        map(parse_u64, |n| Expression::Value(Value::U64(n))),
         parse_var,
         parse_array
-    ))(i)
+    )))(i)
 }
 
 fn parse_var(i: &str) -> IResult<&str, Expression> {
@@ -56,8 +74,8 @@ fn parse_var(i: &str) -> IResult<&str, Expression> {
 
 fn parse_array(i: &str) -> IResult<&str, Expression> {
     map(delimited(char('['), 
-            cut(separated_list0(ws(char(',')), parse_expression)),
-        char(']')),
+            cut(separated_list0(spaces_around(char(',')), parse_expression)),
+        spaces_around(char(']'))),
         |e| Expression::Array(e))(i)
 }
 
@@ -65,42 +83,60 @@ fn parse_array(i: &str) -> IResult<&str, Expression> {
 * Statements
 */
 
-fn parse_instruction(i: &str) -> IResult<&str, Instruction> {
-    alt((
-        parse_store,
-        parse_call,
-        parse_return,
-        parse_print
-    ))(i)
+fn parse_instruction(i: &str) -> IResult<&str, Vec<Instruction>> {
+    terminated(alt((
+        map(parse_call, |i| vec![i]),
+        map(parse_return, |i| vec![i]),
+        map(parse_print, |i| vec![i]),
+        parse_store, 
+    )), multispace0)(i)
 }
 
 fn parse_call(i: &str) -> IResult<&str, Instruction> {
     map(tuple((
         parse_location,
-        ws(tag("=")),
-        tag("call"),
-        cut(ws(parse_identifier)),
-        many0(ws(parse_expression))
+        spaces_around(tag("=")),
+        spaces_around(tag("call")),
+        cut(parse_identifier),
+        spaces_around(tag("(")),
+        many0(parse_expression),
+        spaces_around(tag(")")),
     )),
-    |(l, _, _, id, e)| Instruction::Call(l, id, e))(i)
+    |(l, _, _, id, _, e, _)| Instruction::Call(l, id, e))(i)
 }
 
-fn parse_store(i: &str) -> IResult<&str, Instruction> {
-    map(tuple((
+fn parse_store(i: &str) -> IResult<&str, Vec<Instruction>> {
+    map(terminated(tuple((
         parse_location,
         ws(tag("=")),
-        parse_expression
-    )),
-    |(l, _, e)| Instruction::Store(l, e))(i)
+        many1(alt((
+            map(parse_expression, |e| Instruction::Push(e)),
+            map(preceded(space0, parse_op), |o| Instruction::Op(o))))),
+    )), multispace0),
+    |(l, _, mut instrs)| {
+        if instrs.len() == 1 {
+            // Fold single operand into store instruction
+            match instrs.remove(0) {
+                Instruction::Push(e) => {
+                    vec![Instruction::Store(l, e)]
+                },
+                _ => panic!("Invalid operand")
+            }
+        } else {
+            // Otherwise use stack and pop
+            instrs.push(Instruction::Pop(l));
+            instrs
+        }
+    })(i)
 }
 
 fn parse_return(i: &str) -> IResult<&str, Instruction> {
-    map(preceded(ws(tag("return")), cut(parse_expression)),
+    map(preceded(tag("ret"), cut(parse_expression)),
         |e| Instruction::Return(e))(i)
 }
 
 fn parse_print(i: &str) -> IResult<&str, Instruction> {
-    map(preceded(ws(tag("print")), cut(parse_expression)),
+    map(preceded(tag("print"), cut(parse_expression)),
         |e| Instruction::Print(e))(i)
 }
 
@@ -110,10 +146,10 @@ fn parse_print(i: &str) -> IResult<&str, Instruction> {
 
 fn parse_meta(i: &str) -> IResult<&str, FunctionMeta> {
     map(
-        delimited(ws(tag("[")), 
+        delimited(spaces_around(tag("[")), 
             tuple((
-                ws(tag("vars")),
-                ws(char(':')),
+                spaces_around(tag("vars")),
+                spaces_around(char(':')),
                 parse_u64
             )),
         ws(tag("]"))),
@@ -127,7 +163,7 @@ fn parse_function(i: &str) -> IResult<&str, Function> {
         many1(parse_instruction),
         multispace0
     )),
-    |(_, name, meta, instrs, _)| Function::new(name, meta, instrs))(i)
+    |(_, name, meta, instrs, _)| Function::new(name, meta, instrs.into_iter().flatten().collect()))(i)
 }
 
 fn parse_bytecode_string(i: &str) -> IResult<&str, Vec<Function>> {

@@ -38,7 +38,7 @@ fn main() {
     let term_name = matches.value_of("input_file").unwrap();
     let out_name  = matches.value_of("output_file").unwrap();
 
-    let input_term    = terms_format::parse_term_file(&String::from(term_name));
+    let input_term    = terms_format::parse_term_from_file(&String::from(term_name)).unwrap();
     let input_rewrite = parser::parser::parse_rw_file(&String::from(rw_name)).unwrap();
     let mut interpreter = interp::interp::Rewriter::new_with_prelude(input_rewrite);
 

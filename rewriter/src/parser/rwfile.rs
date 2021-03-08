@@ -28,11 +28,13 @@ pub enum Expr {
     ListCons(ListCons),
     Term(Term),
     Ref(Ref),
+    UnrollVariadic(Ref),
     FRef(FRef),
     Number(Number),
     Text(Text),
     Op(Op),
     Annotation(Annotation),
+    AddAnnotation(Annotation),
     Let(Let),
     SimpleTerm(tf::Term),
     This
@@ -75,7 +77,7 @@ pub struct Invocation {
 
 #[derive(Debug, Clone)]
 pub struct Term {
-    pub constructor: Ref,
+    pub constructor: Box<Expr>,
     pub terms: Vec<Expr>
 }
 
@@ -155,13 +157,14 @@ pub enum Match {
     NumberMatcher(NumberMatcher),
     ListMatcher(ListMatcher),
     TupleMatcher(TupleMatcher),
+    VariadicElementMatcher(VariadicElementMatcher),
     AnyMatcher
 }
 
 #[derive(Debug, Clone)]
 pub struct TermMatcher {
-    pub constructor: String,
-    pub terms: Vec<Match>,
+    pub constructor: Box<Match>,
+    pub terms: Box<Match>,
     pub annotations: Vec<Match>
 }
 
@@ -190,4 +193,9 @@ pub struct ListMatcher {
 #[derive(Debug, Clone)]
 pub struct TupleMatcher {
     pub elems: Vec<Match>
+}
+
+#[derive(Debug, Clone)]
+pub struct VariadicElementMatcher {
+    pub name: String
 }

@@ -26,7 +26,7 @@ fn main() {
     let in_file = matches.value_of("input_file").unwrap();
     let out_file = matches.value_of("output_file").unwrap();
 
-    let term = parse_term_file(&in_file.to_string());
+    let term = parse_term_from_file(&in_file.to_string()).unwrap();
     let checked = check(&term);
 
     let mut o = fs::File::create(out_file).unwrap();

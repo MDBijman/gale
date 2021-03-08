@@ -1,51 +1,87 @@
-bottomup[.f]: n -> .all[.bottomup[.f]] > .f;
-topdown[.f]: n -> .f > .all[.bottomup[.f]]; 
+topdown[.f]: n -> .f > .map[.bottomup[.f]]; 
+topdown[.f]: ?con(..sub) -> ?new_con(..new_sub) := .f in fin_sub := .topdown[.f] new_sub in ?new_con(..fin_sub);
+topdown[.f]: (..ts) -> new_ts := .topdown[.f] ts in (..new_ts);
+topdown[.f]: term -> .f term;
 
-env_bottomup[.f]: (e, n) -> .env_all[.env_bottomup[.f]];
+bottomup[.f]: ?con(..sub) -> new_sub := .map[.bottomup[.f]] sub in .f ?con(..new_sub);
+bottomup[.f]: (..ts)      -> new_ts  := .bottomup[.f] ts  in .f (..new_ts);
+bottomup[.f]: l -> .is_list l > new_elems := .map[.bottomup[.f]] l in .f new_elems;
+bottomup[.f]: t -> .f t;
 
-env_all[.f]: (env, list) -> .env_all_acc[.f] (env, list, []);
-env_all_acc[.f]: (env, [], r) -> (env, .reverse r);
-env_all_acc[.f]: (env, [n | t], r) -> 
+env_bottomup[.f]: (e,  ?con(..sub)) -> (new_env, new_sub) := .env_map[.f] (e, sub) in .f (new_env, ?con(..new_sub));
+env_bottomup[.f]: (e, (..ts))       -> (new_env, new_ts)  := .env_map[.f] (e, ts)  in .f (new_env, (..new_ts));
+env_bottomup[.f]: (e, l) -> .is_list l > (new_env, new_elems) := .env_map[.env_bottomup[.f]] (e, l) in .f (new_env, new_elems);
+env_bottomup[.f]: (e, t) -> .f (e, t); 
+
+env_map[.f]: (env, list) -> .env_map_acc[.f] (env, list, []);
+env_map_acc[.f]: (env, [], r) -> (env, .reverse r);
+env_map_acc[.f]: (env, [n | t], r) ->
     (new_env, o) := .f (env, n)
-  in .env_all_acc[.f] (new_env, t, [o | r]);
+  in .env_map_acc[.f] (new_env, t, [o | r]);
   
-all[.f]: [h|t] -> .all_acc[.f] ([h|t], []);
-all_acc[.f]: ([], acc)    -> acc > .reverse;
-all_acc[.f]: ([h|t], acc) -> .all_acc[.f] (t, [.f h | acc]);
-all[.f]: t -> .subterms t > .all[.f];
+# Apply transformation on each term
+map[.f]: [] -> [];
+map[.f]: [h|t] -> .map_acc[.f] ([h|t], []);
+map_acc[.f]: ([], acc)    -> acc > .reverse;
+map_acc[.f]: ([h|t], acc) -> .map_acc[.f] (t, [.f h | acc]);
+
+# Retain only items on which transformation succeeds
+retain_if[.f]: [] -> [];
+retain_if[.f]: [h|t] -> .f h > [h|.retain_if[.f] t] + .retain_if[.f] t;
 
 try[.f]: n -> .f n + n;
 
-# Apply transformation on each term in e
-map[.f]: e -> .all[.f] e;
 # Apply transformation on each term and then flatten
-flatmap[.f]: e -> .all[.f] e > .flatten; 
-flatmap_some[.f]: e -> .all[.f] e > .flatten_some; 
+flatmap[.f]: e -> .is_list > .map[.f] e > .flatten; 
+# Apply transformation on each term and then flatten some
+flatmap_some[.f]: e -> .is_list > .map[.f] e > .flatten_some; 
 
 # Puts a value between each element of a list as separator
 intersperse[v]: [] -> [];
 # Here we put 1 value in the accumulator to prevent a separator before the first element later
 intersperse[v]: [h|t] -> .intersperse_acc[v] (t, [h]);
+
 intersperse_acc[v]: ([], acc) -> .reverse acc;
 intersperse_acc[v]: ([h|t], acc) -> .intersperse_acc[v] (t, [h|[v|acc]]);
 
+# Flattens lists
+# Empty list is flat
+flatten_some: [] -> [];
+# When head is list, concatenate with tail
+flatten_some: [[h|t1]|t2] -> .concat ([h|t1], .flatten_some t2);
+flatten_some: [[]|t] -> .flatten_some t;
+# When head is not list, flatten tail
+flatten_some: [h|t] -> [h|.flatten_some t];
+
+# Flattens lists
+# Empty list is flat
 flatten: [] -> [];
-flatten: [h|t] -> .concat (h, .flatten t);
+# When head is list, concatenate with tail
+flatten: [[h|t1]|t2] -> .concat ([h|t1], .flatten t2);
 
-flatten_some: a -> .flatten_some_acc (.reverse a, []);
-flatten_some_acc: ([], t) -> t;
-flatten_some_acc: ([[h|t]|t2], acc) -> .flatten_some_acc (t2, .concat ([h|t], acc));
-flatten_some_acc: ([[]|t], acc) -> .flatten_some_acc (t, acc);
-flatten_some_acc: ([h|t], acc) -> .not[.is_list] h > .flatten_some_acc (t, [h|acc]);
-
-env_map[.f]: e -> .env_all[.f] e;
+# Second element of pair
 second: (_, b) -> b;
-first:  (a, _) -> a;
+# Second element of pair
+snd: (_, b) -> b;
 
+# First element of pair
+first:  (a, _) -> a;
+# First element of pair
+fst:  (a, _) -> a;
+
+# Identity
 id: e -> e;
+
+# Fails if .f succeeds, succeeds if .f fails
 not[.f]: e -> .f e > .fail + .id;
 
-annotate[a]: t -> t {a}; 
+# Adds annotation a to term t
+annotate[a]: t -> t {+a}; 
+
+# Separate last elem of list
+split_last: [h|t] -> .split_last_acc ([], [h|t]); 
+split_last_acc: (acc, [h]) -> (.reverse acc, h);
+split_last_acc: (acc, [h|t]) -> .split_last_acc ([h|acc], t);
 
 # Length of list
 len: l -> .is_list > .len_acc (l, 0);
@@ -101,9 +137,7 @@ get[needle]: [] -> .fail;
 # Recursive case: check if head is needle, then return value, otherwise recurse 
 get[needle]: [(k,v)|t] -> .eq (needle, k) > v + .get[needle] t;
 
-# 'Typechecker' rules 
+# Term variant checking rules 
 is_list: [t|h] -> .id;
 is_list: [] -> .id;
 is_pair: (_, _) -> .id;
-
-

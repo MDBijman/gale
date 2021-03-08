@@ -5,21 +5,21 @@ main: Program(fns) ->
 print: Function(name, params, body) ->
      paramstr := !concat_str !flatmap_some[!print] params
   in bodystr  := body
-  > !flatmap_some[!print] 
-  > !intersperse["\n"]
-  > !flatten_some
-  > !concat_str 
+  > !print
   in !concat_str !flatten_some [
       "def ", name, " [", paramstr, "]\n",
       bodystr, "\n"
     ];
 
-print: Call(fn, arg)     -> !concat_str ["call ", fn, " ", !print arg];
+print: Vars(i) -> !concat_str ["vars:", !to_str i];
+
+print: Call(fn, arg)     -> !concat_str ["call ", fn, " (", !print arg, ")"];
 print: Var(i)            -> !concat_str ["$", !to_str i, ""];
 print: Store(into, expr) -> !concat_str [!print into, " = ", !print expr];
-print: Load(from)        -> !concat_str [!print from];
-print: Return(e)         -> !concat_str ["return ", !print e];
-print: [h|t]             -> !flatmap_some[!print] [h|t];
+print: Load(from)        -> !print from;
+print: Return(e)         -> !concat_str ["ret ", !print e] ;
+print: [h|t]             -> !concat_str !flatten_some !intersperse["\n"] !flatmap_some[!print] [h|t];
 print: Array(elems) ->
   !concat_str !flatten_some ["[", !intersperse[", "] !map[!print] elems, "]"];
 print: UI8(i) -> !to_str i;
+print: BinOp(symbol, lhs, rhs) -> !concat_str [!print lhs, " ", !print rhs, " ", symbol ];

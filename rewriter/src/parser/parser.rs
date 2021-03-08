@@ -2,12 +2,12 @@ extern crate nom;
 use nom::{
     IResult, Parser, error::ParseError, error::ErrorKind, error::Error,
     number::complete::double,
-    character::complete::{multispace0, char, one_of},
-    sequence::{delimited, tuple, pair},
+    character::complete::{multispace0, char},
+    sequence::{delimited, tuple, pair, terminated, preceded},
     branch::alt,
     multi::{separated_list0, many0},
     bytes::complete::{take_till1, tag, is_not, take_while},
-    combinator::{ map_res, opt }
+    combinator::{ map_res, opt, map, cut, verify }
 };
 use std::fs;
 use crate::parser::rwfile::*;
@@ -16,6 +16,29 @@ use terms_format;
 
 fn ws<'a, O, E: ParseError<&'a str>, F: Parser<&'a str, O, E>>(f: F) -> impl Parser<&'a str, O, E> {
     delimited(multispace0, f, multispace0)
+}
+
+fn dbg_in<'a, O, E: ParseError<&'a str>, F: Parser<&'a str, O, E>>(mut f: F) -> impl Parser<&'a str, O, E>
+where
+ O: std::fmt::Debug,
+ E: std::fmt::Debug,
+{
+    move |input: &'a str| {
+        println!("[dbg] {}", input);
+        f.parse(input)
+    }
+}
+
+fn dbg_out<'a, O, E: ParseError<&'a str>, F: Parser<&'a str, O, E>>(mut f: F) -> impl Parser<&'a str, O, E>
+where
+ O: std::fmt::Debug,
+ E: std::fmt::Debug,
+{
+    move |input: &'a str| {
+        let r = f.parse(input);
+        println!("[dbg] {:?}", r);
+        r
+    }
 }
 
 fn parse_name(input: &str) -> IResult<&str, &str> {
@@ -46,24 +69,35 @@ fn parse_function_name(input: &str) -> IResult<&str, (FunctionReferenceType, &st
     Ok((input, (reftype, name)))
 }
 
-fn parse_ws(input: &str) -> IResult<&str, &str> {
-    Ok(multispace0(input)?)
+fn parse_var_term_name(i: &str) -> IResult<&str, &str> {
+    preceded(tag("?"), parse_name)(i)
 }
 
-fn parse_comment(input: &str) -> IResult<&str, ()> {
-    let (input, _ ) = tuple((char('#'), is_not("\n\r"), take_while(|c| c == '\n' || c == '\r'))).parse(input)?;
-    Ok((input, ()))
+fn parse_ws(i: &str) -> IResult<&str, &str> {
+    multispace0(i)
+}
+
+fn parse_comment(i: &str) -> IResult<&str, ()> {
+    let (i, _) = tuple((char('#'), is_not("\n\r"), take_while(|c| c == '\n' || c == '\r'))).parse(i)?;
+    Ok((i, ()))
 }
 
 /*
 * Matching
 */
 
+fn parse_term_name_match(i: &str) -> IResult<&str, Match> {
+    alt((
+        map(parse_var_term_name, |n| Match::VariableMatcher(VariableMatcher { name: n.to_string(), annotations: vec![] })),
+        map(parse_name, |n| Match::StringMatcher(StringMatcher { value: n.to_string() })),
+    ))(i)
+}
+
 fn parse_term_match(input: &str) -> IResult<&str, Match> {
-    let (input, con) = parse_name(input)?;
-    let (input, r) = delimited(char('('), ws(separated_list0(ws(tag(",")), parse_match)), char(')'))(input)?;
+    let (input, con) = parse_term_name_match(input)?;
+    let (input, r) = parse_tuple_match(input)?;
     let (input, a) = opt(delimited(ws(char('{')), ws(separated_list0(ws(tag(",")), parse_match)), char('}')))(input)?;
-    Ok((input, Match::TermMatcher(TermMatcher { constructor: con.to_string(), terms: r, annotations: a.unwrap_or(Vec::new()) })))
+    Ok((input, Match::TermMatcher(TermMatcher { constructor: Box::from(con), terms: Box::from(r), annotations: a.unwrap_or(Vec::new()) })))
 }
 
 fn parse_variable_match(input: &str) -> IResult<&str, Match> {
@@ -88,8 +122,31 @@ fn parse_number_match(input: &str) -> IResult<&str, Match> {
     }
 }
 
+fn parse_variadic_elem_match(i: &str) -> IResult<&str, Match> {
+    map(preceded(tag(".."), cut(parse_name)),
+        |n| Match::VariadicElementMatcher(VariadicElementMatcher { name: n.to_string() }))(i)
+}
+
 fn parse_tuple_match(input: &str) -> IResult<&str, Match> {
-    map_res(delimited(ws(char('(')), ws(separated_list0(ws(tag(",")), parse_match)), ws(char(')'))), |r: Vec<Match>| -> Result<Match, String> { Ok(Match::TupleMatcher(TupleMatcher { elems: r })) })(input)
+    verify(map_res(delimited(ws(char('(')), ws(separated_list0(ws(tag(",")), alt((parse_match, parse_variadic_elem_match)))), ws(char(')'))),
+        |r: Vec<Match>| -> Result<Match, String> { Ok(Match::TupleMatcher(TupleMatcher { elems: r })) }),
+        |m: &Match| match m {
+            Match::TupleMatcher(tm) => {
+                if tm.elems.len() == 0 {
+                    return true
+                }
+
+                let l = tm.elems.len() - 1;
+                for i in 0..l {
+                    match &tm.elems[i] {
+                        Match::VariadicElementMatcher(_) => panic!("Variadic element matcher must be at the end"),
+                        _ => {}
+                    }
+                }
+                true
+            },
+            _ => false
+        })(input)
 }
 
 fn parse_list_match(input: &str) -> IResult<&str, Match> {
@@ -161,23 +218,51 @@ fn parse_string(input: &str) -> IResult<&str, Expr> {
     }
 }
 
-fn parse_rec_term(input: &str) -> IResult<&str, Expr> {
-    let (input, n) = parse_name(input)?;
-    let (input, args) = opt(delimited(ws(char('(')), ws(separated_list0(ws(tag(",")), parse_expr)), ws(char(')'))))(input)?;
-    match args {
-        Some(exprs) => { 
-            let (input, annot) = opt(delimited(ws(char('{')), ws(separated_list0(ws(tag(",")), parse_expr)), ws(char('}'))))(input)?;
-            match annot {
-                Some(annot) => Ok((input, Expr::Annotation(Annotation { 
-                    inner: Box::from(Expr::Term(Term { constructor: Ref { name: n.to_string() }, terms: exprs })),
+enum AnotType {
+    Set,
+    Add
+}
+
+fn parse_anot_opener(i: &str) -> IResult<&str, AnotType> {
+    alt((
+        map(tag("{+"), |_| AnotType::Add),
+        map(tag("{"), |_| AnotType::Set)
+    ))(i)
+}
+
+fn parse_unroll_variadic(i: &str) -> IResult<&str, Expr> {
+    map(preceded(tag(".."), cut(parse_name)), |n| Expr::UnrollVariadic(Ref { name: n.to_string() }))(i)
+}
+
+fn parse_rec_term(i: &str) -> IResult<&str, Expr> {
+    map_res(tuple((
+        alt((
+            map(parse_name, |n| Expr::Text(Text { value: n.to_string() })),
+            map(parse_var_term_name, |n| Expr::Ref(Ref { name: n.to_string() })))),
+        pair(
+            opt(delimited(ws(char('(')), cut(ws(separated_list0(ws(tag(",")), parse_expr))), ws(char(')')))),
+            opt(terminated(pair(ws(parse_anot_opener), ws(separated_list0(ws(tag(",")), parse_expr))), ws(char('}')))))
+    )), |(name, (opt_args, opt_annots))| {
+            let inner = match opt_args {
+                Some(args) => Expr::Term(Term { constructor: Box::from(name), terms: args }),
+                None => match name {
+                    Expr::Text(t) => Expr::Ref(Ref { name: t.value }),
+                    _ => return Err("Cannot have ?name expression outside of term building"),
+                }
+            };
+
+            match opt_annots {
+                Some((AnotType::Add, annot)) => Ok(Expr::AddAnnotation(Annotation { 
+                    inner: Box::from(inner),
                     annotations: annot
-                }))),
-                None => Ok((input, Expr::Term(Term { constructor: Ref { name:n.to_string() }, terms: exprs })))
+                })),
+                Some((AnotType::Set, annot)) => Ok(Expr::Annotation(Annotation { 
+                    inner: Box::from(inner),
+                    annotations: annot
+                })),
+                None => Ok(inner)
             }
-        }, 
-        None => Ok((input, Expr::Ref(Ref { name: n.to_string() })))
-    }
-    
+        })(i)
 }
 
 fn parse_tuple(input: &str) -> IResult<&str, Expr> {
@@ -194,7 +279,7 @@ fn parse_list(input: &str) -> IResult<&str, Expr> {
 }
 
 fn parse_term(input: &str) -> IResult<&str, Expr> {
-    let (input, term) = alt((parse_tuple, parse_rec_term, parse_value, parse_string, parse_list))(input)?;
+    let (input, term) = alt((parse_tuple, parse_rec_term, parse_value, parse_string, parse_unroll_variadic, parse_list))(input)?;
     let (input, anot) = opt(delimited(ws(char('{')), ws(separated_list0(ws(tag(",")), parse_expr)), char('}')))(input)?;
     match anot {
         Some(annotation) => Ok((input, Expr::Annotation(Annotation { inner: Box::from(term), annotations: annotation }))),
@@ -272,12 +357,12 @@ fn parse_expr(input: &str) -> IResult<&str, Expr> {
 fn parse_function(input: &str) -> IResult<&str, Function> {
     let (input, _) = opt(many0(pair(parse_comment, opt(parse_ws))))(input)?;
     let (input, name) = parse_name(input)?;
-    let (input, meta) = parse_meta_args(input).unwrap();
-    let (input, _) = ws::<&str, (_, _), _>(tag(":")).parse(input).unwrap();
-    let (input, matcher) = parse_match(input).unwrap();
-    let (input, _) = ws::<&str, (_, _), _>(tag("->")).parse(input).unwrap();
-    let (input, body) = parse_expr(input).unwrap();
-    let (input, _) = ws::<&str, (_, _), _>(tag(";")).parse(input).unwrap();
+    let (input, meta) = parse_meta_args(input)?;
+    let (input, _) = ws(tag(":")).parse(input)?;
+    let (input, matcher) = parse_match(input)?;
+    let (input, _) = ws(tag("->")).parse(input)?;
+    let (input, body) = parse_expr(input)?;
+    let (input, _) = ws(tag(";")).parse(input)?;
     Ok((input, Function { name: name.to_string(), meta: meta, matcher: matcher, body: body }))
 }
 
@@ -291,7 +376,7 @@ pub fn parse_rw_string(input: &str) -> Result<File, String> {
 
             Ok(File { functions: f })
         },
-        _ => panic!("Something went wrong")
+        Err(e) => panic!(format!("Something went wrong: {}", e))
     }
 }
 
