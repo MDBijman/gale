@@ -1,7 +1,7 @@
 
 main: File(fns) ->
      map_with_functions := !env_map[!gather_function_type] (!new_map, fns) > .first
-  in File(.env_all[.typecheck] (map_with_functions, fns) > .second);
+  in File(.env_map[.typecheck] (map_with_functions, fns) > .second);
 
 gather_function_type: (env, FnDecl(name, type)) ->
      as_type := !typeof type
@@ -18,7 +18,7 @@ typecheck: (env, FnDef(func, param, expr)) ->
   in (env, FnDef(func, param, !typecheck (new_env, expr {output_type, ReturnType(output_type)}) > .second){function_type});
 
 typecheck: (env, Let(decls, body) {Type(t)}) -> 
-     (new_env, checked_decls) := !env_all[.typecheck] (env, decls)
+     (new_env, checked_decls) := !env_map[.typecheck] (env, decls)
   in (_, checked_body) := !typecheck (new_env, body {Type(t)})
   in (env, Let(checked_decls, checked_body));
 
@@ -32,12 +32,17 @@ typecheck: (env, Int(i){Type(t)}) ->
   > (env, Int(i) {Type(t)})
   + (env, Int(i) {TypeError("Cannot cast to expected type")});
 
+typecheck: (env, Add(lhs, rhs){Type(t)}) ->
+  (env, Add(!typecheck (env, lhs{Type(t)}) > !second, !typecheck (env, rhs{Type(t)}) > !second){Type(t)});
+typecheck: (env, Sub(lhs, rhs){Type(t)}) ->
+  (env, Sub(!typecheck (env, lhs{Type(t)}) > !second, !typecheck (env, rhs{Type(t)}) > !second){Type(t)});
+
 typecheck: (env, Return(e){ReturnType(t)}) ->
   !typecheck (env, e {Type(t)});
 
 typecheck: (env, Array(elems){Type(Array(elemtype, size))}) ->
-     annotated_elems := !all[.annotate[Type(elemtype)]] elems
-  in checked_elems   := !all[.typecheck_env[env]] annotated_elems
+     annotated_elems := !map[.annotate[Type(elemtype)]] elems
+  in checked_elems   := !map[.typecheck_env[env]] annotated_elems
   in (env, Array(checked_elems){Type(Array(elemtype, size))});
 
 typecheck: (env, Ref(n){Type(t)}) ->

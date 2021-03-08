@@ -7,7 +7,8 @@ struct ProgramCounter {
 struct Frame {
     pc: ProgramCounter,
     name: String,
-    variables: Vec<Value>
+    variables: Vec<Value>,
+    stack: Vec<Value>
 }
 
 enum VMState {
@@ -57,6 +58,8 @@ impl VM {
             .get(&frame.name).unwrap().instructions
             .get(frame.pc.instruction as usize).unwrap();
 
+        // println!("{:?}", current_instruction);
+
         match current_instruction {
             Instruction::Store(Location::Var(loc), expr) => {
                 let val = VM::interp_expr(frame, expr);
@@ -95,13 +98,61 @@ impl VM {
                 frame.pc.instruction += 1;
             },
             Instruction::Call(_, name, exprs) => {
+                let func = self.code.functions.get(name).unwrap();
+                let stack_size = func.meta.vars;
+                let mut variables = vec![Value::Null; stack_size as usize];
+
+                let mut i = 0;
+                for e in exprs {
+                    variables[i] = VM::interp_expr(frame, e);
+                    i += 1;
+                }
+
                 let new_frame: Frame = Frame {
                     pc: ProgramCounter { instruction: 0 },
                     name: name.clone(),
-                    variables: exprs.iter().map(|e| VM::interp_expr(frame, e)).collect()
+                    variables: variables,
+                    stack: vec![]
                 };
 
                 self.callstack.push(new_frame);
+            },
+            Instruction::Pop(Location::Var(location)) => {
+                let v = frame.stack.pop().unwrap();
+                *frame.variables.get_mut(*location as usize).unwrap() = v;
+                frame.pc.instruction += 1;
+            },
+            Instruction::Push(expr) => {
+                let v = VM::interp_expr(frame, expr);
+                frame.stack.push(v);
+                frame.pc.instruction += 1;
+            },
+            Instruction::Op(op) => {
+                match op {
+                    Op::Add => {
+                        let rhs = frame.stack.pop().unwrap();
+                        let lhs = frame.stack.pop().unwrap();
+                        let res = match (lhs, rhs) {
+                            (Value::U64(l), Value::U64(r)) => {
+                                Value::U64(l + r)
+                            },
+                            _ => panic!("Invalid operands")
+                        };
+                        frame.stack.push(res);
+                    },
+                    Op::Sub => {
+                        let rhs = frame.stack.pop().unwrap();
+                        let lhs = frame.stack.pop().unwrap();
+                        let res = match (lhs, rhs) {
+                            (Value::U64(l), Value::U64(r)) => {
+                                Value::U64(l - r)
+                            },
+                            _ => panic!("Invalid operands")
+                        };
+                        frame.stack.push(res);
+                    }
+                }
+                frame.pc.instruction += 1;
             }
         }
     }
@@ -115,7 +166,8 @@ pub fn run(m: Module) -> Value {
         callstack: vec![Frame {
             pc: ProgramCounter { instruction: 0 },
             name: String::from("main"),
-            variables: vec![Value::U64(0); initial_frame_size as usize]
+            variables: vec![Value::U64(0); initial_frame_size as usize],
+            stack: vec![]
         }],
         state: VMState::Running,
         result: Value::U64(0)

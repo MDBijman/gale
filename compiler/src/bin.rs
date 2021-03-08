@@ -26,10 +26,12 @@ fn main() {
     let in_file = matches.value_of("input_file").unwrap();
     let out_file = matches.value_of("output_file").unwrap();
 
-    let term = parse_term_file(&in_file.to_string());
-    let compiled = compile(&term);
+    let term = parse_term_from_file(&in_file.to_string()).unwrap();
+    let lowered = lower(term);
+    let compiled = compile(lowered);
+    let printed = compile(compiled);
 
-    match compiled {
+    match printed {
         Term::STerm(s, _) => {
             let mut o = fs::File::create(out_file).unwrap();
             println!("{}", s.value);

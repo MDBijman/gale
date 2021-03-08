@@ -1,7 +1,0 @@
-def main [$0]
-$1 = [1, 2, 3]
-$2 = 2
-return call id $2
-
-def id [$0]
-$0

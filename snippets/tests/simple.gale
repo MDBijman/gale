@@ -1,11 +1,13 @@
 main: ui8 -> ui8
 main a =
   let
-    d: [ui8; 3] = [1, 2, 3],
-    c: ui8 = 2
+    d: [ui8; 4] = [1, 2, 3, 4],
+    c: ui8 = 3 + 1,
+    e: ui8 = c + 500 - 100,
+    f: ui8 = d!!1
   in
-    id c.
+    1 + inc e;
 
-id: ui8 -> ui8
-id a = a.
+inc: ui8 -> ui8
+inc a = a + 2 - 1;
 

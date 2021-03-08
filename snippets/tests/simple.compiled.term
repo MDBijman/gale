@@ -1,0 +1,72 @@
+Program([
+    Function(
+      "main"
+    , [Vars(6)]
+    , [
+        Store(
+          Var(1)
+        , Array([
+            UI8(1)
+          , UI8(2)
+          , UI8(3)
+          , UI8(4)
+          ])
+        )
+      , Store(
+          Var(2)
+        , BinOp(
+            "+"
+          , UI8(3)
+          , UI8(1)
+          )
+        )
+      , Store(
+          Var(3)
+        , BinOp(
+            "+"
+          , Load(Var(2))
+          , BinOp(
+              "-"
+            , UI8(500)
+            , UI8(100)
+            )
+          )
+        )
+      , Store(
+          Var(4)
+        , Call(
+            "inc"
+          , Load(Var(3))
+          )
+        )
+      , Store(
+          Var(5)
+        , BinOp(
+            "+"
+          , UI8(1)
+          , Load(Var(4))
+          )
+        )
+      , Return(Load(Var(5)))
+      ]
+    )
+  , Function(
+      "inc"
+    , [Vars(2)]
+    , [
+        Store(
+          Var(1)
+        , BinOp(
+            "+"
+          , Load(Var(0))
+          , BinOp(
+              "-"
+            , UI8(2)
+            , UI8(1)
+            )
+          )
+        )
+      , Return(Load(Var(1)))
+      ]
+    )
+  ])

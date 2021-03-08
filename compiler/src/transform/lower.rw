@@ -1,52 +1,51 @@
-
 main: File(fns) -> Program(!flatmap_some[!lower] fns);
 
 lower: FnDecl(func, type) -> [];
-lower: FnDef(func, arg, body){Type(t)} -> Function(func, !extract_signature, !lower body {ShouldRet()});
+lower: FnDef(func, arg, body){Type(t)} ->
+    Function(func, !extract_signature, !lower body > !wrap_return .try[.flatten_some] > .do_hoist);
+
 extract_signature: FnDef(_, a, _){Type(t)} -> In(a);
 
-lower: Let(decls, e){ShouldRet()} -> !concat (!map[!lower] decls, [Return(!lower e)]);
-lower: Let(decls, e) -> !concat (!map[!lower] decls, [!lower e]);
+# Lowering AST nodes
 
+lower: Let(decls, e) -> !flatten_some [!map[!lower] decls, !lower e];
 lower: Decl(n, t, e) -> Store(n, !lower e);
-
-lower: Appl(fn, arg) -> Call(fn, !lower arg);
-
-lower: Int(i){Type(Builtin("ui8")), ShouldRet()} -> Return(UI8(i));
+lower: Appl(fn, arg){Type(t)} ->
+     tmp_name := !gen_name "tmp"
+  in Hoist([Store(tmp_name, Call(fn, !lower arg))], Load(tmp_name));
 lower: Int(i){Type(Builtin("ui8"))} -> UI8(i);
-
-lower: Ref(n){ShouldRet()} -> Return(Load(n));
+lower: Add(lhs, rhs){Type(t)} -> BinOp("+", !lower lhs, !lower rhs){Type(t)};
+lower: Sub(lhs, rhs){Type(t)} -> BinOp("-", !lower lhs, !lower rhs){Type(t)};
 lower: Ref(n) -> Load(n);
-lower: Array(elems){ShouldRet()} -> Return(Array(!map[!lower] elems));
 lower: Array(elems) -> Array(!map[!lower] elems);
 lower: [h|t] -> !map[!lower] [h|t];
 
-# Should be changed, 'let' should accumulate in block, rhs of let shouldn't 
-stack_depth: ([], n)      -> n;
-stack_depth: ([h|t], n)   -> !stack_depth (t, .add (!stack_depth h, n));
-stack_depth: [h|t]        -> !stack_depth ([h|t], 0);
+# Adds return to final statement in block
+wrap_return: [h|t] ->
+     (front, last) := !split_last [h|t]
+  in .is_simple_value last > .concat (front, [Return(last)])
+   + ret_stmts := !to_return last
+  in .concat (front, ret_stmts);
+wrap_return: t -> .is_simple_value t > Return(t) + !to_return t;
 
-stack_depth: Let(_, t, e) -> !add (!type_size t, !stack_depth e);
-stack_depth: Appl(_, e)   -> !stack_depth e;
-stack_depth: String(_)    -> 16;
-stack_depth: Ref(_){Type(t)} -> !type_size t;
-stack_depth: Int(_){Type(Builtin("ui8"))} -> 1;
-stack_depth: Return(e)    -> !stack_depth e;
-stack_depth: Return()     -> 0;
-stack_depth: Tuple()      -> 0;
-stack_depth: Brackets(e)  -> !stack_depth e;
-stack_depth: Add(l, r)    -> !add (!stack_depth l, !stack_depth r);
-stack_depth: Array(l)     -> !stack_depth (l, 0);
-stack_depth: ArrIndex(r, i) -> !add (8, !stack_depth i);
+to_return: t -> 
+     tmp_name := !gen_name "tmp"
+  in [Store(tmp_name, t), Return(Load(tmp_name))];
 
-type_size: Type(t) -> !type_size t;
-type_size: Builtin("string") -> 16;
-type_size: Builtin("ui8") -> 1;
-type_size: Array(t, Int(n)) -> !mul (!type_size t, n);
-type_size: TypeTuple() -> 0; 
-type_size: TypeTuple([t]) -> !type_size t; 
-type_size: TypeTuple([t|tail]) -> !add (!type_size t, !type_size TypeTuple(tail)); 
-type_size: Int(_) -> 8;
+is_simple_value: Int(_) -> .id;
+is_simple_value: Ref(_) -> .id;
+is_simple_value: Array(_) -> .id;
 
-input_size: Func(t, _) -> !type_size t;
-output_size: Func(_, t) -> !type_size t;
+# Logic for hoisting statements to blocks
+do_hoist: t -> !bottomup[.try[.hoist]] t;
+hoist: ?con(..subterms) -> 
+     [h|t] := !flatmap_some[.extract_hoisted_stmts] !retain_if[.is_hoist] subterms
+  in new_subterms := !map[.try[.extract_hoisted_expr]] subterms 
+  in Hoist([h|t], ?con(..new_subterms));
+hoist: [h|t] -> !flatmap_some[.try[.hoist_to_arr]] [h|t];
+hoist: (..subts) -> new_subts := !flatmap_some[.try[.hoist_to_arr]] subts in (..new_subts);
+
+extract_hoisted_stmts: Hoist(stmts, _) -> stmts;
+extract_hoisted_expr: Hoist(_, expr) -> expr;
+hoist_to_arr: Hoist(stmts, expr) -> .concat (stmts, [expr]);
+is_hoist: Hoist(_, _) -> .id;
