@@ -10,12 +10,12 @@ gather_function_type: _ -> .id;
 
 typecheck: (env, FnDecl(name, type)) -> .id;
 
-typecheck: (env, FnDef(func, param, expr)) ->
+typecheck: (env, FnDef(func, pattern, expr)) ->
      function_type := !get[func] env
   in input_type    := !get_in_type function_type
   in output_type   := !get_out_type function_type
-  in new_env       := !put[param, input_type] env
-  in (env, FnDef(func, param, !typecheck (new_env, expr {output_type, ReturnType(output_type)}) > .second){function_type});
+  in new_env       := !extract_pattern_types (env, pattern, input_type)
+  in (env, FnDef(func, pattern, !typecheck (new_env, expr {output_type, ReturnType(output_type)}) > .second){function_type});
 
 typecheck: (env, Let(decls, body) {Type(t)}) -> 
      (new_env, checked_decls) := !env_map[.typecheck] (env, decls)
@@ -55,6 +55,13 @@ typecheck: (env, Appl(Ref(fn), arg){Type(t)}) ->
   in (env, .eq (o, t) > Appl(fn, arg){Type(o)} + TypeError("Different types"));
 
 typecheck_env[env]: t -> .typecheck (env, t) > .second;
+
+# Working with patterns
+
+extract_pattern_types: (env, PatternVar(n), Type(t)) -> .put[n, Type(t)] env;
+extract_pattern_types: (env, PatternNum(n), _) -> env;
+
+# Working with Types
 
 is_integer_type: Builtin(ui8) -> .id;
 

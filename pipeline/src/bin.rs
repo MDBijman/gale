@@ -1,7 +1,7 @@
 extern crate clap;
 
 use parser::parse_gale_file;
-use checker::check;
+use checker::{check, desugar};
 use compiler::{ lower, compile, print };
 use terms_format::Term;
 use std::fs;
@@ -9,6 +9,7 @@ use std::path;
 use std::io::prelude::*;
 use clap::{App, Arg};
 use std::thread;
+use std::time;
 
 
 fn main() {
@@ -45,9 +46,12 @@ fn main() {
 
         let should_debug = matches.is_present("debug");
 
+        //
+
         print!("Parsing...");
+        let mut time = time::SystemTime::now();
         let term = parse_gale_file(&in_file.to_str().unwrap()).unwrap();
-        println!("Done");
+        println!("Done in {}ms", time.elapsed().unwrap().as_millis());
 
         if should_debug {
             let input_out_path = out_file.with_extension("term");
@@ -55,9 +59,12 @@ fn main() {
             o.write(format!("{}", term).as_bytes()).unwrap();
         }
 
+        //
+
         print!("Checking...");
+        time = time::SystemTime::now();
         let checked_term = check(&term);
-        println!("Done");
+        println!("Done in {}ms", time.elapsed().unwrap().as_millis());
 
         if should_debug {
             let checked_out_path = out_file.with_extension("checked.term");
@@ -65,9 +72,25 @@ fn main() {
             o.write(format!("{}", checked_term).as_bytes()).unwrap();
         }
 
+        //
+
+        print!("Desugaring...");
+        time = time::SystemTime::now();
+        let desugared_term = desugar(&checked_term);
+        println!("Done in {}ms", time.elapsed().unwrap().as_millis());
+
+        if should_debug {
+            let checked_out_path = out_file.with_extension("desugared.term");
+            let mut o = fs::File::create(checked_out_path).unwrap();
+            o.write(format!("{}", desugared_term).as_bytes()).unwrap();
+        }
+
+        //
+
         print!("Lowering...");
-        let lowered_term = lower(checked_term);
-        println!("Done");
+        time = time::SystemTime::now();
+        let lowered_term = lower(desugared_term);
+        println!("Done in {}ms", time.elapsed().unwrap().as_millis());
 
         if should_debug {
             let lowered_out_path = out_file.with_extension("lowered.term");
@@ -75,9 +98,12 @@ fn main() {
             o.write(format!("{}", lowered_term).as_bytes()).unwrap();
         }
 
+        //
+
         print!("Compiling...");
+        time = time::SystemTime::now();
         let compiled_term = compile(lowered_term);
-        println!("Done");
+        println!("Done in {}ms", time.elapsed().unwrap().as_millis());
 
         if should_debug {
             let compiled_out_path = out_file.with_extension("compiled.term");
@@ -85,9 +111,12 @@ fn main() {
             o.write(format!("{}", compiled_term).as_bytes()).unwrap();
         }
 
+        //
+
         print!("Printing...");
+        time = time::SystemTime::now();
         let printed_term  = print(compiled_term);
-        println!("Done");
+        println!("Done in {}ms", time.elapsed().unwrap().as_millis());
         
         // Write result to file
         match printed_term {

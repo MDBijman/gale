@@ -1,13 +1,6 @@
 main: ui8 -> ui8
-main a =
-  let
-    d: [ui8; 4] = [1, 2, 3, 4],
-    c: ui8 = 3 + 1,
-    e: ui8 = c + 500 - 100,
-    f: ui8 = d!!1
-  in
-    1 + inc e;
+main a = let b:ui8 = a + 1 in b;
+main 0 = 6;
+main 3 = 4;
 
-inc: ui8 -> ui8
-inc a = a + 2 - 1;
 

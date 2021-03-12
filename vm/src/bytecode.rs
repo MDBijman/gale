@@ -31,7 +31,9 @@ pub enum Value {
 #[derive(Debug, Clone)]
 pub enum Op {
     Add,
-    Sub
+    Sub,
+    Not,
+    Eq
 }
 
 impl fmt::Display for Value {
@@ -64,7 +66,8 @@ pub enum Expression {
 
 #[derive(Debug)]
 pub enum Location {
-    Var(u64)
+    Var(u64),
+    Lbl(String)
 }
 
 #[derive(Debug)]
@@ -73,6 +76,9 @@ pub enum Instruction {
     Return(Expression),
     Print(Expression),
     Call(Location, String, Vec<Expression>),
+    Jmp(Location),
+    JmpIf(Location, Expression),
+    Lbl(String),
 
     Pop(Location),
     Push(Expression),
@@ -93,15 +99,14 @@ pub struct FunctionMeta {
 pub struct Function {
     pub name: String,
     pub meta: FunctionMeta,
-    pub instructions: Vec<Instruction>
+    pub instructions: Vec<Instruction>,
+    pub jump_table: HashMap<String, u64>
 }
 
 impl Function {
-    pub fn new(name: String, meta: FunctionMeta, instrs: Vec<Instruction>) -> Function {
-        Function {
-            name: name,
-            meta: meta,
-            instructions: instrs
-        }
+    pub fn new(name: String, meta: FunctionMeta, instructions: Vec<Instruction>, jump_table: HashMap<String, u64>) -> Function {
+        Function { name, meta, instructions, jump_table }
     }
 }
+
+

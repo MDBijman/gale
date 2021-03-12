@@ -1,0 +1,39 @@
+File([FnDef(
+    "main"
+  , "_arg"
+  , If(
+      True()
+    , Let(
+        [Decl(
+          "a"
+        , AnyType()
+        , Ref("_arg")
+        )]
+      , Let(
+          [Decl(
+            "b"
+          , TypeId("ui8")
+          , Add(
+              Ref("a")
+            , Int(1)
+            )
+          )]
+        , Return(Ref("b"))
+        )
+      )
+    , If(
+        Eq(
+          Ref("_arg")
+        , Int(0)
+        )
+      , Return(Int(6))
+      , If(
+          Eq(
+            Ref("_arg")
+          , Int(3)
+          )
+        , Return(Int(4))
+        )
+      )
+    )
+  )])

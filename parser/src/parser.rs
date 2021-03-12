@@ -28,22 +28,16 @@ named!(u16_hex(&str) -> u16, map_res!(take!(4usize), |s| u16::from_str_radix(s, 
 fn unicode_escape(input: &str) -> IResult<&str, char> {
     map_opt(
         alt((
-        // Not a surrogate
-        map(verify(u16_hex, |cp| !(0xD800..0xE000).contains(cp)), |cp| {
-            cp as u32
-        }),
-        // See https://en.wikipedia.org/wiki/UTF-16#Code_points_from_U+010000_to_U+10FFFF for details
-        map(
-            verify(
-                separated_pair(u16_hex, tag("\\u"), u16_hex),
-                |(high, low)| (0xD800..0xDC00).contains(high) && (0xDC00..0xE000).contains(low),
-            ),
-            |(high, low)| {
-                let high_ten = (high as u32) - 0xD800;
-                let low_ten = (low as u32) - 0xDC00;
-                (high_ten << 10) + low_ten + 0x10000
-                },
-            ),
+            // Not a surrogate
+            map(verify(u16_hex, |cp| !(0xD800..0xE000).contains(cp)), |cp| cp as u32),
+            // See https://en.wikipedia.org/wiki/UTF-16#Code_points_from_U+010000_to_U+10FFFF for details
+            map(verify(separated_pair(u16_hex, tag("\\u"), u16_hex),
+                    |(high, low)| (0xD800..0xDC00).contains(high) && (0xDC00..0xE000).contains(low)),
+                |(high, low)| {
+                    let high_ten = (high as u32) - 0xD800;
+                    let low_ten = (low as u32) - 0xDC00;
+                    (high_ten << 10) + low_ten + 0x10000
+                }),
         )),
         // Could be probably replaced with .unwrap() or _unchecked due to the verify checks
         std::char::from_u32,
@@ -55,15 +49,15 @@ fn character(input: &str) -> IResult<&str, char> {
     if c == '\\' {
         alt((
             map_res(anychar, |c| {
-            Ok(match c {
-                '"' | '\\' | '/' => c,
-                'b' => '\x08',
-                'f' => '\x0C',
-                'n' => '\n',
-                'r' => '\r',
-                't' => '\t',
-                _ => return Err(()),
-            })
+                Ok(match c {
+                    '"' | '\\' | '/' => c,
+                    'b' => '\x08',
+                    'f' => '\x0C',
+                    'n' => '\n',
+                    'r' => '\r',
+                    't' => '\t',
+                    _ => return Err(()),
+                })
             }),
             preceded(char('u'), unicode_escape),
         ))(input)
@@ -99,8 +93,7 @@ fn parse_number(i: &str) -> IResult<&str, Term> {
 
 fn parse_ref(i: &str) -> IResult<&str, Term> {
     map(parse_name, 
-        |name: &str| Term::new_rec_term("Ref", vec![Term::new_string_term(name)])
-        )(i)
+        |name: &str| Term::new_rec_term("Ref", vec![Term::new_string_term(name)]))(i)
 }
 
 pub fn parse_string(input: &str) -> IResult<&str, Term> {
@@ -255,6 +248,25 @@ fn parse_expr(input: &str) -> IResult<&str, Term> {
     parse_let(input)
 }
 
+/*
+* Matchers
+*/
+
+fn parse_pattern_var(i: &str) -> IResult<&str, Term> {
+    map(parse_name, |n| Term::new_rec_term("PatternVar", vec![Term::new_string_term(n)]))(i)
+}
+
+fn parse_pattern_int(i: &str) -> IResult<&str, Term> {
+    map(parse_number, |n| Term::new_rec_term("PatternNum", vec![n]))(i)
+}
+
+fn parse_match(i: &str) -> IResult<&str, Term> {
+    alt((
+        parse_pattern_int,
+        parse_pattern_var,
+    ))(i)
+}
+
 fn parse_function_declaration(input: &str) -> IResult<&str, Term> {
     let (input, name) = parse_name(input)?;
     let (input, _) = ws(tag(":")).parse(input)?;
@@ -267,12 +279,12 @@ fn parse_function_declaration(input: &str) -> IResult<&str, Term> {
 fn parse_function_definition(i: &str) -> IResult<&str, Term> {
     map(tuple((
         parse_name,
-        ws(parse_name),
+        ws(parse_match),
         cut(ws(tag("="))),
         cut(parse_expr),
         cut(ws(tag(";")))
-    )), |(func, param, _, body, _)| {
-        Term::new_rec_term("FnDef", vec![Term::new_string_term(func), Term::new_string_term(param), body])
+    )), |(func, pattern, _, body, _)| {
+        Term::new_rec_term("FnDef", vec![Term::new_string_term(func), pattern, body])
     })(i)
 }
 
