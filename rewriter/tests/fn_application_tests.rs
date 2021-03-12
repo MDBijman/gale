@@ -42,3 +42,11 @@ fn test_recursive() {
         "([], [2,3,4])");
 }
 
+#[test]
+fn test_meta_value() {
+    run_e2e_test(
+        "main: f -> .typecheck f;
+        typecheck: a -> b := .map[.annotate[Thing()]] a in a;",
+        "[1, 2, 3]",
+        "[1 {Thing()}, 2 {Thing()}, 3 {Thing()}]");
+}

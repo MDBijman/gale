@@ -1,5 +1,6 @@
 use crate::bytecode::*;
 
+#[derive(Debug)]
 struct ProgramCounter {
     instruction: u64
 }
@@ -45,7 +46,8 @@ impl VM {
             },
             Expression::Value(v) => {
                 v.clone()
-            }
+            },
+            _ => panic!("Invalid expression")
         }
     }
 
@@ -53,9 +55,9 @@ impl VM {
         if !self.is_running() { return; }
 
         let frame: &mut Frame = self.callstack.last_mut().unwrap();
-        
-        let current_instruction = self.code.functions
-            .get(&frame.name).unwrap().instructions
+        let current_function = self.code.functions.get(&frame.name).unwrap(); 
+        let current_instruction = current_function
+            .instructions
             .get(frame.pc.instruction as usize).unwrap();
 
         // println!("{:?}", current_instruction);
@@ -117,6 +119,32 @@ impl VM {
 
                 self.callstack.push(new_frame);
             },
+            Instruction::Jmp(lbl) => {
+                match lbl {
+                    Location::Lbl(lbl) => {
+                        let target = current_function.jump_table.get(lbl).unwrap();
+                        frame.pc.instruction = *target;
+                    },
+                    _ => panic!("Invalid jump target")
+                }
+            },
+            Instruction::JmpIf(lbl, cond) => {
+                match lbl {
+                    Location::Lbl(lbl) => {
+                        match VM::interp_expr(frame, cond) {
+                            Value::U64(0) => {
+                                frame.pc.instruction += 1;
+                            },
+                            Value::U64(_) => {
+                                let target = current_function.jump_table.get(lbl).unwrap();
+                                frame.pc.instruction = *target;
+                            },
+                            _ => panic!("Inavlid expression result")
+                        }
+                    },
+                    _ => panic!("Invalid jump target")
+                }
+            },
             Instruction::Pop(Location::Var(location)) => {
                 let v = frame.stack.pop().unwrap();
                 *frame.variables.get_mut(*location as usize).unwrap() = v;
@@ -150,10 +178,33 @@ impl VM {
                             _ => panic!("Invalid operands")
                         };
                         frame.stack.push(res);
+                    },
+                    Op::Eq => {
+                        let rhs = frame.stack.pop().unwrap();
+                        let lhs = frame.stack.pop().unwrap();
+                        let res = match (lhs, rhs) {
+                            (Value::U64(l), Value::U64(r)) if l == r => Value::U64(1),
+                            (Value::U64(l), Value::U64(r)) if l != r => Value::U64(0),
+                            _ => panic!("Invalid operands")
+                        };
+                        frame.stack.push(res);
+                    },
+                    Op::Not => {
+                        let operand = frame.stack.pop().unwrap();
+                        let res = match operand {
+                            Value::U64(0) => Value::U64(1),
+                            Value::U64(n) => Value::U64(0),
+                            _ => panic!("Invalid operands")
+                        };
+                        frame.stack.push(res);
                     }
                 }
                 frame.pc.instruction += 1;
-            }
+            },
+            Instruction::Lbl(_) => {
+                frame.pc.instruction += 1;
+            },
+            _ => panic!("Invalid instruction")
         }
     }
 }

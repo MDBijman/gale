@@ -4,7 +4,7 @@ mod interpreter;
 
 extern crate clap;
 use clap::{App, Arg};
-use std::fs;
+use std::time;
 
 fn main() {
     let matches = App::new("Gale VM")
@@ -23,7 +23,9 @@ fn main() {
 
     let module = parser::parse_bytecode_file(input_file_name);
 
+    let start = time::SystemTime::now();
+
     let result = interpreter::run(module);
 
-    println!("out: {}", result);
+    println!("out: {} in {}ms", result, start.elapsed().unwrap().as_millis());
 }

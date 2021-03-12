@@ -3,14 +3,14 @@ topdown[.f]: ?con(..sub) -> ?new_con(..new_sub) := .f in fin_sub := .topdown[.f]
 topdown[.f]: (..ts) -> new_ts := .topdown[.f] ts in (..new_ts);
 topdown[.f]: term -> .f term;
 
-bottomup[.f]: ?con(..sub) -> new_sub := .map[.bottomup[.f]] sub in .f ?con(..new_sub);
-bottomup[.f]: (..ts)      -> new_ts  := .bottomup[.f] ts  in .f (..new_ts);
-bottomup[.f]: l -> .is_list l > new_elems := .map[.bottomup[.f]] l in .f new_elems;
+bottomup[.f]: ?con(..sub)    -> new_sub   := .map[.bottomup[.f]] sub in .f ?con(..new_sub);
+bottomup[.f]: (..ts)         -> new_ts    := .map[.bottomup[.f]] ts  in .f (..new_ts);
+bottomup[.f]: l -> .is_list l > new_elems := .map[.bottomup[.f]] l   in .f new_elems;
 bottomup[.f]: t -> .f t;
 
-env_bottomup[.f]: (e,  ?con(..sub)) -> (new_env, new_sub) := .env_map[.f] (e, sub) in .f (new_env, ?con(..new_sub));
-env_bottomup[.f]: (e, (..ts))       -> (new_env, new_ts)  := .env_map[.f] (e, ts)  in .f (new_env, (..new_ts));
-env_bottomup[.f]: (e, l) -> .is_list l > (new_env, new_elems) := .env_map[.env_bottomup[.f]] (e, l) in .f (new_env, new_elems);
+env_bottomup[.f]: (e,  ?con(..sub))   -> (new_env, new_sub)   := .env_map[.env_bottomup[.f]] (e, sub) in .f (new_env, ?con(..new_sub));
+env_bottomup[.f]: (e, (..ts))         -> (new_env, new_ts)    := .env_map[.env_bottomup[.f]] (e, ts)  in .f (new_env, (..new_ts));
+env_bottomup[.f]: (e, l) -> .is_list l > (new_env, new_elems) := .env_map[.env_bottomup[.f]] (e, l)   in .f (new_env, new_elems);
 env_bottomup[.f]: (e, t) -> .f (e, t); 
 
 env_map[.f]: (env, list) -> .env_map_acc[.f] (env, list, []);
@@ -26,10 +26,14 @@ map_acc[.f]: ([], acc)    -> acc > .reverse;
 map_acc[.f]: ([h|t], acc) -> .map_acc[.f] (t, [.f h | acc]);
 
 # Retain only items on which transformation succeeds
-retain_if[.f]: [] -> [];
-retain_if[.f]: [h|t] -> .f h > [h|.retain_if[.f] t] + .retain_if[.f] t;
+retain_all[.f]: [] -> [];
+retain_all[.f]: [h|t] -> .f h > [h|.retain_all[.f] t] + .retain_all[.f] t;
 
 try[.f]: n -> .f n + n;
+
+# Reduce list with reduction function and start value
+reduce[.f]: (end, []) -> end;
+reduce[.f]: (start, [h|t]) -> .reduce[.f] (.f (start, h), t);
 
 # Apply transformation on each term and then flatten
 flatmap[.f]: e -> .is_list > .map[.f] e > .flatten; 

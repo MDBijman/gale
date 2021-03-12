@@ -148,14 +148,9 @@ fn test_env_bottomup() {
         "Test(1, 2, Test(\"a\"), [1, 2, 3])",
         "([], Test(1, 2, Test(\"a\"), [1, 2, 3]))");
 
-
-}
-
-#[test]
-fn test_bug() {
     run_e2e_test(
         "main: f -> .env_bottomup[.try[.hoist]] ([], f) > .second;
-         hoist[.f]: (e, UI8(i)) -> .debug>(e, i);",
+         hoist[.f]: (e, UI8(i)) -> (e, i);",
         "[\"d\", Array([UI8(1), UI8(2), UI8(3)])]",
         "[\"d\", Array([1, 2, 3])]");
 }

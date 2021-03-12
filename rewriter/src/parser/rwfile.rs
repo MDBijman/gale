@@ -2,13 +2,19 @@ use terms_format as tf;
 
 #[derive(Debug)]
 pub struct File {
-    pub functions: Vec<Function>
+    pub functions: Vec<Function>,
+    pub filename: Option<String>
 }
 
 impl File {
     pub fn merge(mut a: File, mut b: File) -> File {
         a.functions.append(&mut b.functions);
+        if a.filename.is_none() { a.filename = b.filename; }
         a
+    }
+
+    pub fn set_filename(&mut self, name: &str) {
+        self.filename = Some(String::from(name));
     }
 }
 

@@ -93,11 +93,17 @@ fn parse_term_name_match(i: &str) -> IResult<&str, Match> {
     ))(i)
 }
 
-fn parse_term_match(input: &str) -> IResult<&str, Match> {
-    let (input, con) = parse_term_name_match(input)?;
-    let (input, r) = parse_tuple_match(input)?;
-    let (input, a) = opt(delimited(ws(char('{')), ws(separated_list0(ws(tag(",")), parse_match)), char('}')))(input)?;
-    Ok((input, Match::TermMatcher(TermMatcher { constructor: Box::from(con), terms: Box::from(r), annotations: a.unwrap_or(Vec::new()) })))
+fn parse_term_match(i: &str) -> IResult<&str, Match> {
+    map(tuple((
+        parse_term_name_match,
+        parse_tuple_match,
+        cut(opt(delimited(ws(char('{')), ws(separated_list0(ws(tag(",")), parse_match)), char('}'))))
+    )), |(name, args_match, annot_matches)| {
+        Match::TermMatcher(TermMatcher {
+            constructor: Box::from(name),
+            terms: Box::from(args_match),
+            annotations: annot_matches.unwrap_or(Vec::new()) })
+    })(i)
 }
 
 fn parse_variable_match(input: &str) -> IResult<&str, Match> {
@@ -128,8 +134,11 @@ fn parse_variadic_elem_match(i: &str) -> IResult<&str, Match> {
 }
 
 fn parse_tuple_match(input: &str) -> IResult<&str, Match> {
-    verify(map_res(delimited(ws(char('(')), ws(separated_list0(ws(tag(",")), alt((parse_match, parse_variadic_elem_match)))), ws(char(')'))),
-        |r: Vec<Match>| -> Result<Match, String> { Ok(Match::TupleMatcher(TupleMatcher { elems: r })) }),
+    verify(map_res(
+            delimited(ws(char('(')), 
+                cut(ws(separated_list0(ws(tag(",")), alt((parse_match, parse_variadic_elem_match))))), 
+                ws(char(')'))),
+            |r: Vec<Match>| -> Result<Match, String> { Ok(Match::TupleMatcher(TupleMatcher { elems: r })) }),
         |m: &Match| match m {
             Match::TupleMatcher(tm) => {
                 if tm.elems.len() == 0 {
@@ -181,9 +190,14 @@ fn parse_list_match(input: &str) -> IResult<&str, Match> {
     }
 }
 
-fn parse_match(input: &str) -> IResult<&str, Match> {
-    let (input, m) = alt((parse_list_match, parse_tuple_match, parse_term_match, parse_variable_match, parse_string_match, parse_number_match))(input)?;
-    Ok((input, m))
+fn parse_match(i: &str) -> IResult<&str, Match> {
+    alt((
+        parse_list_match,
+        parse_tuple_match,
+        parse_term_match,
+        parse_variable_match,
+        parse_string_match,
+        parse_number_match))(i)
 }
 
 /*
@@ -265,8 +279,17 @@ fn parse_rec_term(i: &str) -> IResult<&str, Expr> {
         })(i)
 }
 
-fn parse_tuple(input: &str) -> IResult<&str, Expr> {
-    map_res(delimited(ws(char('(')), ws(separated_list0(ws(tag(",")), parse_expr)), ws(char(')'))), |r: Vec<Expr>| -> Result<Expr, String> { Ok(Expr::Tuple(Tuple { values: r })) })(input)
+fn parse_tuple(i: &str) -> IResult<&str, Expr> {
+    alt((
+        map(delimited(ws(char('(')), parse_expr, ws(char(')'))), 
+            |expr| -> Expr {
+                expr
+            }),
+        map(delimited(ws(char('(')), ws(separated_list0(ws(tag(",")), parse_expr)), ws(char(')'))),
+            |r: Vec<Expr>| -> Expr {
+                Expr::Tuple(Tuple { values: r })
+            }),
+    ))(i)
 }
 
 fn parse_list(input: &str) -> IResult<&str, Expr> {
@@ -304,23 +327,12 @@ fn parse_invocation(input: &str) -> IResult<&str, Expr> {
     }
 }
 
-fn parse_let(old_input: &str) -> IResult<&str, Expr> {
-    let (input, opt_match) = opt(parse_match)(old_input)?;
-    match opt_match {
-        Some(m) => {
-            let (input, r) = opt(ws(tag(":=")))(input)?;
-            match r {
-                Some(_) => {
-                    let (input, rhs) = parse_expr(input)?;
-                    let (input, _) = ws(tag("in")).parse(input)?;
-                    let (input, body) = parse_expr(input)?;
-                    Ok((input, Expr::Let(Let { lhs: m, rhs: Box::from(rhs), body: Box::from(body) })))
-                },
-                _ => parse_invocation(old_input)
-            }
-        },
-        _ => parse_invocation(old_input)
-    }
+fn parse_let(i: &str) -> IResult<&str, Expr> {
+    alt((
+        map(tuple((parse_match, ws(tag(":=")), cut(parse_expr), ws(tag("in")), parse_expr)), |(match_, _, val, _, body)| {
+            Expr::Let(Let { lhs: match_, rhs: Box::from(val), body: Box::from(body) })
+        }),
+        parse_invocation))(i)
 }
 
 fn parse_and(input: &str) -> IResult<&str, Expr> {
@@ -363,7 +375,7 @@ fn parse_function(input: &str) -> IResult<&str, Function> {
     let (input, _) = ws(tag("->")).parse(input)?;
     let (input, body) = parse_expr(input)?;
     let (input, _) = ws(tag(";")).parse(input)?;
-    Ok((input, Function { name: name.to_string(), meta: meta, matcher: matcher, body: body }))
+    Ok((input, Function { name: name.to_string(), meta, matcher, body }))
 }
 
 pub fn parse_rw_string(input: &str) -> Result<File, String> {
@@ -373,8 +385,7 @@ pub fn parse_rw_string(input: &str) -> Result<File, String> {
                 panic!(format!("Input left after parsing:\n{}", input));
             }
 
-
-            Ok(File { functions: f })
+            Ok(File { functions: f, filename: None })
         },
         Err(e) => panic!(format!("Something went wrong: {}", e))
     }
@@ -382,5 +393,7 @@ pub fn parse_rw_string(input: &str) -> Result<File, String> {
 
 pub fn parse_rw_file(filename: &str) -> Result<File, String> {
     let f = fs::read_to_string(filename).unwrap();
-    parse_rw_string(String::as_str(&f))
+    let mut rw_file = parse_rw_string(String::as_str(&f))?;
+    rw_file.filename = Some(String::from(filename));
+    Ok(rw_file)
 }

@@ -29,7 +29,7 @@ fn main() {
     let term = parse_term_from_file(&in_file.to_string()).unwrap();
     let lowered = lower(term);
     let compiled = compile(lowered);
-    let printed = compile(compiled);
+    let printed = print(compiled);
 
     match printed {
         Term::STerm(s, _) => {

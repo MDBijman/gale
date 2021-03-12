@@ -43,6 +43,20 @@ impl fmt::Display for Context {
     }
 }
 
+#[derive(Debug)]
+pub struct Failure {
+    error_message: String,
+    callstack: Vec<String>,
+    failure_context: Context,
+    term: tf::Term
+}
+
+impl Failure {
+    pub fn with_call(&mut self, call: String) {
+        self.callstack.push(call);
+    }
+}
+
 fn check_and_bind_match(m: &Match, t: &tf::Term) -> Option<HashMap<String, tf::Term>> {
     match (m, t) {
         (Match::AnyMatcher, _) => Some(HashMap::new()),
@@ -158,7 +172,7 @@ fn check_and_bind_match(m: &Match, t: &tf::Term) -> Option<HashMap<String, tf::T
                         return Some(bindings);
                     },
                     _ => {
-                        if i > tt.terms.len() - 1 { return None };
+                        if i as i64 > (tt.terms.len() as i64) - 1 { return None };
                         let sub_bindings = check_and_bind_match(m, &tt.terms[i])?;
                         bindings.extend(sub_bindings);
                     }
@@ -187,10 +201,36 @@ impl Rewriter {
     }
 
     pub fn rewrite(&mut self, t: tf::Term) -> tf::Term {
-        self.interp_function(
+        let result = self.interp_function(
             Context::new(),
             &FRef::from(&String::from("main"), &Vec::new(), FunctionReferenceType::Force),
-            t).unwrap().to_term().unwrap()
+            t);
+
+        match result {
+            Err(f) => {
+                println!("");
+
+                println!("{}", f.error_message);
+
+                for call in f.callstack {
+                    println!("in {}", call);
+                }
+
+                if self.rules.filename.is_some() {
+                    println!("in {}", self.rules.filename.as_ref().unwrap());
+                }
+
+                println!("{}", f.failure_context);
+
+                println!("{}", f.term);
+
+
+                panic!("");
+            },
+            Ok(t) => {
+               t.unwrap().to_term().unwrap() 
+            }
+        }
     }
 
     pub fn get_newname_count(&mut self, n: &String) -> u64 {
@@ -320,10 +360,10 @@ impl Rewriter {
         }
     }
 
-    fn reduce(&mut self, c: Context, e: &Expr, t: tf::Term) -> Option<Expr> {
-        match e {
+    fn reduce(&mut self, c: Context, e: &Expr, t: tf::Term) -> Result<Option<Expr>, Failure> {
+        Ok(match e {
             Expr::FRef(f) => {
-                let new_meta: Vec<Expr> = f.meta.iter().map(|e| self.reduce(c.clone(), e, t.clone()).unwrap()).collect();
+                let new_meta: Vec<Expr> = f.meta.iter().map(|e| self.reduce(c.clone(), e, t.clone()).unwrap().unwrap()).collect();
 
                 match c.bound_functions.get(&f.name) {
                     Some(f) => Some(Expr::FRef(FRef {
@@ -352,19 +392,31 @@ impl Rewriter {
                                         res.push(elem.clone());
                                     }
                                 },
-                                _ => return None
+                                _ => return Ok(None)
                             }
                         },
+
                         // Not variadic
-                        _ => res.push(Rewriter::expr_to_term(&self.reduce(c.clone(), &e, t.clone())?))
+                        _ => {
+                            let value = self.reduce(c.clone(), &e, t.clone())?;
+                            if value.is_none() {
+                                return Ok(None)
+                            }
+
+                            res.push(Rewriter::expr_to_term(&value.unwrap()))
+                        }
                     }
                 }
 
                 Some(Expr::SimpleTerm(tf::Term::new_tuple_term(res)))
             },
             Expr::Invoke(inv) => {
-                let arg = self.reduce(c.clone(), &inv.arg, t)?.to_term().unwrap();
-                self.interp_function(c, &inv.name, arg)
+                let arg = match self.reduce(c.clone(), &inv.arg, t.clone())? {
+                    Some(t) => t.to_term().unwrap(),
+                    None => return Ok(None)
+                };
+
+                return self.interp_function(c, &inv.name, arg)
             },
             Expr::Ref(r) => {
                 Some(Rewriter::term_to_expr(&c.bound_variables.get(&r.name).expect(format!("Cannot resolve reference {}", r.name).as_str())))
@@ -374,26 +426,30 @@ impl Rewriter {
             },
             Expr::Number(n) => Some(Rewriter::term_to_expr(&tf::Term::new_number_term(n.value))),
             Expr::Op(Op::Or(l, r)) => {
-                match self.reduce(c.clone(), &*l, t.clone()) {
+                match self.reduce(c.clone(), &*l, t.clone())? {
                     Some(t) => Some(t),
-                    None => self.reduce(c, &*r, t)
+                    None => self.reduce(c, &*r, t)?
                 }
             },
             Expr::Op(Op::And(l, r)) => {
-                let lr = self.reduce(c.clone(), &*l, t)?.to_term()?;
-                self.reduce(c.clone(), &*r, lr)
+                let lr = match self.reduce(c.clone(), &*l, t.clone())? {
+                    Some(t) => t.to_term().unwrap(),
+                    None => return Ok(None)
+                };
+
+                self.reduce(c.clone(), &*r, lr)?
             },
             Expr::Term(et) => {
-                let head = self.reduce(c.clone(), &et.constructor, t.clone());
+                let head = self.reduce(c.clone(), &et.constructor, t.clone())?;
 
-                if head.is_none() { return None; }
+                if head.is_none() { return Ok(None); }
 
                 // Interpret subterms as tuple
-                let terms = match self.reduce(c.clone(), &Expr::Tuple(Tuple { values: et.terms.clone() }), t.clone()) {
+                let terms = match self.reduce(c.clone(), &Expr::Tuple(Tuple { values: et.terms.clone() }), t.clone())? {
                     Some(Expr::SimpleTerm(tf::Term::TTerm(ts, _))) => {
                         ts.terms
                     },
-                    _ => return None
+                    _ => return Ok(None)
                 };
 
                 match head.unwrap() {
@@ -404,19 +460,34 @@ impl Rewriter {
             },
             Expr::This => Some(Rewriter::term_to_expr(&t)),
             Expr::AddAnnotation(a) => {
-                let mut inner_term = self.reduce(c.clone(), &*a.inner, t.clone())?.to_term()?;
+                let mut inner_term = match self.reduce(c.clone(), &*a.inner, t.clone())? {
+                    Some(t) => t.to_term().unwrap(),
+                    None => return Ok(None)
+                };
+
                 for subt in a.annotations.iter() {
-                    let r = self.reduce(c.clone(), &subt, t.clone())?.to_term()?;
+                    let r = match self.reduce(c.clone(), &subt, t.clone())? {
+                        Some(t) => t.to_term().unwrap(),
+                        None => return Ok(None)
+                    };
                     inner_term.add_annotation(r);
                 }
 
                 Some(Rewriter::term_to_expr(&inner_term))
             },
             Expr::Annotation(a) => {
-                let mut inner_term = self.reduce(c.clone(), &*a.inner, t.clone())?.to_term()?;
+                let mut inner_term = match self.reduce(c.clone(), &*a.inner, t.clone())? {
+                    Some(t) => t.to_term().unwrap(),
+                    None => return Ok(None)
+                };
+
                 inner_term.clear_annotations();
                 for subt in a.annotations.iter() {
-                    let r = self.reduce(c.clone(), &subt, t.clone())?.to_term()?;
+                    let r = match self.reduce(c.clone(), &subt, t.clone())? {
+                        Some(t) => t.to_term().unwrap(),
+                        None => return Ok(None)
+                    };
+
                     inner_term.add_annotation(r);
                 }
 
@@ -428,37 +499,52 @@ impl Rewriter {
             Expr::List(l) => {
                 let mut res = tf::LTerm { terms: Vec::new() };
                 for e in &l.values {
-                    let r = self.reduce(c.clone(), &e, t.clone())?.to_term()?;
+                    let r = match self.reduce(c.clone(), &e, t.clone())? {
+                        Some(t) => t.to_term().unwrap(),
+                        None => return Ok(None)
+                    };
+
                     res.terms.push(r);
                 }
                 Some(Rewriter::term_to_expr(&tf::Term::LTerm(res, tf::Annotations::empty())))
             },
             Expr::Let(l) => {
-                let rhs_res = self.reduce(c.clone(), &*l.rhs, t.clone())?.to_term()?;
+                let rhs_res = match self.reduce(c.clone(), &*l.rhs, t.clone())? {
+                    Some(t) => t.to_term().unwrap(),
+                    None => return Ok(None)
+                };
+
                 match check_and_bind_match(&l.lhs, &rhs_res) {
                     Some(bindings) => {
                         let mut new_c = c.clone();
                         new_c.merge_variable_bindings(bindings);
-                        self.reduce(new_c, &*l.body, t)
+                        self.reduce(new_c, &*l.body, t)?
                     },
                     None => None
                 }
             },
             Expr::ListCons(l) => {
-                let head_res = self.reduce(c.clone(), &*l.head, t.clone())?.to_term()?;
-                match self.reduce(c.clone(), &*l.tail, t.clone())?.to_term()? {
-                    tf::Term::LTerm(tail_res, a) => {
-                        let mut res = vec![head_res];
-                        res.extend(tail_res.terms.into_iter());
-                        Some(Rewriter::term_to_expr(&tf::Term::new_anot_list_term(res, a.elems)))
-                    },
-                    _ => {
-                        None
+                let head_res = match self.reduce(c.clone(), &*l.head, t.clone())? {
+                    Some(t) => t.to_term().unwrap(),
+                    None => return Ok(None)
+                };
+
+                match self.reduce(c.clone(), &*l.tail, t.clone())? {
+                    Some(t) => match t.to_term() {
+                        Some(tf::Term::LTerm(tail_res, a)) => {
+                            let mut res = vec![head_res];
+                            res.extend(tail_res.terms.into_iter());
+                            Some(Rewriter::term_to_expr(&tf::Term::new_anot_list_term(res, a.elems)))
+                        },
+                        _ => {
+                            None
+                        }
                     }
+                    None => return Ok(None)
                 }
             },
             st@Expr::SimpleTerm(_) => Some(st.clone())
-        }
+        })
     }
 
     fn term_to_expr(t: &tf::Term) -> Expr {
@@ -479,9 +565,11 @@ impl Rewriter {
         }
     }
 
-    fn try_interp_function_instance(&mut self, c: Context, f: &Function, meta: &Vec<Expr>, t: tf::Term) -> Option<Expr> {
+    fn try_interp_function_instance(&mut self, c: Context, f: &Function, meta: &Vec<Expr>, t: tf::Term) -> Result<Option<Expr>, Failure> {
         // Check matcher and bind variables to terms
-        let bindings = check_and_bind_match(&f.matcher, &t)?;
+        let maybe_bindings = check_and_bind_match(&f.matcher, &t);
+        if maybe_bindings.is_none() { return Ok(None) }
+        let bindings = maybe_bindings.unwrap();
 
         let mut new_context: Context = Context::new();
 
@@ -491,18 +579,18 @@ impl Rewriter {
         for (p, a) in f.meta.iter().zip(meta.iter()) {
             match (p, a) {
                 (Expr::FRef(param), arg@Expr::FRef(_)) => { 
-                    let resolved_arg = self.reduce(c.clone(), arg, t.clone());
+                    let resolved_arg = self.reduce(c.clone(), arg, t.clone())?;
                     match resolved_arg {
                         Some(Expr::FRef(f)) => {
                             new_context.bound_functions.insert(param.name.clone(), f);
                         },
-                        _ => { return None; }
+                        _ => { return Ok(None); }
                     }
                 },
                 (Expr::Ref(f), e)  => {
                     new_context.bound_variables.insert(
                         f.name.clone(),
-                        self.reduce(c.clone(), e, t.clone()).unwrap().to_term().unwrap());
+                        self.reduce(c.clone(), e, t.clone())?.unwrap().to_term().unwrap());
                 },
                 _ => panic!("Unsupported meta expression")
             }
@@ -511,10 +599,10 @@ impl Rewriter {
         self.reduce(new_context, &f.body, t)
     }
 
-    pub fn interp_function(&mut self, c: Context, function: &FRef, t: tf::Term) -> Option<Expr> {
+    pub fn interp_function(&mut self, c: Context, function: &FRef, t: tf::Term) -> Result<Option<Expr>, Failure> {
         
         // Evaluate meta args
-        let new_meta: Vec<Expr> = function.meta.iter().map(|e| self.reduce(c.clone(), e, t.clone()).unwrap()).collect();
+        let new_meta: Vec<Expr> = function.meta.iter().map(|e| self.reduce(c.clone(), e, t.clone()).unwrap().unwrap()).collect();
 
         // Try to dereference dynamically bound function
         let derefed_function = match c.bound_functions.get(&function.name) {
@@ -539,21 +627,32 @@ impl Rewriter {
         // Try user-defined function
         for f in fns {
             match self.try_interp_function_instance(c.clone(), &f, &derefed_function.meta, t.clone()) {
-                Some(t) => { return Some(Rewriter::check_is_term(t).unwrap()); },
-                None => {}
+                Err(mut fail) => {
+                    fail.with_call(f.name);
+                    return Err(fail);
+                }
+                Ok(res) => match res {
+                    Some(t) => { return Ok(Some(Rewriter::check_is_term(t).unwrap())); },
+                    None => {}
+                }
             }
         }
 
         // Try built-in function
        match self.try_run_builtin_function(c.clone(), function, t.clone()) {
-           Some(t) => { return Some(t); },
+           Some(t) => { return Ok(Some(t)); },
            None => {}
        }
 
         if function.ref_type == FunctionReferenceType::Force {
-            panic!(format!("Failed to compute function {}\n\n{}\n\nenvironment {}", function.name, t, c));
+            Err(Failure {
+                error_message: String::from("Failed to compute function"),
+                callstack: vec![function.name.clone()],
+                failure_context: c.clone(),
+                term: t.clone()
+            })
         } else {
-            None
+            Ok(None)
         }
     }
 }

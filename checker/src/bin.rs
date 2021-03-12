@@ -1,10 +1,14 @@
 extern crate clap;
 mod checker;
+mod desugarer;
+
 use clap::{App, Arg};
 use std::fs;
 use std::io::prelude::*;
 use terms_format::*;
+
 use crate::checker::*;
+use crate::desugarer::*;
 
 fn main() {
    let matches = App::new("Gale Checker")
@@ -28,7 +32,8 @@ fn main() {
 
     let term = parse_term_from_file(&in_file.to_string()).unwrap();
     let checked = check(&term);
+    let desugared = desugar(&checked);
 
     let mut o = fs::File::create(out_file).unwrap();
-    o.write(format!("{}", checked).as_bytes()).unwrap();
+    o.write(format!("{}", desugared).as_bytes()).unwrap();
 }

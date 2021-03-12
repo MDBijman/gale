@@ -8,74 +8,34 @@ File([
     )
   , FnDef(
       "main"
-    , "a"
+    , PatternVar("a")
     , Let(
-        [
-          Decl(
-            "d"
-          , TypeArray(
-              TypeId("ui8")
-            , Int(4)
-            )
-          , Array([
-              Int(1){Type(Builtin("ui8"))}
-            , Int(2){Type(Builtin("ui8"))}
-            , Int(3){Type(Builtin("ui8"))}
-            , Int(4){Type(Builtin("ui8"))}
-            ]){Type(Array(
-              Builtin("ui8")
-            , Int(4)
-            ))}
-          )
-        , Decl(
-            "c"
-          , TypeId("ui8")
-          , Add(
-              Int(3){Type(Builtin("ui8"))}
-            , Int(1){Type(Builtin("ui8"))}
-            ){Type(Builtin("ui8"))}
-          )
-        , Decl(
-            "e"
-          , TypeId("ui8")
-          , Add(
-              Ref("c"){Type(Builtin("ui8"))}
-            , Sub(
-                Int(500){Type(Builtin("ui8"))}
-              , Int(100){Type(Builtin("ui8"))}
-              ){Type(Builtin("ui8"))}
-            ){Type(Builtin("ui8"))}
-          )
-        ]
-      , Add(
-          Int(1){Type(Builtin("ui8"))}
-        , Appl(
-            "inc"
-          , Ref("e")
+        [Decl(
+          "b"
+        , TypeId("ui8")
+        , Add(
+            Ref("a"){Type(Builtin("ui8"))}
+          , Int(1){Type(Builtin("ui8"))}
           ){Type(Builtin("ui8"))}
-        ){Type(Builtin("ui8"))}
+        )]
+      , Ref("b"){Type(Builtin("ui8"))}
       )
     ){Type(Func(
       Builtin("ui8")
     , Builtin("ui8")
     ))}
-  , FnDecl(
-      "inc"
-    , FnType(
-        TypeId("ui8")
-      , TypeId("ui8")
-      )
-    )
   , FnDef(
-      "inc"
-    , "a"
-    , Add(
-        Ref("a"){Type(Builtin("ui8"))}
-      , Sub(
-          Int(2){Type(Builtin("ui8"))}
-        , Int(1){Type(Builtin("ui8"))}
-        ){Type(Builtin("ui8"))}
-      ){Type(Builtin("ui8"))}
+      "main"
+    , PatternNum(Int(0))
+    , Int(6){Type(Builtin("ui8"))}
+    ){Type(Func(
+      Builtin("ui8")
+    , Builtin("ui8")
+    ))}
+  , FnDef(
+      "main"
+    , PatternNum(Int(3))
+    , Int(4){Type(Builtin("ui8"))}
     ){Type(Func(
       Builtin("ui8")
     , Builtin("ui8")
