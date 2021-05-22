@@ -28,9 +28,9 @@ typecheck: (env, Decl(name, type, expr)) ->
   in (new_env, Decl(name, type, !typecheck (env, expr {as_type}) > !second));
 
 typecheck: (env, Int(i){Type(t)}) ->
-    .is_integer_type t
-  > (env, Int(i) {Type(t)})
-  + (env, Int(i) {TypeError("Cannot cast to expected type")});
+    (.is_subtype (Type(Builtin("ui8")), Type(t))
+  ? (env, Int(i) {Type(t)})
+  : (env, Int(i) {TypeError("Cannot cast to expected type")}));
 
 typecheck: (env, Add(lhs, rhs){Type(t)}) ->
   (env, Add(!typecheck (env, lhs{Type(t)}) > !second, !typecheck (env, rhs{Type(t)}) > !second){Type(t)});
@@ -40,6 +40,10 @@ typecheck: (env, Sub(lhs, rhs){Type(t)}) ->
 typecheck: (env, Return(e){ReturnType(t)}) ->
   !typecheck (env, e {Type(t)});
 
+typecheck: (env, Brackets(e){Type(t)}) ->
+  checked_expr := !typecheck (env, e {Type(t)}) > !second
+  in (env, Brackets(checked_expr){Type(t)});
+
 typecheck: (env, Array(elems){Type(Array(elemtype, size))}) ->
      annotated_elems := !map[.annotate[Type(elemtype)]] elems
   in checked_elems   := !map[.typecheck_env[env]] annotated_elems
@@ -47,23 +51,32 @@ typecheck: (env, Array(elems){Type(Array(elemtype, size))}) ->
 
 typecheck: (env, Ref(n){Type(t)}) ->
      Type(lt) := .get[n] env
-  in (env, .eq (lt, t) > Ref(n){Type(t)} + Ref(n){TypeError("Different type")});
+  in (env, .is_subtype (Type(lt), Type(t)) ? Ref(n){Type(lt)} : Ref(n){TypeError("Different type")});
 
 typecheck: (env, Appl(Ref(fn), arg){Type(t)}) -> 
      Type(Func(i, o)) := .get[fn] env
-  in checked_arg := !typecheck (env, arg {Type(i)}) > .second
-  in (env, .eq (o, t) > Appl(fn, arg){Type(o)} + TypeError("Different types"));
+  in checked_arg := !typecheck (env, arg {Type(i)}) > !second
+  in (env, .is_subtype (Type(o), Type(t)) ? Appl(fn, checked_arg){Type(o)} : TypeError("Different types"));
 
-typecheck_env[env]: t -> .typecheck (env, t) > .second;
+typecheck: (env, Match(expr, branches){Type(t)}) -> 
+     checked_expr{Type(t2)} := !typecheck (env, expr{Type(Any())}) > !second
+  in checked_branches := !map[!typecheck_branch[env, Type(t2), Type(t)]] branches
+  in (env, Match(checked_expr, checked_branches));
+
+typecheck_branch[env, in_type, out_type]: MatchBranch(pattern, expr) ->
+     new_env := !extract_pattern_types (env, pattern, in_type)
+  in MatchBranch(pattern, !typecheck (new_env, expr{out_type}) > !second);
+
+typecheck_env[env]: t -> .typecheck (env, t) > !second;
 
 # Working with patterns
 
-extract_pattern_types: (env, PatternVar(n), Type(t)) -> .put[n, Type(t)] env;
+extract_pattern_types: (env, PatternVar(n), Type(t)) -> !put[n, Type(t)] env;
 extract_pattern_types: (env, PatternNum(n), _) -> env;
 
 # Working with Types
 
-is_integer_type: Builtin(ui8) -> .id;
+is_integer_type: Builtin("ui8") -> .id;
 
 typeof: t -> Type(!typeof_type t);
 typeof_type: TypeId("ui8") -> Builtin("ui8");
@@ -77,3 +90,6 @@ get_out_type: Type(Func(i, o)) -> Type(o);
 
 get_in_type: Func(i, o) -> Type(i);
 get_in_type: Type(Func(i, o)) -> Type(i);
+
+is_subtype: (Type(t1), Type(t2)) -> .eq (t1, t2);
+is_subtype: (Type(t1), Type(Any())) -> .id;

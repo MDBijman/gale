@@ -1,15 +1,15 @@
-topdown[.f]: n -> .f > .map[.bottomup[.f]]; 
-topdown[.f]: ?con(..sub) -> ?new_con(..new_sub) := .f in fin_sub := .topdown[.f] new_sub in ?new_con(..fin_sub);
-topdown[.f]: (..ts) -> new_ts := .topdown[.f] ts in (..new_ts);
+topdown[.f]: ?con(..sub){..a} -> ?new_con(..new_sub) := .f in fin_sub := .topdown[.f] new_sub in ?new_con(..fin_sub){..a};
+topdown[.f]: (..ts){..a} -> new_ts := .topdown[.f] ts in (..new_ts,){..a};
+topdown[.f]: l -> .is_list l > new_l := .f l in new_elems := .map[.topdown[.f]] new_l in new_elems;
 topdown[.f]: term -> .f term;
 
-bottomup[.f]: ?con(..sub)    -> new_sub   := .map[.bottomup[.f]] sub in .f ?con(..new_sub);
-bottomup[.f]: (..ts)         -> new_ts    := .map[.bottomup[.f]] ts  in .f (..new_ts);
+bottomup[.f]: ?con(..sub){..a}    -> new_sub   := .map[.bottomup[.f]] sub in .f ?con(..new_sub){..a};
+bottomup[.f]: (..ts){..a}         -> new_ts    := .map[.bottomup[.f]] ts  in .f (..new_ts,){..a};
 bottomup[.f]: l -> .is_list l > new_elems := .map[.bottomup[.f]] l   in .f new_elems;
 bottomup[.f]: t -> .f t;
 
 env_bottomup[.f]: (e,  ?con(..sub))   -> (new_env, new_sub)   := .env_map[.env_bottomup[.f]] (e, sub) in .f (new_env, ?con(..new_sub));
-env_bottomup[.f]: (e, (..ts))         -> (new_env, new_ts)    := .env_map[.env_bottomup[.f]] (e, ts)  in .f (new_env, (..new_ts));
+env_bottomup[.f]: (e, (..ts))         -> (new_env, new_ts)    := .env_map[.env_bottomup[.f]] (e, ts)  in .f (new_env, (..new_ts,));
 env_bottomup[.f]: (e, l) -> .is_list l > (new_env, new_elems) := .env_map[.env_bottomup[.f]] (e, l)   in .f (new_env, new_elems);
 env_bottomup[.f]: (e, t) -> .f (e, t); 
 
@@ -27,7 +27,7 @@ map_acc[.f]: ([h|t], acc) -> .map_acc[.f] (t, [.f h | acc]);
 
 # Retain only items on which transformation succeeds
 retain_all[.f]: [] -> [];
-retain_all[.f]: [h|t] -> .f h > [h|.retain_all[.f] t] + .retain_all[.f] t;
+retain_all[.f]: [h|t] -> .f h ? [h|.retain_all[.f] t] : .retain_all[.f] t;
 
 try[.f]: n -> .f n + n;
 
@@ -77,7 +77,7 @@ fst:  (a, _) -> a;
 id: e -> e;
 
 # Fails if .f succeeds, succeeds if .f fails
-not[.f]: e -> .f e > .fail + .id;
+not[.f]: e -> .f e ? .fail : .id;
 
 # Adds annotation a to term t
 annotate[a]: t -> t {+a}; 
@@ -127,7 +127,7 @@ new_map: _ -> [];
 # Base case: empty list
 remove[needle]: [] -> [];
 # Recursive case: check if head is needle, then return tail, otherwise recurse
-remove[needle]: [(k, v)|t] -> .eq (needle, k) > t + [(k,v)|.remove[needle] t];
+remove[needle]: [(k, v)|t] -> .eq (needle, k) ? t : [(k,v)|.remove[needle] t];
 
 # Simple case: putting in empty list
 put[key, value]: [] -> [(key, value)]; 
@@ -139,9 +139,13 @@ put[key, value]: [h|t] ->
 # Base case: empty list means not found
 get[needle]: [] -> .fail;
 # Recursive case: check if head is needle, then return value, otherwise recurse 
-get[needle]: [(k,v)|t] -> .eq (needle, k) > v + .get[needle] t;
+get[needle]: [(k,v)|t] -> .eq (needle, k) ? v : .get[needle] t;
 
 # Term variant checking rules 
 is_list: [t|h] -> .id;
 is_list: [] -> .id;
 is_pair: (_, _) -> .id;
+is_tuple: (..subt) -> .id;
+is_rec_term: ?con(..subt) -> .id;
+
+

@@ -68,7 +68,7 @@
 		"tokens": {
 			"patterns": [{
 				"name": "keyword.operator.rewriter-syntax",
-				"match": "(->|\\||:=|:|\\+|>|\\bin\\b)"
+				"match": "(->|\\||:=|:|\\+|>|\\?|\\bin\\b)"
 			}]
 		},
 		"comments": {

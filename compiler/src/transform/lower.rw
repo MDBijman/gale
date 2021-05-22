@@ -2,13 +2,13 @@ main: File(fns) -> Program(!flatmap_some[!lower] fns);
 
 lower: FnDecl(func, type) -> [];
 lower: FnDef(func, arg, body) ->
-    Function(func, !extract_pattern, !lower body > .try[.flatten_some] > !do_hoist);
+    Function(func, !extract_pattern, !lower body > .try[.flatten_some] > !do_hoist > !make_return);
 
 extract_pattern: FnDef(_, a, _) -> Pattern(a);
 
 # Lowering AST nodes
 
-lower: Let(decls, e) -> !flatten_some [!map[!lower] decls, !lower e];
+lower: Let(decls, e) -> Hoist(!map[!lower] decls, !lower e);
 lower: Decl(n, t, e) -> Store(n, !lower e);
 lower: Appl(fn, arg){Type(t)} ->
      tmp_name := !gen_name "tmp"
@@ -27,23 +27,25 @@ lower: If(cond, then, else) ->
      end_lbl  := !gen_name "lbl"
   in else_lbl := !gen_name "lbl"
   in tmp_name := !gen_name "tmp"
+  in res_name := !gen_name "tmp"
   in low_then := !lower then 
   in low_else := !lower else
-  in [Store(tmp_name, !lower Not(cond)), JmpIf(else_lbl, Load(tmp_name)), low_then, Jmp(end_lbl), Lbl(else_lbl), low_else, Lbl(end_lbl)];
+  in Hoist([Store(tmp_name, !lower Not(cond)), JmpIf(else_lbl, Load(tmp_name)), Store(res_name, low_then), Jmp(end_lbl), Lbl(else_lbl), Store(res_name, low_else), Lbl(end_lbl)], Load(res_name));
 lower: If(cond, then) ->
      end_lbl := !gen_name "lbl"
   in tmp_name := !gen_name "tmp"
+  in res_name := !gen_name "tmp"
   in low_then := !lower then
-  in [Store(tmp_name, !lower Not(cond)), JmpIf(end_lbl, Load(tmp_name)), low_then, Lbl(end_lbl)];
+  in Hoist([Store(tmp_name, !lower Not(cond)), JmpIf(end_lbl, Load(tmp_name)), Store(res_name, low_then), Lbl(end_lbl)], Load(res_name));
 lower: [h|t] -> !map[!lower] [h|t];
-lower: Return(e) -> Return(!lower e);
 
 # Logic for hoisting statements to blocks
 
-do_hoist: t -> !bottomup[.try[.hoist]] t;
+do_hoist: t -> !bottomup[.try[.hoist]] t > .try[.hoist_to_arr];
+hoist: Hoist(stmts, Hoist(stmts2, expr)) -> Hoist(!concat (stmts, stmts2), expr);
 hoist: ?con(..subterms) -> 
      [h|t] := !flatmap_some[.extract_hoisted_stmts] !retain_all[.is_hoist] subterms
-  in new_subterms := !map[.try[.extract_hoisted_expr]] subterms 
+  in new_subterms := !map[.try[.extract_hoisted_expr]] subterms
   in Hoist([h|t], ?con(..new_subterms));
 hoist: [h|t] -> !flatmap_some[.try[.hoist_to_arr]] [h|t];
 hoist: (..subts) -> new_subts := !flatmap_some[.try[.hoist_to_arr]] subts in (..new_subts);
@@ -51,5 +53,8 @@ hoist: (..subts) -> new_subts := !flatmap_some[.try[.hoist_to_arr]] subts in (..
 extract_hoisted_stmts: Hoist(stmts, _) -> stmts;
 extract_hoisted_expr: Hoist(_, expr) -> expr;
 hoist_to_arr: Hoist(stmts, expr) -> .concat (stmts, [expr]);
+wrap_hoist_return: Hoist(stmts, expr) -> Hoist(stmts, Return(expr));
 is_hoist: Hoist(_, _) -> .id;
 
+make_return: input -> (list, last) := !split_last input
+  in .concat (list, [Return(last)]);

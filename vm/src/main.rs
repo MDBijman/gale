@@ -17,9 +17,17 @@ fn main() {
             .value_name("INPUT_FILE")
             .help("The input file")
             .required(true))
+        .arg(Arg::with_name("arguments")
+            .short("a")
+            .long("args")
+            .value_name("ARGS")
+            .help("Arguments passed to the interpreted program")
+            .multiple(true))
         .get_matches();
 
     let input_file_name = matches.value_of("input_file").unwrap();
+    let arguments = matches.value_of("arguments").unwrap();
+    println!("{}", arguments);
 
     let module = parser::parse_bytecode_file(input_file_name);
 

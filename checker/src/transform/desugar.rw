@@ -1,5 +1,5 @@
 
-main: File(fns) -> File(!desugar_separate_functions fns > !desugar_matches > !desugar_with_return);
+main: File(fns) -> File(!desugar_separate_functions fns > !desugar_matches > !desugar_brackets);
 
 # Separated function definitions desugaring into single function with branch
 
@@ -19,15 +19,18 @@ group_one: (env, FnDef(name, pattern, body){Type(t)}) ->
     in (.put[name, new_fn_group] env, FnDef(name, pattern, body){Type(t)});
 
 merge_functions: (name, impls) -> FnDef(name, "_arg", !reverse impls > !map[!to_match_branch] > !merge_match_branches);
-to_match_branch: FnDef(_, p, b) -> MatchBranch(p, b);
+to_match_branch: FnDef(_, p, b){Type(t)} -> MatchBranch(p, b);
 merge_match_branches: branches -> Match(Ref("_arg"), branches);
 
 # Match desugaring into if-then-else chains
 
 desugar_matches: fns -> !topdown[!try[.desugar_match]] fns;
 
-desugar_match: Match(arg, branches) -> !map[!branch_to_if[arg]] branches > !reverse > !reduce[!merge_if] (Dummy(), .id);
-branch_to_if[arg]: MatchBranch(pattern, body) -> If(!pattern_to_boolean (arg, pattern), !pattern_to_statements (arg, pattern, body));
+desugar_match: Match(arg, branches) ->
+   !map[!branch_to_if[arg]] branches > !reverse > !reduce[!merge_if] (Dummy(), .id);
+
+branch_to_if[arg]: MatchBranch(pattern, body) ->  
+   If(!pattern_to_boolean (arg, pattern), !pattern_to_statements (arg, pattern, body));
 
 pattern_to_boolean: (arg, PatternVar(name)) -> True();
 pattern_to_boolean: (arg, PatternNum(num)) -> Eq(arg, num);
@@ -35,20 +38,11 @@ pattern_to_boolean: (arg, PatternNum(num)) -> Eq(arg, num);
 pattern_to_statements: (arg, PatternVar(name), body) -> Let([Decl(name, AnyType(), arg)], body);
 pattern_to_statements: (arg, PatternNum(num), body) -> body;
 
-merge_if: (Dummy(), If(expr, stmt)) -> If(expr, stmt);
+merge_if: (Dummy(), if) -> if;
 merge_if: (if_chain, If(expr, stmt)) -> If(expr, stmt, if_chain);
 
-# Adds return to final statement in block or inner expression
 
-desugar_with_return: t -> !map[!wrap_return] t;
-wrap_return: FnDef(n, p, b) -> FnDef(n, p, !wrap_return b);
-wrap_return: If(c, then, else) -> If(c, !wrap_return then, !wrap_return else);
-wrap_return: If(c, then) -> If(c, !wrap_return then);
-wrap_return: Let(d, e) -> Let(d, !wrap_return e);
-wrap_return: t -> .is_simple_value t > Return(t);
-wrap_return: t-> .debug > !fail;
+# Remove brackets
 
-is_simple_value: Int(_) -> .id;
-is_simple_value: Ref(_) -> .id;
-is_simple_value: Array(_) -> .id;
-
+desugar_brackets: t -> !bottomup[.try[.remove_bracket]] t;
+remove_bracket: Brackets(t) -> t;

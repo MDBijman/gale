@@ -139,6 +139,7 @@ pub struct ListCons {
 #[derive(Debug, Clone)]
 pub enum Op {
     Or(Box<Expr>, Box<Expr>),
+    Choice(Box<Expr>, Box<Expr>, Box<Expr>),
     And(Box<Expr>, Box<Expr>)
 }
 
@@ -170,7 +171,7 @@ pub enum Match {
 #[derive(Debug, Clone)]
 pub struct TermMatcher {
     pub constructor: Box<Match>,
-    pub terms: Box<Match>,
+    pub terms: Vec<Match>,
     pub annotations: Vec<Match>
 }
 
@@ -198,7 +199,8 @@ pub struct ListMatcher {
 
 #[derive(Debug, Clone)]
 pub struct TupleMatcher {
-    pub elems: Vec<Match>
+    pub elems: Vec<Match>,
+    pub annotations: Vec<Match>
 }
 
 #[derive(Debug, Clone)]

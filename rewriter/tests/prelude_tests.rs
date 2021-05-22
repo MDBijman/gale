@@ -154,3 +154,23 @@ fn test_env_bottomup() {
         "[\"d\", Array([UI8(1), UI8(2), UI8(3)])]",
         "[\"d\", Array([1, 2, 3])]");
 }
+
+#[test]
+fn test_retain_all() {
+    run_e2e_test("
+        main: f -> .retain_all[.is_dummy] f;
+        is_dummy: Dummy() -> .id;",
+        "[Dummy(), Test(), Test(), Dummy()]", 
+        "[Dummy(), Dummy()]");
+}
+
+
+#[test]
+fn test_not() {
+    run_e2e_test("
+        main: f -> .retain_all[.not[.is_dummy]] f;
+        is_dummy: Dummy() -> .id;",
+        "[Dummy(), Test(), Test(), Dummy()]", 
+        "[Test(), Test()]");
+}
+

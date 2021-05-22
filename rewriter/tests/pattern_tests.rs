@@ -50,19 +50,13 @@ fn test_variadic_subterms() {
 
     run_e2e_test(
         "main: f -> .match f;
-        match: Test(a, ..b) -> (a, ..b);",
+        match: Test(a, ..b) -> (..b,);",
         "Test(1, 2, 3)",
-        "(1, 2, 3)");
+        "(2, 3)");
 
     run_e2e_test(
         "main: f -> .match f;
-        match: Test(..b) -> (..b);",
-        "Test()",
-        "()");
-
-    run_e2e_test(
-        "main: f -> .match f;
-        match: Test(..b) -> (..b);",
+        match: Test(..b) -> (..b,);",
         "Test()",
         "()");
 }

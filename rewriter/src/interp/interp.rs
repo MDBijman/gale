@@ -23,10 +23,25 @@ impl Context {
         }
     }
 
+    pub fn bind_variable(&mut self, name: &str, term: tf::Term) {
+        self.bound_variables.insert(String::from(name), term);
+    }
+
     pub fn merge_variable_bindings(&mut self, b: HashMap<String, tf::Term>) {
         for (k, v) in b {
             self.bound_variables.insert(k, v);
         }
+    }
+
+    pub fn merge_function_bindings(&mut self, b: HashMap<String, FRef>) {
+        for (k, v) in b {
+            self.bound_functions.insert(k, v);
+        }
+    }
+
+    pub fn merge(&mut self, other: Context) {
+        self.merge_variable_bindings(other.bound_variables);
+        self.merge_function_bindings(other.bound_functions);
     }
 }
 
@@ -57,79 +72,105 @@ impl Failure {
     }
 }
 
-fn check_and_bind_match(m: &Match, t: &tf::Term) -> Option<HashMap<String, tf::Term>> {
-    match (m, t) {
-        (Match::AnyMatcher, _) => Some(HashMap::new()),
-        (Match::TermMatcher(tm), tf::Term::RTerm(rec_term, term_annot)) => {
-            let head_binding = check_and_bind_match(&tm.constructor, &tf::Term::new_string_term(&rec_term.constructor));
-            let tuple_binding = check_and_bind_match(&tm.terms, &tf::Term::new_tuple_term(rec_term.terms.clone()));
+fn check_and_bind_annotations(matchers: &Vec<Match>, mut annots: tf::Annotations)  -> Option<Context> {
+    let mut h: Context = Context::new();
 
-            if head_binding.is_none() || tuple_binding.is_none() {
-                return None;
-            }
-
-            let mut h: HashMap<String, tf::Term> = HashMap::new();
-            h.extend(head_binding.unwrap());
-            h.extend(tuple_binding.unwrap());
-
-            for annot_match in tm.annotations.iter() {
-                let mut found: bool = false;
-                for annot in term_annot.elems.iter() {
-                    match check_and_bind_match(annot_match, annot) {
-                        None => {},
+    for matcher_idx in 0..matchers.len() {
+        let matcher = &matchers[matcher_idx];
+        match matcher {
+            Match::VariadicElementMatcher(v) => {
+                h.bound_variables.insert(v.name.clone(), tf::Term::new_list_term(annots.elems));
+                assert!(matcher_idx == matchers.len() - 1);
+                break;
+            },
+            _ => {
+                let mut found_idx = None;
+                
+                for (idx, annot) in annots.elems.iter().enumerate() {
+                    match check_and_bind_match(&matcher, annot) {
                         Some(m) => {
-                            h.extend(m);
-                            found = true;
+                            h.merge(m);
+                            found_idx = Some(idx);
                             break;
-                        }
+                        },
+                        None => {}
                     }
                 }
-                if !found {
-                    return None;
+
+                if let Some(idx) = found_idx {
+                    annots.elems.remove(idx)
+                } else {
+                    return None
+                };
+            }
+        }
+    }
+
+    Some(h)
+}
+
+fn check_and_bind_match(m: &Match, t: &tf::Term) -> Option<Context> {
+    match (m, t) {
+        (Match::VariadicElementMatcher(_), _) => panic!("Cannot match variadic element matcher"),
+        (Match::AnyMatcher, _) => Some(Context::new()),
+        (Match::TermMatcher(tm), tf::Term::RTerm(rec_term, term_annot)) => {
+            let mut bindings: Context = Context::new();
+
+            let head_binding = check_and_bind_match(&tm.constructor, &tf::Term::new_string_term(&rec_term.constructor));
+            if head_binding.is_none() { return None; }
+            bindings.merge(head_binding.unwrap());
+
+            let mut i = 0;
+            for m in tm.terms.iter() {
+                match m {
+                    Match::VariadicElementMatcher(v) => {
+                        bindings.bound_variables.insert(v.name.clone(), tf::Term::new_list_term(rec_term.terms[i..].to_vec()));
+                        break;
+                    },
+                    _ => {
+                        if i as i64 > (rec_term.terms.len() as i64) - 1 { return None };
+                        let sub_bindings = check_and_bind_match(m, &rec_term.terms[i])?;
+                        bindings.merge(sub_bindings);
+                    }
                 }
+                    
+                i += 1;
             }
 
-            Some(h)
+            match check_and_bind_annotations(&tm.annotations, term_annot.clone()) {
+                None => return None,
+                Some(b) => bindings.merge(b)
+            }
+
+            Some(bindings)
         },
         (Match::VariableMatcher(vm), t) => {
-            let mut h: HashMap<String, tf::Term> = HashMap::new();
-            h.insert(vm.name.clone(), t.clone());
+            let mut bindings: Context = Context::new();
+            bindings.bind_variable(vm.name.as_str(), t.clone());
 
-            for annot_match in vm.annotations.iter() {
-                let mut found: bool = false;
-                for annot in t.get_annotations().elems.iter() {
-                    match check_and_bind_match(annot_match, annot) {
-                        None => { },
-                        Some(m) => {
-                            h.extend(m);
-                            found = true;
-                            break;
-                        }
-                    }
-                }
-                if !found {
-                    return None;
-                }
+            match check_and_bind_annotations(&vm.annotations, t.get_annotations().clone()) {
+                None => return None,
+                Some(b) => bindings.merge(b)
             }
 
-            Some(h)
+            Some(bindings)
         },
         (Match::StringMatcher(sm), tf::Term::STerm(s, _)) => {
             if s.value == sm.value {
-                Some(HashMap::new())
+                Some(Context::new())
             } else {
                 None
             }
         },
         (Match::NumberMatcher(nm), tf::Term::NTerm(n, _)) => {
             if n.value == nm.value {
-                Some(HashMap::new())
+                Some(Context::new())
             } else {
                 None
             }
         },
         (Match::ListMatcher(lm), tf::Term::LTerm(lt, _)) => {
-            let mut bindings: HashMap<String, tf::Term> = HashMap::new();
+            let mut bindings: Context = Context::new();
             match &lm.head {
                 None => {
                     if lt.terms.len() == 0 {
@@ -141,7 +182,7 @@ fn check_and_bind_match(m: &Match, t: &tf::Term) -> Option<HashMap<String, tf::T
                 Some(head_matcher) => {
                     if lt.terms.len() == 0 { return None; };
                     let sub_bindings = check_and_bind_match(&*head_matcher, &lt.terms[0])?;
-                    bindings.extend(sub_bindings);
+                    bindings.merge(sub_bindings);
 
                     match &lm.tail {
                         None => {
@@ -153,7 +194,7 @@ fn check_and_bind_match(m: &Match, t: &tf::Term) -> Option<HashMap<String, tf::T
                         },
                         Some(tail_matcher) => {
                             let sub_bindings = check_and_bind_match(&*tail_matcher, &tf::Term::new_list_term(lt.terms[1..].to_vec()))?;
-                            bindings.extend(sub_bindings);
+                            bindings.merge(sub_bindings);
 
                             Some(bindings)
                         }
@@ -161,24 +202,29 @@ fn check_and_bind_match(m: &Match, t: &tf::Term) -> Option<HashMap<String, tf::T
                 }
             }
         }
-        (Match::TupleMatcher(tm), tf::Term::TTerm(tt, _)) => {
+        (Match::TupleMatcher(tm), tf::Term::TTerm(tt, annots)) => {
             // 1 to 1 matching elements with matcher
-            let mut bindings: HashMap<String, tf::Term> = HashMap::new();
+            let mut bindings: Context = Context::new();
             let mut i = 0;
             for m in tm.elems.iter() {
                 match m {
                     Match::VariadicElementMatcher(v) => {
-                        bindings.insert(v.name.clone(), tf::Term::new_list_term(tt.terms[i..].to_vec()));
+                        bindings.bind_variable(v.name.as_str(), tf::Term::new_list_term(tt.terms[i..].to_vec()));
                         return Some(bindings);
                     },
                     _ => {
                         if i as i64 > (tt.terms.len() as i64) - 1 { return None };
                         let sub_bindings = check_and_bind_match(m, &tt.terms[i])?;
-                        bindings.extend(sub_bindings);
+                        bindings.merge(sub_bindings);
                     }
                 }
                     
                 i += 1;
+            }
+
+            match check_and_bind_annotations(&tm.annotations, annots.clone()) {
+                None => return None,
+                Some(b) => bindings.merge(b)
             }
 
             Some(bindings)
@@ -209,7 +255,6 @@ impl Rewriter {
         match result {
             Err(f) => {
                 println!("");
-
                 println!("{}", f.error_message);
 
                 for call in f.callstack {
@@ -221,10 +266,7 @@ impl Rewriter {
                 }
 
                 println!("{}", f.failure_context);
-
                 println!("{}", f.term);
-
-
                 panic!("");
             },
             Ok(t) => {
@@ -419,12 +461,27 @@ impl Rewriter {
                 return self.interp_function(c, &inv.name, arg)
             },
             Expr::Ref(r) => {
-                Some(Rewriter::term_to_expr(&c.bound_variables.get(&r.name).expect(format!("Cannot resolve reference {}", r.name).as_str())))
+                let res = &c.bound_variables.get(&r.name);
+                if res.is_none() {
+                    return Err(Failure {
+                        error_message: String::from(format!("Could not resolve variable, {}", r.name)),
+                        callstack: vec![],
+                        failure_context: c.clone(),
+                        term: t.clone()
+                    })
+                }
+                Some(Rewriter::term_to_expr(res.unwrap()))
             },
             Expr::UnrollVariadic(_) => {
                 panic!("Cannot interp Expr::UnrollVariadic");
             },
             Expr::Number(n) => Some(Rewriter::term_to_expr(&tf::Term::new_number_term(n.value))),
+            Expr::Op(Op::Choice(cond, th, el)) => {
+                match self.reduce(c.clone(), &*cond, t.clone())? {
+                    Some(res) => self.reduce(c.clone(), &*th, res.to_term().unwrap().clone())?,
+                    None => self.reduce(c.clone(), &*el, t.clone())?,
+                }
+            },
             Expr::Op(Op::Or(l, r)) => {
                 match self.reduce(c.clone(), &*l, t.clone())? {
                     Some(t) => Some(t),
@@ -483,12 +540,28 @@ impl Rewriter {
 
                 inner_term.clear_annotations();
                 for subt in a.annotations.iter() {
-                    let r = match self.reduce(c.clone(), &subt, t.clone())? {
-                        Some(t) => t.to_term().unwrap(),
-                        None => return Ok(None)
-                    };
+                    match subt {
+                        Expr::UnrollVariadic(n) => {
+                            let list = c.bound_variables.get(&n.name).expect(format!("Cannot resolve reference {}", n.name).as_str());
+                            match list {
+                                // Reference must resolve to list term
+                                tf::Term::LTerm(l, _) => {
+                                    for elem in &l.terms {
+                                        inner_term.add_annotation(elem.clone());
+                                    }
+                                },
+                                _ => return Ok(None)
+                            }
+                        },
+                        _ => {
+                            let r = match self.reduce(c.clone(), &subt, t.clone())? {
+                                Some(t) => t.to_term().unwrap(),
+                                None => return Ok(None)
+                            };
 
-                    inner_term.add_annotation(r);
+                            inner_term.add_annotation(r);
+                        }
+                    }
                 }
 
                 Some(Rewriter::term_to_expr(&inner_term))
@@ -517,7 +590,7 @@ impl Rewriter {
                 match check_and_bind_match(&l.lhs, &rhs_res) {
                     Some(bindings) => {
                         let mut new_c = c.clone();
-                        new_c.merge_variable_bindings(bindings);
+                        new_c.merge(bindings);
                         self.reduce(new_c, &*l.body, t)?
                     },
                     None => None
@@ -573,7 +646,7 @@ impl Rewriter {
 
         let mut new_context: Context = Context::new();
 
-        new_context.merge_variable_bindings(bindings);
+        new_context.merge(bindings);
 
         // Bind metas
         for (p, a) in f.meta.iter().zip(meta.iter()) {
@@ -646,8 +719,8 @@ impl Rewriter {
 
         if function.ref_type == FunctionReferenceType::Force {
             Err(Failure {
-                error_message: String::from("Failed to compute function"),
-                callstack: vec![function.name.clone()],
+                error_message: String::from(format!("Failed to compute function {}", function.name.clone())),
+                callstack: vec![],
                 failure_context: c.clone(),
                 term: t.clone()
             })

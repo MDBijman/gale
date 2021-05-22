@@ -96,12 +96,12 @@ fn parse_term_name_match(i: &str) -> IResult<&str, Match> {
 fn parse_term_match(i: &str) -> IResult<&str, Match> {
     map(tuple((
         parse_term_name_match,
-        parse_tuple_match,
+        delimited(ws(char('(')), cut(ws(separated_list0(ws(tag(",")), parse_match))), ws(char(')'))),
         cut(opt(delimited(ws(char('{')), ws(separated_list0(ws(tag(",")), parse_match)), char('}'))))
     )), |(name, args_match, annot_matches)| {
         Match::TermMatcher(TermMatcher {
             constructor: Box::from(name),
-            terms: Box::from(args_match),
+            terms: args_match,
             annotations: annot_matches.unwrap_or(Vec::new()) })
     })(i)
 }
@@ -134,11 +134,14 @@ fn parse_variadic_elem_match(i: &str) -> IResult<&str, Match> {
 }
 
 fn parse_tuple_match(input: &str) -> IResult<&str, Match> {
-    verify(map_res(
+    verify(map_res(pair(
             delimited(ws(char('(')), 
-                cut(ws(separated_list0(ws(tag(",")), alt((parse_match, parse_variadic_elem_match))))), 
+                cut(ws(separated_list0(ws(tag(",")), parse_match))), 
                 ws(char(')'))),
-            |r: Vec<Match>| -> Result<Match, String> { Ok(Match::TupleMatcher(TupleMatcher { elems: r })) }),
+            cut(opt(delimited(ws(char('{')), ws(separated_list0(ws(tag(",")), parse_match)), char('}'))))),
+            |(r, a)| -> Result<Match, String> {
+                Ok(Match::TupleMatcher(TupleMatcher { elems: r, annotations: a.unwrap_or(vec![]) }))
+            }),
         |m: &Match| match m {
             Match::TupleMatcher(tm) => {
                 if tm.elems.len() == 0 {
@@ -197,7 +200,8 @@ fn parse_match(i: &str) -> IResult<&str, Match> {
         parse_term_match,
         parse_variable_match,
         parse_string_match,
-        parse_number_match))(i)
+        parse_number_match,
+        parse_variadic_elem_match))(i)
 }
 
 /*
@@ -285,7 +289,7 @@ fn parse_tuple(i: &str) -> IResult<&str, Expr> {
             |expr| -> Expr {
                 expr
             }),
-        map(delimited(ws(char('(')), ws(separated_list0(ws(tag(",")), parse_expr)), ws(char(')'))),
+        map(delimited(ws(char('(')), terminated(ws(separated_list0(ws(tag(",")), parse_expr)), opt(tag(","))), ws(char(')'))),
             |r: Vec<Expr>| -> Expr {
                 Expr::Tuple(Tuple { values: r })
             }),
@@ -335,35 +339,45 @@ fn parse_let(i: &str) -> IResult<&str, Expr> {
         parse_invocation))(i)
 }
 
-fn parse_and(input: &str) -> IResult<&str, Expr> {
-    let (input, lhs) = parse_let(input)?;
-    let (input, r)   = opt(ws(char('>')))(input)?;
-    match r {
-        Some(_) => {
-            let (input, rhs) = parse_and(input)?;
-            return Ok((input, Expr::Op(Op::And(Box::from(lhs), Box::from(rhs)))));
-        },
-        _ => {}
-    }
-
-    Ok((input, lhs))
+fn parse_catch(i: &str) -> IResult<&str, Expr> {
+    map(tuple((
+        parse_let,
+        opt(preceded(ws(tag("+")), parse_sequence))
+    )), |(left, right)| match right {
+        None => left,
+        Some(rhs) => Expr::Op(Op::Or(Box::from(left), Box::from(rhs)))
+    })(i)
 }
 
-fn parse_or(input: &str) -> IResult<&str, Expr> {
-    let (input, lhs) = parse_and(input)?;
-    let (input, r)   = opt(ws(char('+')))(input)?;
-    match r {
-        Some(_) => {
-            let (input, rhs) = parse_or(input)?;
-            return Ok((input, Expr::Op(Op::Or(Box::from(lhs), Box::from(rhs)))));
-        },
-        _ => {}
-    }
-    Ok((input, lhs))
+fn parse_sequence(i: &str) -> IResult<&str, Expr> {
+    map(tuple((
+        parse_catch,
+        opt(preceded(ws(tag(">")), parse_sequence))
+    )), |(left, right)| match right {
+        None => left,
+        Some(rhs) => Expr::Op(Op::And(Box::from(left), Box::from(rhs))),
+    })(i)
+}
+
+fn parse_choice(i: &str) -> IResult<&str, Expr> {
+    map(tuple((
+        parse_sequence,
+        opt(pair(
+            preceded(ws(char('?')),
+                parse_choice),
+            preceded(ws(char(':')),
+                parse_expr)
+        ))
+    )), |(e, maybe)| {
+        match maybe {
+            None => e,
+            Some((left, right)) => Expr::Op(Op::Choice(Box::from(e), Box::from(left), Box::from(right))),
+        }
+    })(i)
 }
 
 fn parse_expr(input: &str) -> IResult<&str, Expr> {
-    parse_or(input)
+    parse_choice(input)
 }
 
 fn parse_function(input: &str) -> IResult<&str, Function> {
