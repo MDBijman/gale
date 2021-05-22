@@ -1,69 +1,247 @@
-Program([Function(
-    "main"
-  , [Var(0)]
-  , [
-      Store(
-        Var(1)
-      , UnOp(
-          "~"
-        , True()
-        )
-      )
-    , JmpIf(
-        Load(Var(1))
-      , "lbl_1"
-      )
-    , Store(
-        Var(2)
-      , Load(Var(0))
-      )
-    , Store(
-        Var(3)
-      , BinOp(
-          "+"
-        , Load(Var(2))
-        , UI8(1)
-        )
-      )
-    , Return(Load(Var(3)))
-    , Jmp("lbl_0")
-    , Lbl("lbl_1")
-    , Store(
-        Var(4)
-      , UnOp(
-          "~"
-        , BinOp(
-            "="
-          , Load(Var(0))
-          , UI8(0)
+Program([
+    Function(
+      "inc"
+    , [Var(0)]
+    , [
+        Store(
+          Var(1)
+        , UnOp(
+            "~"
+          , True()
           )
         )
-      )
-    , JmpIf(
-        Load(Var(4))
-      , "lbl_3"
-      )
-    , Return(UI8(6))
-    , Jmp("lbl_2")
-    , Lbl("lbl_3")
-    , Store(
-        Var(5)
-      , UnOp(
-          "~"
+      , JmpIf(
+          Load(Var(1))
+        , "lbl_0"
+        )
+      , Store(
+          Var(2)
+        , Load(Var(0))
+        )
+      , Store(
+          Var(3)
         , BinOp(
-            "="
-          , Load(Var(0))
-          , UI8(3)
+            "+"
+          , Load(Var(2))
+          , UI8(1)
           )
         )
-      )
-    , JmpIf(
-        Load(Var(5))
-      , "lbl_4"
-      )
-    , Return(UI8(4))
-    , Lbl("lbl_4")
-    , Lbl("lbl_2")
-    , Lbl("lbl_0")
-    ]
-  )])
+      , Lbl("lbl_0")
+      , Return(Load(Var(3)))
+      ]
+    )
+  , Function(
+      "dec"
+    , [Var(0)]
+    , [
+        Store(
+          Var(1)
+        , UnOp(
+            "~"
+          , True()
+          )
+        )
+      , JmpIf(
+          Load(Var(1))
+        , "lbl_1"
+        )
+      , Store(
+          Var(2)
+        , Load(Var(0))
+        )
+      , Store(
+          Var(3)
+        , BinOp(
+            "-"
+          , Load(Var(2))
+          , UI8(1)
+          )
+        )
+      , Lbl("lbl_1")
+      , Return(Load(Var(3)))
+      ]
+    )
+  , Function(
+      "main"
+    , [Var(0)]
+    , [
+        Store(
+          Var(1)
+        , UnOp(
+            "~"
+          , BinOp(
+              "="
+            , Load(Var(0))
+            , UI8(0)
+            )
+          )
+        )
+      , JmpIf(
+          Load(Var(1))
+        , "lbl_3"
+        )
+      , Store(
+          Var(2)
+        , UI8(6)
+        )
+      , Jmp("lbl_2")
+      , Lbl("lbl_3")
+      , Store(
+          Var(3)
+        , UnOp(
+            "~"
+          , True()
+          )
+        )
+      , JmpIf(
+          Load(Var(3))
+        , "lbl_4"
+        )
+      , Store(
+          Var(4)
+        , Load(Var(0))
+        )
+      , Store(
+          Var(5)
+        , UnOp(
+            "~"
+          , BinOp(
+              "="
+            , Load(Var(4))
+            , UI8(3)
+            )
+          )
+        )
+      , JmpIf(
+          Load(Var(5))
+        , "lbl_6"
+        )
+      , Store(
+          Var(6)
+        , UI8(5)
+        )
+      , Jmp("lbl_5")
+      , Lbl("lbl_6")
+      , Store(
+          Var(7)
+        , UnOp(
+            "~"
+          , BinOp(
+              "="
+            , Load(Var(4))
+            , UI8(4)
+            )
+          )
+        )
+      , JmpIf(
+          Load(Var(7))
+        , "lbl_8"
+        )
+      , Store(
+          Var(8)
+        , UI8(6)
+        )
+      , Jmp("lbl_7")
+      , Lbl("lbl_8")
+      , Store(
+          Var(9)
+        , UnOp(
+            "~"
+          , BinOp(
+              "="
+            , Load(Var(4))
+            , UI8(5)
+            )
+          )
+        )
+      , JmpIf(
+          Load(Var(9))
+        , "lbl_10"
+        )
+      , Store(
+          Var(10)
+        , Call(
+            "dec"
+          , Load(Var(4))
+          )
+        )
+      , Store(
+          Var(11)
+        , Call(
+            "dec"
+          , Load(Var(10))
+          )
+        )
+      , Store(
+          Var(12)
+        , Call(
+            "dec"
+          , Load(Var(11))
+          )
+        )
+      , Store(
+          Var(13)
+        , Call(
+            "inc"
+          , Load(Var(12))
+          )
+        )
+      , Store(
+          Var(14)
+        , Load(Var(13))
+        )
+      , Jmp("lbl_9")
+      , Lbl("lbl_10")
+      , Store(
+          Var(15)
+        , UnOp(
+            "~"
+          , True()
+          )
+        )
+      , JmpIf(
+          Load(Var(15))
+        , "lbl_11"
+        )
+      , Store(
+          Var(16)
+        , Load(Var(4))
+        )
+      , Store(
+          Var(17)
+        , Load(Var(16))
+        )
+      , Lbl("lbl_11")
+      , Store(
+          Var(14)
+        , Load(Var(17))
+        )
+      , Lbl("lbl_9")
+      , Store(
+          Var(8)
+        , Load(Var(14))
+        )
+      , Lbl("lbl_7")
+      , Store(
+          Var(6)
+        , Load(Var(8))
+        )
+      , Lbl("lbl_5")
+      , Store(
+          Var(18)
+        , Load(Var(6))
+        )
+      , Store(
+          Var(19)
+        , Load(Var(18))
+        )
+      , Lbl("lbl_4")
+      , Store(
+          Var(2)
+        , Load(Var(19))
+        )
+      , Lbl("lbl_2")
+      , Return(Load(Var(2)))
+      ]
+    )
+  ])

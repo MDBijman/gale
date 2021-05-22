@@ -5,7 +5,7 @@ use nom::{
     character::complete::{multispace0, char, anychar, none_of, digit1},
     sequence::{delimited, preceded, separated_pair, pair, tuple, terminated},
     branch::alt,
-    multi::{separated_list0, separated_list1, many0, fold_many0},
+    multi::{separated_list0, separated_list1, many0, many1, fold_many0},
     bytes::complete::{tag, take_while, take_while1},
     combinator::{ map_res, opt, map_opt, map, verify, cut, all_consuming  },
 };
@@ -73,6 +73,7 @@ pub fn parse_name(input: &str) -> IResult<&str, &str> {
         |s: &str|
                s != "in"
             && s != "let"
+            && s != "match"
         )(input)
 }
 
@@ -139,6 +140,8 @@ fn parse_type(input: &str) -> IResult<&str, Term> {
     }
 }
 
+
+
 fn parse_lambda(input: &str) -> IResult<&str, Term> {
     let (input, _) = ws(tag("\\")).parse(input)?;
     let (input, params) = alt((
@@ -195,7 +198,7 @@ enum Op {
 fn parse_op(i: &str) -> IResult<&str, Op> {
     alt((
         map(tag("+"), |_| Op::Add),
-        map(tag("-"), |_| Op::Sub)
+        map(tag("-"), |_| Op::Sub),
     ))(i)
 }
 
@@ -209,10 +212,18 @@ fn parse_binop(i: &str) -> IResult<&str, Term> {
 }
 
 fn parse_appl(i: &str) -> IResult<&str, Term> {
-    map(pair(ws(parse_binop), opt(parse_expr)),
-        |(op, expr)| match expr {
-            Some(e) => Term::new_rec_term("Appl", vec![op, e]),
-            _ => op
+    map(pair(ws(parse_binop), many0(ws(parse_binop))),
+        |(lhs, exprs)| match exprs.as_slice() {
+            [] => lhs,
+            _ => {
+                let mut result = lhs;
+
+                for arg in exprs {
+                    result = Term::new_rec_term("Appl", vec![result, arg]);
+                };
+
+                result
+            }
         })(i)
 }
 
@@ -244,8 +255,23 @@ fn parse_let(input: &str) -> IResult<&str, Term> {
     }
 }
 
+fn parse_match(i: &str) -> IResult<&str, Term> {
+    alt((
+        map(tuple((tag("match"), parse_expr, many1(preceded(ws(tag("|")), separated_pair(parse_pattern, ws(tag("->")), parse_expr))))),
+            |(_, e, ps)| {
+                let branches: Vec<Term> = ps
+                    .into_iter()
+                    .map(|t| Term::new_rec_term("MatchBranch", vec![t.0, t.1]))
+                    .collect();
+
+                Term::new_rec_term("Match", vec![e, Term::new_list_term(branches)])
+            }),
+        parse_let
+    ))(i)
+}
+
 fn parse_expr(input: &str) -> IResult<&str, Term> {
-    parse_let(input)
+    parse_match(input)
 }
 
 /*
@@ -260,7 +286,7 @@ fn parse_pattern_int(i: &str) -> IResult<&str, Term> {
     map(parse_number, |n| Term::new_rec_term("PatternNum", vec![n]))(i)
 }
 
-fn parse_match(i: &str) -> IResult<&str, Term> {
+fn parse_pattern(i: &str) -> IResult<&str, Term> {
     alt((
         parse_pattern_int,
         parse_pattern_var,
@@ -279,7 +305,7 @@ fn parse_function_declaration(input: &str) -> IResult<&str, Term> {
 fn parse_function_definition(i: &str) -> IResult<&str, Term> {
     map(tuple((
         parse_name,
-        ws(parse_match),
+        ws(parse_pattern),
         cut(ws(tag("="))),
         cut(parse_expr),
         cut(ws(tag(";")))

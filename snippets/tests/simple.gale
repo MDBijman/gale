@@ -1,6 +1,15 @@
-main: ui8 -> ui8
-main a = let b:ui8 = a + 1 in b;
+main: [str] -> ui8
 main 0 = 6;
-main 3 = 4;
+main a = let b: ui8 = match a
+  | 3 -> 5
+  | 4 -> 6
+  | 5 -> inc (dec (dec (dec a)))
+  | c -> c
+    in b;
 
+dec: ui8 -> ui8
+dec a = a - 1;
+
+inc: ui8 -> ui8
+inc a = a + 1;
 

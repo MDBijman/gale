@@ -21,6 +21,7 @@ struct VM {
     callstack: Vec<Frame>,
     code: Module,
     state: VMState,
+    heap: Vec<Value>,
     result: Value
 }
 
@@ -60,10 +61,10 @@ impl VM {
             .instructions
             .get(frame.pc.instruction as usize).unwrap();
 
-        // println!("{:?}", current_instruction);
+        //println!("{:?}", current_instruction);
 
         match current_instruction {
-            Instruction::Store(Location::Var(loc), expr) => {
+            Instruction::Set(Location::Var(loc), expr) => {
                 let val = VM::interp_expr(frame, expr);
                 frame.variables[*loc as usize] = val;
                 frame.pc.instruction += 1;
@@ -204,6 +205,32 @@ impl VM {
             Instruction::Lbl(_) => {
                 frame.pc.instruction += 1;
             },
+            Instruction::Alloc(Location::Var(loc), ty) => {
+                frame.variables[*loc as usize] = Value::Pointer(self.heap.len() as u64);
+
+                match ty {
+                    Type::U64() => self.heap.push(Value::U64(0)),
+                    _ => panic!("Invalid operand")
+                }
+
+                frame.pc.instruction += 1;
+            },
+            Instruction::Load(Location::Var(dest), Location::Var(src)) => {
+                let loaded_value = frame.variables[*src as usize].clone();
+                match loaded_value {
+                    Value::Pointer(idx) => frame.variables[*dest as usize] = self.heap[idx as usize].clone(),
+                    _ => panic!("Unexpected loaded value")
+                }
+                frame.pc.instruction += 1;
+            },
+            Instruction::Store(Location::Var(dest), e) => {
+                let value = VM::interp_expr(frame, e);
+                match frame.variables[*dest as usize] {
+                    Value::Pointer(loc) => self.heap[loc as usize] = value,
+                    _ => panic!("Invalid operand")
+                };
+                frame.pc.instruction += 1;
+            },
             _ => panic!("Invalid instruction")
         }
     }
@@ -217,10 +244,11 @@ pub fn run(m: Module) -> Value {
         callstack: vec![Frame {
             pc: ProgramCounter { instruction: 0 },
             name: String::from("main"),
-            variables: vec![Value::U64(0); initial_frame_size as usize],
+            variables: vec![Value::U64(5); initial_frame_size as usize],
             stack: vec![]
         }],
         state: VMState::Running,
+        heap: Vec::new(),
         result: Value::U64(0)
     };
 

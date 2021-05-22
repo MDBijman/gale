@@ -22,9 +22,18 @@ impl Module {
 }
 
 #[derive(Debug, Clone)]
+pub enum Type {
+    U64(),
+    Array(Box<Type>),
+    Pointer(Box<Type>),
+    Null
+}
+
+#[derive(Debug, Clone)]
 pub enum Value {
     U64(u64),
     Array(Vec<Value>),
+    Pointer(u64),
     Null
 }
 
@@ -52,7 +61,8 @@ impl fmt::Display for Value {
                 }
                 write!(f, "]")
             },
-            Value::Null => write!(f, "null")
+            Value::Null => write!(f, "null"),
+            Value::Pointer(b) => write!(f, "&{}", b)
         }
     }
 }
@@ -72,7 +82,7 @@ pub enum Location {
 
 #[derive(Debug)]
 pub enum Instruction {
-    Store(Location, Expression),
+    Set(Location, Expression),
     Return(Expression),
     Print(Expression),
     Call(Location, String, Vec<Expression>),
@@ -82,7 +92,11 @@ pub enum Instruction {
 
     Pop(Location),
     Push(Expression),
-    Op(Op)
+    Op(Op),
+
+    Alloc(Location, Type),
+    Load(Location, Location),
+    Store(Location, Expression)
 }
 
 #[derive(Debug)]

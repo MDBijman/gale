@@ -65,6 +65,18 @@ fn parse_lbl(i: &str) -> IResult<&str, String> {
 }
 
 /*
+* Types
+*/
+
+fn parse_type(i: &str) -> IResult<&str, Type> {
+    alt((
+        map(tag("u64"), |_| Type::U64()),
+        map(delimited(tag("["), parse_type, tag("]")), |t| Type::Array(Box::new(t))),
+        map(tag("null"), |_| Type::Null)
+    ))(i)
+}
+
+/*
 * Expressions
 */
 
@@ -104,10 +116,42 @@ fn parse_instruction(i: &str) -> IResult<&str, Vec<Instruction>> {
         map(parse_call, |i| vec![i]),
         map(parse_return, |i| vec![i]),
         map(parse_print, |i| vec![i]),
+        map(parse_alloc, |i| vec![i]),
+        map(parse_load, |i| vec![i]),
+        map(parse_store, |i| vec![i]),
         map(parse_jmp, |i| vec![i]),
         map(parse_lbl_instr, |i| vec![i]),
-        parse_store, 
+        parse_set, 
     )), multispace0)(i)
+}
+
+fn parse_load(i: &str) -> IResult<&str, Instruction> {
+    map(tuple((
+        parse_location,
+        spaces_around(tag("=")),
+        spaces_around(tag("load")),
+        parse_location,
+    )),
+    |(l, _, _, s)| Instruction::Load(l, s))(i)
+}
+
+fn parse_store(i: &str) -> IResult<&str, Instruction> {
+    map(tuple((
+        spaces_around(tag("store")),
+        parse_location,
+        parse_expression,
+    )),
+    |(_, l, e)| Instruction::Store(l, e))(i)
+}
+
+fn parse_alloc(i: &str) -> IResult<&str, Instruction> {
+    map(tuple((
+        parse_location,
+        spaces_around(tag("=")),
+        spaces_around(tag("alloc")),
+        parse_type
+    )),
+    |(l, _, _, t)| Instruction::Alloc(l, t))(i)
 }
 
 fn parse_call(i: &str) -> IResult<&str, Instruction> {
@@ -123,7 +167,7 @@ fn parse_call(i: &str) -> IResult<&str, Instruction> {
     |(l, _, _, id, _, e, _)| Instruction::Call(l, id, e))(i)
 }
 
-fn parse_store(i: &str) -> IResult<&str, Vec<Instruction>> {
+fn parse_set(i: &str) -> IResult<&str, Vec<Instruction>> {
     map(terminated(tuple((
         parse_location,
         ws(tag("=")),
@@ -136,7 +180,7 @@ fn parse_store(i: &str) -> IResult<&str, Vec<Instruction>> {
             // Fold single operand into store instruction
             match instrs.remove(0) {
                 Instruction::Push(e) => {
-                    vec![Instruction::Store(l, e)]
+                    vec![Instruction::Set(l, e)]
                 },
                 _ => panic!("Invalid operand")
             }
@@ -205,9 +249,12 @@ fn parse_function(i: &str) -> IResult<&str, Function> {
 
         for instr in instructions.iter() {
             match instr {
-                Instruction::Store(Location::Var(i), _)   => { vars.insert(i); },
+                Instruction::Set(Location::Var(i), _)   => { vars.insert(i); },
                 Instruction::Pop(Location::Var(i))        => { vars.insert(i); },
                 Instruction::Call(Location::Var(i), _, _) => { vars.insert(i); },
+                Instruction::Load(Location::Var(i), _) => { vars.insert(i); },
+                Instruction::Store(Location::Var(i), _) => { vars.insert(i); },
+                Instruction::Alloc(Location::Var(i), _) => { vars.insert(i); },
                 _ => {},
             }
         }
