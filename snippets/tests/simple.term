@@ -1,0 +1,88 @@
+File([
+    FnDecl(
+      "main"
+    , FnType(
+        TypeId("ui8")
+      , TypeId("ui8")
+      )
+    )
+  , FnDef(
+      "main"
+    , PatternNum(Int(0))
+    , Int(6)
+    )
+  , FnDef(
+      "main"
+    , PatternVar("a")
+    , Let(
+        [Decl(
+          "b"
+        , TypeId("ui8")
+        , Match(
+            Ref("a")
+          , [
+              MatchBranch(
+                PatternNum(Int(3))
+              , Int(5)
+              )
+            , MatchBranch(
+                PatternNum(Int(4))
+              , Int(6)
+              )
+            , MatchBranch(
+                PatternNum(Int(5))
+              , Appl(
+                  Ref("inc")
+                , Brackets(Appl(
+                    Ref("dec")
+                  , Brackets(Appl(
+                      Ref("dec")
+                    , Brackets(Appl(
+                        Ref("dec")
+                      , Ref("a")
+                      ))
+                    ))
+                  ))
+                )
+              )
+            , MatchBranch(
+                PatternVar("c")
+              , Ref("c")
+              )
+            ]
+          )
+        )]
+      , Ref("b")
+      )
+    )
+  , FnDecl(
+      "dec"
+    , FnType(
+        TypeId("ui8")
+      , TypeId("ui8")
+      )
+    )
+  , FnDef(
+      "dec"
+    , PatternVar("a")
+    , Sub(
+        Ref("a")
+      , Int(1)
+      )
+    )
+  , FnDecl(
+      "inc"
+    , FnType(
+        TypeId("ui8")
+      , TypeId("ui8")
+      )
+    )
+  , FnDef(
+      "inc"
+    , PatternVar("a")
+    , Add(
+        Ref("a")
+      , Int(1)
+      )
+    )
+  ])

@@ -1,0 +1,100 @@
+File([
+    FnDecl(
+      "main"
+    , FnType(
+        TypeId("ui8")
+      , TypeId("ui8")
+      )
+    )
+  , FnDef(
+      "main"
+    , PatternNum(Int(0))
+    , Int(6){Type(Builtin("ui8"))}
+    ){Type(Func(
+      Builtin("ui8")
+    , Builtin("ui8")
+    ))}
+  , FnDef(
+      "main"
+    , PatternVar("a")
+    , Let(
+        [Decl(
+          "b"
+        , TypeId("ui8")
+        , Match(
+            Ref("a"){Type(Builtin("ui8"))}
+          , [
+              MatchBranch(
+                PatternNum(Int(3))
+              , Int(5){Type(Builtin("ui8"))}
+              )
+            , MatchBranch(
+                PatternNum(Int(4))
+              , Int(6){Type(Builtin("ui8"))}
+              )
+            , MatchBranch(
+                PatternNum(Int(5))
+              , Appl(
+                  "inc"
+                , Brackets(Appl(
+                    "dec"
+                  , Brackets(Appl(
+                      "dec"
+                    , Brackets(Appl(
+                        "dec"
+                      , Ref("a"){Type(Builtin("ui8"))}
+                      ){Type(Builtin("ui8"))}){Type(Builtin("ui8"))}
+                    ){Type(Builtin("ui8"))}){Type(Builtin("ui8"))}
+                  ){Type(Builtin("ui8"))}){Type(Builtin("ui8"))}
+                ){Type(Builtin("ui8"))}
+              )
+            , MatchBranch(
+                PatternVar("c")
+              , Ref("c"){Type(Builtin("ui8"))}
+              )
+            ]
+          )
+        )]
+      , Ref("b"){Type(Builtin("ui8"))}
+      )
+    ){Type(Func(
+      Builtin("ui8")
+    , Builtin("ui8")
+    ))}
+  , FnDecl(
+      "dec"
+    , FnType(
+        TypeId("ui8")
+      , TypeId("ui8")
+      )
+    )
+  , FnDef(
+      "dec"
+    , PatternVar("a")
+    , Sub(
+        Ref("a"){Type(Builtin("ui8"))}
+      , Int(1){Type(Builtin("ui8"))}
+      ){Type(Builtin("ui8"))}
+    ){Type(Func(
+      Builtin("ui8")
+    , Builtin("ui8")
+    ))}
+  , FnDecl(
+      "inc"
+    , FnType(
+        TypeId("ui8")
+      , TypeId("ui8")
+      )
+    )
+  , FnDef(
+      "inc"
+    , PatternVar("a")
+    , Add(
+        Ref("a"){Type(Builtin("ui8"))}
+      , Int(1){Type(Builtin("ui8"))}
+      ){Type(Builtin("ui8"))}
+    ){Type(Func(
+      Builtin("ui8")
+    , Builtin("ui8")
+    ))}
+  ])

@@ -1,0 +1,247 @@
+Program([
+    Function(
+      "inc"
+    , Pattern("_arg")
+    , [
+        Store(
+          "tmp_0"
+        , UnOp(
+            "~"
+          , True()
+          )
+        )
+      , JmpIf(
+          "lbl_0"
+        , Load("tmp_0")
+        )
+      , Store(
+          "a"
+        , Load("_arg")
+        )
+      , Store(
+          "tmp_1"
+        , BinOp(
+            "+"
+          , Load("a")
+          , UI8(1)
+          )
+        )
+      , Lbl("lbl_0")
+      , Return(Load("tmp_1"))
+      ]
+    )
+  , Function(
+      "dec"
+    , Pattern("_arg")
+    , [
+        Store(
+          "tmp_2"
+        , UnOp(
+            "~"
+          , True()
+          )
+        )
+      , JmpIf(
+          "lbl_1"
+        , Load("tmp_2")
+        )
+      , Store(
+          "a"
+        , Load("_arg")
+        )
+      , Store(
+          "tmp_3"
+        , BinOp(
+            "-"
+          , Load("a")
+          , UI8(1)
+          )
+        )
+      , Lbl("lbl_1")
+      , Return(Load("tmp_3"))
+      ]
+    )
+  , Function(
+      "main"
+    , Pattern("_arg")
+    , [
+        Store(
+          "tmp_4"
+        , UnOp(
+            "~"
+          , BinOp(
+              "="
+            , Load("_arg")
+            , UI8(0)
+            )
+          )
+        )
+      , JmpIf(
+          "lbl_3"
+        , Load("tmp_4")
+        )
+      , Store(
+          "tmp_5"
+        , UI8(6)
+        )
+      , Jmp("lbl_2")
+      , Lbl("lbl_3")
+      , Store(
+          "tmp_6"
+        , UnOp(
+            "~"
+          , True()
+          )
+        )
+      , JmpIf(
+          "lbl_4"
+        , Load("tmp_6")
+        )
+      , Store(
+          "a"
+        , Load("_arg")
+        )
+      , Store(
+          "tmp_8"
+        , UnOp(
+            "~"
+          , BinOp(
+              "="
+            , Load("a")
+            , UI8(3)
+            )
+          )
+        )
+      , JmpIf(
+          "lbl_6"
+        , Load("tmp_8")
+        )
+      , Store(
+          "tmp_9"
+        , UI8(5)
+        )
+      , Jmp("lbl_5")
+      , Lbl("lbl_6")
+      , Store(
+          "tmp_10"
+        , UnOp(
+            "~"
+          , BinOp(
+              "="
+            , Load("a")
+            , UI8(4)
+            )
+          )
+        )
+      , JmpIf(
+          "lbl_8"
+        , Load("tmp_10")
+        )
+      , Store(
+          "tmp_11"
+        , UI8(6)
+        )
+      , Jmp("lbl_7")
+      , Lbl("lbl_8")
+      , Store(
+          "tmp_12"
+        , UnOp(
+            "~"
+          , BinOp(
+              "="
+            , Load("a")
+            , UI8(5)
+            )
+          )
+        )
+      , JmpIf(
+          "lbl_10"
+        , Load("tmp_12")
+        )
+      , Store(
+          "tmp_17"
+        , Call(
+            "dec"
+          , Load("a")
+          )
+        )
+      , Store(
+          "tmp_16"
+        , Call(
+            "dec"
+          , Load("tmp_17")
+          )
+        )
+      , Store(
+          "tmp_15"
+        , Call(
+            "dec"
+          , Load("tmp_16")
+          )
+        )
+      , Store(
+          "tmp_14"
+        , Call(
+            "inc"
+          , Load("tmp_15")
+          )
+        )
+      , Store(
+          "tmp_13"
+        , Load("tmp_14")
+        )
+      , Jmp("lbl_9")
+      , Lbl("lbl_10")
+      , Store(
+          "tmp_18"
+        , UnOp(
+            "~"
+          , True()
+          )
+        )
+      , JmpIf(
+          "lbl_11"
+        , Load("tmp_18")
+        )
+      , Store(
+          "c"
+        , Load("a")
+        )
+      , Store(
+          "tmp_19"
+        , Load("c")
+        )
+      , Lbl("lbl_11")
+      , Store(
+          "tmp_13"
+        , Load("tmp_19")
+        )
+      , Lbl("lbl_9")
+      , Store(
+          "tmp_11"
+        , Load("tmp_13")
+        )
+      , Lbl("lbl_7")
+      , Store(
+          "tmp_9"
+        , Load("tmp_11")
+        )
+      , Lbl("lbl_5")
+      , Store(
+          "b"
+        , Load("tmp_9")
+        )
+      , Store(
+          "tmp_7"
+        , Load("b")
+        )
+      , Lbl("lbl_4")
+      , Store(
+          "tmp_5"
+        , Load("tmp_7")
+        )
+      , Lbl("lbl_2")
+      , Return(Load("tmp_5"))
+      ]
+    )
+  ])

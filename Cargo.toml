@@ -1,0 +1,10 @@
+[workspace]
+members = [
+    "checker",
+    "compiler",
+    "parser",
+    "pipeline",
+    "rewriter",
+    "terms_format",
+    "vm"
+]

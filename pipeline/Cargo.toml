@@ -1,0 +1,28 @@
+[package]
+name = "pipeline"
+version = "0.1.0"
+authors = ["Matthijs Bijman <matthijs@bijman.org>"]
+edition = "2018"
+
+[dependencies]
+clap = "2.33.3"
+
+[dependencies.parser]
+path = "../parser"
+version = "0.1.0"
+
+[dependencies.checker]
+path = "../checker"
+version = "0.1.0"
+
+[dependencies.compiler]
+path = "../compiler"
+version = "0.1.0"
+
+[dependencies.terms_format]
+path = "../terms_format"
+version = "0.1.0"
+
+[[bin]]
+name = "gale"
+path = "src/bin.rs"

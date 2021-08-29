@@ -1,0 +1,16 @@
+main: [str] -> ui8
+main a = let b: ui8 = match a!!0
+  | "qword" -> 64
+  | "dword" -> 32
+  | "word" -> 16
+  | "byte" -> 8
+  | "nibble" -> 4
+  | c -> 999
+    in b;
+
+dec: ui8 -> ui8
+dec a = a - 1;
+
+inc: ui8 -> ui8
+inc a = a + 1;
+

@@ -1,9 +1,0 @@
-module tuple2
-import [std std.io]
-
-fn main: () -> () = \() => {
-    let a : (std.ui64, std.ui64) = (3, 5);
-    let (b, c): (std.ui64, std.ui64) = a;
-    std.io.print b;
-    ()
-};

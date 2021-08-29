@@ -1,7 +1,0 @@
-module param
-import [std std.io test2]
-
-fn main: () -> () = \() => {
-    std.io.print (test2.add_one 5);
-    ()
-};

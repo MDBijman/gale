@@ -1,0 +1,29 @@
+main: Program(fns) ->
+     funstrs := !concat_str !intersperse["\n"] !flatmap_some[!print] fns
+  in funstrs;
+
+print: Function(name, params, body) ->
+     paramstr := !concat_str !flatmap_some[!print] params
+  in bodystr  := !print body
+  in !concat_str !flatten_some [
+      "func ", name, " (", paramstr, ") {\n",
+        bodystr,
+      "\n}\n"
+    ];
+
+print: Store(into, expr) -> !concat_str ["  ", !print into, " = ", !print expr];
+print: Return(e)         -> !concat_str ["  ", "ret ", !print e] ;
+print: Call(fn, arg)     -> !concat_str ["call ", fn, " (", !print arg, ")"];
+print: Var(i)            -> !concat_str ["$", !to_str i, ""];
+print: Load(from)        -> !print from;
+print: [h|t]             -> !concat_str !flatten_some !intersperse["\n"] !flatmap_some[!print] [h|t];
+print: Array(elems) ->
+  !concat_str !flatten_some ["[", !intersperse[", "] !map[!print] elems, "]"];
+print: UI8(i) -> !to_str i;
+print: BinOp(symbol, lhs, rhs) -> !concat_str [!print lhs, " ", !print rhs, " ", symbol ];
+print: UnOp(symbol, expr) -> !concat_str [!print expr, " ", symbol];
+print: Lbl(lbl) -> !concat_str ["  ", lbl, ":"];
+print: Jmp(lbl) -> !concat_str ["  jmp", " ", lbl];
+print: JmpIf(cond, lbl) -> !concat_str ["  jmpif", " ", !print cond, " ", lbl];
+print: True() -> "true";
+print: False() -> "false";

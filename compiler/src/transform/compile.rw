@@ -1,0 +1,31 @@
+
+main: Program(fns) -> Program(!map[!compile] fns);
+
+compile: (env, [h|t]) -> !env_map[!compile] (env, [h|t]);
+
+compile: Function(name, Pattern(param), body) ->
+    !reset_num "loc"
+  > param_loc := Var(!gen_num "loc")
+  in env := !put[param, param_loc] .new_map ()
+  in compiled_body := !compile (env, body) > !second
+  in Function(name, [param_loc], compiled_body);
+compile: (env, Call(name, expr)) -> (env, Call(name, !compile (env, expr) > !second));
+compile: (env, Store(name, expr)) ->
+  .get[name] env 
+  ? (env, Store(!id, !compile (env, expr) > !second))
+  : (loc := Var(!gen_num "loc")
+    in new_env := !put[name, loc] env
+    in (new_env, Store(loc, !compile (new_env, expr) > !second)));
+compile: (env, Load(name)) -> (env, Load(!get[name] env));
+compile: (env, Return(e)) -> (env, Return(!compile (env, e) > !second));
+compile: (env, Array(elems)) -> (env, Array(!env_map[!compile] (env, elems) > !second));
+compile: (env, UI8(n)) -> .id;
+compile: (env, True()) -> .id;
+compile: (env, BinOp(_, lhs, rhs)) -> (env, BinOp(_, !compile (env, lhs) > !second, !compile (env, rhs) > !second));
+compile: (env, UnOp(_, expr)) -> (env, UnOp(_, !compile (env, expr) > !second));
+compile: (env, JmpIf(lbl, cond)) -> (env, JmpIf(!compile (env, cond) > !second, lbl));
+compile: (env, Not(cond)) -> (env, Not(!compile (env, cond) > !second));
+compile: (env, Eq(l, r)) -> (env, Eq(!compile (env, l) > !second, !compile (env, r) > !second));
+compile: (env, Lbl(lbl)) -> (env, Lbl(lbl));
+compile: (env, Jmp(lbl)) -> (env, Jmp(lbl));
+compile: t -> !debug t > !fail;
