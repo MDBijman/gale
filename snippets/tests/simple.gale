@@ -1,10 +1,11 @@
 main: [str] -> ui8
-main 0 = 6;
-main a = let b: ui8 = match a
-  | 3 -> 5
-  | 4 -> 6
-  | 5 -> inc (dec (dec (dec a)))
-  | c -> c
+main a = let b: ui8 = match a!!0
+  | "qword" -> 64
+  | "dword" -> 32
+  | "word" -> 16
+  | "byte" -> 8
+  | "nibble" -> 4
+  | c -> 999
     in b;
 
 dec: ui8 -> ui8

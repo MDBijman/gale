@@ -112,10 +112,16 @@ pub fn parse_string(input: &str) -> IResult<&str, Term> {
 fn parse_type_array(input: &str) -> IResult<&str, Term> {
     let (input, _) = ws(tag("[")).parse(input)?;
     let (input, type_) = parse_type(input)?;
-    let (input, _) = ws(tag(";")).parse(input)?;
-    let (input, count) = parse_number(input)?;
-    let (input, _) = ws(tag("]")).parse(input)?;
-    Ok((input, Term::new_rec_term("TypeArray", vec![type_, count])))
+
+    let (input, semi) = ws(opt(tag(";"))).parse(input)?;
+    if semi.is_some() {
+        let (input, count) = parse_number(input)?;
+        let (input, _) = ws(tag("]")).parse(input)?;
+        Ok((input, Term::new_rec_term("TypeArray", vec![type_, count])))
+    } else {
+        let (input, _) = ws(tag("]")).parse(input)?;
+        Ok((input, Term::new_rec_term("TypeHeapArray", vec![type_])))
+    }
 }
 
 fn parse_type_term(input: &str) -> IResult<&str, Term> {
@@ -286,10 +292,15 @@ fn parse_pattern_int(i: &str) -> IResult<&str, Term> {
     map(parse_number, |n| Term::new_rec_term("PatternNum", vec![n]))(i)
 }
 
+fn parse_pattern_str(i: &str) -> IResult<&str, Term> {
+    map(parse_string, |n| Term::new_rec_term("PatternStr", vec![n]))(i)
+}
+
 fn parse_pattern(i: &str) -> IResult<&str, Term> {
     alt((
         parse_pattern_int,
         parse_pattern_var,
+        parse_pattern_str
     ))(i)
 }
 
