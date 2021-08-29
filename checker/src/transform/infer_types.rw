@@ -49,6 +49,11 @@ typecheck: (env, Array(elems){Type(Array(elemtype, size))}) ->
   in checked_elems   := !map[.typecheck_env[env]] annotated_elems
   in (env, Array(checked_elems){Type(Array(elemtype, size))});
 
+typecheck: (env, ArrIndex(arr, idx)) -> 
+     checked_arr{Type(HeapArray(elemtype))} := !typecheck (env, arr{Type(HeapArray(Any()))}) > !second
+  in checked_idx{Type(Builtin("ui8"))}      := !typecheck (env, idx{Type(Builtin("ui8"))})   > !second
+  in (env, ArrIndex(checked_arr, checked_idx){Type(elemtype)});
+
 typecheck: (env, Ref(n){Type(t)}) ->
      Type(lt) := .get[n] env
   in (env, .is_subtype (Type(lt), Type(t)) ? Ref(n){Type(lt)} : Ref(n){TypeError("Different type")});
@@ -64,15 +69,24 @@ typecheck: (env, Match(expr, branches){Type(t)}) ->
   in (env, Match(checked_expr, checked_branches));
 
 typecheck_branch[env, in_type, out_type]: MatchBranch(pattern, expr) ->
-     new_env := !extract_pattern_types (env, pattern, in_type)
-  in MatchBranch(pattern, !typecheck (new_env, expr{out_type}) > !second);
+     new_env := !typecheck_pattern (pattern, in_type) > !extract_pattern_types (env, pattern, in_type)
+  in  MatchBranch(pattern, !typecheck (new_env, expr{out_type}) > !second);
 
 typecheck_env[env]: t -> .typecheck (env, t) > !second;
 
 # Working with patterns
 
+typecheck_pattern: (pat, Type(t)) -> !typecheck_pattern (pat, t); 
+typecheck_pattern: (PatternNum(_), Builtin("ui8")) -> .id;
+typecheck_pattern: (PatternNum(_), _) -> !fail "Cannot match number literal against this type";
+
+typecheck_pattern: (PatternStr(_), Ref("str")) -> .id;
+typecheck_pattern: (PatternStr(_), _) -> !fail "Cannot match string literal against this type";
+typecheck_pattern: (PatternVar(_), _) -> .id;
+
 extract_pattern_types: (env, PatternVar(n), Type(t)) -> !put[n, Type(t)] env;
-extract_pattern_types: (env, PatternNum(n), _) -> env;
+extract_pattern_types: (env, PatternNum(_), _) -> env;
+extract_pattern_types: (env, PatternStr(_), _) -> env;
 
 # Working with Types
 
@@ -83,6 +97,7 @@ typeof_type: TypeId("ui8") -> Builtin("ui8");
 typeof_type: TypeId(n)     -> Ref(n);
 typeof_type: TypeTuple()   -> Tuple();
 typeof_type: TypeArray(ts, s) -> Array(!typeof_type ts, s);
+typeof_type: TypeHeapArray(ts) -> HeapArray(!typeof_type ts);
 typeof_type: FnType(i, o)  -> Func(!typeof_type i, !typeof_type o);
 
 get_out_type: Func(i, o) -> Type(o);
@@ -91,5 +106,7 @@ get_out_type: Type(Func(i, o)) -> Type(o);
 get_in_type: Func(i, o) -> Type(i);
 get_in_type: Type(Func(i, o)) -> Type(i);
 
-is_subtype: (Type(t1), Type(t2)) -> .eq (t1, t2);
-is_subtype: (Type(t1), Type(Any())) -> .id;
+is_subtype: (Type(a), Type(b)) -> .is_subtype (a, b);
+is_subtype: (HeapArray(t1), HeapArray(t2)) -> .is_subtype (t1, t2);
+is_subtype: (t, Any()) -> .id;
+is_subtype: (t1, t2) -> .eq (t1, t2);

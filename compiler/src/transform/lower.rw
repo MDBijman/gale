@@ -15,6 +15,7 @@ lower: Appl(fn, arg){Type(t)} ->
   in Hoist([Store(tmp_name, Call(fn, !lower arg))], Load(tmp_name));
 lower: Int(i){Type(Builtin("ui8"))} -> UI8(i);
 lower: Int(i) -> UI8(i);
+lower: String(i) -> StringLiteral(i);
 lower: True() -> True();
 lower: False() -> False();
 lower: Add(lhs, rhs) -> BinOp("+", !lower lhs, !lower rhs);
@@ -23,6 +24,7 @@ lower: Eq(l, r)      -> BinOp("=", !lower l, !lower r);
 lower: Not(cond)     -> UnOp("~", !lower cond);
 lower: Ref(n) -> Load(n);
 lower: Array(elems) -> Array(!map[!lower] elems);
+lower: ArrIndex(arr, idx) -> ReadOffset(!lower arr, !lower idx);
 lower: If(cond, then, else) ->
      end_lbl  := !gen_name "lbl"
   in else_lbl := !gen_name "lbl"
