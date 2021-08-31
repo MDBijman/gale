@@ -1,8 +1,11 @@
 
-main: Program(fns) -> Program(!map[!compile] fns);
+main: Program(fns) ->
+     (constants, new_fns) := !env_bottomup[.try[.collect_string]] ([], fns)
+  in Program(Sections([ConstantSection(constants), FunctionSection(!map[!compile] new_fns)]));
+
+collect_string: (constants, StringLiteral(s)) -> (!concat (constants, [ConstDecl(!len constants, StringLiteral(s))]), ReadConst(!len constants));
 
 compile: (env, [h|t]) -> !env_map[!compile] (env, [h|t]);
-
 compile: Function(name, Pattern(param), body) ->
     !reset_num "loc"
   > param_loc := Var(!gen_num "loc")
@@ -17,6 +20,7 @@ compile: (env, Store(name, expr)) ->
     in new_env := !put[name, loc] env
     in (new_env, Store(loc, !compile (new_env, expr) > !second)));
 compile: (env, Load(name)) -> (env, Load(!get[name] env));
+compile: (env, ReadIdx(expr, idx)) -> (env, Index(!get[expr] env, !get[idx] env));
 compile: (env, Return(e)) -> (env, Return(!compile (env, e) > !second));
 compile: (env, Array(elems)) -> (env, Array(!env_map[!compile] (env, elems) > !second));
 compile: (env, UI8(n)) -> .id;
@@ -28,4 +32,5 @@ compile: (env, Not(cond)) -> (env, Not(!compile (env, cond) > !second));
 compile: (env, Eq(l, r)) -> (env, Eq(!compile (env, l) > !second, !compile (env, r) > !second));
 compile: (env, Lbl(lbl)) -> (env, Lbl(lbl));
 compile: (env, Jmp(lbl)) -> (env, Jmp(lbl));
+compile: (env, ReadConst(r)) -> (env, ReadConst(r));
 compile: t -> !debug t > !fail;

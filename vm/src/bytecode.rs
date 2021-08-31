@@ -3,19 +3,22 @@ use std::fmt;
 
 #[derive(Debug)]
 pub struct Module {
+    pub constants: Vec<Value>,
     pub functions: HashMap<String, Function>
 }
 
 impl Module {
     pub fn new() -> Module {
-        Module { functions: HashMap::new() }
+        Module { constants: Vec::new(), functions: HashMap::new() }
     }
 
-    pub fn from(fns: Vec<Function>) -> Module {
+    pub fn from(consts: Vec<Value>, fns: Vec<Function>) -> Module {
         let mut module = Module::new();
         for func in fns {
             module.functions.insert(func.name.clone(), func);
         }
+
+        module.constants = consts;
 
         module
     }
@@ -26,7 +29,8 @@ pub enum Type {
     U64(),
     Array(Box<Type>),
     Pointer(Box<Type>),
-    Null
+    Null,
+    Str
 }
 
 #[derive(Debug, Clone)]
@@ -34,7 +38,8 @@ pub enum Value {
     U64(u64),
     Array(Vec<Value>),
     Pointer(u64),
-    Null
+    Null,
+    Str(String)
 }
 
 #[derive(Debug, Clone)]
@@ -62,7 +67,8 @@ impl fmt::Display for Value {
                 write!(f, "]")
             },
             Value::Null => write!(f, "null"),
-            Value::Pointer(b) => write!(f, "&{}", b)
+            Value::Pointer(b) => write!(f, "&{}", b),
+            Value::Str(s) => write!(f, "\"{}\"", s),
         }
     }
 }
@@ -96,7 +102,9 @@ pub enum Instruction {
 
     Alloc(Location, Type),
     Load(Location, Location),
-    Store(Location, Expression)
+    LoadConst(Location, u64),
+    Store(Location, Expression),
+    Index(Location, Location, Location)
 }
 
 #[derive(Debug)]

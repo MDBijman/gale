@@ -186,7 +186,9 @@ impl VM {
                         let res = match (lhs, rhs) {
                             (Value::U64(l), Value::U64(r)) if l == r => Value::U64(1),
                             (Value::U64(l), Value::U64(r)) if l != r => Value::U64(0),
-                            _ => panic!("Invalid operands")
+                            (Value::Str(a), Value::Str(b)) if a == b => Value::U64(1),
+                            (Value::Str(a), Value::Str(b)) if a != b => Value::U64(0),
+                            ops => panic!(format!("Invalid operands {:?}", ops))
                         };
                         frame.stack.push(res);
                     },
@@ -223,6 +225,10 @@ impl VM {
                 }
                 frame.pc.instruction += 1;
             },
+            Instruction::LoadConst(Location::Var(dest), idx) => {
+                frame.variables[*dest as usize] = self.code.constants[*idx as usize].clone();
+                frame.pc.instruction += 1;
+            },
             Instruction::Store(Location::Var(dest), e) => {
                 let value = VM::interp_expr(frame, e);
                 match frame.variables[*dest as usize] {
@@ -231,12 +237,28 @@ impl VM {
                 };
                 frame.pc.instruction += 1;
             },
-            _ => panic!("Invalid instruction")
+            Instruction::Index(Location::Var(dest), Location::Var(val), Location::Var(off)) => {
+                let idx = match &frame.variables[*off as usize] {
+                    Value::U64(n) => n,
+                    v => panic!(format!("Illegal index {:?}", v))
+                };
+
+                let value = &frame.variables[*val as usize];
+
+                let result = match value {
+                    Value::Array(elems) => elems[*idx as usize].clone(),
+                    Value::Str(str) => Value::U64(str.as_bytes()[*idx as usize] as u64),
+                    _ => panic!("Illegal index into {:?}", value)
+                };
+                frame.variables[*dest as usize] = result;
+                frame.pc.instruction += 1;
+            }
+            i => panic!(format!("Invalid instruction: {:?}", i))
         }
     }
 }
 
-pub fn run(m: Module) -> Value {
+pub fn run(m: Module, arg: &str) -> Value {
     let initial_frame_size = m.functions.get("main").unwrap().meta.vars;
 
     let mut machine: VM = VM {
@@ -244,13 +266,15 @@ pub fn run(m: Module) -> Value {
         callstack: vec![Frame {
             pc: ProgramCounter { instruction: 0 },
             name: String::from("main"),
-            variables: vec![Value::U64(5); initial_frame_size as usize],
+            variables: vec![Value::U64(u64::MAX); initial_frame_size as usize],
             stack: vec![]
         }],
         state: VMState::Running,
         heap: Vec::new(),
         result: Value::U64(0)
     };
+
+    *machine.callstack.last_mut().unwrap().variables.first_mut().unwrap() = Value::Array(vec![Value::Str(String::from(arg))]);
 
     while machine.is_running() {
         machine.step();

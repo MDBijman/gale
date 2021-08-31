@@ -1,13 +1,5 @@
 extern crate nom;
-use nom::{
-    IResult, error::ParseError,
-    character::complete::{ char, multispace0, alphanumeric1, digit1, space0 },
-    bytes::complete::{ tag, take_while1 },
-    combinator::{ map, cut },
-    branch::{ alt },
-    sequence::{ delimited, tuple, preceded, terminated, pair },
-    multi::{ separated_list0, many1, many0 },
-};
+use nom::{IResult, branch::{ alt }, bytes::complete::{tag, take_while, take_while1}, character::complete::{ char, multispace0, alphanumeric1, digit1, space0 }, combinator::{ map, cut }, error::ParseError, multi::{ separated_list0, many1, many0 }, sequence::{ delimited, tuple, preceded, terminated, pair }};
 use crate::bytecode::*;
 use std::fs;
 use std::collections::HashSet;
@@ -72,7 +64,8 @@ fn parse_type(i: &str) -> IResult<&str, Type> {
     alt((
         map(tag("u64"), |_| Type::U64()),
         map(delimited(tag("["), parse_type, tag("]")), |t| Type::Array(Box::new(t))),
-        map(tag("null"), |_| Type::Null)
+        map(tag("null"), |_| Type::Null),
+        map(tag("str"), |_| Type::Str)
     ))(i)
 }
 
@@ -80,12 +73,20 @@ fn parse_type(i: &str) -> IResult<&str, Type> {
 * Expressions
 */
 
+fn parse_constant(i: &str) -> IResult<&str, Value> {
+    preceded(space0, alt((
+        map(parse_u64, |n| Value::U64(n)),
+        parse_boolean,
+        parse_string
+    )))(i)
+}
+
 fn parse_expression(i: &str) -> IResult<&str, Expression> {
     preceded(space0, alt((
         map(parse_u64, |n| Expression::Value(Value::U64(n))),
         parse_var,
         parse_array,
-        parse_boolean
+        map(parse_boolean, |n| Expression::Value(n))
     )))(i)
 }
 
@@ -100,11 +101,15 @@ fn parse_array(i: &str) -> IResult<&str, Expression> {
         |e| Expression::Array(e))(i)
 }
 
-fn parse_boolean(i: &str) -> IResult<&str, Expression> {
+fn parse_boolean(i: &str) -> IResult<&str, Value> {
     alt((
-        map(tag("true"), |_| Expression::Value(Value::U64(1))),
-        map(tag("false"), |_| Expression::Value(Value::U64(0))),
+        map(tag("true"), |_| Value::U64(1)),
+        map(tag("false"), |_| Value::U64(0)),
     ))(i)
+}
+
+fn parse_string(i: &str) -> IResult<&str, Value> {
+    map(delimited(tag("\""), take_while(|c| c != '\"'), tag("\"")), |r| Value::Str(String::from(r)))(i)
 }
 
 /*
@@ -117,6 +122,8 @@ fn parse_instruction(i: &str) -> IResult<&str, Vec<Instruction>> {
         map(parse_return, |i| vec![i]),
         map(parse_print, |i| vec![i]),
         map(parse_alloc, |i| vec![i]),
+        map(parse_index, |i| vec![i]),
+        map(parse_loadc, |i| vec![i]),
         map(parse_load, |i| vec![i]),
         map(parse_store, |i| vec![i]),
         map(parse_jmp, |i| vec![i]),
@@ -152,6 +159,27 @@ fn parse_alloc(i: &str) -> IResult<&str, Instruction> {
         parse_type
     )),
     |(l, _, _, t)| Instruction::Alloc(l, t))(i)
+}
+
+fn parse_index(i: &str) -> IResult<&str, Instruction> {
+    map(tuple((
+        parse_location,
+        spaces_around(tag("=")),
+        spaces_around(tag("index")),
+        spaces_around(parse_location),
+        parse_location,
+    )),
+    |(res, _, _, a, b)| Instruction::Index(res, a, b))(i)
+}
+
+fn parse_loadc(i: &str) -> IResult<&str, Instruction> {
+    map(tuple((
+        parse_location,
+        spaces_around(tag("=")),
+        spaces_around(tag("loadc")),
+        parse_u64
+    )),
+    |(res, _, _, a)| Instruction::LoadConst(res, a))(i)
 }
 
 fn parse_call(i: &str) -> IResult<&str, Instruction> {
@@ -253,6 +281,8 @@ fn parse_function(i: &str) -> IResult<&str, Function> {
                 Instruction::Pop(Location::Var(i))        => { vars.insert(i); },
                 Instruction::Call(Location::Var(i), _, _) => { vars.insert(i); },
                 Instruction::Load(Location::Var(i), _) => { vars.insert(i); },
+                Instruction::LoadConst(Location::Var(i), _) => { vars.insert(i); },
+                Instruction::Index(Location::Var(i), _, _) => { vars.insert(i); },
                 Instruction::Store(Location::Var(i), _) => { vars.insert(i); },
                 Instruction::Alloc(Location::Var(i), _) => { vars.insert(i); },
                 _ => {},
@@ -281,18 +311,35 @@ fn parse_function(i: &str) -> IResult<&str, Function> {
     })(i)
 }
 
-fn parse_bytecode_string(i: &str) -> IResult<&str, Vec<Function>> {
-    many1(parse_function)(i)
+fn parse_constants(i: &str) -> IResult<&str, Vec<Value>> {
+    preceded(
+        ws(tag(".const")),
+        many0(preceded(tuple((parse_u64, tag(":"), ws(parse_type))), ws(parse_constant)))
+    )(i)
+}
+
+fn parse_functions(i: &str) -> IResult<&str, Vec<Function>> {
+    preceded(
+        ws(tag(".code")),
+        many1(parse_function)
+    )(i)
+}
+
+fn parse_bytecode_string(i: &str) -> IResult<&str, (Vec<Value>, Vec<Function>)> {
+    tuple((
+        parse_constants,
+        parse_functions
+    ))(i)
 }
 
 pub fn parse_bytecode_file(filename: &str) -> Module {
     let f = fs::read_to_string(filename).unwrap();
     match parse_bytecode_string(String::as_str(&f)) {
-        Ok((leftover, fns)) => {
+        Ok((leftover, (consts, fns))) => {
             if leftover.len() > 0 {
                 panic!(format!("Didn't parse entire file: {}", leftover));
             }
-            Module::from(fns)
+            Module::from(consts, fns)
         },
         Err(err) => panic!(format!("{:?}", err))
     }

@@ -26,14 +26,14 @@ fn main() {
         .get_matches();
 
     let input_file_name = matches.value_of("input_file").unwrap();
-    let arguments = matches.value_of("arguments").unwrap();
-    println!("{}", arguments);
+    let argument = matches.value_of("arguments").unwrap();
+    println!("input: {}", argument);
 
     let module = parser::parse_bytecode_file(input_file_name);
 
     let start = time::SystemTime::now();
 
-    let result = interpreter::run(module);
+    let result = interpreter::run(module, argument);
 
     println!("out: {} in {}ms", result, start.elapsed().unwrap().as_millis());
 }
