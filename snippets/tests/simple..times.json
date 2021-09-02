@@ -1,9 +1,0 @@
-
-{
-    "parse": 0,
-    "check": 18,
-    "desugar": 148,
-    "lower": 1299,
-    "compile": 764,
-    "print": 151
-}

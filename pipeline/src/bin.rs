@@ -139,7 +139,7 @@ fn main() {
 }}
 "#, parse_time, check_time, desugar_time, lower_time, compile_time, print_time);
 
-            let time_path = out_file.with_extension(".times.json");
+            let time_path = out_file.with_extension("times.json");
             let mut o = fs::File::create(time_path).unwrap();
             o.write(json_times.as_bytes()).unwrap();
         }
