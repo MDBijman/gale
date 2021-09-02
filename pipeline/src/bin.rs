@@ -33,6 +33,10 @@ fn main() {
             .short("d")
             .takes_value(false)
             .help("Output intermediate results of the compilation pipeline"))
+        .arg(Arg::with_name("time")
+            .short("t")
+            .takes_value(false)
+            .help("Outputs the running time of the various pipeline stages"))
         .get_matches();
 
 
@@ -45,13 +49,13 @@ fn main() {
         let out_file = path::Path::new(matches.value_of("output_file").unwrap());
 
         let should_debug = matches.is_present("debug");
+        let should_time  = matches.is_present("time");
 
         //
 
-        print!("Parsing...");
         let mut time = time::SystemTime::now();
         let term = parse_gale_file(&in_file.to_str().unwrap()).unwrap();
-        println!("Done in {}ms", time.elapsed().unwrap().as_millis());
+        let parse_time = time.elapsed().unwrap().as_millis();
 
         if should_debug {
             let input_out_path = out_file.with_extension("term");
@@ -61,10 +65,9 @@ fn main() {
 
         //
 
-        print!("Checking...");
         time = time::SystemTime::now();
         let checked_term = check(&term);
-        println!("Done in {}ms", time.elapsed().unwrap().as_millis());
+        let check_time = time.elapsed().unwrap().as_millis();
 
         if should_debug {
             let checked_out_path = out_file.with_extension("checked.term");
@@ -74,10 +77,9 @@ fn main() {
 
         //
 
-        print!("Desugaring...");
         time = time::SystemTime::now();
         let desugared_term = desugar(&checked_term);
-        println!("Done in {}ms", time.elapsed().unwrap().as_millis());
+        let desugar_time = time.elapsed().unwrap().as_millis();
 
         if should_debug {
             let checked_out_path = out_file.with_extension("desugared.term");
@@ -87,10 +89,9 @@ fn main() {
 
         //
 
-        print!("Lowering...");
         time = time::SystemTime::now();
         let lowered_term = lower(desugared_term);
-        println!("Done in {}ms", time.elapsed().unwrap().as_millis());
+        let lower_time = time.elapsed().unwrap().as_millis();
 
         if should_debug {
             let lowered_out_path = out_file.with_extension("lowered.term");
@@ -98,12 +99,12 @@ fn main() {
             o.write(format!("{}", lowered_term).as_bytes()).unwrap();
         }
 
+
         //
 
-        print!("Compiling...");
         time = time::SystemTime::now();
         let compiled_term = compile(lowered_term);
-        println!("Done in {}ms", time.elapsed().unwrap().as_millis());
+        let compile_time = time.elapsed().unwrap().as_millis();
 
         if should_debug {
             let compiled_out_path = out_file.with_extension("compiled.term");
@@ -113,10 +114,9 @@ fn main() {
 
         //
 
-        print!("Printing...");
         time = time::SystemTime::now();
         let printed_term  = print(compiled_term);
-        println!("Done in {}ms", time.elapsed().unwrap().as_millis());
+        let print_time = time.elapsed().unwrap().as_millis();
         
         // Write result to file
         match printed_term {
@@ -126,6 +126,24 @@ fn main() {
             },
             _ => panic!("Expected String term as output")
         }
+
+        if should_time {
+            let json_times = format!(r#"
+{{
+    "parse": {},
+    "check": {},
+    "desugar": {},
+    "lower": {},
+    "compile": {},
+    "print": {}
+}}
+"#, parse_time, check_time, desugar_time, lower_time, compile_time, print_time);
+
+            let time_path = out_file.with_extension(".times.json");
+            let mut o = fs::File::create(time_path).unwrap();
+            o.write(json_times.as_bytes()).unwrap();
+        }
+
     }).unwrap();
 
 

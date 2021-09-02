@@ -183,7 +183,7 @@ fn parse_value(input: &str) -> IResult<&str, Term> {
 
 fn parse_arr_index(input: &str) -> IResult<&str, Term> {
     let (input, lhs) = parse_value(input)?;
-    match ws::<_, (_, _), _>(tag("!!")).parse(input) {
+    match ws::<_, (_, _), _>(tag("@")).parse(input) {
         Ok((input, _)) => {
             let (input, rhs) = parse_arr_index(input)?;
 

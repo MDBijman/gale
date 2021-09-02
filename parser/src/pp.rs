@@ -47,7 +47,7 @@ pub fn pretty_print_gale_term(term: &Term) -> String {
                 "Ref"       => separate_with(children, "."),
                 "Appl"      => children.get(0).unwrap().clone() + " " + &children.get(1).unwrap().clone(),
                 "Return"    => format!("return {}", &children.get(0).unwrap()),
-                "ArrIndex"  => format!("{}!!{}", &children.get(0).unwrap(), &children.get(1).unwrap()),
+                "ArrIndex"  => format!("{}@{}", &children.get(0).unwrap(), &children.get(1).unwrap()),
                 "Array"     => delimit("[", &separate_with(children, ", "), "]"),
                 "Tuple"     => delimit("(", &separate_with(children, ", "), ")"),
                 "Block"     => {

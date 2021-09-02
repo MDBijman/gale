@@ -3,6 +3,7 @@ mod bytecode;
 mod interpreter;
 
 extern crate clap;
+
 use clap::{App, Arg};
 use std::time;
 

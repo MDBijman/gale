@@ -1,5 +1,5 @@
 main: [str] -> ui8
-main a = let b: ui8 = match a!!0
+main a = let b: ui8 = match a@0
   | "qword" -> 64
   | "dword" -> 32
   | "word" -> 16

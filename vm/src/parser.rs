@@ -1,5 +1,5 @@
 extern crate nom;
-use nom::{IResult, branch::{ alt }, bytes::complete::{tag, take_while, take_while1}, character::complete::{ char, multispace0, alphanumeric1, digit1, space0 }, combinator::{ map, cut }, error::ParseError, multi::{ separated_list0, many1, many0 }, sequence::{ delimited, tuple, preceded, terminated, pair }};
+use nom::{IResult, branch::{ alt }, bytes::complete::{tag, take_while, take_while1}, character::complete::{ char, multispace0, digit1, space0 }, combinator::{ map, cut }, error::ParseError, multi::{ separated_list0, many1, many0 }, sequence::{ delimited, tuple, preceded, terminated, pair }};
 use crate::bytecode::*;
 use std::fs;
 use std::collections::HashSet;
@@ -277,14 +277,14 @@ fn parse_function(i: &str) -> IResult<&str, Function> {
 
         for instr in instructions.iter() {
             match instr {
-                Instruction::Set(Location::Var(i), _)   => { vars.insert(i); },
-                Instruction::Pop(Location::Var(i))        => { vars.insert(i); },
-                Instruction::Call(Location::Var(i), _, _) => { vars.insert(i); },
-                Instruction::Load(Location::Var(i), _) => { vars.insert(i); },
+                Instruction::Set(Location::Var(i), _)       => { vars.insert(i); },
+                Instruction::Pop(Location::Var(i))          => { vars.insert(i); },
+                Instruction::Call(Location::Var(i), _, _)   => { vars.insert(i); },
+                Instruction::Load(Location::Var(i), _)      => { vars.insert(i); },
                 Instruction::LoadConst(Location::Var(i), _) => { vars.insert(i); },
-                Instruction::Index(Location::Var(i), _, _) => { vars.insert(i); },
-                Instruction::Store(Location::Var(i), _) => { vars.insert(i); },
-                Instruction::Alloc(Location::Var(i), _) => { vars.insert(i); },
+                Instruction::Index(Location::Var(i), _, _)  => { vars.insert(i); },
+                Instruction::Store(Location::Var(i), _)     => { vars.insert(i); },
+                Instruction::Alloc(Location::Var(i), _)     => { vars.insert(i); },
                 _ => {},
             }
         }
@@ -325,22 +325,22 @@ fn parse_functions(i: &str) -> IResult<&str, Vec<Function>> {
     )(i)
 }
 
-fn parse_bytecode_string(i: &str) -> IResult<&str, (Vec<Value>, Vec<Function>)> {
-    tuple((
+pub fn parse_bytecode_string(i: &str) -> Module {
+    match map(tuple((
         parse_constants,
         parse_functions
-    ))(i)
+    )), |(c, f)| Module::from(c, f))(i) {
+        Ok((leftover, m)) => {
+            if leftover.len() > 0 {
+                panic!("Didn't parse entire file: {}", leftover);
+            }
+            m
+        },
+        Err(err) => panic!("{:?}", err)
+    }
 }
 
 pub fn parse_bytecode_file(filename: &str) -> Module {
     let f = fs::read_to_string(filename).unwrap();
-    match parse_bytecode_string(String::as_str(&f)) {
-        Ok((leftover, (consts, fns))) => {
-            if leftover.len() > 0 {
-                panic!(format!("Didn't parse entire file: {}", leftover));
-            }
-            Module::from(consts, fns)
-        },
-        Err(err) => panic!(format!("{:?}", err))
-    }
+    parse_bytecode_string(f.as_str())
 }

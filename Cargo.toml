@@ -6,5 +6,10 @@ members = [
     "pipeline",
     "rewriter",
     "terms_format",
-    "vm"
+    "vm",
+    "galejs"
 ]
+
+
+[profile.release]
+debug = true

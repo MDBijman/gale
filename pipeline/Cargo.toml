@@ -26,3 +26,6 @@ version = "0.1.0"
 [[bin]]
 name = "gale"
 path = "src/bin.rs"
+
+[lib]
+name = "galelib"

@@ -6,93 +6,75 @@
 4: str "nibble"
 
 .code
-func inc ($0) {
-  $1 = true ~
-  jmpif $1 lbl_0
-  $2 = $0
-  $3 = $2 1 +
-  lbl_0:
-  ret $3
-}
-
-func dec ($0) {
-  $1 = true ~
-  jmpif $1 lbl_1
-  $2 = $0
-  $3 = $2 1 -
-  lbl_1:
-  ret $3
-}
-
 func main ($0) {
   $1 = true ~
-  jmpif $1 lbl_2
+  jmpif $1 lbl_0
   $2 = $0
   $3 = $2
   $4 = 0
   $5 = index $3 $4
   $6 = loadc 0
   $7 = $5 $6 = ~
-  jmpif $7 lbl_4
+  jmpif $7 lbl_2
   $8 = 64
-  jmp lbl_3
-  lbl_4:
+  jmp lbl_1
+  lbl_2:
   $9 = $2
   $10 = 0
   $11 = index $9 $10
   $12 = loadc 1
   $13 = $11 $12 = ~
-  jmpif $13 lbl_6
+  jmpif $13 lbl_4
   $14 = 32
-  jmp lbl_5
-  lbl_6:
+  jmp lbl_3
+  lbl_4:
   $15 = $2
   $16 = 0
   $17 = index $15 $16
   $18 = loadc 2
   $19 = $17 $18 = ~
-  jmpif $19 lbl_8
+  jmpif $19 lbl_6
   $20 = 16
-  jmp lbl_7
-  lbl_8:
+  jmp lbl_5
+  lbl_6:
   $21 = $2
   $22 = 0
   $23 = index $21 $22
   $24 = loadc 3
   $25 = $23 $24 = ~
-  jmpif $25 lbl_10
+  jmpif $25 lbl_8
   $26 = 8
-  jmp lbl_9
-  lbl_10:
+  jmp lbl_7
+  lbl_8:
   $27 = $2
   $28 = 0
   $29 = index $27 $28
   $30 = loadc 4
   $31 = $29 $30 = ~
-  jmpif $31 lbl_12
+  jmpif $31 lbl_10
   $32 = 4
-  jmp lbl_11
-  lbl_12:
+  jmp lbl_9
+  lbl_10:
   $33 = true ~
-  jmpif $33 lbl_13
+  jmpif $33 lbl_11
   $34 = $2
   $35 = 0
   $36 = index $34 $35
   $37 = $36
   $38 = 999
-  lbl_13:
-  $32 = $38
   lbl_11:
-  $26 = $32
+  $32 = $38
   lbl_9:
-  $20 = $26
+  $26 = $32
   lbl_7:
-  $14 = $20
+  $20 = $26
   lbl_5:
-  $8 = $14
+  $14 = $20
   lbl_3:
+  $8 = $14
+  lbl_1:
   $39 = $8
   $40 = $39
-  lbl_2:
+  lbl_0:
   ret $40
 }
