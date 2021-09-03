@@ -27,6 +27,11 @@ typecheck: (env, Decl(name, type, expr)) ->
   in new_env := .put[name, as_type] env
   in (new_env, Decl(name, type, !typecheck (env, expr {as_type}) > !second));
 
+typecheck: (env, String(s){Type(t)}) ->
+    (.is_subtype (Type(Ref("str")), Type(t))
+  ? (env, String(s) {Type(t)})
+  : (env, String(s) {TypeError("Cannot cast to expected type")}));
+
 typecheck: (env, Int(i){Type(t)}) ->
     (.is_subtype (Type(Builtin("ui8")), Type(t))
   ? (env, Int(i) {Type(t)})

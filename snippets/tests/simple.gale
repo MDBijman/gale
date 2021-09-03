@@ -1,9 +1,6 @@
-main: [str] -> ui8
-main a = let b: ui8 = match a@0
-  | "qword" -> 64
-  | "dword" -> 32
-  | "word" -> 16
-  | "byte" -> 8
-  | "nibble" -> 4
-  | c -> 999
-    in b;
+main: [str] -> str
+main a = match a@0
+  | "qword" -> "hello qword!"
+  | "dword" -> "hello dword!"
+  | "word" -> "hello word!"
+  | c -> "I dont know you";

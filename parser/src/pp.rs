@@ -65,7 +65,7 @@ pub fn pretty_print_gale_term(term: &Term) -> String {
                 "Lambda"    => format!("\\{} => {}", children.get(0).unwrap(), children.get(1).unwrap()),
                 "String"    => delimit("\"", children.get(0).unwrap(), "\""),
                 "Brackets"  => delimit("(", children.get(0).unwrap(), ")"),
-                _ => panic!(format!("Unknown constructor: {}", rt.constructor))
+                _ => panic!("Unknown constructor: {}", rt.constructor)
             }
         },
         Term::NTerm(n, _) => n.value.to_string(),

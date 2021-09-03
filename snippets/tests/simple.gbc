@@ -1,9 +1,11 @@
 .const
 0: str "qword"
-1: str "dword"
-2: str "word"
-3: str "byte"
-4: str "nibble"
+1: str "hello qword!"
+2: str "dword"
+3: str "hello dword!"
+4: str "word"
+5: str "hello word!"
+6: str "I dont know you"
 
 .code
 func main ($0) {
@@ -16,65 +18,46 @@ func main ($0) {
   $6 = loadc 0
   $7 = $5 $6 = ~
   jmpif $7 lbl_2
-  $8 = 64
+  $8 = loadc 1
+  $9 = $8
   jmp lbl_1
   lbl_2:
-  $9 = $2
-  $10 = 0
-  $11 = index $9 $10
-  $12 = loadc 1
-  $13 = $11 $12 = ~
-  jmpif $13 lbl_4
-  $14 = 32
+  $10 = $2
+  $11 = 0
+  $12 = index $10 $11
+  $13 = loadc 2
+  $14 = $12 $13 = ~
+  jmpif $14 lbl_4
+  $15 = loadc 3
+  $16 = $15
   jmp lbl_3
   lbl_4:
-  $15 = $2
-  $16 = 0
-  $17 = index $15 $16
-  $18 = loadc 2
-  $19 = $17 $18 = ~
-  jmpif $19 lbl_6
-  $20 = 16
+  $17 = $2
+  $18 = 0
+  $19 = index $17 $18
+  $20 = loadc 4
+  $21 = $19 $20 = ~
+  jmpif $21 lbl_6
+  $22 = loadc 5
+  $23 = $22
   jmp lbl_5
   lbl_6:
-  $21 = $2
-  $22 = 0
-  $23 = index $21 $22
-  $24 = loadc 3
-  $25 = $23 $24 = ~
-  jmpif $25 lbl_8
-  $26 = 8
-  jmp lbl_7
-  lbl_8:
-  $27 = $2
-  $28 = 0
-  $29 = index $27 $28
-  $30 = loadc 4
-  $31 = $29 $30 = ~
-  jmpif $31 lbl_10
-  $32 = 4
-  jmp lbl_9
-  lbl_10:
-  $33 = true ~
-  jmpif $33 lbl_11
-  $34 = $2
-  $35 = 0
-  $36 = index $34 $35
-  $37 = $36
-  $38 = 999
-  lbl_11:
-  $32 = $38
-  lbl_9:
-  $26 = $32
+  $24 = true ~
+  jmpif $24 lbl_7
+  $25 = $2
+  $26 = 0
+  $27 = index $25 $26
+  $28 = $27
+  $29 = loadc 6
+  $30 = $29
   lbl_7:
-  $20 = $26
+  $23 = $30
   lbl_5:
-  $14 = $20
+  $16 = $23
   lbl_3:
-  $8 = $14
+  $9 = $16
   lbl_1:
-  $39 = $8
-  $40 = $39
+  $31 = $9
   lbl_0:
-  ret $40
+  ret $31
 }

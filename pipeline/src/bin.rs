@@ -99,7 +99,6 @@ fn main() {
             o.write(format!("{}", lowered_term).as_bytes()).unwrap();
         }
 
-
         //
 
         time = time::SystemTime::now();
@@ -139,8 +138,7 @@ fn main() {
 }}
 "#, parse_time, check_time, desugar_time, lower_time, compile_time, print_time);
 
-            let time_path = out_file.with_extension("times.json");
-            let mut o = fs::File::create(time_path).unwrap();
+            let mut o = fs::File::create("./snippets/bench/times.json").unwrap();
             o.write(json_times.as_bytes()).unwrap();
         }
 

@@ -188,7 +188,7 @@ impl VM {
                             (Value::U64(l), Value::U64(r)) if l != r => Value::U64(0),
                             (Value::Str(a), Value::Str(b)) if a == b => Value::U64(1),
                             (Value::Str(a), Value::Str(b)) if a != b => Value::U64(0),
-                            ops => panic!(format!("Invalid operands {:?}", ops))
+                            ops => panic!("Invalid operands {:?}", ops)
                         };
                         frame.stack.push(res);
                     },
@@ -240,7 +240,7 @@ impl VM {
             Instruction::Index(Location::Var(dest), Location::Var(val), Location::Var(off)) => {
                 let idx = match &frame.variables[*off as usize] {
                     Value::U64(n) => n,
-                    v => panic!(format!("Illegal index {:?}", v))
+                    v => panic!("Illegal index {:?}", v)
                 };
 
                 let value = &frame.variables[*val as usize];
@@ -253,7 +253,7 @@ impl VM {
                 frame.variables[*dest as usize] = result;
                 frame.pc.instruction += 1;
             }
-            i => panic!(format!("Invalid instruction: {:?}", i))
+            i => panic!("Invalid instruction: {:?}", i)
         }
     }
 }

@@ -328,9 +328,8 @@ fn parse_function_definition(i: &str) -> IResult<&str, Term> {
 pub fn parse_gale_string(input: &str) -> Result<Term, &str> {
     match all_consuming(many0(terminated(alt((parse_function_definition, parse_function_declaration)), multispace0)))(input) {
         Ok((_, r)) => Ok(Term::new_rec_term("File", vec![Term::new_list_term(r)])),
-        Err(e) => panic!(format!("Failed parsing: {}", e))
+        Err(e) => panic!("Failed parsing: {}", e)
     }
-    
 }
 
 pub fn parse_gale_file(filename: &str) -> Result<Term, &str> {
@@ -341,6 +340,6 @@ pub fn parse_gale_file(filename: &str) -> Result<Term, &str> {
             // cannot be returned from this function, so has to be refactored
             Ok(r.unwrap())
         },
-        _ => panic!(format!("Cannot find file {}", filename))
+        _ => panic!("Cannot find file {}", filename)
     }
 }
