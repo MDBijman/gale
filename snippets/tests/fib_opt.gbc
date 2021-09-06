@@ -1,0 +1,21 @@
+.const
+
+
+.code
+func fib ($0) {
+  $1 = $0 2 <
+  jmpifn $1 lbl_1
+  ret 1
+  lbl_1:
+  $7 = $0 1 -
+  $8 = call fib ($7)
+  $9 = $0 2 -
+  $10 = call fib ($9)
+  $11 = $8 $10 +
+  ret $11
+}
+
+func main ($0) {
+  $3 = call fib (35)
+  ret $3
+}

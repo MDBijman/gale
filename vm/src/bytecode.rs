@@ -4,23 +4,22 @@ use std::fmt;
 #[derive(Debug, Clone)]
 pub struct Module {
     pub constants: Vec<Value>,
-    pub functions: HashMap<String, Function>,
-    pub functions_: Vec<Function>,
+    pub functions: Vec<Function>,
 }
 
 impl Module {
     pub fn new() -> Module {
         Module {
             constants: Vec::new(),
-            functions: HashMap::new(),
-            functions_: Vec::new(),
+            functions: Vec::new(),
         }
     }
 
     pub fn from(consts: Vec<Value>, fns: Vec<Function>) -> Module {
         let mut module = Module::new();
-        for func in fns {
-            module.functions.insert(func.name.clone(), func);
+        module.functions = fns; 
+        for (idx, func) in module.functions.iter_mut().enumerate() {
+            func.location = idx;
         }
 
         module.constants = consts;
@@ -31,13 +30,11 @@ impl Module {
 
     pub fn compute_direct_function_calls(&mut self) {
         let mut mapping = HashMap::new();
-        for (n, f) in self.functions.iter_mut() {
-            self.functions_.push(f.clone());
-            mapping.insert(n.clone(), self.functions_.len() - 1);
-            f.location = self.functions_.len() - 1;
+        for f in self.functions.iter() {
+            mapping.insert(f.name.clone(), f.location);
         }
 
-        for (_, f) in self.functions.iter_mut() {
+        for f in self.functions.iter_mut() {
             for i in f.instructions.iter_mut() {
                 match i {
                     Instruction::IndirectCall(res, name, exprs) => {
@@ -79,6 +76,7 @@ pub enum BinOp {
     Add,
     Sub,
     Eq,
+    Lt,
 }
 
 impl fmt::Display for Value {
@@ -127,6 +125,7 @@ pub enum Instruction {
     DirectCall(Location, Location, Vec<Expression>),
     Jmp(Location),
     JmpIf(Location, Expression),
+    JmpIfNot(Location, Expression),
     Lbl(String),
 
     Pop(Location),

@@ -52,6 +52,7 @@ fn parse_bin_op(i: &str) -> IResult<&str, BinOp> {
         map(tag("+"), |_| BinOp::Add),
         map(tag("-"), |_| BinOp::Sub),
         map(tag("="), |_| BinOp::Eq),
+        map(tag("<"), |_| BinOp::Lt),
     ))(i)
 }
 
@@ -237,6 +238,7 @@ fn parse_print(i: &str) -> IResult<&str, Instruction> {
 
 fn parse_jmp(i: &str) -> IResult<&str, Instruction> {
     alt((
+        map(preceded(spaces_around(tag("jmpifn")), pair(cut(parse_expression), cut(parse_lbl))), |(v, l)| Instruction::JmpIfNot(Location::Lbl(l), v)),
         map(preceded(spaces_around(tag("jmpif")), pair(cut(parse_expression), cut(parse_lbl))), |(v, l)| Instruction::JmpIf(Location::Lbl(l), v)),
         map(preceded(spaces_around(tag("jmp")), cut(parse_lbl)), |l| Instruction::Jmp(Location::Lbl(l)))
     ))(i)
@@ -271,25 +273,25 @@ fn parse_function(i: &str) -> IResult<&str, Function> {
         * Compute local variables frame size
         */
 
-        let mut vars = HashSet::new();
+        let mut vars = 0;
 
         for arg in arguments.iter() {
             match arg {
-                Location::Var(i) => { vars.insert(i); },
+                Location::Var(i) => { vars = u64::max(vars, *i); },
                 _ => {}
             }
         }
 
         for instr in instructions.iter() {
             match instr {
-                Instruction::Set(Location::Var(i), _)       => { vars.insert(i); },
-                Instruction::Pop(Location::Var(i))          => { vars.insert(i); },
-                Instruction::IndirectCall(Location::Var(i), _, _)   => { vars.insert(i); },
-                Instruction::Load(Location::Var(i), _)      => { vars.insert(i); },
-                Instruction::LoadConst(Location::Var(i), _) => { vars.insert(i); },
-                Instruction::Index(Location::Var(i), _, _)  => { vars.insert(i); },
-                Instruction::Store(Location::Var(i), _)     => { vars.insert(i); },
-                Instruction::Alloc(Location::Var(i), _)     => { vars.insert(i); },
+                Instruction::Set(Location::Var(i), _)       => { vars = u64::max(vars, *i);  },
+                Instruction::Pop(Location::Var(i))          => { vars = u64::max(vars, *i); },
+                Instruction::IndirectCall(Location::Var(i), _, _)   => { vars = u64::max(vars, *i); },
+                Instruction::Load(Location::Var(i), _)      => { vars = u64::max(vars, *i); },
+                Instruction::LoadConst(Location::Var(i), _) => { vars = u64::max(vars, *i); },
+                Instruction::Index(Location::Var(i), _, _)  => { vars = u64::max(vars, *i); },
+                Instruction::Store(Location::Var(i), _)     => { vars = u64::max(vars, *i); },
+                Instruction::Alloc(Location::Var(i), _)     => { vars = u64::max(vars, *i); },
                 _ => {},
             }
         }
@@ -310,7 +312,7 @@ fn parse_function(i: &str) -> IResult<&str, Function> {
         }
 
         Function::new(name,
-            FunctionMeta { vars: vars.len() as u64 },
+            FunctionMeta { vars: vars + 1 },
             instructions,
             jump_table)
     })(i)

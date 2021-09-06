@@ -54,7 +54,7 @@ impl VM {
         }
 
         let frame: &mut Frame = self.callstack.last_mut().unwrap();
-        let current_function = &self.code.functions_[frame.fn_idx];
+        let current_function = &self.code.functions[frame.fn_idx];
         let current_instruction = current_function
             .instructions
             .get(frame.pc.instruction as usize)
@@ -80,23 +80,17 @@ impl VM {
                 let mut inner_frame = self.callstack.last_mut().unwrap();
                 let pc = inner_frame.pc.instruction;
 
-                let call_instruction = self
+                let call_instruction = &self
                     .code
-                    .functions_[inner_frame.fn_idx]
-                    .instructions
-                    .get(pc as usize)
-                    .unwrap();
+                    .functions[inner_frame.fn_idx]
+                    .instructions[pc as usize];
 
                 match call_instruction {
-                    Instruction::IndirectCall(Location::Var(loc), _, _) => {
-                        inner_frame.variables[*loc as usize] = val;
-                        inner_frame.pc.instruction += 1;
-                    }
                     Instruction::DirectCall(Location::Var(loc), _, _) => {
                         inner_frame.variables[*loc as usize] = val;
                         inner_frame.pc.instruction += 1;
                     }
-                    _ => panic!("Expected Call"),
+                    _ => panic!("Expected direct call"),
                 }
             }
             Instruction::Print(expr) => {
@@ -104,48 +98,27 @@ impl VM {
                 println!("{}", val);
                 frame.pc.instruction += 1;
             }
-            Instruction::IndirectCall(_, name, exprs) => {
-                let func = self.code.functions.get(name).unwrap();
-                let stack_size = func.meta.vars;
-                let mut variables = vec![Value::Null; stack_size as usize];
-
-                let mut i = 0;
-                for e in exprs {
-                    variables[i] = VM::interp_expr(frame, e);
-                    i += 1;
-                }
-
-                let new_frame: Frame = Frame {
-                    pc: ProgramCounter { instruction: 0 },
-                    fn_idx: func.location,
-                    variables,
-                    stack: vec![],
-                };
-
-                self.callstack.push(new_frame);
-            }
             Instruction::DirectCall(_, loc, exprs) => {
                 let loc_idx = match loc {
                     Location::FnLbl(l) => l,
                     _ => panic!("Illegal direct call location"),
                 };
 
-                let func = &self.code.functions_[*loc_idx];
+                let func = &self.code.functions[*loc_idx];
                 let stack_size = func.meta.vars;
-                let mut variables = vec![Value::Null; stack_size as usize];
+
+                let mut new_frame: Frame = Frame {
+                    pc: ProgramCounter { instruction: 0 },
+                    fn_idx: *loc_idx,
+                    variables:  vec![Value::Null; stack_size as usize],
+                    stack: vec![],
+                };
 
                 let mut i = 0;
                 for e in exprs {
-                    variables[i] = VM::interp_expr(frame, e);
+                    new_frame.variables[i] = VM::interp_expr(frame, e);
                     i += 1;
                 }
-
-                let new_frame: Frame = Frame {
-                    pc: ProgramCounter { instruction: 0 },
-                    fn_idx: *loc_idx,
-                    variables,
-                    stack: vec![],
-                };
 
                 self.callstack.push(new_frame);
             }
@@ -165,7 +138,20 @@ impl VM {
                         let target = current_function.jump_table.get(lbl).unwrap();
                         frame.pc.instruction = *target;
                     }
-                    _ => panic!("Inavlid expression result"),
+                    _ => panic!("Invalid expression result"),
+                },
+                _ => panic!("Illegal jump target"),
+            },
+            Instruction::JmpIfNot(lbl, cond) => match lbl {
+                Location::Lbl(lbl) => match VM::interp_expr(frame, cond) {
+                    Value::U64(0) => {
+                        let target = current_function.jump_table.get(lbl).unwrap();
+                        frame.pc.instruction = *target;
+                    }
+                    Value::U64(_) => {
+                        frame.pc.instruction += 1;
+                    }
+                    _ => panic!("Invalid expression result"),
                 },
                 _ => panic!("Illegal jump target"),
             },
@@ -221,6 +207,14 @@ impl VM {
                             (Value::Str(a), Value::Str(b)) if a == b => Value::U64(1),
                             (Value::Str(a), Value::Str(b)) if a != b => Value::U64(0),
                             (lhs, rhs) => panic!("Illegal eq operands: {} {}", lhs, rhs),
+                        };
+                        frame.stack.push(res);
+                    }
+                    BinOp::Lt => {
+                        let res = match (lhs, rhs) {
+                            (Value::U64(l), Value::U64(r)) if l < r => Value::U64(1),
+                            (Value::U64(_), Value::U64(_)) => Value::U64(0),
+                            (lhs, rhs) => panic!("Illegal lt operands: {} {}", lhs, rhs),
                         };
                         frame.stack.push(res);
                     }
@@ -285,8 +279,8 @@ impl VM {
 }
 
 pub fn run(m: Module, arg: &str) -> Value {
-    let initial_frame_size = m.functions.get("main").unwrap().meta.vars;
-    let initial_fn_idx = m.functions_.iter().position(|f| f.name == "main").unwrap();
+    let initial_fn_idx = m.functions.iter().position(|f| f.name == "main").unwrap();
+    let initial_frame_size = m.functions[initial_fn_idx].meta.vars;
 
     let mut machine: VM = VM {
         code: m,
