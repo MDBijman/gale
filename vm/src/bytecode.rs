@@ -1,15 +1,20 @@
 use std::collections::HashMap;
 use std::fmt;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Module {
     pub constants: Vec<Value>,
-    pub functions: HashMap<String, Function>
+    pub functions: HashMap<String, Function>,
+    pub functions_: Vec<Function>,
 }
 
 impl Module {
     pub fn new() -> Module {
-        Module { constants: Vec::new(), functions: HashMap::new() }
+        Module {
+            constants: Vec::new(),
+            functions: HashMap::new(),
+            functions_: Vec::new(),
+        }
     }
 
     pub fn from(consts: Vec<Value>, fns: Vec<Function>) -> Module {
@@ -22,6 +27,28 @@ impl Module {
 
         module
     }
+
+
+    pub fn compute_direct_function_calls(&mut self) {
+        let mut mapping = HashMap::new();
+        for (n, f) in self.functions.iter_mut() {
+            self.functions_.push(f.clone());
+            mapping.insert(n.clone(), self.functions_.len() - 1);
+            f.location = self.functions_.len() - 1;
+        }
+
+        for (_, f) in self.functions.iter_mut() {
+            for i in f.instructions.iter_mut() {
+                match i {
+                    Instruction::IndirectCall(res, name, exprs) => {
+                        *i = Instruction::DirectCall(res.clone(), Location::FnLbl(*mapping.get(name).unwrap()), exprs.to_vec());
+                    },
+                    _ => {}
+                }
+            }
+        }
+    }
+
 }
 
 #[derive(Debug, Clone)]
@@ -30,7 +57,7 @@ pub enum Type {
     Array(Box<Type>),
     Pointer(Box<Type>),
     Null,
-    Str
+    Str,
 }
 
 #[derive(Debug, Clone)]
@@ -39,19 +66,19 @@ pub enum Value {
     Array(Vec<Value>),
     Pointer(u64),
     Null,
-    Str(String)
+    Str(String),
 }
 
 #[derive(Debug, Clone)]
 pub enum UnOp {
-    Not
+    Not,
 }
 
 #[derive(Debug, Clone)]
 pub enum BinOp {
     Add,
     Sub,
-    Eq
+    Eq,
 }
 
 impl fmt::Display for Value {
@@ -69,7 +96,7 @@ impl fmt::Display for Value {
                     first = false;
                 }
                 write!(f, "]")
-            },
+            }
             Value::Null => write!(f, "null"),
             Value::Pointer(b) => write!(f, "&{}", b),
             Value::Str(s) => write!(f, "\"{}\"", s),
@@ -77,25 +104,27 @@ impl fmt::Display for Value {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Expression {
     Var(Location),
     Value(Value),
     Array(Vec<Expression>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Location {
     Var(u64),
-    Lbl(String)
+    Lbl(String),
+    FnLbl(usize),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Instruction {
     Set(Location, Expression),
     Return(Expression),
     Print(Expression),
-    Call(Location, String, Vec<Expression>),
+    IndirectCall(Location, String, Vec<Expression>),
+    DirectCall(Location, Location, Vec<Expression>),
     Jmp(Location),
     JmpIf(Location, Expression),
     Lbl(String),
@@ -109,31 +138,41 @@ pub enum Instruction {
     Load(Location, Location),
     LoadConst(Location, u64),
     Store(Location, Expression),
-    Index(Location, Location, Location)
+    Index(Location, Location, Location),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Parameter {
-    pub location: Location
+    pub location: Location,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FunctionMeta {
-    pub vars: u64
+    pub vars: u64,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Function {
     pub name: String,
+    pub location: usize,
     pub meta: FunctionMeta,
     pub instructions: Vec<Instruction>,
-    pub jump_table: HashMap<String, u64>
+    pub jump_table: HashMap<String, u64>,
 }
 
 impl Function {
-    pub fn new(name: String, meta: FunctionMeta, instructions: Vec<Instruction>, jump_table: HashMap<String, u64>) -> Function {
-        Function { name, meta, instructions, jump_table }
+    pub fn new(
+        name: String,
+        meta: FunctionMeta,
+        instructions: Vec<Instruction>,
+        jump_table: HashMap<String, u64>,
+    ) -> Function {
+        Function {
+            name,
+            location: usize::MAX,
+            meta,
+            instructions,
+            jump_table,
+        }
     }
 }
-
-

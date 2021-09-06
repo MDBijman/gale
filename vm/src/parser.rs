@@ -195,7 +195,7 @@ fn parse_call(i: &str) -> IResult<&str, Instruction> {
         many0(parse_expression),
         spaces_around(tag(")")),
     )),
-    |(l, _, _, id, _, e, _)| Instruction::Call(l, id, e))(i)
+    |(l, _, _, id, _, e, _)| Instruction::IndirectCall(l, id, e))(i)
 }
 
 fn parse_set(i: &str) -> IResult<&str, Vec<Instruction>> {
@@ -284,7 +284,7 @@ fn parse_function(i: &str) -> IResult<&str, Function> {
             match instr {
                 Instruction::Set(Location::Var(i), _)       => { vars.insert(i); },
                 Instruction::Pop(Location::Var(i))          => { vars.insert(i); },
-                Instruction::Call(Location::Var(i), _, _)   => { vars.insert(i); },
+                Instruction::IndirectCall(Location::Var(i), _, _)   => { vars.insert(i); },
                 Instruction::Load(Location::Var(i), _)      => { vars.insert(i); },
                 Instruction::LoadConst(Location::Var(i), _) => { vars.insert(i); },
                 Instruction::Index(Location::Var(i), _, _)  => { vars.insert(i); },
@@ -335,10 +335,13 @@ pub fn parse_bytecode_string(i: &str) -> Module {
         parse_constants,
         parse_functions
     )), |(c, f)| Module::from(c, f))(i) {
-        Ok((leftover, m)) => {
+        Ok((leftover, mut m)) => {
             if leftover.len() > 0 {
                 panic!("Didn't parse entire file: {}", leftover);
             }
+
+            m.compute_direct_function_calls();
+
             m
         },
         Err(err) => panic!("{:?}", err)

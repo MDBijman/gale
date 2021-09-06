@@ -34,7 +34,7 @@ func main ($0) {
   $1 = true ~
   jmpif $1 lbl_5
   $2 = $0
-  $3 = call fib (30)
+  $3 = call fib (25)
   $4 = $3
   lbl_5:
   ret $4

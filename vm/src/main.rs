@@ -31,9 +31,16 @@ fn main() {
 
     let module = parser::parse_bytecode_file(input_file_name);
 
-    let start = time::SystemTime::now();
+    let total_start = time::SystemTime::now();
 
-    let result = interpreter::run(module, argument);
+    for i in 0..10 {
+        let clone = module.clone();
+        let start = time::SystemTime::now();
+        let result = interpreter::run(clone, argument);
+        println!("out: {} in {}ms", result, start.elapsed().unwrap().as_millis());
+    }
 
-    println!("out: {} in {}ms", result, start.elapsed().unwrap().as_millis());
+    println!("total: {}ms", total_start.elapsed().unwrap().as_millis());
+    println!("{}ms avg.", total_start.elapsed().unwrap().as_millis() / 10);
+
 }
