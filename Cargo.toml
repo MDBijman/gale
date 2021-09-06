@@ -11,3 +11,7 @@ members = [
 [profile.release]
 debug = true
 incremental = true
+
+[patch.'https://github.com/MDBijman/ters']
+ters = { path = "../ters/ters", version="0.1.0" }
+aterms = { path = "../ters/aterms", version="0.1.0" }

@@ -1,5 +1,5 @@
 use aterms::*;
-use terslib::{parse_rewrite_string, Rewriter};
+use ters::{parse_rewrite_string, Rewriter};
 
 const LOWER_RW: &str = include_str!("./transform/lower.rw");
 const COMPILE_RW: &str = include_str!("./transform/compile.rw");

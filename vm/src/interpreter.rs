@@ -61,8 +61,6 @@ impl VM {
             .instructions
             .get(frame.pc.instruction as usize).unwrap();
 
-        //println!("{:?}", current_instruction);
-
         match current_instruction {
             Instruction::Set(Location::Var(loc), expr) => {
                 let val = VM::interp_expr(frame, expr);

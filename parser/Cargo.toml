@@ -17,5 +17,5 @@ name = "parser"
 path = "src/lib.rs"
 
 [[bin]]
-name = "parserx"
+name = "parser"
 path = "src/bin.rs"
