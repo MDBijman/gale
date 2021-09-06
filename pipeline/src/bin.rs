@@ -3,7 +3,7 @@ extern crate clap;
 use parser::parse_gale_file;
 use checker::{check, desugar};
 use compiler::{ lower, compile, print };
-use terms_format::Term;
+use aterms::Term;
 use std::fs;
 use std::path;
 use std::io::prelude::*;

@@ -1,5 +1,5 @@
-use terms_format::*;
-use rewriter::{parse_rewrite_string, Rewriter};
+use aterms::*;
+use terslib::{parse_rewrite_string, Rewriter};
 
 const DESUGAR_RW: &str = include_str!("./transform/desugar.rw");
 

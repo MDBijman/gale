@@ -6,6 +6,8 @@ edition = "2018"
 
 [dependencies]
 clap = "2.33.3"
+ters   = { git="https://github.com/MDBijman/ters" }
+aterms = { git="https://github.com/MDBijman/ters" }
 
 [dependencies.parser]
 path = "../parser"
@@ -17,10 +19,6 @@ version = "0.1.0"
 
 [dependencies.compiler]
 path = "../compiler"
-version = "0.1.0"
-
-[dependencies.terms_format]
-path = "../terms_format"
 version = "0.1.0"
 
 [[bin]]

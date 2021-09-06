@@ -4,8 +4,6 @@ members = [
     "compiler",
     "parser",
     "pipeline",
-    "rewriter",
-    "terms_format",
     "vm",
     "galejs"
 ]

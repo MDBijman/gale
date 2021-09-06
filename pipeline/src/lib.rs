@@ -1,7 +1,7 @@
 use parser::parse_gale_string;
 use checker::{check, desugar};
 use compiler::{ lower, compile, print };
-use terms_format::Term;
+use aterms::Term;
 
 pub fn compile_gale_program(program: &str) -> String {
     let term = parse_gale_string(program).unwrap();

@@ -22,8 +22,7 @@ fn main() {
             .short("a")
             .long("args")
             .value_name("ARGS")
-            .help("Arguments passed to the interpreted program")
-            .multiple(true))
+            .help("Arguments passed to the interpreted program"))
         .get_matches();
 
     let input_file_name = matches.value_of("input_file").unwrap();

@@ -43,12 +43,15 @@ fn parse_identifier(i: &str) -> IResult<&str, String> {
     map(take_while1(|c| { char::is_alphanumeric(c) || c == '_' }), |s| String::from(s))(i)
 }
 
-fn parse_op(i: &str) -> IResult<&str, Op> {
+fn parse_un_op(i: &str) -> IResult<&str, UnOp> {
+    map(tag("~"), |_| UnOp::Not)(i)
+}
+
+fn parse_bin_op(i: &str) -> IResult<&str, BinOp> {
     alt((
-        map(tag("+"), |_|Op::Add),
-        map(tag("-"), |_|Op::Sub),
-        map(tag("~"), |_|Op::Not),
-        map(tag("="), |_|Op::Eq),
+        map(tag("+"), |_| BinOp::Add),
+        map(tag("-"), |_| BinOp::Sub),
+        map(tag("="), |_| BinOp::Eq),
     ))(i)
 }
 
@@ -201,7 +204,9 @@ fn parse_set(i: &str) -> IResult<&str, Vec<Instruction>> {
         ws(tag("=")),
         cut(many1(alt((
             map(parse_expression, |e| Instruction::Push(e)),
-            map(preceded(space0, parse_op), |o| Instruction::Op(o)))))),
+            map(preceded(space0, parse_un_op), |o| Instruction::UnOp(o)),
+            map(preceded(space0, parse_bin_op), |o| Instruction::BinOp(o))
+        )))),
     )), multispace0),
     |(l, _, mut instrs)| {
         if instrs.len() == 1 {

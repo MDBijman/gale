@@ -1,63 +1,41 @@
 .const
-0: str "qword"
-1: str "hello qword!"
-2: str "dword"
-3: str "hello dword!"
-4: str "word"
-5: str "hello word!"
-6: str "I dont know you"
+
 
 .code
+func fib ($0) {
+  $1 = $0 0 = ~
+  jmpif $1 lbl_1
+  $2 = 1
+  jmp lbl_0
+  lbl_1:
+  $3 = $0 1 = ~
+  jmpif $3 lbl_3
+  $4 = 1
+  jmp lbl_2
+  lbl_3:
+  $5 = true ~
+  jmpif $5 lbl_4
+  $6 = $0
+  $7 = $6 1 -
+  $8 = call fib ($7)
+  $9 = $6 2 -
+  $10 = call fib ($9)
+  $11 = $8 $10 +
+  $12 = $11
+  lbl_4:
+  $4 = $12
+  lbl_2:
+  $2 = $4
+  lbl_0:
+  ret $2
+}
+
 func main ($0) {
   $1 = true ~
-  jmpif $1 lbl_0
+  jmpif $1 lbl_5
   $2 = $0
-  $3 = $2
-  $4 = 0
-  $5 = index $3 $4
-  $6 = loadc 0
-  $7 = $5 $6 = ~
-  jmpif $7 lbl_2
-  $8 = loadc 1
-  $9 = $8
-  jmp lbl_1
-  lbl_2:
-  $10 = $2
-  $11 = 0
-  $12 = index $10 $11
-  $13 = loadc 2
-  $14 = $12 $13 = ~
-  jmpif $14 lbl_4
-  $15 = loadc 3
-  $16 = $15
-  jmp lbl_3
-  lbl_4:
-  $17 = $2
-  $18 = 0
-  $19 = index $17 $18
-  $20 = loadc 4
-  $21 = $19 $20 = ~
-  jmpif $21 lbl_6
-  $22 = loadc 5
-  $23 = $22
-  jmp lbl_5
-  lbl_6:
-  $24 = true ~
-  jmpif $24 lbl_7
-  $25 = $2
-  $26 = 0
-  $27 = index $25 $26
-  $28 = $27
-  $29 = loadc 6
-  $30 = $29
-  lbl_7:
-  $23 = $30
+  $3 = call fib (31)
+  $4 = $3
   lbl_5:
-  $16 = $23
-  lbl_3:
-  $9 = $16
-  lbl_1:
-  $31 = $9
-  lbl_0:
-  ret $31
+  ret $4
 }

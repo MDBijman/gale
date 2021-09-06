@@ -1,4 +1,4 @@
-extern crate terms_format;
+extern crate aterms;
 use nom::{
     IResult, Parser, error::ParseError, named,
     number::complete::{double},
@@ -9,7 +9,7 @@ use nom::{
     bytes::complete::{tag, take_while, take_while1},
     combinator::{ map_res, opt, map_opt, map, verify, cut, all_consuming  },
 };
-use terms_format::*;
+use aterms::*;
 
 use std::fs;
 

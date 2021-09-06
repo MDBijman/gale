@@ -1,7 +1,7 @@
 use parser::parse_gale_string;
 use checker::check;
 use compiler::{ lower, compile, print };
-use terms_format::Term;
+use aterms::Term;
 
 #[test]
 fn test_id_main() {

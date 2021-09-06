@@ -1,5 +1,5 @@
 
-use terms_format::*;
+use aterms::*;
 
 fn indent(indent: usize, elems: Vec<String>) -> Vec<String> {
     elems.into_iter().map(|e| indent_single(indent, e)).collect()

@@ -48,7 +48,7 @@ impl VM {
             Expression::Value(v) => {
                 v.clone()
             },
-            _ => panic!("Invalid expression")
+            _ => panic!("Illegal expression")
         }
     }
 
@@ -126,7 +126,7 @@ impl VM {
                         let target = current_function.jump_table.get(lbl).unwrap();
                         frame.pc.instruction = *target;
                     },
-                    _ => panic!("Invalid jump target")
+                    _ => panic!("Illegal jump target")
                 }
             },
             Instruction::JmpIf(lbl, cond) => {
@@ -143,7 +143,7 @@ impl VM {
                             _ => panic!("Inavlid expression result")
                         }
                     },
-                    _ => panic!("Invalid jump target")
+                    _ => panic!("Illegal jump target")
                 }
             },
             Instruction::Pop(Location::Var(location)) => {
@@ -156,52 +156,53 @@ impl VM {
                 frame.stack.push(v);
                 frame.pc.instruction += 1;
             },
-            Instruction::Op(op) => {
+            Instruction::UnOp(op) => {
+                let operand = frame.stack.pop().unwrap();
+
                 match op {
-                    Op::Add => {
-                        let rhs = frame.stack.pop().unwrap();
-                        let lhs = frame.stack.pop().unwrap();
+                    UnOp::Not => {
+                        let res = match operand {
+                            Value::U64(0) => Value::U64(1),
+                            Value::U64(_) => Value::U64(0),
+                            _ => panic!("Illegal operands")
+                        };
+                        frame.stack.push(res);
+                    }
+                }
+
+                frame.pc.instruction += 1;
+            },
+            Instruction::BinOp(op) => {
+                let rhs = frame.stack.pop().unwrap();
+                let lhs = frame.stack.pop().unwrap();
+
+                match op {
+                    BinOp::Add => {
                         let res = match (lhs, rhs) {
-                            (Value::U64(l), Value::U64(r)) => {
-                                Value::U64(l + r)
-                            },
-                            _ => panic!("Invalid operands")
+                            (Value::U64(l), Value::U64(r)) => Value::U64(l + r),
+                            (lhs, rhs) => panic!("Illegal add operands: {} {}", lhs, rhs)
                         };
                         frame.stack.push(res);
                     },
-                    Op::Sub => {
-                        let rhs = frame.stack.pop().unwrap();
-                        let lhs = frame.stack.pop().unwrap();
+                    BinOp::Sub => {
                         let res = match (lhs, rhs) {
-                            (Value::U64(l), Value::U64(r)) => {
-                                Value::U64(l - r)
-                            },
-                            _ => panic!("Invalid operands")
+                            (Value::U64(l), Value::U64(r)) => Value::U64(l - r),
+                            (lhs, rhs) => panic!("Illegal sub operands: {} {}", lhs, rhs)
                         };
                         frame.stack.push(res);
                     },
-                    Op::Eq => {
-                        let rhs = frame.stack.pop().unwrap();
-                        let lhs = frame.stack.pop().unwrap();
+                    BinOp::Eq => {
                         let res = match (lhs, rhs) {
                             (Value::U64(l), Value::U64(r)) if l == r => Value::U64(1),
                             (Value::U64(l), Value::U64(r)) if l != r => Value::U64(0),
                             (Value::Str(a), Value::Str(b)) if a == b => Value::U64(1),
                             (Value::Str(a), Value::Str(b)) if a != b => Value::U64(0),
-                            ops => panic!("Invalid operands {:?}", ops)
-                        };
-                        frame.stack.push(res);
-                    },
-                    Op::Not => {
-                        let operand = frame.stack.pop().unwrap();
-                        let res = match operand {
-                            Value::U64(0) => Value::U64(1),
-                            Value::U64(n) => Value::U64(0),
-                            _ => panic!("Invalid operands")
+                            (lhs, rhs) => panic!("Illegal eq operands: {} {}", lhs, rhs)
                         };
                         frame.stack.push(res);
                     }
                 }
+                
                 frame.pc.instruction += 1;
             },
             Instruction::Lbl(_) => {
@@ -212,7 +213,7 @@ impl VM {
 
                 match ty {
                     Type::U64() => self.heap.push(Value::U64(0)),
-                    _ => panic!("Invalid operand")
+                    _ => panic!("Illegal alloc operand: {:?}", ty)
                 }
 
                 frame.pc.instruction += 1;
@@ -221,7 +222,7 @@ impl VM {
                 let loaded_value = frame.variables[*src as usize].clone();
                 match loaded_value {
                     Value::Pointer(idx) => frame.variables[*dest as usize] = self.heap[idx as usize].clone(),
-                    _ => panic!("Unexpected loaded value")
+                    _ => panic!("Illegal load operand: {:?}", loaded_value)
                 }
                 frame.pc.instruction += 1;
             },
@@ -231,9 +232,9 @@ impl VM {
             },
             Instruction::Store(Location::Var(dest), e) => {
                 let value = VM::interp_expr(frame, e);
-                match frame.variables[*dest as usize] {
-                    Value::Pointer(loc) => self.heap[loc as usize] = value,
-                    _ => panic!("Invalid operand")
+                match &frame.variables[*dest as usize] {
+                    Value::Pointer(loc) => self.heap[*loc as usize] = value,
+                    v => panic!("Illegal store operand: {:?}", v)
                 };
                 frame.pc.instruction += 1;
             },
@@ -253,7 +254,7 @@ impl VM {
                 frame.variables[*dest as usize] = result;
                 frame.pc.instruction += 1;
             }
-            i => panic!("Invalid instruction: {:?}", i)
+            i => panic!("Illegal instruction: {:?}", i)
         }
     }
 }
@@ -274,7 +275,8 @@ pub fn run(m: Module, arg: &str) -> Value {
         result: Value::U64(0)
     };
 
-    *machine.callstack.last_mut().unwrap().variables.first_mut().unwrap() = Value::Array(vec![Value::Str(String::from(arg))]);
+    let args = arg.split(" ").map(|s| Value::Str(String::from(s))).collect::<Vec<_>>();
+    *machine.callstack.last_mut().unwrap().variables.first_mut().unwrap() = Value::Array(args);
 
     while machine.is_running() {
         machine.step();

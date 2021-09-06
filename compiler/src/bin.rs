@@ -3,7 +3,7 @@ mod compiler;
 use clap::{App, Arg};
 use std::fs;
 use std::io::prelude::*;
-use terms_format::*;
+use aterms::*;
 use crate::compiler::*;
 
 fn main() {

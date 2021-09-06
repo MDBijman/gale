@@ -18,8 +18,12 @@ lower: Int(i) -> UI8(i);
 lower: String(i) -> tmp_name := !gen_name "tmp" in Hoist([Store(tmp_name, StringLiteral(i))], Load(tmp_name));
 lower: True() -> True();
 lower: False() -> False();
-lower: Add(lhs, rhs) -> BinOp("+", !lower lhs, !lower rhs);
-lower: Sub(lhs, rhs) -> BinOp("-", !lower lhs, !lower rhs);
+lower: Add(lhs, rhs) -> 
+     tmp_name := !gen_name "tmp"
+  in Hoist([Store(tmp_name, BinOp("+", !lower lhs, !lower rhs))], Load(tmp_name));
+lower: Sub(lhs, rhs) -> 
+     tmp_name := !gen_name "tmp"
+  in Hoist([Store(tmp_name, BinOp("-", !lower lhs, !lower rhs))], Load(tmp_name));
 lower: Eq(l, r)      -> BinOp("=", !lower l, !lower r);
 lower: Not(cond)     -> UnOp("~", !lower cond);
 lower: Ref(n) -> Load(n);

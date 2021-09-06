@@ -43,10 +43,14 @@ pub enum Value {
 }
 
 #[derive(Debug, Clone)]
-pub enum Op {
+pub enum UnOp {
+    Not
+}
+
+#[derive(Debug, Clone)]
+pub enum BinOp {
     Add,
     Sub,
-    Not,
     Eq
 }
 
@@ -98,7 +102,8 @@ pub enum Instruction {
 
     Pop(Location),
     Push(Expression),
-    Op(Op),
+    BinOp(BinOp),
+    UnOp(UnOp),
 
     Alloc(Location, Type),
     Load(Location, Location),
