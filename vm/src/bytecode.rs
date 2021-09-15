@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::convert::TryInto;
 use std::fmt;
 
 #[derive(Debug, Clone)]
@@ -17,7 +18,7 @@ impl Module {
 
     pub fn from(consts: Vec<Value>, fns: Vec<Function>) -> Module {
         let mut module = Module::new();
-        module.functions = fns; 
+        module.functions = fns;
         for (idx, func) in module.functions.iter_mut().enumerate() {
             func.location = idx;
         }
@@ -27,25 +28,38 @@ impl Module {
         module
     }
 
+    pub fn from_long_functions(consts: Vec<Value>, fns: Vec<ParsedFunction>) -> Module {
+        let mut compact_fns = Vec::new();
 
-    pub fn compute_direct_function_calls(&mut self) {
         let mut mapping = HashMap::new();
-        for f in self.functions.iter() {
-            mapping.insert(f.name.clone(), f.location);
+        for (idx, f) in fns.iter().enumerate() {
+            mapping.insert(f.name.clone(), idx);
         }
 
-        for f in self.functions.iter_mut() {
-            for i in f.instructions.iter_mut() {
-                match i {
-                    Instruction::IndirectCall(res, name, exprs) => {
-                        *i = Instruction::DirectCall(res.clone(), Location::FnLbl(*mapping.get(name).unwrap()), exprs.to_vec());
-                    },
-                    _ => {}
-                }
-            }
+        for f in fns.into_iter() {
+            compact_fns.push(Function::from_long_instr(f, &mapping));
         }
+
+        Module::from(consts, compact_fns)
     }
 
+    pub fn find_function_id(&self, name: &str) -> Option<FnLbl> {
+        Some(
+            self.functions
+                .iter()
+                .position(|f| f.name == name)?
+                .try_into()
+                .unwrap(),
+        )
+    }
+
+    pub fn get_function_by_name(&self, name: &str) -> Option<&Function> {
+        Some(self.functions.iter().find(|f| f.name == name)?)
+    }
+
+    pub fn get_function_by_id(&self, lbl: FnLbl) -> Option<&Function> {
+        Some(self.functions.iter().find(|f| f.location == lbl.into())?)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -57,7 +71,7 @@ pub enum Type {
     Str,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum Value {
     U64(u64),
     Array(Vec<Value>),
@@ -66,17 +80,14 @@ pub enum Value {
     Str(String),
 }
 
-#[derive(Debug, Clone)]
-pub enum UnOp {
-    Not,
-}
-
-#[derive(Debug, Clone)]
-pub enum BinOp {
-    Add,
-    Sub,
-    Eq,
-    Lt,
+impl Value {
+    pub fn as_u64(&self) -> Option<&u64> {
+        if let Self::U64(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
 }
 
 impl fmt::Display for Value {
@@ -102,52 +113,48 @@ impl fmt::Display for Value {
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum Expression {
-    Var(Location),
-    Value(Value),
-    Array(Vec<Expression>),
-}
+pub type Var = u16;
+pub type InstrLbl = i16;
+pub type FnLbl = u16;
+pub type CodeLbl = (FnLbl, InstrLbl);
+pub type ConstLbl = u16;
 
-#[derive(Debug, Clone)]
-pub enum Location {
-    Var(u64),
-    Lbl(String),
-    FnLbl(usize),
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum Instruction {
-    Set(Location, Expression),
-    Return(Expression),
-    Print(Expression),
-    IndirectCall(Location, String, Vec<Expression>),
-    DirectCall(Location, Location, Vec<Expression>),
-    Jmp(Location),
-    JmpIf(Location, Expression),
-    JmpIfNot(Location, Expression),
-    Lbl(String),
+    ConstU32(Var, u32),
+    Copy(Var, Var),
+    EqVarVar(Var, Var, Var),
+    LtVarVar(Var, Var, Var),
+    SubVarVar(Var, Var, Var),
+    SubVarU64(Var, Var, Var),
+    AddVarVar(Var, Var, Var),
+    NotVar(Var, Var),
 
-    Pop(Location),
-    Push(Expression),
-    BinOp(BinOp),
-    UnOp(UnOp),
+    Return(Var),
+    Print(Var),
+    Call(Var, FnLbl, Var),
+    Jmp(InstrLbl),
+    JmpIf(InstrLbl, Var),
+    JmpIfNot(InstrLbl, Var),
 
-    Alloc(Location, Type),
-    Load(Location, Location),
-    LoadConst(Location, u64),
-    Store(Location, Expression),
-    Index(Location, Location, Location),
+    //Alloc(Var, Type),
+    LoadConst(Var, ConstLbl),
+    LoadVar(Var, Var),
+    StoreVar(Var, Var),
+    Index(Var, Var, Var),
+    Lbl,
+    Nop,
 }
 
 #[derive(Debug, Clone)]
-pub struct Parameter {
-    pub location: Location,
+pub struct Param {
+    pub var: Var,
+    pub type_: Type,
 }
 
 #[derive(Debug, Clone)]
 pub struct FunctionMeta {
-    pub vars: u64,
+    pub vars: Var,
 }
 
 #[derive(Debug, Clone)]
@@ -156,22 +163,111 @@ pub struct Function {
     pub location: usize,
     pub meta: FunctionMeta,
     pub instructions: Vec<Instruction>,
-    pub jump_table: HashMap<String, u64>,
+    pub has_native_impl: bool,
 }
 
 impl Function {
-    pub fn new(
-        name: String,
-        meta: FunctionMeta,
-        instructions: Vec<Instruction>,
-        jump_table: HashMap<String, u64>,
-    ) -> Function {
+    pub fn new(name: String, meta: FunctionMeta, instructions: Vec<Instruction>) -> Function {
         Function {
             name,
             location: usize::MAX,
             meta,
             instructions,
-            jump_table,
+            has_native_impl: false,
+        }
+    }
+
+    pub fn from_long_instr(long_fn: ParsedFunction, fns: &HashMap<String, usize>) -> Function {
+        let mut jump_table: HashMap<String, usize> = HashMap::new();
+        let mut pc: usize = 0;
+        for instr in long_fn.instructions.iter() {
+            match instr {
+                ParsedInstruction::Lbl(name) => {
+                    jump_table.insert(name.clone(), pc);
+                }
+                _ => {}
+            }
+
+            pc += 1;
+        }
+
+        let mut compact_instructions = Vec::new();
+        pc = 0;
+        for (idx, instr) in long_fn.instructions.iter().enumerate() {
+            match instr {
+                ParsedInstruction::IndirectJmp(n) => {
+                    compact_instructions.push(Instruction::Jmp(
+                        (jump_table[n] as isize - pc as isize).try_into().unwrap(),
+                    ));
+                }
+                ParsedInstruction::IndirectJmpIf(n, e) => {
+                    compact_instructions.push(Instruction::JmpIf(
+                        (jump_table[n] as isize - pc as isize).try_into().unwrap(),
+                        e.clone(),
+                    ));
+                }
+                ParsedInstruction::IndirectJmpIfNot(n, e) => {
+                    compact_instructions.push(Instruction::JmpIfNot(
+                        (jump_table[n] as isize - pc as isize).try_into().unwrap(),
+                        e.clone(),
+                    ));
+                }
+                ParsedInstruction::Lbl(lbl) => {
+                    compact_instructions.push(Instruction::Lbl);
+                }
+                ParsedInstruction::Instr(instr) => compact_instructions.push(instr.clone()),
+                ParsedInstruction::IndirectCall(res, n, vars) => compact_instructions.push(
+                    Instruction::Call(res.clone(), fns[n].try_into().unwrap(), vars[0].clone()),
+                ),
+            }
+
+            pc += 1;
+        }
+
+        assert_eq!(compact_instructions.len(), long_fn.instructions.len());
+
+        Function::new(
+            long_fn.name,
+            FunctionMeta {
+                vars: long_fn.meta.vars,
+            },
+            compact_instructions,
+        )
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ParsedFunctionMeta {
+    pub vars: Var,
+}
+
+#[derive(Debug, Clone)]
+pub enum ParsedInstruction {
+    Instr(Instruction),
+    IndirectCall(Var, String, Vec<Var>),
+    IndirectJmp(String),
+    IndirectJmpIf(String, Var),
+    IndirectJmpIfNot(String, Var),
+    Lbl(String),
+}
+
+#[derive(Debug, Clone)]
+pub struct ParsedFunction {
+    pub name: String,
+    pub meta: ParsedFunctionMeta,
+    pub instructions: Vec<ParsedInstruction>,
+}
+
+impl ParsedFunction {
+    pub fn new(
+        name: String,
+        meta: ParsedFunctionMeta,
+        instructions: Vec<ParsedInstruction>,
+    ) -> Self {
+        Self {
+            name,
+            meta,
+            instructions,
         }
     }
 }

@@ -23,5 +23,5 @@ pub fn init_panic_hook() {
 pub fn run_gale(code: &str, arg: &str) -> String {
     let bytecode = galelib::compile_gale_program(code);
     let module   = galevmlib::parse_bytecode_string(bytecode.as_str());
-    format!("{}", galevmlib::run(module, arg)).clone()
+    format!("{}", galevmlib::run(module, arg).result).clone()
 }

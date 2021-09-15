@@ -1,315 +1,305 @@
 use crate::bytecode::*;
 
-#[derive(Debug)]
-struct ProgramCounter {
-    instruction: u64,
-}
-
-struct Frame {
-    pc: ProgramCounter,
-    fn_idx: usize,
-    variables: Vec<Value>,
-    stack: Vec<Value>,
-}
-
-enum VMState {
+#[derive(PartialEq, Debug)]
+pub enum InterpreterStatus {
+    Created,
     Running,
     Finished,
 }
 
-struct VM {
-    callstack: Vec<Frame>,
-    code: Module,
-    state: VMState,
-    heap: Vec<Value>,
-    result: Value,
+pub struct CallInfo {
+    called_by_native: bool,
+    var_base: isize,
+    result_var: Var,
+    prev_ip: isize,
+    prev_fn: isize,
 }
 
-impl VM {
-    fn is_running(&self) -> bool {
-        match self.state {
-            VMState::Running => true,
-            _ => false,
+pub struct Interpreter<'a> {
+    code: &'a Module,
+}
+
+impl<'a> Interpreter<'a> {
+    pub fn new(m: &Module) -> Interpreter {
+        Interpreter { code: m }
+    }
+
+    pub fn push_native_caller_frame(&self, state: &mut InterpreterState, func: FnLbl, arg: u64) {
+        let func = &self.code.functions[func as usize];
+        let stack_size = func.meta.vars;
+
+        let new_base = state.stack.len() as isize;
+
+        state.stack.resize(
+            new_base as usize + stack_size as usize + 1, /* <- for nfi result */
+            u64::MAX,
+        );
+
+        let fun_ci = CallInfo {
+            called_by_native: true,
+            var_base: new_base + 1,
+            result_var: 0,
+            prev_ip: isize::MAX,
+            prev_fn: isize::MAX,
+        };
+
+        state.call_info.push(fun_ci);
+
+        state.set_stack_var(0, arg);
+
+        state.ip = 0;
+        state.func = func.location as isize;
+    }
+
+    pub fn pop_native_caller_frame(&self, state: &mut InterpreterState) -> u64 {
+        let ci = state
+            .call_info
+            .pop()
+            .expect("Expected call info to be on stack");
+        let result = state.stack.pop().expect("Expected result to be on stack");
+
+        // Finished execution
+        if state.call_info.len() == 0 {
+            state.state = InterpreterStatus::Finished;
+            return result;
+        }
+
+        state.ip = ci.prev_ip; // Maybe has to increment
+        state.func = ci.prev_fn;
+
+        result
+    }
+
+    fn get_instruction(&self, func: isize, ip: isize) -> &'a Instruction {
+        &self.code.functions[func as usize].instructions[ip as usize]
+    }
+
+    // Executes until the current function is finished, including further calls
+    pub fn finish_function(&self, state: &mut InterpreterState) {
+        let start_stack_size = state.call_info.len();
+        assert_ne!(start_stack_size, 0);
+        while self.step(state) {
+            if state.call_info.len() == start_stack_size - 1 {
+                return;
+            }
         }
     }
 
-    fn interp_expr(frame: &Frame, expr: &Expression) -> Value {
-        match expr {
-            Expression::Array(exprs) => {
-                let vs: Vec<Value> = exprs.iter().map(|e| VM::interp_expr(frame, e)).collect();
+    //#[inline(never)] // <- uncomment for profiling with better source <-> asm map
+    #[inline]
+    pub fn step(&self, state: &mut InterpreterState) -> bool {
+        assert_eq!(state.state, InterpreterStatus::Running);
+        let current_instruction = self.get_instruction(state.func, state.ip);
 
-                Value::Array(vs)
-            }
-            Expression::Var(Location::Var(loc)) => {
-                frame.variables.get(*loc as usize).unwrap().clone()
-            }
-            Expression::Value(v) => v.clone(),
-            _ => panic!("Illegal expression"),
-        }
-    }
+        state.instr_counter += 1;
 
-    fn step(&mut self) {
-        if !self.is_running() {
-            return;
-        }
-
-        let frame: &mut Frame = self.callstack.last_mut().unwrap();
-        let current_function = &self.code.functions[frame.fn_idx];
-        let current_instruction = current_function
-            .instructions
-            .get(frame.pc.instruction as usize)
-            .unwrap();
-
+        //println!("{:?}", current_instruction);
         match current_instruction {
-            Instruction::Set(Location::Var(loc), expr) => {
-                let val = VM::interp_expr(frame, expr);
-                frame.variables[*loc as usize] = val;
-                frame.pc.instruction += 1;
+            Instruction::ConstU32(loc, n) => {
+                state.set_stack_var(*loc, *n as u64);
+                state.ip += 1;
             }
-            Instruction::Return(expr) => {
-                let val = VM::interp_expr(frame, expr);
-                self.callstack.pop();
+            Instruction::Copy(loc, src) => {
+                let val = state.get_stack_var(*src);
+                state.set_stack_var(*loc, val);
+                state.ip += 1;
+            }
+            Instruction::EqVarVar(dest, a, b) => {
+                let val_a = state.get_stack_var(*a);
+                let val_b = state.get_stack_var(*b);
+                state.set_stack_var(*dest, (val_a == val_b) as u64);
+                state.ip += 1;
+            }
+            Instruction::LtVarVar(dest, a, b) => {
+                let val_a = state.get_stack_var(*a);
+                let val_b = state.get_stack_var(*b);
+                state.set_stack_var(*dest, (val_a < val_b) as u64);
+                state.ip += 1;
+            }
+            Instruction::SubVarVar(dest, a, b) => {
+                let val_a = state.get_stack_var(*a);
+                let val_b = state.get_stack_var(*b);
+                state.set_stack_var(*dest, val_a - val_b);
+                state.ip += 1;
+            }
+            Instruction::AddVarVar(dest, a, b) => {
+                let val_a = state.get_stack_var(*a);
+                let val_b = state.get_stack_var(*b);
+                state.set_stack_var(*dest, val_a + val_b);
+                state.ip += 1;
+            }
+            Instruction::Print(src) => {
+                println!("{}", state.get_stack_var(*src));
+                state.ip += 1;
+            }
+            Instruction::Return(src) => {
+                let val = state.get_stack_var(*src);
+                let ci = state.call_info.pop().unwrap();
 
                 // Finished execution
-                if self.callstack.len() == 0 {
-                    self.state = VMState::Finished;
-                    self.result = val;
-                    return;
+                if state.call_info.len() == 0 {
+                    state.state = InterpreterStatus::Finished;
+                    state.result = val;
+                    return false;
                 }
 
-                let mut inner_frame = self.callstack.last_mut().unwrap();
-                let pc = inner_frame.pc.instruction;
+                state.ip = ci.prev_ip;
+                state.func = ci.prev_fn;
 
-                let call_instruction = &self
-                    .code
-                    .functions[inner_frame.fn_idx]
-                    .instructions[pc as usize];
+                // Native function
+                if ci.called_by_native {
+                    state
+                        .stack
+                        .truncate(ci.var_base as usize);
 
-                match call_instruction {
-                    Instruction::DirectCall(Location::Var(loc), _, _) => {
-                        inner_frame.variables[*loc as usize] = val;
-                        inner_frame.pc.instruction += 1;
-                    }
-                    _ => panic!("Expected direct call"),
+                    *state.stack.last_mut().unwrap() = val;
+                } else {
+                    let new_ci = state.call_info.last().unwrap();
+                    let new_func = &self.code.functions[state.func as usize];
+
+                    state
+                        .stack
+                        .truncate(new_ci.var_base as usize + new_func.meta.vars as usize);
+
+                    state.set_stack_var(ci.result_var, val);
+
+                    state.ip += 1;
                 }
-            }
-            Instruction::Print(expr) => {
-                let val = VM::interp_expr(frame, expr);
-                println!("{}", val);
-                frame.pc.instruction += 1;
-            }
-            Instruction::DirectCall(_, loc, exprs) => {
-                let loc_idx = match loc {
-                    Location::FnLbl(l) => l,
-                    _ => panic!("Illegal direct call location"),
-                };
 
-                let func = &self.code.functions[*loc_idx];
+            }
+            Instruction::Call(r, loc, arg) => {
+                let func = &self.code.functions[*loc as usize];
                 let stack_size = func.meta.vars;
 
-                let mut new_frame: Frame = Frame {
-                    pc: ProgramCounter { instruction: 0 },
-                    fn_idx: *loc_idx,
-                    variables:  vec![Value::Null; stack_size as usize],
-                    stack: vec![],
+                let new_base = state.stack.len() as isize;
+
+                state
+                    .stack
+                    .resize(new_base as usize + stack_size as usize, u64::MAX);
+
+                let new_ci = CallInfo {
+                    called_by_native: false,
+                    var_base: new_base,
+                    result_var: *r,
+                    prev_ip: state.ip,
+                    prev_fn: state.func,
                 };
 
-                let mut i = 0;
-                for e in exprs {
-                    new_frame.variables[i] = VM::interp_expr(frame, e);
-                    i += 1;
-                }
+                let val = state.get_stack_var(*arg);
+                state.call_info.push(new_ci);
+                state.set_stack_var(0, val);
 
-                self.callstack.push(new_frame);
+                state.ip = 0;
+                state.func = func.location as isize;
             }
-            Instruction::Jmp(lbl) => match lbl {
-                Location::Lbl(lbl) => {
-                    let target = current_function.jump_table.get(lbl).unwrap();
-                    frame.pc.instruction = *target;
+            Instruction::Jmp(instr) => {
+                state.ip += *instr as isize;
+            }
+            Instruction::JmpIf(instr, src) => match state.get_stack_var(*src) {
+                0 => {
+                    state.ip += 1;
                 }
-                _ => panic!("Illegal jump target"),
+                _ => {
+                    state.ip += *instr as isize;
+                }
             },
-            Instruction::JmpIf(lbl, cond) => match lbl {
-                Location::Lbl(lbl) => match VM::interp_expr(frame, cond) {
-                    Value::U64(0) => {
-                        frame.pc.instruction += 1;
-                    }
-                    Value::U64(_) => {
-                        let target = current_function.jump_table.get(lbl).unwrap();
-                        frame.pc.instruction = *target;
-                    }
-                    _ => panic!("Invalid expression result"),
-                },
-                _ => panic!("Illegal jump target"),
-            },
-            Instruction::JmpIfNot(lbl, cond) => match lbl {
-                Location::Lbl(lbl) => match VM::interp_expr(frame, cond) {
-                    Value::U64(0) => {
-                        let target = current_function.jump_table.get(lbl).unwrap();
-                        frame.pc.instruction = *target;
-                    }
-                    Value::U64(_) => {
-                        frame.pc.instruction += 1;
-                    }
-                    _ => panic!("Invalid expression result"),
-                },
-                _ => panic!("Illegal jump target"),
-            },
-            Instruction::Pop(Location::Var(location)) => {
-                let v = frame.stack.pop().unwrap();
-                *frame.variables.get_mut(*location as usize).unwrap() = v;
-                frame.pc.instruction += 1;
-            }
-            Instruction::Push(expr) => {
-                let v = VM::interp_expr(frame, expr);
-                frame.stack.push(v);
-                frame.pc.instruction += 1;
-            }
-            Instruction::UnOp(op) => {
-                let operand = frame.stack.pop().unwrap();
-
-                match op {
-                    UnOp::Not => {
-                        let res = match operand {
-                            Value::U64(0) => Value::U64(1),
-                            Value::U64(_) => Value::U64(0),
-                            _ => panic!("Illegal operands"),
-                        };
-                        frame.stack.push(res);
-                    }
+            Instruction::JmpIfNot(instr, src) => match state.get_stack_var(*src) {
+                0 => {
+                    state.ip += *instr as isize;
                 }
-
-                frame.pc.instruction += 1;
-            }
-            Instruction::BinOp(op) => {
-                let rhs = frame.stack.pop().unwrap();
-                let lhs = frame.stack.pop().unwrap();
-
-                match op {
-                    BinOp::Add => {
-                        let res = match (lhs, rhs) {
-                            (Value::U64(l), Value::U64(r)) => Value::U64(l + r),
-                            (lhs, rhs) => panic!("Illegal add operands: {} {}", lhs, rhs),
-                        };
-                        frame.stack.push(res);
-                    }
-                    BinOp::Sub => {
-                        let res = match (lhs, rhs) {
-                            (Value::U64(l), Value::U64(r)) => Value::U64(l - r),
-                            (lhs, rhs) => panic!("Illegal sub operands: {} {}", lhs, rhs),
-                        };
-                        frame.stack.push(res);
-                    }
-                    BinOp::Eq => {
-                        let res = match (lhs, rhs) {
-                            (Value::U64(l), Value::U64(r)) if l == r => Value::U64(1),
-                            (Value::U64(l), Value::U64(r)) if l != r => Value::U64(0),
-                            (Value::Str(a), Value::Str(b)) if a == b => Value::U64(1),
-                            (Value::Str(a), Value::Str(b)) if a != b => Value::U64(0),
-                            (lhs, rhs) => panic!("Illegal eq operands: {} {}", lhs, rhs),
-                        };
-                        frame.stack.push(res);
-                    }
-                    BinOp::Lt => {
-                        let res = match (lhs, rhs) {
-                            (Value::U64(l), Value::U64(r)) if l < r => Value::U64(1),
-                            (Value::U64(_), Value::U64(_)) => Value::U64(0),
-                            (lhs, rhs) => panic!("Illegal lt operands: {} {}", lhs, rhs),
-                        };
-                        frame.stack.push(res);
-                    }
+                _ => {
+                    state.ip += 1;
                 }
-
-                frame.pc.instruction += 1;
+            },
+            Instruction::Lbl => {
+                state.ip += 1;
             }
-            Instruction::Lbl(_) => {
-                frame.pc.instruction += 1;
+            Instruction::Nop => {
+                state.ip += 1;
             }
-            Instruction::Alloc(Location::Var(loc), ty) => {
-                frame.variables[*loc as usize] = Value::Pointer(self.heap.len() as u64);
+            /*Instruction::Alloc(loc, ty) => {
+                VM::set_stack_var(&mut self.stack, &ci, &loc, self.heap.len() as u64);
 
                 match ty {
-                    Type::U64() => self.heap.push(Value::U64(0)),
+                    Type::U64() => self.heap.push(0),
                     _ => panic!("Illegal alloc operand: {:?}", ty),
                 }
 
-                frame.pc.instruction += 1;
+                state.ip += 1;
+            }*/
+            Instruction::LoadVar(dest, src) => {
+                let ptr = state.get_stack_var(*src);
+                state.set_stack_var(*dest, state.heap[ptr as usize]);
+                state.ip += 1;
             }
-            Instruction::Load(Location::Var(dest), Location::Var(src)) => {
-                let loaded_value = frame.variables[*src as usize].clone();
-                match loaded_value {
-                    Value::Pointer(idx) => {
-                        frame.variables[*dest as usize] = self.heap[idx as usize].clone()
-                    }
-                    _ => panic!("Illegal load operand: {:?}", loaded_value),
-                }
-                frame.pc.instruction += 1;
+            Instruction::LoadConst(dest, idx) => {
+                unimplemented!();
+                //self.stack[*dest as usize] = self.code.constants[*idx as usize].clone();
+                state.ip += 1;
             }
-            Instruction::LoadConst(Location::Var(dest), idx) => {
-                frame.variables[*dest as usize] = self.code.constants[*idx as usize].clone();
-                frame.pc.instruction += 1;
+            Instruction::StoreVar(dest, src) => {
+                let ptr = state.get_stack_var(*dest);
+                let value = state.get_stack_var(*src);
+                state.heap[ptr as usize] = value;
+                state.ip += 1;
             }
-            Instruction::Store(Location::Var(dest), e) => {
-                let value = VM::interp_expr(frame, e);
-                match &frame.variables[*dest as usize] {
-                    Value::Pointer(loc) => self.heap[*loc as usize] = value,
-                    v => panic!("Illegal store operand: {:?}", v),
-                };
-                frame.pc.instruction += 1;
-            }
-            Instruction::Index(Location::Var(dest), Location::Var(val), Location::Var(off)) => {
-                let idx = match &frame.variables[*off as usize] {
-                    Value::U64(n) => n,
-                    v => panic!("Illegal index {:?}", v),
-                };
-
-                let value = &frame.variables[*val as usize];
-
-                let result = match value {
-                    Value::Array(elems) => elems[*idx as usize].clone(),
-                    Value::Str(str) => Value::U64(str.as_bytes()[*idx as usize] as u64),
-                    _ => panic!("Illegal index into {:?}", value),
-                };
-                frame.variables[*dest as usize] = result;
-                frame.pc.instruction += 1;
+            Instruction::Index(dest, ptr, idx) => {
+                let idx = state.get_stack_var(*idx);
+                let ptr = state.get_stack_var(*ptr);
+                let res = &state.heap[ptr as usize + idx as usize];
+                state.stack[*dest as usize] = *res;
+                state.ip += 1;
             }
             i => panic!("Illegal instruction: {:?}", i),
         }
+
+        true
     }
 }
 
-pub fn run(m: Module, arg: &str) -> Value {
-    let initial_fn_idx = m.functions.iter().position(|f| f.name == "main").unwrap();
-    let initial_frame_size = m.functions[initial_fn_idx].meta.vars;
+pub struct InterpreterState {
+    pub stack: Vec<u64>,
+    call_info: Vec<CallInfo>,
+    ip: isize,
+    func: isize,
 
-    let mut machine: VM = VM {
-        code: m,
-        callstack: vec![Frame {
-            pc: ProgramCounter { instruction: 0 },
-            fn_idx: initial_fn_idx,
-            variables: vec![Value::U64(u64::MAX); initial_frame_size as usize],
-            stack: vec![],
-        }],
-        state: VMState::Running,
-        heap: Vec::with_capacity(5),
-        result: Value::U64(0),
-    };
+    state: InterpreterStatus,
+    heap: Vec<u64>,
+    pub result: u64,
+    pub instr_counter: u64,
+}
 
-    let args = arg
-        .split(" ")
-        .map(|s| Value::Str(String::from(s)))
-        .collect::<Vec<_>>();
-    *machine
-        .callstack
-        .last_mut()
-        .unwrap()
-        .variables
-        .first_mut()
-        .unwrap() = Value::Array(args);
+impl InterpreterState {
+    pub fn new(first_function: FnLbl, first_frame_size: u64, arg: u64) -> InterpreterState {
+        let mut state = InterpreterState {
+            state: InterpreterStatus::Running,
+            heap: Vec::with_capacity(5),
+            result: 0,
+            instr_counter: 0,
+            stack: vec![u64::MAX; first_frame_size as usize],
+            call_info: vec![CallInfo {
+                called_by_native: true,
+                var_base: 0,
+                result_var: Var::MAX,
+                prev_fn: isize::MAX,
+                prev_ip: isize::MAX,
+            }],
+            ip: 0,
+            func: first_function as isize,
+        };
 
-    while machine.is_running() {
-        machine.step()
+        state.stack[0] = arg;
+
+        state
     }
 
-    machine.result
+    fn get_stack_var(&mut self, var: Var) -> u64 {
+        let ci = self.call_info.last().unwrap();
+        self.stack[ci.var_base as usize + var as usize]
+    }
+
+    fn set_stack_var(&mut self, var: Var, val: u64) {
+        let ci = self.call_info.last().unwrap();
+        self.stack[ci.var_base as usize + var as usize] = val;
+    }
 }
