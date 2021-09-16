@@ -1,5 +1,7 @@
 use crate::bytecode::*;
 
+use std::collections::HashMap;
+
 #[derive(PartialEq, Debug)]
 pub enum InterpreterStatus {
     Created,
@@ -148,9 +150,7 @@ impl<'a> Interpreter<'a> {
 
                 // Native function
                 if ci.called_by_native {
-                    state
-                        .stack
-                        .truncate(ci.var_base as usize);
+                    state.stack.truncate(ci.var_base as usize);
 
                     *state.stack.last_mut().unwrap() = val;
                 } else {
@@ -165,10 +165,10 @@ impl<'a> Interpreter<'a> {
 
                     state.ip += 1;
                 }
-
             }
             Instruction::Call(r, loc, arg) => {
                 let func = &self.code.functions[*loc as usize];
+                state.increment_function_counter(func.location);
                 let stack_size = func.meta.vars;
 
                 let new_base = state.stack.len() as isize;
@@ -267,6 +267,7 @@ pub struct InterpreterState {
     heap: Vec<u64>,
     pub result: u64,
     pub instr_counter: u64,
+    pub function_counters: HashMap<FnLbl, u64>,
 }
 
 impl InterpreterState {
@@ -286,6 +287,7 @@ impl InterpreterState {
             }],
             ip: 0,
             func: first_function as isize,
+            function_counters: HashMap::new(),
         };
 
         state.stack[0] = arg;
@@ -301,5 +303,14 @@ impl InterpreterState {
     fn set_stack_var(&mut self, var: Var, val: u64) {
         let ci = self.call_info.last().unwrap();
         self.stack[ci.var_base as usize + var as usize] = val;
+    }
+
+    fn increment_function_counter(&mut self, fun: FnLbl) {
+        let mut ctr = self.function_counters.entry(fun).or_insert(0);
+        *ctr += 1;
+    }
+    
+    fn get_function_counter(&self, fun: FnLbl) -> Option<&u64> {
+        self.function_counters.get(&fun)
     }
 }

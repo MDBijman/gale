@@ -8,7 +8,7 @@ extern crate clap;
 
 use clap::{App, Arg};
 use std::{time};
-use vm::{VM, VMState};
+use vm::{VM};
 
 fn main() {
     let startup = time::SystemTime::now();

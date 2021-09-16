@@ -19,5 +19,4 @@ name = "galevmlib"
 
 [[bin]]
 name = "galevm"
-src = "src/main.rs"
 required-features = ["parser", "commandline"]

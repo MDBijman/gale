@@ -20,7 +20,7 @@ impl Module {
         let mut module = Module::new();
         module.functions = fns;
         for (idx, func) in module.functions.iter_mut().enumerate() {
-            func.location = idx;
+            func.location = idx.try_into().expect("Too many functions!");
         }
 
         module.constants = consts;
@@ -160,7 +160,7 @@ pub struct FunctionMeta {
 #[derive(Debug, Clone)]
 pub struct Function {
     pub name: String,
-    pub location: usize,
+    pub location: FnLbl,
     pub meta: FunctionMeta,
     pub instructions: Vec<Instruction>,
     pub has_native_impl: bool,
@@ -170,7 +170,7 @@ impl Function {
     pub fn new(name: String, meta: FunctionMeta, instructions: Vec<Instruction>) -> Function {
         Function {
             name,
-            location: usize::MAX,
+            location: FnLbl::MAX,
             meta,
             instructions,
             has_native_impl: false,
