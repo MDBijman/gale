@@ -351,7 +351,7 @@ fn parse_function(i: &str) -> IResult<&str, ParsedFunction> {
                 }
             }
 
-            ParsedFunction::new(name, ParsedFunctionMeta { vars: vars + 1 }, instructions)
+            ParsedFunction::new(name, vars + 1, instructions)
         },
     )(i)
 }

@@ -28,7 +28,7 @@ impl<'a> Interpreter<'a> {
 
     pub fn push_native_caller_frame(&self, state: &mut InterpreterState, func: FnLbl, arg: u64) {
         let func = &self.code.functions[func as usize];
-        let stack_size = func.meta.vars;
+        let stack_size = func.varcount;
 
         let new_base = state.stack.len() as isize;
 
@@ -159,7 +159,7 @@ impl<'a> Interpreter<'a> {
 
                     state
                         .stack
-                        .truncate(new_ci.var_base as usize + new_func.meta.vars as usize);
+                        .truncate(new_ci.var_base as usize + new_func.varcount as usize);
 
                     state.set_stack_var(ci.result_var, val);
 
@@ -169,7 +169,7 @@ impl<'a> Interpreter<'a> {
             Instruction::Call(r, loc, arg) => {
                 let func = &self.code.functions[*loc as usize];
                 state.increment_function_counter(func.location);
-                let stack_size = func.meta.vars;
+                let stack_size = func.varcount;
 
                 let new_base = state.stack.len() as isize;
 

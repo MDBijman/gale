@@ -17,7 +17,7 @@ lbl_1:  movc $1, 1
 endfn
 
 fn main ($0: u64)
-        movc $1, 46
+        movc $1, 40
         call $3, @fib ($1)
         ret $3
 endfn

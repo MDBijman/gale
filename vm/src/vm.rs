@@ -1,4 +1,4 @@
-use crate::bytecode::{FnLbl, Module};
+use crate::bytecode::{FnLbl, Module, ControlFlowGraph};
 use crate::interpreter::{Interpreter, InterpreterState};
 use crate::jit::{JITEngine, JITState};
 use std::time;
@@ -40,7 +40,7 @@ impl<'a> VM<'a> {
         assert_eq!(args.len(), 1); // Just limited to 1 number argument for now
 
         let main_idx = self.module.find_function_id("main").unwrap();
-        let main_frame_size = self.module.get_function_by_id(main_idx).unwrap().meta.vars;
+        let main_frame_size = self.module.get_function_by_id(main_idx).unwrap().varcount;
 
         let start = time::SystemTime::now();
         println!("Jit enabled: {}", jit);
@@ -53,13 +53,17 @@ impl<'a> VM<'a> {
                 &self.module.functions[main_idx as usize],
             );
 
+
             // Compile fib
             if let Some(fib_idx) = self.module.find_function_id("fib") {
                 println!("--- Compiling fib");
+                let cfg = ControlFlowGraph::from_function(&self.module.functions[fib_idx as usize]);
+                cfg.print_dot(&self.module.functions[fib_idx as usize]);
                 JITEngine::compile(
                     &mut state.jitter_state,
                     &self.module.functions[fib_idx as usize],
                 );
+                JITEngine::dump_raw(&mut state.jitter_state, &self.module.functions[fib_idx as usize]);
             }
 
             /* Run the main function in compiled mode */
