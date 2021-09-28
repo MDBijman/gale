@@ -160,6 +160,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fed34cd105917e91daa4da6b3728c47b068749d6a62c59811f06ed2ac71d9da7"
 
 [[package]]
+name = "gale-utils"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "galevm",
+ "iced-x86",
+]
+
+[[package]]
 name = "galejs"
 version = "0.1.0"
 dependencies = [
@@ -176,6 +185,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "dynasmrt",
+ "libc",
  "nom",
 ]
 
@@ -186,6 +196,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "62b467343b94ba476dcb2500d242dadbb39557df889310ac77c5d99100aaac33"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "iced-x86"
+version = "1.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7383772b06135cede839b7270023b46403656a9148024886e721e82639d3f90e"
+dependencies = [
+ "lazy_static",
+ "static_assertions",
 ]
 
 [[package]]
@@ -224,9 +244,9 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.101"
+version = "0.2.103"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3cb00336871be5ed2c8ed44b60ae9959dc5b9f08539422ed43f09e34ecaeba21"
+checksum = "dd8f7255a17a627354f321ef0055d63b898c6fb27eff628af4d1b66b7331edf6"
 
 [[package]]
 name = "log"

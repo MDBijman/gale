@@ -5,7 +5,8 @@ members = [
     "parser",
     "pipeline",
     "vm",
-    "galejs"
+    "galejs",
+    "utils"
 ]
 
 [profile.release]
