@@ -1,0 +1,11 @@
+.const
+.code
+
+fn identity ($0: u64)
+        ret $0
+endfn
+
+fn main ($0: u64)
+        call $1, @identity ($0)
+        ret $1
+endfn
