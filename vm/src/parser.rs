@@ -3,9 +3,9 @@ use crate::bytecode::*;
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_while, take_while1},
-    character::complete::{char, digit1, multispace0, space0},
-    combinator::{cut, map},
-    error::ParseError,
+    character::complete::{digit1, multispace0, space0},
+    combinator::{cut, map, opt},
+    error::{convert_error, ParseError, VerboseError},
     multi::{many0, many1, separated_list0},
     sequence::{delimited, pair, preceded, terminated, tuple},
     IResult,
@@ -30,33 +30,39 @@ where
     delimited(space0, inner, space0)
 }
 
+type MyParseResult<'a, O> = IResult<&'a str, O, VerboseError<&'a str>>;
+
 /*
 * Other
 */
 
-fn parse_u64(i: &str) -> IResult<&str, u64> {
+fn parse_u64(i: &str) -> MyParseResult<u64> {
     map(digit1, |s: &str| s.parse::<u64>().unwrap())(i)
 }
 
-fn parse_u32(i: &str) -> IResult<&str, u32> {
+fn parse_u32(i: &str) -> MyParseResult<u32> {
     map(digit1, |s: &str| s.parse::<u32>().unwrap())(i)
 }
 
-fn parse_u16(i: &str) -> IResult<&str, u16> {
+fn parse_u16(i: &str) -> MyParseResult<u16> {
     map(digit1, |s: &str| s.parse::<u16>().unwrap())(i)
 }
 
-fn parse_var_idx(i: &str) -> IResult<&str, Var> {
+fn parse_var_idx(i: &str) -> MyParseResult<Var> {
     preceded(tag("$"), cut(parse_u16))(i)
 }
 
-fn parse_identifier(i: &str) -> IResult<&str, String> {
+fn parse_type_idx(i: &str) -> MyParseResult<Var> {
+    preceded(tag("%"), cut(parse_u16))(i)
+}
+
+fn parse_identifier(i: &str) -> MyParseResult<String> {
     map(take_while1(|c| char::is_alphanumeric(c) || c == '_'), |s| {
         String::from(s)
     })(i)
 }
 
-fn parse_lbl(i: &str) -> IResult<&str, String> {
+fn parse_lbl(i: &str) -> MyParseResult<String> {
     map(preceded(spaces_around(tag("@")), parse_identifier), |id| id)(i)
 }
 
@@ -64,9 +70,9 @@ fn parse_lbl(i: &str) -> IResult<&str, String> {
 * Types
 */
 
-fn parse_type(i: &str) -> IResult<&str, Type> {
+fn parse_type(i: &str) -> MyParseResult<Type> {
     alt((
-        map(tag("u64"), |_| Type::U64()),
+        map(tag("u64"), |_| Type::U64),
         map(delimited(tag("["), parse_type, tag("]")), |t| {
             Type::Array(Box::new(t))
         }),
@@ -79,7 +85,7 @@ fn parse_type(i: &str) -> IResult<&str, Type> {
 * Expressions
 */
 
-fn parse_constant(i: &str) -> IResult<&str, Value> {
+fn parse_constant(i: &str) -> MyParseResult<Value> {
     preceded(
         space0,
         alt((
@@ -90,14 +96,14 @@ fn parse_constant(i: &str) -> IResult<&str, Value> {
     )(i)
 }
 
-fn parse_boolean(i: &str) -> IResult<&str, Value> {
+fn parse_boolean(i: &str) -> MyParseResult<Value> {
     alt((
         map(tag("true"), |_| Value::U64(1)),
         map(tag("false"), |_| Value::U64(0)),
     ))(i)
 }
 
-fn parse_string(i: &str) -> IResult<&str, Value> {
+fn parse_string(i: &str) -> MyParseResult<Value> {
     map(
         delimited(tag("\""), take_while(|c| c != '\"'), tag("\"")),
         |r| Value::Str(String::from(r)),
@@ -110,7 +116,7 @@ fn parse_string(i: &str) -> IResult<&str, Value> {
 
 fn parse_three_var_command<'a>(
     op: &'a str,
-) -> impl FnMut(&'a str) -> IResult<&str, (Var, Var, Var)> {
+) -> impl FnMut(&'a str) -> MyParseResult<(Var, Var, Var)> {
     move |i| {
         tuple((
             preceded(tag(op), spaces_around(parse_var_idx)),
@@ -120,7 +126,7 @@ fn parse_three_var_command<'a>(
     }
 }
 
-fn parse_two_var_command<'a>(op: &'a str) -> impl FnMut(&'a str) -> IResult<&str, (Var, Var)> {
+fn parse_two_var_command<'a>(op: &'a str) -> impl FnMut(&'a str) -> MyParseResult<(Var, Var)> {
     move |i| {
         tuple((
             preceded(tag(op), spaces_around(parse_var_idx)),
@@ -129,18 +135,28 @@ fn parse_two_var_command<'a>(op: &'a str) -> impl FnMut(&'a str) -> IResult<&str
     }
 }
 
-fn parse_one_var_command<'a>(op: &'a str) -> impl FnMut(&'a str) -> IResult<&str, Var> {
+fn parse_two_var_one_type_command<'a>(op: &'a str) -> impl FnMut(&'a str) -> MyParseResult<(Var, Var, TypeLbl)> {
+    move |i| {
+        tuple((
+            preceded(tag(op), spaces_around(parse_var_idx)),
+            preceded(tag(","), spaces_around(parse_var_idx)),
+            preceded(tag(","), spaces_around(parse_type_idx)),
+        ))(i)
+    }
+}
+
+fn parse_one_var_command<'a>(op: &'a str) -> impl FnMut(&'a str) -> MyParseResult<Var> {
     move |i| preceded(tag(op), spaces_around(parse_var_idx))(i)
 }
 
-fn parse_instruction(i: &str) -> IResult<&str, ParsedInstruction> {
+fn parse_instruction(i: &str) -> MyParseResult<ParsedInstruction> {
     terminated(
         alt((
-            map(parse_two_var_command("store"), |(l, e)| {
-                ParsedInstruction::Instr(Instruction::StoreVar(l, e))
+            map(parse_two_var_one_type_command("store"), |(l, e, t)| {
+                ParsedInstruction::Instr(Instruction::StoreVar(l, e, t))
             }),
-            map(parse_two_var_command("load"), |(l, e)| {
-                ParsedInstruction::Instr(Instruction::LoadVar(l, e))
+            map(parse_two_var_one_type_command("load"), |(l, e, t)| {
+                ParsedInstruction::Instr(Instruction::LoadVar(l, e, t))
             }),
             map(parse_three_var_command("eq"), |(a, b, c)| {
                 ParsedInstruction::Instr(Instruction::EqVarVar(a, b, c))
@@ -184,6 +200,7 @@ fn parse_instruction(i: &str) -> IResult<&str, ParsedInstruction> {
                 ParsedInstruction::Instr(Instruction::Print(e))
             }),
             parse_call,
+            parse_alloc,
             parse_jmp,
             parse_lbl_instr,
         )),
@@ -191,21 +208,17 @@ fn parse_instruction(i: &str) -> IResult<&str, ParsedInstruction> {
     )(i)
 }
 
-/*
-fn parse_alloc(i: &str) -> IResult<&str, ParsedInstruction> {
+fn parse_alloc(i: &str) -> MyParseResult<ParsedInstruction> {
     map(
         tuple((
-            parse_var_idx,
-            spaces_around(tag("=")),
-            spaces_around(tag("alloc")),
-            parse_type,
+            preceded(spaces_around(tag("alloc")), cut(parse_var_idx)),
+            preceded(spaces_around(tag(",")), cut(parse_type_idx)),
         )),
-        |(l, _, _, t)| ParsedInstruction::Instr(Instruction::Alloc(l, t)),
+        |(r, t)| ParsedInstruction::Instr(Instruction::Alloc(r, t)),
     )(i)
 }
-*/
 
-fn parse_call(i: &str) -> IResult<&str, ParsedInstruction> {
+fn parse_call(i: &str) -> MyParseResult<ParsedInstruction> {
     map(
         tuple((
             preceded(spaces_around(tag("call")), cut(parse_var_idx)),
@@ -221,7 +234,7 @@ fn parse_call(i: &str) -> IResult<&str, ParsedInstruction> {
     )(i)
 }
 
-fn parse_jmp(i: &str) -> IResult<&str, ParsedInstruction> {
+fn parse_jmp(i: &str) -> MyParseResult<ParsedInstruction> {
     alt((
         map(
             preceded(
@@ -243,7 +256,7 @@ fn parse_jmp(i: &str) -> IResult<&str, ParsedInstruction> {
     ))(i)
 }
 
-fn parse_lbl_instr(i: &str) -> IResult<&str, ParsedInstruction> {
+fn parse_lbl_instr(i: &str) -> MyParseResult<ParsedInstruction> {
     map(terminated(parse_identifier, tag(":")), |lbl| {
         ParsedInstruction::Lbl(lbl)
     })(i)
@@ -253,14 +266,14 @@ fn parse_lbl_instr(i: &str) -> IResult<&str, ParsedInstruction> {
 * File
 */
 
-fn parse_param(i: &str) -> IResult<&str, Param> {
+fn parse_param(i: &str) -> MyParseResult<Param> {
     map(
         tuple((parse_var_idx, cut(spaces_around(tag(":"))), parse_type)),
         |(i, _, t)| Param { var: i, type_: t },
     )(i)
 }
 
-fn parse_params(i: &str) -> IResult<&str, Vec<Param>> {
+fn parse_params(i: &str) -> MyParseResult<Vec<Param>> {
     delimited(
         spaces_around(tag("(")),
         separated_list0(spaces_around(tag(",")), parse_param),
@@ -268,7 +281,7 @@ fn parse_params(i: &str) -> IResult<&str, Vec<Param>> {
     )(i)
 }
 
-fn parse_function(i: &str) -> IResult<&str, ParsedFunction> {
+fn parse_function(i: &str) -> MyParseResult<ParsedFunction> {
     map(
         tuple((
             ws(tag("fn")),
@@ -323,7 +336,7 @@ fn parse_function(i: &str) -> IResult<&str, ParsedFunction> {
                             vars = Var::max(vars, *a);
                             vars = Var::max(vars, *b);
                         }
-                        Instruction::LoadVar(a, b) => {
+                        Instruction::LoadVar(a, b, _) => {
                             vars = Var::max(vars, *a);
                             vars = Var::max(vars, *b);
                         }
@@ -335,13 +348,13 @@ fn parse_function(i: &str) -> IResult<&str, ParsedFunction> {
                             vars = Var::max(vars, *b);
                             vars = Var::max(vars, *c);
                         }
-                        Instruction::StoreVar(a, b) => {
+                        Instruction::StoreVar(a, b, _) => {
                             vars = Var::max(vars, *a);
                             vars = Var::max(vars, *b);
                         }
-                        /*Instruction::Alloc(i, _) => {
+                        Instruction::Alloc(i, _) => {
                             vars = Var::max(vars, *i);
-                        }*/
+                        }
                         _ => {}
                     },
                     ParsedInstruction::IndirectCall(i, _, _) => {
@@ -356,24 +369,54 @@ fn parse_function(i: &str) -> IResult<&str, ParsedFunction> {
     )(i)
 }
 
-fn parse_constants(i: &str) -> IResult<&str, Vec<Value>> {
-    preceded(
-        ws(tag(".const")),
-        many0(preceded(
-            tuple((parse_u64, tag(":"), ws(parse_type))),
-            ws(parse_constant),
+fn parse_const_section(i: &str) -> MyParseResult<Vec<ConstDecl>> {
+    map(
+        opt(preceded(
+            ws(tag(".const")),
+            many0(map(
+                tuple((parse_u64, tag(":"), ws(parse_type), ws(parse_constant))),
+                |(idx, _, type_, value)| ConstDecl {
+                    idx: std::convert::TryInto::try_into(idx).unwrap(),
+                    type_,
+                    value,
+                },
+            )),
         )),
+        |r| match r {
+            None => Vec::new(),
+            Some(r) => r,
+        },
     )(i)
 }
 
-fn parse_functions(i: &str) -> IResult<&str, Vec<ParsedFunction>> {
+fn parse_types_section(i: &str) -> MyParseResult<Vec<TypeDecl>> {
+    map(
+        opt(preceded(
+            ws(tag(".types")),
+            many0(map(
+                tuple((parse_u64, tag(":"), ws(parse_type))),
+                |(idx, _, type_)| TypeDecl {
+                    idx: std::convert::TryInto::try_into(idx).unwrap(),
+                    type_,
+                },
+            )),
+        )),
+        |r| match r {
+            None => Vec::new(),
+            Some(r) => r,
+        },
+    )(i)
+}
+
+fn parse_code_section(i: &str) -> MyParseResult<Vec<ParsedFunction>> {
     preceded(ws(tag(".code")), many1(parse_function))(i)
 }
 
 pub fn parse_bytecode_string(i: &str) -> Module {
-    match map(tuple((parse_constants, parse_functions)), |(c, f)| {
-        Module::from_long_functions(c, f)
-    })(i)
+    match map(
+        tuple((parse_types_section, parse_const_section, parse_code_section)),
+        |(t, c, f)| Module::from_long_functions(t, c, f),
+    )(i)
     {
         Ok((leftover, m)) => {
             if leftover.len() > 0 {
@@ -382,11 +425,18 @@ pub fn parse_bytecode_string(i: &str) -> Module {
 
             m
         }
-        Err(err) => panic!("{:?}", err),
+        Err(nom::Err::Failure(err)) | Err(nom::Err::Error(err)) => {
+            panic!("{}", convert_error(i, err));
+        }
+        Err(err) => {
+            panic!("{}", err);
+        }
     }
 }
 
-pub fn parse_bytecode_file(filename: &str) -> Module {
-    let f = fs::read_to_string(filename).unwrap();
-    parse_bytecode_string(f.as_str())
+pub fn parse_bytecode_file(filename: &str) -> Option<Module> {
+    match fs::read_to_string(filename) {
+        Ok(f) => Some(parse_bytecode_string(f.as_str())),
+        Err(_) => None,
+    }
 }

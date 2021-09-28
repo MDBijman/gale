@@ -4,7 +4,6 @@ use std::collections::HashMap;
 
 #[derive(PartialEq, Debug)]
 pub enum InterpreterStatus {
-    Created,
     Running,
     Finished,
 }
@@ -217,38 +216,55 @@ impl<'a> Interpreter<'a> {
             Instruction::Nop => {
                 state.ip += 1;
             }
-            /*Instruction::Alloc(loc, ty) => {
-                VM::set_stack_var(&mut self.stack, &ci, &loc, self.heap.len() as u64);
-
-                match ty {
-                    Type::U64() => self.heap.push(0),
+            Instruction::Alloc(loc, ty) => {
+                match self.code.get_type_by_id(*ty).expect("type idx") {
+                    Type::U64 => {
+                        let ptr = state.allocate_heap(8);
+                        state.set_stack_var(*loc, ptr as u64);
+                    }
+                    Type::Str => {
+                        todo!();
+                    }
                     _ => panic!("Illegal alloc operand: {:?}", ty),
                 }
 
                 state.ip += 1;
-            }*/
-            Instruction::LoadVar(dest, src) => {
+            }
+            Instruction::LoadVar(dest, src, ty_idx) => {
                 let ptr = state.get_stack_var(*src);
-                state.set_stack_var(*dest, state.heap[ptr as usize]);
+
+                match self.code.get_type_by_id(*ty_idx).expect("type idx") {
+                    Type::U64 => {
+                        let res = unsafe { state.read_heap_u64(ptr) };
+                        state.set_stack_var(*dest, res);
+                    }
+                    _ => panic!("Illegal load operand: {:?}", ty_idx),
+                }
                 state.ip += 1;
             }
-            Instruction::LoadConst(dest, idx) => {
+            Instruction::LoadConst(_, _) => {
+                state.ip += 1;
                 unimplemented!();
-                //self.stack[*dest as usize] = self.code.constants[*idx as usize].clone();
-                state.ip += 1;
             }
-            Instruction::StoreVar(dest, src) => {
+            Instruction::StoreVar(dest, src, ty_idx) => {
                 let ptr = state.get_stack_var(*dest);
                 let value = state.get_stack_var(*src);
-                state.heap[ptr as usize] = value;
+
+                match self.code.get_type_by_id(*ty_idx).expect("type idx") {
+                    Type::U64 => unsafe {
+                        state.write_heap_u64(ptr, value);
+                    }
+                    _ => panic!("Illegal load operand: {:?}", ty_idx),
+                }
                 state.ip += 1;
             }
             Instruction::Index(dest, ptr, idx) => {
                 let idx = state.get_stack_var(*idx);
                 let ptr = state.get_stack_var(*ptr);
-                let res = &state.heap[ptr as usize + idx as usize];
-                state.stack[*dest as usize] = *res;
+                let res = unsafe { state.read_heap_u64(ptr + idx) };
+                state.stack[*dest as usize] = res;
                 state.ip += 1;
+                unimplemented!("Incorrect, needs type to determine offset multiplier")
             }
             i => panic!("Illegal instruction: {:?}", i),
         }
@@ -264,7 +280,7 @@ pub struct InterpreterState {
     func: isize,
 
     state: InterpreterStatus,
-    heap: Vec<u64>,
+    heap: Vec<u8>,
     pub result: u64,
     pub instr_counter: u64,
     pub function_counters: HashMap<FnLbl, u64>,
@@ -306,11 +322,23 @@ impl InterpreterState {
     }
 
     fn increment_function_counter(&mut self, fun: FnLbl) {
-        let mut ctr = self.function_counters.entry(fun).or_insert(0);
+        let ctr = self.function_counters.entry(fun).or_insert(0);
         *ctr += 1;
     }
-    
-    fn get_function_counter(&self, fun: FnLbl) -> Option<&u64> {
-        self.function_counters.get(&fun)
+
+    fn allocate_heap(&mut self, size: usize) -> usize {
+        let res = self.heap.len();
+        self.heap.resize(res + size, 0);
+        res
+    }
+
+    unsafe fn read_heap_u64(&self, ptr: u64) -> u64 {
+        let heap_ptr: *const u64 = std::mem::transmute(&self.heap[ptr as usize]);
+        heap_ptr.read_unaligned()
+    }
+
+    unsafe fn write_heap_u64(&self, ptr: u64, value: u64) {
+        let heap_ptr: *mut u64 = std::mem::transmute(&self.heap[ptr as usize]);
+        *heap_ptr = value;
     }
 }

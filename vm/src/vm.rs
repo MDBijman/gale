@@ -1,18 +1,20 @@
-use crate::bytecode::{FnLbl, Module, ControlFlowGraph};
+use crate::bytecode::{ControlFlowGraph, FnLbl, Module};
 use crate::interpreter::{Interpreter, InterpreterState};
 use crate::jit::{JITEngine, JITState};
 use std::time;
 
 pub struct VMState {
     pub interpreter_state: InterpreterState,
-    pub jitter_state: JITState,
+    pub jit_state: JITState,
+    pub result: Option<u64>,
 }
 
 impl VMState {
     pub fn new(first_function: FnLbl, first_frame_size: u64, arg: u64) -> VMState {
         VMState {
             interpreter_state: InterpreterState::new(first_function, first_frame_size, arg),
-            jitter_state: JITState::new(),
+            jit_state: JITState::default(),
+            result: None,
         }
     }
 }
@@ -20,7 +22,8 @@ impl VMState {
 pub struct VM<'a> {
     pub module: &'a Module,
     pub interpreter: Interpreter<'a>,
-    pub jitter: JITEngine,
+    pub jit: JITEngine,
+    debug: bool,
 }
 
 impl<'a> VM<'a> {
@@ -28,60 +31,95 @@ impl<'a> VM<'a> {
         VM {
             module: m,
             interpreter: Interpreter::new(m),
-            jitter: JITEngine::default(),
+            jit: JITEngine::default(),
+            debug: false,
         }
     }
 
-    pub fn run(&self, arg: &str, jit: bool) {
-        let args = arg
-            .split(" ")
-            .map(|s| s.parse::<u64>().unwrap())
-            .collect::<Vec<_>>();
-        assert_eq!(args.len(), 1); // Just limited to 1 number argument for now
+    pub fn new_debug(m: &'a Module) -> VM {
+        VM {
+            module: m,
+            interpreter: Interpreter::new(m),
+            jit: JITEngine::default(),
+            debug: true,
+        }
+    }
+
+    pub fn run(&self, args: Vec<&str>, jit: bool) -> VMState {
+        assert_eq!(args.len(), 1); // FIXME limited to 1 number argument for now
+        let arg = args[0].parse::<u64>().expect("u64 arg");
 
         let main_idx = self.module.find_function_id("main").unwrap();
         let main_frame_size = self.module.get_function_by_id(main_idx).unwrap().varcount;
 
         let start = time::SystemTime::now();
-        println!("Jit enabled: {}", jit);
+
+        if self.debug {
+            println!("Jit enabled: {}", jit);
+        }
+
+        let mut state = VMState::new(main_idx, main_frame_size.into(), arg);
+
         if jit {
             /* Compile the main function */
-            let mut state = VMState::new(main_idx, main_frame_size.into(), args[0]);
             let main_idx = self.module.find_function_id("main").unwrap();
             JITEngine::compile(
-                &mut state.jitter_state,
+                &mut state.jit_state,
+                &self.module,
                 &self.module.functions[main_idx as usize],
             );
 
-
             // Compile fib
-            if let Some(fib_idx) = self.module.find_function_id("fib") {
-                println!("--- Compiling fib");
-                let cfg = ControlFlowGraph::from_function(&self.module.functions[fib_idx as usize]);
-                cfg.print_dot(&self.module.functions[fib_idx as usize]);
-                JITEngine::compile(
-                    &mut state.jitter_state,
-                    &self.module.functions[fib_idx as usize],
-                );
-                JITEngine::dump_raw(&mut state.jitter_state, &self.module.functions[fib_idx as usize]);
+            if let Some(idx) = self.module.find_function_id("fib") {
+                if self.debug {
+                    println!("Compiling fib");
+                }
+
+                let fun = &self.module.functions[idx as usize];
+                let cfg = ControlFlowGraph::from_function(fun);
+
+                if self.debug {
+                    cfg.print_dot(&self.module.functions[idx as usize]);
+                }
+
+                JITEngine::compile(&mut state.jit_state, &self.module, fun);
+
+                if self.debug {
+                    println!(
+                        "JIT Dump:\n{}",
+                        JITEngine::to_hex_string(
+                            &mut state.jit_state,
+                            &self.module.functions[idx as usize]
+                        )
+                    );
+                }
             }
 
             /* Run the main function in compiled mode */
-            let res = JITEngine::call_if_compiled(self, &mut state, "main", args[0]);
-            println!("--- out: {:?}", res.unwrap());
-            println!("--- time: {}ms", start.elapsed().unwrap().as_millis());
+            let res = JITEngine::call_if_compiled(self, &mut state, "main", arg);
+
+            state.result = res;
+
+            if self.debug {
+                println!("jit time: {}ms", start.elapsed().unwrap().as_millis());
+            }
         } else {
             /* Run the program in interpreted mode */
-            let mut state = VMState::new(main_idx, main_frame_size.into(), args[0]);
             while self.interpreter.step(&mut state.interpreter_state) {}
-            println!("--- out: {}", state.interpreter_state.result);
-            let end = start.elapsed().unwrap().as_millis();
-            println!("--- time: {}ms", end);
-            println!("--- instrs: {}", state.interpreter_state.instr_counter);
-            println!(
-                "--- MOp/s: {:.2}",
-                (state.interpreter_state.instr_counter as f64 / end as f64) / 1000 as f64
-            );
+            
+            state.result = Some(state.interpreter_state.result);
+
+            if self.debug {
+                let end = start.elapsed().unwrap().as_millis();
+                println!("interp time: {}ms", end);
+                println!("instrs: {}", state.interpreter_state.instr_counter);
+                println!(
+                    "MOp/s: {:.2}",
+                    (state.interpreter_state.instr_counter as f64 / end as f64) / 1000 as f64
+                );
+            }
         }
+
+        state
     }
 }

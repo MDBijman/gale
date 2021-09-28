@@ -8,6 +8,7 @@ edition = "2018"
 clap = { version = "2.33.3", optional = true }
 nom  = { version = "6.0.0",  optional = true }
 dynasmrt = { version= "1.1.0" }
+libc = "0.2.103"
 
 [features]
 default = ["parser", "commandline"]
@@ -15,7 +16,7 @@ parser = ["nom"]
 commandline = ["clap"]
 
 [lib]
-name = "galevmlib"
+name = "galevm"
 
 [[bin]]
 name = "galevm"
