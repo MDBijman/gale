@@ -1,7 +1,7 @@
 // This is the WebAssembly-target lib entry point
 use wasm_bindgen::prelude::*;
 use galelib;
-use galevmlib;
+use galevm;
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
 // allocator.
@@ -22,6 +22,8 @@ pub fn init_panic_hook() {
 #[wasm_bindgen]
 pub fn run_gale(code: &str, arg: &str) -> String {
     let bytecode = galelib::compile_gale_program(code);
-    let module   = galevmlib::parse_bytecode_string(bytecode.as_str());
-    format!("{}", galevmlib::run(module, arg).result).clone()
+    let module   = galevm::parse_bytecode_string(bytecode.as_str());
+    let vm = galevm::VM::new(&module);
+    let state = vm.run(arg.split(" ").collect(), false);
+    format!("{}", state.result.unwrap())
 }
