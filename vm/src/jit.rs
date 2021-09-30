@@ -216,7 +216,7 @@ impl JITEngine {
         } else {
             vm.interpreter
                 .push_native_caller_frame(&mut state.interpreter_state, func, arg);
-            vm.interpreter.finish_function(&mut state.interpreter_state);
+            vm.interpreter.finish_function(&mut state.interpreter_state, &mut state.heap);
             let res = vm
                 .interpreter
                 .pop_native_caller_frame(&mut state.interpreter_state);

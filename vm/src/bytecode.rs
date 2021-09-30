@@ -99,7 +99,6 @@ impl Type {
     pub fn size(&self) -> usize {
         match self {
             Self::U64 => 8,
-            Self::Str => core::mem::size_of::<String>(),
             _ => panic!("No such size")
         }
     }
@@ -112,16 +111,6 @@ pub enum Value {
     Pointer(u64),
     Null,
     Str(String),
-}
-
-impl Value {
-    pub fn as_u64(&self) -> Option<&u64> {
-        if let Self::U64(v) = self {
-            Some(v)
-        } else {
-            None
-        }
-    }
 }
 
 impl fmt::Display for Value {

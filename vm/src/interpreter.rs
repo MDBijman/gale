@@ -1,9 +1,11 @@
 use crate::bytecode::*;
+use crate::memory::{Heap, Pointer};
 
 use std::collections::HashMap;
 
 #[derive(PartialEq, Debug)]
 pub enum InterpreterStatus {
+    Created,
     Running,
     Finished,
 }
@@ -29,9 +31,9 @@ impl<'a> Interpreter<'a> {
         let func = &self.code.functions[func as usize];
         let stack_size = func.varcount;
 
-        let new_base = state.stack.len() as isize;
+        let new_base = state.stack.slots.len() as isize;
 
-        state.stack.resize(
+        state.stack.slots.resize(
             new_base as usize + stack_size as usize + 1, /* <- for nfi result */
             u64::MAX,
         );
@@ -57,7 +59,11 @@ impl<'a> Interpreter<'a> {
             .call_info
             .pop()
             .expect("Expected call info to be on stack");
-        let result = state.stack.pop().expect("Expected result to be on stack");
+        let result = state
+            .stack
+            .slots
+            .pop()
+            .expect("Expected result to be on stack");
 
         // Finished execution
         if state.call_info.len() == 0 {
@@ -76,10 +82,10 @@ impl<'a> Interpreter<'a> {
     }
 
     // Executes until the current function is finished, including further calls
-    pub fn finish_function(&self, state: &mut InterpreterState) {
+    pub fn finish_function(&self, state: &mut InterpreterState, heap: &mut Heap) {
         let start_stack_size = state.call_info.len();
         assert_ne!(start_stack_size, 0);
-        while self.step(state) {
+        while self.step(state, heap) {
             if state.call_info.len() == start_stack_size - 1 {
                 return;
             }
@@ -88,7 +94,7 @@ impl<'a> Interpreter<'a> {
 
     //#[inline(never)] // <- uncomment for profiling with better source <-> asm map
     #[inline]
-    pub fn step(&self, state: &mut InterpreterState) -> bool {
+    pub fn step(&self, state: &mut InterpreterState, heap: &mut Heap) -> bool {
         assert_eq!(state.state, InterpreterStatus::Running);
         let current_instruction = self.get_instruction(state.func, state.ip);
 
@@ -149,15 +155,16 @@ impl<'a> Interpreter<'a> {
 
                 // Native function
                 if ci.called_by_native {
-                    state.stack.truncate(ci.var_base as usize);
+                    state.stack.slots.truncate(ci.var_base as usize);
 
-                    *state.stack.last_mut().unwrap() = val;
+                    *state.stack.slots.last_mut().unwrap() = val;
                 } else {
                     let new_ci = state.call_info.last().unwrap();
                     let new_func = &self.code.functions[state.func as usize];
 
                     state
                         .stack
+                        .slots
                         .truncate(new_ci.var_base as usize + new_func.varcount as usize);
 
                     state.set_stack_var(ci.result_var, val);
@@ -170,10 +177,11 @@ impl<'a> Interpreter<'a> {
                 state.increment_function_counter(func.location);
                 let stack_size = func.varcount;
 
-                let new_base = state.stack.len() as isize;
+                let new_base = state.stack.slots.len() as isize;
 
                 state
                     .stack
+                    .slots
                     .resize(new_base as usize + stack_size as usize, u64::MAX);
 
                 let new_ci = CallInfo {
@@ -219,8 +227,8 @@ impl<'a> Interpreter<'a> {
             Instruction::Alloc(loc, ty) => {
                 match self.code.get_type_by_id(*ty).expect("type idx") {
                     Type::U64 => {
-                        let ptr = state.allocate_heap(8);
-                        state.set_stack_var(*loc, ptr as u64);
+                        let ptr = heap.allocate(8);
+                        state.set_stack_var(*loc, ptr.into());
                     }
                     Type::Str => {
                         todo!();
@@ -231,11 +239,11 @@ impl<'a> Interpreter<'a> {
                 state.ip += 1;
             }
             Instruction::LoadVar(dest, src, ty_idx) => {
-                let ptr = state.get_stack_var(*src);
+                let ptr: Pointer = state.get_stack_var(*src).into();
 
                 match self.code.get_type_by_id(*ty_idx).expect("type idx") {
                     Type::U64 => {
-                        let res = unsafe { state.read_heap_u64(ptr) };
+                        let res = unsafe { *(heap.raw(ptr.into()) as *mut u64) };
                         state.set_stack_var(*dest, res);
                     }
                     _ => panic!("Illegal load operand: {:?}", ty_idx),
@@ -247,24 +255,25 @@ impl<'a> Interpreter<'a> {
                 unimplemented!();
             }
             Instruction::StoreVar(dest, src, ty_idx) => {
-                let ptr = state.get_stack_var(*dest);
+                let ptr: Pointer = state.get_stack_var(*dest).into();
                 let value = state.get_stack_var(*src);
 
                 match self.code.get_type_by_id(*ty_idx).expect("type idx") {
                     Type::U64 => unsafe {
-                        state.write_heap_u64(ptr, value);
-                    }
+                        let raw = heap.raw(ptr) as *mut u64;
+                        *raw = value;
+                    },
                     _ => panic!("Illegal load operand: {:?}", ty_idx),
                 }
                 state.ip += 1;
             }
             Instruction::Index(dest, ptr, idx) => {
                 let idx = state.get_stack_var(*idx);
-                let ptr = state.get_stack_var(*ptr);
-                let res = unsafe { state.read_heap_u64(ptr + idx) };
-                state.stack[*dest as usize] = res;
+                let ptr = state.get_stack_var(*ptr).into();
+                let new_ptr = heap.index(ptr, idx as usize);
+                state.stack.slots[*dest as usize] = new_ptr.into();
                 state.ip += 1;
-                unimplemented!("Incorrect, needs type to determine offset multiplier")
+                //unimplemented!("Incorrect, needs type to determine offset multiplier")
             }
             i => panic!("Illegal instruction: {:?}", i),
         }
@@ -273,27 +282,37 @@ impl<'a> Interpreter<'a> {
     }
 }
 
+struct Stack {
+    slots: Vec<u64>,
+}
+
+impl Stack {
+    pub fn new_with_framesize(framesize: usize) -> Stack {
+        Stack {
+            slots: vec![u64::MAX; framesize],
+        }
+    }
+}
+
 pub struct InterpreterState {
-    pub stack: Vec<u64>,
+    stack: Stack,
     call_info: Vec<CallInfo>,
     ip: isize,
     func: isize,
-
     state: InterpreterStatus,
-    heap: Vec<u8>,
+
     pub result: u64,
     pub instr_counter: u64,
     pub function_counters: HashMap<FnLbl, u64>,
 }
 
 impl InterpreterState {
-    pub fn new(first_function: FnLbl, first_frame_size: u64, arg: u64) -> InterpreterState {
-        let mut state = InterpreterState {
-            state: InterpreterStatus::Running,
-            heap: Vec::with_capacity(5),
-            result: 0,
-            instr_counter: 0,
-            stack: vec![u64::MAX; first_frame_size as usize],
+    pub fn new(
+        entry: FnLbl,
+        entry_framesize: u64,
+    ) -> InterpreterState {
+        InterpreterState {
+            stack: Stack::new_with_framesize(entry_framesize as usize),
             call_info: vec![CallInfo {
                 called_by_native: true,
                 var_base: 0,
@@ -302,43 +321,33 @@ impl InterpreterState {
                 prev_ip: isize::MAX,
             }],
             ip: 0,
-            func: first_function as isize,
+            func: entry as isize,
+            state: InterpreterStatus::Created,
+            result: 0,
+            instr_counter: 0,
             function_counters: HashMap::new(),
-        };
+        }
+    }
 
-        state.stack[0] = arg;
-
-        state
+    pub fn init(&mut self, args_ptr: Pointer) {
+        self.state = InterpreterStatus::Running;
+        unsafe {
+            self.stack.slots[0] = std::mem::transmute(args_ptr);
+        }
     }
 
     fn get_stack_var(&mut self, var: Var) -> u64 {
         let ci = self.call_info.last().unwrap();
-        self.stack[ci.var_base as usize + var as usize]
+        self.stack.slots[ci.var_base as usize + var as usize]
     }
 
     fn set_stack_var(&mut self, var: Var, val: u64) {
         let ci = self.call_info.last().unwrap();
-        self.stack[ci.var_base as usize + var as usize] = val;
+        self.stack.slots[ci.var_base as usize + var as usize] = val;
     }
 
     fn increment_function_counter(&mut self, fun: FnLbl) {
         let ctr = self.function_counters.entry(fun).or_insert(0);
         *ctr += 1;
-    }
-
-    fn allocate_heap(&mut self, size: usize) -> usize {
-        let res = self.heap.len();
-        self.heap.resize(res + size, 0);
-        res
-    }
-
-    unsafe fn read_heap_u64(&self, ptr: u64) -> u64 {
-        let heap_ptr: *const u64 = std::mem::transmute(&self.heap[ptr as usize]);
-        heap_ptr.read_unaligned()
-    }
-
-    unsafe fn write_heap_u64(&self, ptr: u64, value: u64) {
-        let heap_ptr: *mut u64 = std::mem::transmute(&self.heap[ptr as usize]);
-        *heap_ptr = value;
     }
 }

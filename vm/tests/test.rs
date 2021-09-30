@@ -42,7 +42,10 @@ fn run_testcase(name: &str, jit: bool) {
     let testcase = load_test_file(name);
     let module = testcase.module.unwrap();
     let input = testcase.input.unwrap_or(String::from("0"));
-    let args = input.split(" ").collect::<Vec<&str>>();
+    let args = input
+        .split(" ")
+        .map(|s| String::from(s))
+        .collect::<Vec<String>>();
     let ret = testcase.ret.unwrap_or(String::from("0"));
 
     let vm = VM::new(&module);
@@ -50,7 +53,7 @@ fn run_testcase(name: &str, jit: bool) {
     let state = vm.run(args, jit);
     let out = state.result.unwrap().to_string();
     assert_eq!(ret, out);
-    println!(" ok")   
+    println!(" ok")
 }
 
 const TEST_NAMES: [&str; 3] = ["fib_15", "identity", "nested_calls"];

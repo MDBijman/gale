@@ -78,6 +78,7 @@ fn parse_type(i: &str) -> MyParseResult<Type> {
         }),
         map(tag("null"), |_| Type::Null),
         map(tag("str"), |_| Type::Str),
+        map(preceded(tag("&"), parse_type), |t| Type::Pointer(Box::from(t))),
     ))(i)
 }
 
@@ -176,7 +177,7 @@ fn parse_instruction(i: &str) -> MyParseResult<ParsedInstruction> {
             map(parse_two_var_command("cp"), |(l, e)| {
                 ParsedInstruction::Instr(Instruction::Copy(l, e))
             }),
-            map(parse_three_var_command("movidx"), |(r, a, i)| {
+            map(parse_three_var_command("idx"), |(r, a, i)| {
                 ParsedInstruction::Instr(Instruction::Index(r, a, i))
             }),
             map(
@@ -287,12 +288,12 @@ fn parse_function(i: &str) -> MyParseResult<ParsedFunction> {
             ws(tag("fn")),
             cut(parse_identifier),
             ws(parse_params),
-            multispace0,
-            many1(parse_instruction),
+            preceded(ws(tag("->")), parse_type),
+            preceded(multispace0, many1(parse_instruction)),
             multispace0,
             tag("endfn"),
         )),
-        |(_, name, parameters, _, instructions, _, _)| {
+        |(_, name, parameters, return_type, instructions, _, _)| {
             /*
              * Compute local variables frame size
              */

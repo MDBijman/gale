@@ -1,6 +1,7 @@
 mod bytecode;
 mod interpreter;
 mod jit;
+mod memory;
 mod parser;
 mod vm;
 
@@ -59,7 +60,9 @@ fn main() {
     // Arguments
     let measure_time = matches.is_present("measure_time");
     let input_file_name = matches.value_of("input_file").unwrap();
-    let arguments = matches.values_of("arguments").map_or(Vec::new(), |f| f.into_iter().collect());
+    let arguments = matches.values_of("arguments").map_or(Vec::new(), |f| {
+        f.into_iter().map(|s| String::from(s)).collect()
+    });
     let use_jit = matches.is_present("enable_jit");
 
     let module = parser::parse_bytecode_file(input_file_name).unwrap();

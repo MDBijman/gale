@@ -3,6 +3,7 @@ mod interpreter;
 mod jit;
 mod parser;
 mod vm;
+mod memory;
 
 extern crate nom;
 
