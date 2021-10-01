@@ -1,6 +1,6 @@
 .const
 .code
-fn fib ($0: u64)
+fn fib ($0: u64) -> u64
         movc $1, 2
         lt $1, $0, $1
         jmpifn $1 @lbl_1
@@ -16,7 +16,7 @@ lbl_1:  movc $1, 1
         ret $1
 endfn
 
-fn main ($0: u64)
+fn main ($0: u64) -> u64
         movc $1, 15
         call $3, @fib ($1)
         ret $3

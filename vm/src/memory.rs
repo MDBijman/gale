@@ -22,6 +22,7 @@ pub const POINTER_SIZE: usize = std::mem::size_of::<u64>() * 1;
 pub struct Heap {
     heap: Vec<u64>,
     tombstones: Vec<Tombstone>,
+    debug: bool,
 }
 
 impl Heap {
@@ -33,7 +34,10 @@ impl Heap {
     }
 
     fn resize_heap(&mut self) {
-        println!("resizing heap");
+        if self.debug {
+            println!("resizing heap");
+        }
+
         let heap_ptr: *const u64 = &self.heap[0];
         self.heap.reserve(self.heap.len() * 2);
         let heap_ptr_after_realloc: *const u64 = &self.heap[0];
@@ -49,7 +53,10 @@ impl Heap {
     }
 
     pub fn allocate(&mut self, size: usize) -> Pointer {
-        println!("allocating {} bytes", size);
+        if self.debug {
+            println!("allocating {} bytes", size);
+        }
+
         let tombstone_index = self.tombstones.len();
         let heap_index = self.heap.len();
         if !self.fits_bytes(size) {
@@ -151,6 +158,7 @@ impl Default for Heap {
         Self {
             heap: Vec::with_capacity(HEAP_INITIAL_CAPACITY / size_of::<u64>()),
             tombstones: Vec::new(),
+            debug: false
         }
     }
 }

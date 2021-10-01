@@ -76,7 +76,7 @@ impl<'a> VM<'a> {
                     *raw_str_ptr = '\0' as u8;
 
                     *(raw_arr_ptr as *mut u64) = str_ptr.into();
-                    
+
                     raw_arr_ptr = raw_arr_ptr.add(1);
                 }
             }
@@ -90,7 +90,9 @@ impl<'a> VM<'a> {
             self.run_interp(&mut state, args_ptr);
         }
 
-        println!("{}", state.heap.heap_dump());
+        if self.debug {
+            println!("{}", state.heap.heap_dump());
+        }
 
         state
     }

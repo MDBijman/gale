@@ -1,3 +1,4 @@
+use crate::parser::{ParsedFunction, ParsedInstruction};
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::fmt::{self, Display};
@@ -32,7 +33,7 @@ impl Module {
     }
 
     pub fn from_long_functions(
-        types: Vec<TypeDecl>,
+        mut types: Vec<TypeDecl>,
         consts: Vec<ConstDecl>,
         fns: Vec<ParsedFunction>,
     ) -> Module {
@@ -44,7 +45,7 @@ impl Module {
         }
 
         for f in fns.into_iter() {
-            compact_fns.push(Function::from_long_instr(f, &mapping));
+            compact_fns.push(Function::from_long_instr(f, &mapping, &mut types));
         }
 
         Module::from(types, consts, compact_fns)
@@ -86,12 +87,18 @@ pub struct TypeDecl {
     pub type_: Type,
 }
 
+impl TypeDecl {
+    pub fn new(idx: u16, ty: Type) -> TypeDecl {
+        TypeDecl { idx, type_: ty }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Type {
     U64,
     Array(Box<Type>),
     Pointer(Box<Type>),
-    Null,
+    Unit,
     Str,
 }
 
@@ -99,7 +106,7 @@ impl Type {
     pub fn size(&self) -> usize {
         match self {
             Self::U64 => 8,
-            _ => panic!("No such size")
+            _ => panic!("No such size"),
         }
     }
 }
@@ -275,7 +282,7 @@ impl Function {
     /// Creates a new Function from the output of the bytecode parser,
     /// converting long instructions to short (8 byte) instructions.
     /// This loses some information in the process.
-    pub fn from_long_instr(long_fn: ParsedFunction, fns: &HashMap<String, usize>) -> Function {
+    pub fn from_long_instr(long_fn: ParsedFunction, fns: &HashMap<String, usize>, type_decls: &mut Vec<TypeDecl>) -> Function {
         let mut jump_table: HashMap<String, usize> = HashMap::new();
         let mut pc: usize = 0;
         for instr in long_fn.instructions.iter() {
@@ -293,18 +300,18 @@ impl Function {
         pc = 0;
         for instr in long_fn.instructions.iter() {
             match instr {
-                ParsedInstruction::IndirectJmp(n) => {
+                ParsedInstruction::Jmp(n) => {
                     compact_instructions.push(Instruction::Jmp(
                         (jump_table[n] as isize - pc as isize).try_into().unwrap(),
                     ));
                 }
-                ParsedInstruction::IndirectJmpIf(n, e) => {
+                ParsedInstruction::JmpIf(n, e) => {
                     compact_instructions.push(Instruction::JmpIf(
                         (jump_table[n] as isize - pc as isize).try_into().unwrap(),
                         e.clone(),
                     ));
                 }
-                ParsedInstruction::IndirectJmpIfNot(n, e) => {
+                ParsedInstruction::JmpIfNot(n, e) => {
                     compact_instructions.push(Instruction::JmpIfNot(
                         (jump_table[n] as isize - pc as isize).try_into().unwrap(),
                         e.clone(),
@@ -313,10 +320,15 @@ impl Function {
                 ParsedInstruction::Lbl(_) => {
                     compact_instructions.push(Instruction::Lbl);
                 }
-                ParsedInstruction::Instr(instr) => compact_instructions.push(instr.clone()),
-                ParsedInstruction::IndirectCall(res, n, vars) => compact_instructions.push(
-                    Instruction::Call(res.clone(), fns[n].try_into().unwrap(), vars[0].clone()),
+                ParsedInstruction::Call(res, n, var) => compact_instructions.push(
+                    Instruction::Call(res.clone(), fns[n].try_into().unwrap(), *var),
                 ),
+                ParsedInstruction::LoadVar(res, v, ty) => {
+                    let idx: u16 = type_decls.len().try_into().unwrap();
+                    type_decls.push(TypeDecl::new(idx, ty.clone()));
+                    compact_instructions.push(Instruction::LoadVar(*res, *v, idx));
+                }
+                instr => compact_instructions.push(instr.clone().into()),
             }
             pc += 1;
         }
@@ -396,34 +408,6 @@ impl Function {
         }
     }
 }
-
-#[derive(Debug, Clone)]
-pub enum ParsedInstruction {
-    Instr(Instruction),
-    IndirectCall(Var, String, Vec<Var>),
-    IndirectJmp(String),
-    IndirectJmpIf(String, Var),
-    IndirectJmpIfNot(String, Var),
-    Lbl(String),
-}
-
-#[derive(Debug, Clone)]
-pub struct ParsedFunction {
-    pub name: String,
-    pub varcount: u16,
-    pub instructions: Vec<ParsedInstruction>,
-}
-
-impl ParsedFunction {
-    pub fn new(name: String, varcount: u16, instructions: Vec<ParsedInstruction>) -> Self {
-        Self {
-            name,
-            varcount,
-            instructions,
-        }
-    }
-}
-
 pub struct ControlFlowGraph {
     pub blocks: Vec<BasicBlock>,
     pub from_fn: FnLbl,

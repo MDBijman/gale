@@ -1,5 +1,5 @@
 extern crate nom;
-use crate::bytecode::*;
+use crate::bytecode::{Module, Type, TypeDecl, TypeLbl, Var, ConstDecl, ConstLbl, Value, Param};
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_while, take_while1},
@@ -11,6 +11,78 @@ use nom::{
     IResult,
 };
 use std::fs;
+
+
+#[derive(Debug, Clone)]
+pub enum ParsedInstruction {
+    ConstU32(Var, u32),
+    Copy(Var, Var),
+    EqVarVar(Var, Var, Var),
+    LtVarVar(Var, Var, Var),
+    SubVarVar(Var, Var, Var),
+    AddVarVar(Var, Var, Var),
+    NotVar(Var, Var),
+
+    Return(Var),
+    Print(Var),
+    Call(Var, String, Var),
+    Jmp(String),
+    JmpIf(String, Var),
+    JmpIfNot(String, Var),
+
+    Alloc(Var, Type),
+    LoadConst(Var, ConstLbl),
+    LoadVar(Var, Var, Type),
+    StoreVar(Var, Var, Type),
+    Index(Var, Var, Var),
+
+    Lbl(String),
+}
+
+impl Into<crate::bytecode::Instruction> for ParsedInstruction {
+    fn into(self) -> crate::bytecode::Instruction {
+        use ParsedInstruction::*;
+        use crate::bytecode::Instruction;
+
+        match self {
+            ConstU32(a, b) => Instruction::ConstU32(a, b),
+            Copy(a, b) => Instruction::Copy(a, b),
+            EqVarVar(a, b, c) => Instruction::EqVarVar(a, b, c),
+            LtVarVar(a, b, c) => Instruction::LtVarVar(a, b, c),
+            SubVarVar(a, b, c) => Instruction::SubVarVar(a, b, c),
+            AddVarVar(a, b, c) => Instruction::AddVarVar(a, b, c),
+            NotVar(a, b) => Instruction::NotVar(a, b),
+            Return(v) => Instruction::Return(v),
+            Print(v) => Instruction::Print(v),
+            LoadConst(a, b) => Instruction::LoadConst(a, b),
+            Index(a, b, c) => Instruction::Index(a, b, c),
+            s => panic!("This instruction variant cannot be converted automatically: {:?}", s)
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ParsedFunction {
+    pub name: String,
+    pub varcount: u16,
+    pub instructions: Vec<ParsedInstruction>,
+    pub return_type: Type,
+}
+
+impl ParsedFunction {
+    pub fn new(name: String, varcount: u16, instructions: Vec<ParsedInstruction>, return_type: Type) -> Self {
+        Self {
+            name,
+            varcount,
+            instructions,
+            return_type
+        }
+    }
+}
+
+/*
+* Parser logic
+*/
 
 fn ws<'a, F: 'a, O, E: ParseError<&'a str>>(
     inner: F,
@@ -52,10 +124,6 @@ fn parse_var_idx(i: &str) -> MyParseResult<Var> {
     preceded(tag("$"), cut(parse_u16))(i)
 }
 
-fn parse_type_idx(i: &str) -> MyParseResult<Var> {
-    preceded(tag("%"), cut(parse_u16))(i)
-}
-
 fn parse_identifier(i: &str) -> MyParseResult<String> {
     map(take_while1(|c| char::is_alphanumeric(c) || c == '_'), |s| {
         String::from(s)
@@ -76,7 +144,7 @@ fn parse_type(i: &str) -> MyParseResult<Type> {
         map(delimited(tag("["), parse_type, tag("]")), |t| {
             Type::Array(Box::new(t))
         }),
-        map(tag("null"), |_| Type::Null),
+        map(tag("()"), |_| Type::Unit),
         map(tag("str"), |_| Type::Str),
         map(preceded(tag("&"), parse_type), |t| Type::Pointer(Box::from(t))),
     ))(i)
@@ -136,12 +204,12 @@ fn parse_two_var_command<'a>(op: &'a str) -> impl FnMut(&'a str) -> MyParseResul
     }
 }
 
-fn parse_two_var_one_type_command<'a>(op: &'a str) -> impl FnMut(&'a str) -> MyParseResult<(Var, Var, TypeLbl)> {
+fn parse_two_var_one_type_command<'a>(op: &'a str) -> impl FnMut(&'a str) -> MyParseResult<(Var, Var, Type)> {
     move |i| {
         tuple((
             preceded(tag(op), spaces_around(parse_var_idx)),
             preceded(tag(","), spaces_around(parse_var_idx)),
-            preceded(tag(","), spaces_around(parse_type_idx)),
+            preceded(tag(","), spaces_around(parse_type)),
         ))(i)
     }
 }
@@ -154,51 +222,58 @@ fn parse_instruction(i: &str) -> MyParseResult<ParsedInstruction> {
     terminated(
         alt((
             map(parse_two_var_one_type_command("store"), |(l, e, t)| {
-                ParsedInstruction::Instr(Instruction::StoreVar(l, e, t))
+                ParsedInstruction::StoreVar(l, e, t)
             }),
             map(parse_two_var_one_type_command("load"), |(l, e, t)| {
-                ParsedInstruction::Instr(Instruction::LoadVar(l, e, t))
+                ParsedInstruction::LoadVar(l, e, t)
             }),
             map(parse_three_var_command("eq"), |(a, b, c)| {
-                ParsedInstruction::Instr(Instruction::EqVarVar(a, b, c))
+                ParsedInstruction::EqVarVar(a, b, c)
             }),
             map(parse_three_var_command("lt"), |(a, b, c)| {
-                ParsedInstruction::Instr(Instruction::LtVarVar(a, b, c))
+                ParsedInstruction::LtVarVar(a, b, c)
             }),
             map(parse_three_var_command("sub"), |(l, e1, e2)| {
-                ParsedInstruction::Instr(Instruction::SubVarVar(l, e1, e2))
+                ParsedInstruction::SubVarVar(l, e1, e2)
             }),
             map(parse_three_var_command("add"), |(l, e1, e2)| {
-                ParsedInstruction::Instr(Instruction::AddVarVar(l, e1, e2))
+                ParsedInstruction::AddVarVar(l, e1, e2)
             }),
             map(parse_two_var_command("neg"), |(l, e)| {
-                ParsedInstruction::Instr(Instruction::NotVar(l, e))
+                ParsedInstruction::NotVar(l, e)
             }),
             map(parse_two_var_command("cp"), |(l, e)| {
-                ParsedInstruction::Instr(Instruction::Copy(l, e))
+                ParsedInstruction::Copy(l, e)
             }),
             map(parse_three_var_command("idx"), |(r, a, i)| {
-                ParsedInstruction::Instr(Instruction::Index(r, a, i))
+                ParsedInstruction::Index(r, a, i)
             }),
             map(
                 tuple((
                     preceded(spaces_around(tag("movc")), cut(parse_var_idx)),
                     preceded(spaces_around(tag(",")), parse_u32),
                 )),
-                |(a, b)| ParsedInstruction::Instr(Instruction::ConstU32(a, b)),
+                |(a, b)| ParsedInstruction::ConstU32(a, b),
+            ),
+            map(
+                tuple((
+                    preceded(spaces_around(tag("mov")), cut(parse_var_idx)),
+                    preceded(spaces_around(tag(",")), parse_var_idx),
+                )),
+                |(a, b)| ParsedInstruction::Copy(a, b),
             ),
             map(
                 tuple((
                     preceded(spaces_around(tag("loadc")), cut(parse_var_idx)),
                     preceded(spaces_around(tag(",")), parse_u32),
                 )),
-                |(a, b)| ParsedInstruction::Instr(Instruction::LoadConst(a, b as ConstLbl)),
+                |(a, b)| ParsedInstruction::LoadConst(a, b as ConstLbl),
             ),
             map(parse_one_var_command("ret"), |e| {
-                ParsedInstruction::Instr(Instruction::Return(e))
+                ParsedInstruction::Return(e)
             }),
             map(parse_one_var_command("print"), |e| {
-                ParsedInstruction::Instr(Instruction::Print(e))
+                ParsedInstruction::Print(e)
             }),
             parse_call,
             parse_alloc,
@@ -213,9 +288,9 @@ fn parse_alloc(i: &str) -> MyParseResult<ParsedInstruction> {
     map(
         tuple((
             preceded(spaces_around(tag("alloc")), cut(parse_var_idx)),
-            preceded(spaces_around(tag(",")), cut(parse_type_idx)),
+            preceded(spaces_around(tag(",")), cut(parse_type)),
         )),
-        |(r, t)| ParsedInstruction::Instr(Instruction::Alloc(r, t)),
+        |(r, t)| ParsedInstruction::Alloc(r, t),
     )(i)
 }
 
@@ -231,7 +306,7 @@ fn parse_call(i: &str) -> MyParseResult<ParsedInstruction> {
                 tag(")"),
             ),
         )),
-        |(r, id, _, args)| ParsedInstruction::IndirectCall(r, id, args),
+        |(r, id, _, args)| ParsedInstruction::Call(r, id, args[0]),
     )(i)
 }
 
@@ -242,17 +317,17 @@ fn parse_jmp(i: &str) -> MyParseResult<ParsedInstruction> {
                 spaces_around(tag("jmpifn")),
                 pair(cut(spaces_around(parse_var_idx)), cut(parse_lbl)),
             ),
-            |(v, l)| ParsedInstruction::IndirectJmpIfNot(l, v),
+            |(v, l)| ParsedInstruction::JmpIfNot(l, v),
         ),
         map(
             preceded(
                 spaces_around(tag("jmpif")),
                 pair(cut(spaces_around(parse_var_idx)), cut(parse_lbl)),
             ),
-            |(v, l)| ParsedInstruction::IndirectJmpIf(l, v),
+            |(v, l)| ParsedInstruction::JmpIf(l, v),
         ),
         map(preceded(spaces_around(tag("jmp")), cut(parse_lbl)), |l| {
-            ParsedInstruction::IndirectJmp(l)
+            ParsedInstruction::Jmp(l)
         }),
     ))(i)
 }
@@ -306,66 +381,63 @@ fn parse_function(i: &str) -> MyParseResult<ParsedFunction> {
 
             for instr in instructions.iter() {
                 match instr {
-                    ParsedInstruction::Instr(instr) => match instr {
-                        Instruction::ConstU32(i, _) => {
-                            vars = Var::max(vars, *i);
-                        }
-                        Instruction::Copy(i, _) => {
-                            vars = Var::max(vars, *i);
-                        }
-                        Instruction::EqVarVar(a, b, c) => {
-                            vars = Var::max(vars, *a);
-                            vars = Var::max(vars, *b);
-                            vars = Var::max(vars, *c);
-                        }
-                        Instruction::LtVarVar(a, b, c) => {
-                            vars = Var::max(vars, *a);
-                            vars = Var::max(vars, *b);
-                            vars = Var::max(vars, *c);
-                        }
-                        Instruction::SubVarVar(a, b, c) => {
-                            vars = Var::max(vars, *a);
-                            vars = Var::max(vars, *b);
-                            vars = Var::max(vars, *c);
-                        }
-                        Instruction::AddVarVar(a, b, c) => {
-                            vars = Var::max(vars, *a);
-                            vars = Var::max(vars, *b);
-                            vars = Var::max(vars, *c);
-                        }
-                        Instruction::NotVar(a, b) => {
-                            vars = Var::max(vars, *a);
-                            vars = Var::max(vars, *b);
-                        }
-                        Instruction::LoadVar(a, b, _) => {
-                            vars = Var::max(vars, *a);
-                            vars = Var::max(vars, *b);
-                        }
-                        Instruction::LoadConst(i, _) => {
-                            vars = Var::max(vars, *i);
-                        }
-                        Instruction::Index(a, b, c) => {
-                            vars = Var::max(vars, *a);
-                            vars = Var::max(vars, *b);
-                            vars = Var::max(vars, *c);
-                        }
-                        Instruction::StoreVar(a, b, _) => {
-                            vars = Var::max(vars, *a);
-                            vars = Var::max(vars, *b);
-                        }
-                        Instruction::Alloc(i, _) => {
-                            vars = Var::max(vars, *i);
-                        }
-                        _ => {}
-                    },
-                    ParsedInstruction::IndirectCall(i, _, _) => {
+                    ParsedInstruction::ConstU32(i, _) => {
+                        vars = Var::max(vars, *i);
+                    }
+                    ParsedInstruction::Copy(i, _) => {
+                        vars = Var::max(vars, *i);
+                    }
+                    ParsedInstruction::EqVarVar(a, b, c) => {
+                        vars = Var::max(vars, *a);
+                        vars = Var::max(vars, *b);
+                        vars = Var::max(vars, *c);
+                    }
+                    ParsedInstruction::LtVarVar(a, b, c) => {
+                        vars = Var::max(vars, *a);
+                        vars = Var::max(vars, *b);
+                        vars = Var::max(vars, *c);
+                    }
+                    ParsedInstruction::SubVarVar(a, b, c) => {
+                        vars = Var::max(vars, *a);
+                        vars = Var::max(vars, *b);
+                        vars = Var::max(vars, *c);
+                    }
+                    ParsedInstruction::AddVarVar(a, b, c) => {
+                        vars = Var::max(vars, *a);
+                        vars = Var::max(vars, *b);
+                        vars = Var::max(vars, *c);
+                    }
+                    ParsedInstruction::NotVar(a, b) => {
+                        vars = Var::max(vars, *a);
+                        vars = Var::max(vars, *b);
+                    }
+                    ParsedInstruction::LoadVar(a, b, _) => {
+                        vars = Var::max(vars, *a);
+                        vars = Var::max(vars, *b);
+                    }
+                    ParsedInstruction::LoadConst(i, _) => {
+                        vars = Var::max(vars, *i);
+                    }
+                    ParsedInstruction::Index(a, b, c) => {
+                        vars = Var::max(vars, *a);
+                        vars = Var::max(vars, *b);
+                        vars = Var::max(vars, *c);
+                    }
+                    ParsedInstruction::StoreVar(a, b, _) => {
+                        vars = Var::max(vars, *a);
+                        vars = Var::max(vars, *b);
+                    }
+                    ParsedInstruction::Alloc(i, _) => {
+                        vars = Var::max(vars, *i);
+                    }
+                    ParsedInstruction::Call(i, _, _) => {
                         vars = Var::max(vars, *i);
                     }
                     _ => {}
                 }
             }
 
-            ParsedFunction::new(name, vars + 1, instructions)
+            ParsedFunction::new(name, vars + 1, instructions, return_type)
         },
     )(i)
 }
