@@ -13,26 +13,58 @@ lower: Decl(n, t, e) -> Store(n, !lower e);
 lower: Appl(fn, arg){Type(t)} ->
      tmp_name := !gen_name "tmp"
   in Hoist([Store(tmp_name, Call(fn, !lower arg))], Load(tmp_name));
+lower: String(i) -> tmp_name := !gen_name "tmp" in Hoist([Store(tmp_name, StringLiteral(i))], Load(tmp_name));
+
 lower: Int(i){Type(Builtin("ui8"))} -> UI8(i);
 lower: Int(i) -> UI8(i);
-lower: String(i) -> tmp_name := !gen_name "tmp" in Hoist([Store(tmp_name, StringLiteral(i))], Load(tmp_name));
 lower: True() -> True();
 lower: False() -> False();
+
 lower: Add(lhs, rhs) -> 
-     tmp_name := !gen_name "tmp"
-  in Hoist([Store(tmp_name, BinOp("+", !lower lhs, !lower rhs))], Load(tmp_name));
+     lhs_tmp_name := !gen_name "tmp"
+  in rhs_tmp_name := !gen_name "tmp"
+  in res_tmp_name := !gen_name "tmp"
+  in Hoist([
+    Store(lhs_tmp_name, !lower lhs),
+    Store(rhs_tmp_name, !lower rhs),
+    Store(res_tmp_name, BinOp("+", Load(lhs_tmp_name), Load(rhs_tmp_name)))
+  ], Load(res_tmp_name));
+
 lower: Sub(lhs, rhs) -> 
-     tmp_name := !gen_name "tmp"
-  in Hoist([Store(tmp_name, BinOp("-", !lower lhs, !lower rhs))], Load(tmp_name));
-lower: Eq(l, r)      -> BinOp("=", !lower l, !lower r);
+     lhs_tmp_name := !gen_name "tmp"
+  in rhs_tmp_name := !gen_name "tmp"
+  in res_tmp_name := !gen_name "tmp"
+  in Hoist([
+    Store(lhs_tmp_name, !lower lhs),
+    Store(rhs_tmp_name, !lower rhs),
+    Store(res_tmp_name, BinOp("-", Load(lhs_tmp_name), Load(rhs_tmp_name)))
+  ], Load(res_tmp_name));
+
+lower: Eq(lhs, rhs) -> 
+     lhs_tmp_name := !gen_name "tmp"
+  in rhs_tmp_name := !gen_name "tmp"
+  in res_tmp_name := !gen_name "tmp"
+  in Hoist([
+    Store(lhs_tmp_name, !lower lhs),
+    Store(rhs_tmp_name, !lower rhs),
+    Store(res_tmp_name, BinOp("=", Load(lhs_tmp_name), Load(rhs_tmp_name)))
+  ], Load(res_tmp_name));
+
 lower: Not(cond)     -> UnOp("~", !lower cond);
 lower: Ref(n) -> Load(n);
 lower: Array(elems) -> Array(!map[!lower] elems);
+
 lower: ArrIndex(arr, idx) -> 
      arr_name := !gen_name "tmp"
   in idx_name := !gen_name "tmp"
   in tmp_name := !gen_name "tmp"
-  in Hoist([Store(arr_name, !lower arr), Store(idx_name, !lower idx), Store(tmp_name , ReadIdx(arr_name, idx_name))], Load(tmp_name));
+  in Hoist([
+    Store(arr_name, !lower arr),
+    Store(idx_name, !lower idx),
+    Store(tmp_name ,
+    ReadIdx(arr_name, idx_name))
+  ], Load(tmp_name));
+
 lower: If(cond, then, else) ->
      end_lbl  := !gen_name "lbl"
   in else_lbl := !gen_name "lbl"
@@ -40,13 +72,23 @@ lower: If(cond, then, else) ->
   in res_name := !gen_name "tmp"
   in low_then := !lower then 
   in low_else := !lower else
-  in Hoist([Store(tmp_name, !lower Not(cond)), JmpIf(else_lbl, Load(tmp_name)), Store(res_name, low_then), Jmp(end_lbl), Lbl(else_lbl), Store(res_name, low_else), Lbl(end_lbl)], Load(res_name));
+  in Hoist([
+    Store(tmp_name, !lower Not(cond)),
+    JmpIf(else_lbl, Load(tmp_name)),
+    Store(res_name, low_then),
+    Jmp(end_lbl),
+    Lbl(else_lbl),
+    Store(res_name, low_else),
+    Lbl(end_lbl)
+  ], Load(res_name));
+
 lower: If(cond, then) ->
      end_lbl := !gen_name "lbl"
   in tmp_name := !gen_name "tmp"
   in res_name := !gen_name "tmp"
   in low_then := !lower then
   in Hoist([Store(tmp_name, !lower Not(cond)), JmpIf(end_lbl, Load(tmp_name)), Store(res_name, low_then), Lbl(end_lbl)], Load(res_name));
+
 lower: [h|t] -> !map[!lower] [h|t];
 
 # Logic for hoisting statements to blocks
