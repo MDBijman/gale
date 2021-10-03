@@ -16,7 +16,7 @@ pub const ARRAY_HEADER_SIZE: usize = std::mem::size_of::<u64>() * 1;
 /// Minimum size of a String on the heap. <size, bytes...>.
 pub const STRING_HEADER_SIZE: usize = std::mem::size_of::<u64>() * 1;
 
-/// Minimum size of a pointer on the heap. <adress>.
+/// Size of a pointer on the heap. <adress>.
 pub const POINTER_SIZE: usize = std::mem::size_of::<u64>() * 1;
 
 pub struct Heap {
@@ -116,7 +116,17 @@ impl Heap {
         tombstone.adress
     }
 
-    pub fn index(&mut self, ptr: Pointer, bytes: usize) -> Pointer {
+    pub unsafe fn raw_as<T>(&mut self, ptr: Pointer) -> *mut T {
+        let tombstone = &mut self.tombstones[ptr.index];
+
+        if tombstone.adress == 0 as *mut u8 {
+            panic!("Null tombstone dereference");
+        }
+
+        tombstone.adress as *mut T
+    }
+
+    pub fn index_bytes(&mut self, ptr: Pointer, bytes: usize) -> Pointer {
         let tombstone = self.tombstones[ptr.index].clone();
 
         if tombstone.adress == 0 as *mut u8 {

@@ -1,24 +1,38 @@
 main: File(fns) -> Program(!flatmap_some[!lower] fns);
 
 lower: FnDecl(func, type) -> [];
-lower: FnDef(func, arg, body) ->
-    Function(func, !extract_pattern, !lower body > .try[.flatten_some] > !do_hoist > !make_return);
+lower: FnDef(func, arg, body){Type(t)} ->
+    Function(func, Type(t), !extract_pattern, !lower body > .try[.flatten_some] > !do_hoist > !make_return);
 
 extract_pattern: FnDef(_, a, _) -> Pattern(a);
 
 # Lowering AST nodes
 
 lower: Let(decls, e) -> Hoist(!map[!lower] decls, !lower e);
+
 lower: Decl(n, t, e) -> Store(n, !lower e);
+
+lower: Appl(fn, Ref(a)){Type(t)} ->
+     tmp_name := !gen_name "tmp"
+  in Hoist([
+      Store(tmp_name, Call(fn, !lower Ref(a)))
+    ], Load(tmp_name));
+
 lower: Appl(fn, arg){Type(t)} ->
      tmp_name := !gen_name "tmp"
-  in Hoist([Store(tmp_name, Call(fn, !lower arg))], Load(tmp_name));
+  in arg_name := !gen_name "tmp"
+  in Hoist([
+      Store(arg_name, !lower arg),
+      Store(tmp_name, Call(fn, Load(arg_name)))
+    ], Load(tmp_name));
+
 lower: String(i) -> tmp_name := !gen_name "tmp" in Hoist([Store(tmp_name, StringLiteral(i))], Load(tmp_name));
 
 lower: Int(i){Type(Builtin("ui8"))} -> UI8(i);
 lower: Int(i) -> UI8(i);
-lower: True() -> True();
-lower: False() -> False();
+
+lower: True() -> UI8(1);
+lower: False() -> UI8(0);
 
 lower: Add(lhs, rhs) -> 
      lhs_tmp_name := !gen_name "tmp"
@@ -50,7 +64,14 @@ lower: Eq(lhs, rhs) ->
     Store(res_tmp_name, BinOp("=", Load(lhs_tmp_name), Load(rhs_tmp_name)))
   ], Load(res_tmp_name));
 
-lower: Not(cond)     -> UnOp("~", !lower cond);
+lower: Not(cond) -> 
+     op_tmp := !gen_name "tmp"
+  in res_tmp := !gen_name "tmp"
+  in Hoist([
+    Store(op_tmp, !lower cond),
+    Store(res_tmp, UnOp("~", Load(op_tmp)))
+  ], Load(res_tmp));
+
 lower: Ref(n) -> Load(n);
 lower: Array(elems) -> Array(!map[!lower] elems);
 

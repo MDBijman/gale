@@ -3,10 +3,13 @@ mod interpreter;
 mod jit;
 mod memory;
 mod parser;
+mod primitives;
+mod runtime;
 mod vm;
 
 extern crate clap;
 
+use bytecode::ModuleLoader;
 use clap::{App, Arg};
 use std::time;
 use vm::VM;
@@ -65,16 +68,24 @@ fn main() {
     });
     let use_jit = matches.is_present("enable_jit");
 
-    let module = parser::parse_bytecode_file(input_file_name).unwrap();
+    let mut module_loader = ModuleLoader::from_module(runtime::std_module());
+    let main_module_id = module_loader.load_module(input_file_name);
+    let mut vm = VM::new(module_loader);
+    let main_module = vm
+        .module_loader
+        .get_by_id(main_module_id)
+        .expect("missing module")
+        .expect("missing impl");
 
     let verbosity_level = matches.occurrences_of("verbosity");
-
-    let state = if verbosity_level == 0 {
-        VM::new(&module).run(arguments, use_jit)
+    if verbosity_level == 0 {
+        vm.debug = false;
     } else {
         println!("verbosity: {} - enabling debug output", verbosity_level);
-        VM::new_debug(&module).run(arguments, use_jit)
+        vm.debug = true;
     };
+
+    let state = vm.run(main_module, arguments, use_jit);
 
     println!("{}", state.result.unwrap());
 

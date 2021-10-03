@@ -1,11 +1,13 @@
+mod identity
+
 .const
 .code
 
-fn identity ($0: u64)
+fn identity ($0: ui64) -> ui64
         ret $0
 endfn
 
-fn main ($0: u64)
+fn main ($0: &[&str]) -> ui64
         call $1, @identity ($0)
         ret $1
 endfn

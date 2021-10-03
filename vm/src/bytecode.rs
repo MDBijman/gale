@@ -1,26 +1,114 @@
-use crate::parser::{ParsedFunction, ParsedInstruction};
-use std::collections::HashMap;
+use crate::parser::{parse_bytecode_file, ParsedFunction, ParsedInstruction};
+use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
 use std::fmt::{self, Display};
 
+pub struct ModuleLoader {
+    /*
+     * Each module has an accompanying module interface used to resolve calls.
+     * An interface can exist without an implementation, to break cycles.
+     * I.e. we can resolve calls in modules that depend on each other by
+     * loading interfaces before loading implementations.
+     */
+    interfaces: Vec<ModuleInterface>,
+    implementations: Vec<Option<Module>>,
+}
+
+impl ModuleLoader {
+    pub fn add(&mut self, mut m: Module) -> ModuleId {
+        m.id = self
+            .implementations
+            .len()
+            .try_into()
+            .expect("too many modules");
+
+        let id = m.id;
+
+        self.interfaces.push((&m).into());
+        self.implementations.push(Some(m));
+
+        id
+    }
+
+    pub fn get_by_id(&self, id: ModuleId) -> Option<Option<&Module>> {
+        self.implementations.get(id as usize).map(|o| o.as_ref())
+    }
+
+    pub fn get_by_name(&self, name: &str) -> Option<&Option<Module>> {
+        self.implementations
+            .iter()
+            .find(|m| m.is_some() && m.as_ref().unwrap().name.as_str() == name)
+    }
+
+    pub fn from_module(m: Module) -> ModuleLoader {
+        let mut ml = ModuleLoader::default();
+        ml.add(m);
+        ml
+    }
+
+    pub fn load_module(&mut self, filename: &str) -> ModuleId {
+        let module = parse_bytecode_file(&self, filename).expect("module load");
+        self.add(module)
+    }
+
+    pub fn from_module_file(filename: &str) -> Self {
+        let mut empty_loader = Self::default();
+        empty_loader.load_module(filename);
+        empty_loader
+    }
+}
+
+impl Default for ModuleLoader {
+    fn default() -> Self {
+        Self {
+            interfaces: Default::default(),
+            implementations: Default::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ModuleInterface {
+    pub name: String,
+    pub functions: HashSet<String>,
+}
+
+impl From<&Module> for ModuleInterface {
+    fn from(module: &Module) -> Self {
+        Self {
+            name: module.name.clone(),
+            functions: module.functions.iter().map(|f| f.name.clone()).collect(),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Module {
+    pub name: String,
+    pub id: ModuleId,
     pub types: Vec<TypeDecl>,
     pub constants: Vec<ConstDecl>,
     pub functions: Vec<Function>,
 }
 
 impl Module {
-    pub fn new() -> Module {
+    pub fn new(name: String) -> Module {
         Module {
+            name,
+            id: ModuleId::MAX,
             types: Vec::new(),
             constants: Vec::new(),
             functions: Vec::new(),
         }
     }
 
-    pub fn from(types: Vec<TypeDecl>, consts: Vec<ConstDecl>, fns: Vec<Function>) -> Module {
-        let mut module = Module::new();
+    pub fn from(
+        name: String,
+        types: Vec<TypeDecl>,
+        consts: Vec<ConstDecl>,
+        fns: Vec<Function>,
+    ) -> Module {
+        let mut module = Module::new(name);
         module.functions = fns;
         for (idx, func) in module.functions.iter_mut().enumerate() {
             func.location = idx.try_into().expect("Too many functions!");
@@ -33,6 +121,8 @@ impl Module {
     }
 
     pub fn from_long_functions(
+        module_loader: &ModuleLoader,
+        name: String,
         mut types: Vec<TypeDecl>,
         consts: Vec<ConstDecl>,
         fns: Vec<ParsedFunction>,
@@ -41,17 +131,22 @@ impl Module {
 
         let mut mapping = HashMap::new();
         for (idx, f) in fns.iter().enumerate() {
-            mapping.insert(f.name.clone(), idx);
+            mapping.insert(f.name.clone(), idx as u16);
         }
 
         for f in fns.into_iter() {
-            compact_fns.push(Function::from_long_instr(f, &mapping, &mut types));
+            compact_fns.push(Function::from_long_instr(
+                f,
+                module_loader,
+                &mapping,
+                &mut types,
+            ));
         }
 
-        Module::from(types, consts, compact_fns)
+        Module::from(name, types, consts, compact_fns)
     }
 
-    pub fn find_function_id(&self, name: &str) -> Option<FnLbl> {
+    pub fn find_function_id(&self, name: &str) -> Option<FnId> {
         Some(
             self.functions
                 .iter()
@@ -65,11 +160,11 @@ impl Module {
         Some(self.functions.iter().find(|f| f.name == name)?)
     }
 
-    pub fn get_function_by_id(&self, lbl: FnLbl) -> Option<&Function> {
-        Some(self.functions.iter().find(|f| f.location == lbl.into())?)
+    pub fn get_function_by_id(&self, lbl: FnId) -> Option<&Function> {
+        Some(&self.functions[lbl as usize])
     }
 
-    pub fn get_type_by_id(&self, lbl: TypeLbl) -> Option<&Type> {
+    pub fn get_type_by_id(&self, lbl: TypeId) -> Option<&Type> {
         Some(self.types.iter().find(|f| f.idx == lbl).map(|x| &x.type_)?)
     }
 }
@@ -93,16 +188,38 @@ impl TypeDecl {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Type {
     U64,
     Array(Box<Type>),
+    Tuple(Vec<Type>),
     Pointer(Box<Type>),
+    Fn(Box<Type>, Box<Type>),
     Unit,
     Str,
 }
 
 impl Type {
+    pub fn array(type_: Type) -> Type {
+        Type::Array(Box::from(type_))
+    }
+
+    pub fn tuple(types: Vec<Type>) -> Type {
+        Type::Tuple(types)
+    }
+
+    pub fn fun_n(from: Vec<Type>, to: Type) -> Type {
+        Type::Fn(Box::from(Type::Tuple(from)), Box::from(to))
+    }
+
+    pub fn fun(from: Type, to: Type) -> Type {
+        Type::Fn(Box::from(from), Box::from(to))
+    }
+
+    pub fn ptr(inner: Type) -> Type {
+        Type::Pointer(Box::from(inner))
+    }
+
     pub fn size(&self) -> usize {
         match self {
             Self::U64 => 8,
@@ -143,40 +260,61 @@ impl fmt::Display for Value {
     }
 }
 
-pub type Var = u16;
-pub type TypeLbl = u16;
 pub type InstrLbl = i16;
-pub type FnLbl = u16;
-pub type ConstLbl = u16;
+
+/*
+* Bunch of identifier declarations that we use to keep instructions compact.
+* Generally we then use the id to access the full data somewhere else.
+*/
+
+pub type VarId = u8;
+pub type TypeId = u16;
+pub type FnId = u16;
+pub type ModuleId = u16;
+pub type ConstId = u16;
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct CallTarget {
+    pub module: ModuleId,
+    pub function: FnId,
+}
+
+impl CallTarget {
+    pub fn new(module: ModuleId, function: FnId) -> Self {
+        Self { module, function }
+    }
+}
 
 #[derive(Debug, Clone, Copy)]
 pub enum Instruction {
-    ConstU32(Var, u32),
-    Copy(Var, Var),
-    EqVarVar(Var, Var, Var),
-    LtVarVar(Var, Var, Var),
-    SubVarVar(Var, Var, Var),
-    AddVarVar(Var, Var, Var),
-    NotVar(Var, Var),
+    ConstU32(VarId, u32),
+    Copy(VarId, VarId),
+    EqVarVar(VarId, VarId, VarId),
+    LtVarVar(VarId, VarId, VarId),
+    SubVarVar(VarId, VarId, VarId),
+    AddVarVar(VarId, VarId, VarId),
+    NotVar(VarId, VarId),
 
-    Return(Var),
-    Print(Var),
-    Call(Var, FnLbl, Var),
+    Return(VarId),
+    Print(VarId),
+    Call(VarId, FnId, VarId),
+    ModuleCall(VarId, CallTarget, VarId),
     Jmp(InstrLbl),
-    JmpIf(InstrLbl, Var),
-    JmpIfNot(InstrLbl, Var),
+    JmpIf(InstrLbl, VarId),
+    JmpIfNot(InstrLbl, VarId),
 
-    Alloc(Var, TypeLbl),
-    LoadConst(Var, ConstLbl),
-    LoadVar(Var, Var, TypeLbl),
-    StoreVar(Var, Var, TypeLbl),
-    Index(Var, Var, Var),
+    Alloc(VarId, TypeId),
+    LoadConst(VarId, ConstId),
+    LoadVar(VarId, VarId, TypeId),
+    StoreVar(VarId, VarId, TypeId),
+    Index(VarId, VarId, VarId, TypeId),
     Lbl,
     Nop,
 }
 
 impl Instruction {
-    pub fn write_variables(&self) -> Vec<Var> {
+    pub fn write_variables(&self) -> Vec<VarId> {
         match self {
             Instruction::ConstU32(r, _)
             | Instruction::LtVarVar(r, _, _)
@@ -186,7 +324,9 @@ impl Instruction {
             | Instruction::AddVarVar(r, _, _)
             | Instruction::Alloc(r, _)
             | Instruction::LoadVar(r, _, _)
-            | Instruction::Call(r, _, _) => vec![*r],
+            | Instruction::NotVar(r, _)
+            | Instruction::Call(r, _, _)
+            | Instruction::ModuleCall(r, _, _) => vec![*r],
             Instruction::JmpIfNot(_, _)
             | Instruction::JmpIf(_, _)
             | Instruction::Jmp(_)
@@ -195,12 +335,11 @@ impl Instruction {
             | Instruction::Nop
             | Instruction::StoreVar(_, _, _)
             | Instruction::Lbl => vec![],
-            Instruction::NotVar(_, _)
-            | Instruction::LoadConst(_, _)
-            | Instruction::Index(_, _, _) => todo!(),
+            Instruction::LoadConst(_, _) | Instruction::Index(_, _, _, _) => todo!(),
         }
     }
-    pub fn read_variables(&self) -> Vec<Var> {
+
+    pub fn read_variables(&self) -> Vec<VarId> {
         match self {
             Instruction::LtVarVar(_, b, c)
             | Instruction::EqVarVar(_, b, c)
@@ -210,6 +349,7 @@ impl Instruction {
             Instruction::JmpIfNot(_, a)
             | Instruction::NotVar(_, a)
             | Instruction::Call(_, _, a)
+            | Instruction::ModuleCall(_, _, a)
             | Instruction::Return(a)
             | Instruction::Print(a)
             | Instruction::JmpIf(_, a)
@@ -221,7 +361,15 @@ impl Instruction {
             | Instruction::Alloc(_, _)
             | Instruction::LoadConst(_, _)
             | Instruction::Nop => vec![],
-            Instruction::Index(_, _, _) => todo!(),
+            Instruction::Index(_, _, _, _) => todo!(),
+        }
+    }
+
+    pub fn get_call_target(&self, default_mod: ModuleId) -> Option<CallTarget> {
+        match self {
+            Instruction::Call(_, loc, _) => Some(CallTarget::new(default_mod, *loc)),
+            Instruction::ModuleCall(_, ct, _) => Some(*ct),
+            _ => None
         }
     }
 }
@@ -239,13 +387,16 @@ impl Display for Instruction {
             Instruction::Return(a) => write!(f, "ret ${}", a),
             Instruction::Print(r) => write!(f, "print ${}", r),
             Instruction::Call(a, b, c) => write!(f, "call ${}, @{} (${})", a, b, c),
+            Instruction::ModuleCall(a, b, c) => {
+                write!(f, "call ${}, @{}:{} (${})", a, b.module, b.function, c)
+            }
             Instruction::Jmp(l) => write!(f, "jmp @{}", l),
             Instruction::JmpIf(l, c) => write!(f, "jmpif ${} @{}", c, l),
             Instruction::JmpIfNot(l, c) => write!(f, "jmpifn ${} @{}", c, l),
             Instruction::LoadConst(_, _) => todo!(),
             Instruction::LoadVar(a, b, c) => write!(f, "load ${}, ${}, %{}", a, b, c),
             Instruction::StoreVar(a, b, c) => write!(f, "store ${}, ${}, %{}", a, b, c),
-            Instruction::Index(_, _, _) => todo!(),
+            Instruction::Index(_, _, _, _) => todo!(),
             Instruction::Alloc(a, b) => write!(f, "alloc ${}, %{}", a, b),
             Instruction::Lbl => write!(f, "label:"),
             Instruction::Nop => todo!(),
@@ -255,34 +406,57 @@ impl Display for Instruction {
 
 #[derive(Debug, Clone)]
 pub struct Param {
-    pub var: Var,
+    pub var: VarId,
     pub type_: Type,
 }
 
 #[derive(Debug, Clone)]
 pub struct Function {
     pub name: String,
-    pub location: FnLbl,
-    pub varcount: u16,
-    pub instructions: Vec<Instruction>,
-    pub has_native_impl: bool,
+    pub location: FnId,
+    pub type_id: TypeId,
+    pub implementation: FunctionImpl,
 }
 
 impl Function {
-    pub fn new(name: String, varcount: u16, instructions: Vec<Instruction>) -> Function {
+    pub fn new(
+        name: String,
+        varcount: u8,
+        instructions: Vec<Instruction>,
+        type_id: TypeId,
+    ) -> Function {
         Function {
             name,
-            location: FnLbl::MAX,
-            varcount,
-            instructions,
-            has_native_impl: false,
+            location: FnId::MAX,
+            type_id,
+            implementation: FunctionImpl::Bytecode(BytecodeImpl {
+                varcount,
+                instructions,
+                has_native_impl: false,
+            }),
+        }
+    }
+
+    pub fn new_native(name: String, type_id: TypeId, native: fn(Value) -> Value) -> Function {
+        Function {
+            name,
+            location: FnId::MAX,
+            type_id,
+            implementation: FunctionImpl::Native(NativeImpl {
+                fn_ptr: native
+            })
         }
     }
 
     /// Creates a new Function from the output of the bytecode parser,
     /// converting long instructions to short (8 byte) instructions.
     /// This loses some information in the process.
-    pub fn from_long_instr(long_fn: ParsedFunction, fns: &HashMap<String, usize>, type_decls: &mut Vec<TypeDecl>) -> Function {
+    pub fn from_long_instr(
+        long_fn: ParsedFunction,
+        module_loader: &ModuleLoader,
+        fns: &HashMap<String, FnId>,
+        type_decls: &mut Vec<TypeDecl>,
+    ) -> Function {
         let mut jump_table: HashMap<String, usize> = HashMap::new();
         let mut pc: usize = 0;
         for instr in long_fn.instructions.iter() {
@@ -295,6 +469,9 @@ impl Function {
 
             pc += 1;
         }
+
+        let fn_type_id: u16 = type_decls.len().try_into().unwrap();
+        type_decls.push(TypeDecl::new(fn_type_id, long_fn.type_.clone()));
 
         let mut compact_instructions = Vec::new();
         pc = 0;
@@ -323,10 +500,42 @@ impl Function {
                 ParsedInstruction::Call(res, n, var) => compact_instructions.push(
                     Instruction::Call(res.clone(), fns[n].try_into().unwrap(), *var),
                 ),
+                ParsedInstruction::ModuleCall(res, module_name, function, var) => {
+                    let module = module_loader
+                        .get_by_name(module_name.as_str())
+                        .expect("missing module")
+                        .as_ref()
+                        .expect("missing impl");
+
+                    let function_id = module
+                        .find_function_id(function.as_str())
+                        .expect("missing fn");
+
+                    compact_instructions.push(Instruction::ModuleCall(
+                        res.clone(),
+                        CallTarget::new(module.id, function_id),
+                        *var,
+                    ));
+                }
                 ParsedInstruction::LoadVar(res, v, ty) => {
                     let idx: u16 = type_decls.len().try_into().unwrap();
                     type_decls.push(TypeDecl::new(idx, ty.clone()));
                     compact_instructions.push(Instruction::LoadVar(*res, *v, idx));
+                }
+                ParsedInstruction::Alloc(res, ty) => {
+                    let idx: u16 = type_decls.len().try_into().unwrap();
+                    type_decls.push(TypeDecl::new(idx, ty.clone()));
+                    compact_instructions.push(Instruction::Alloc(*res, idx));
+                }
+                ParsedInstruction::StoreVar(res_ptr, src, ty) => {
+                    let idx: u16 = type_decls.len().try_into().unwrap();
+                    type_decls.push(TypeDecl::new(idx, ty.clone()));
+                    compact_instructions.push(Instruction::StoreVar(*res_ptr, *src, idx));
+                }
+                ParsedInstruction::Index(a, b, c, ty) => {
+                    let idx: u16 = type_decls.len().try_into().unwrap();
+                    type_decls.push(TypeDecl::new(idx, ty.clone()));
+                    compact_instructions.push(Instruction::Index(*a, *b, *c, idx));
                 }
                 instr => compact_instructions.push(instr.clone().into()),
             }
@@ -335,16 +544,22 @@ impl Function {
 
         assert_eq!(compact_instructions.len(), long_fn.instructions.len());
 
-        Function::new(long_fn.name, long_fn.varcount, compact_instructions)
+        Function::new(
+            long_fn.name,
+            long_fn.varcount,
+            compact_instructions,
+            fn_type_id,
+        )
     }
 
     /// For each variable, computes the first and last instruction in which it is used (write or read).
-    pub fn liveness_intervals(&self) -> HashMap<Var, (InstrLbl, InstrLbl)> {
-        let mut intervals: HashMap<Var, (InstrLbl, InstrLbl)> = HashMap::new();
+    pub fn liveness_intervals(&self) -> HashMap<VarId, (InstrLbl, InstrLbl)> {
+        let implementation = self.implementation.as_bytecode().expect("bytecode impl");
+        let mut intervals: HashMap<VarId, (InstrLbl, InstrLbl)> = HashMap::new();
 
         intervals.insert(0, (0, 0));
 
-        for (idx, instr) in self.instructions.iter().enumerate() {
+        for (idx, instr) in implementation.instructions.iter().enumerate() {
             let reads_from = instr.read_variables();
             let writes_to = instr.write_variables();
 
@@ -367,10 +582,12 @@ impl Function {
     }
 
     /// Takes a map of liveness intervals and prints them neatly next to the instructions of this function.
-    pub fn print_liveness(&self, intervals: &HashMap<Var, (InstrLbl, InstrLbl)>) {
-        let mut current_vars: Vec<Option<Var>> = Vec::new();
+    pub fn print_liveness(&self, intervals: &HashMap<VarId, (InstrLbl, InstrLbl)>) {
+        let implementation = self.implementation.as_bytecode().expect("bytecode impl");
 
-        for (idx, instr) in self.instructions.iter().enumerate() {
+        let mut current_vars: Vec<Option<VarId>> = Vec::new();
+
+        for (idx, instr) in implementation.instructions.iter().enumerate() {
             for entry in intervals.iter() {
                 // First instr where var is live
                 if idx == entry.1 .0 as usize {
@@ -408,9 +625,60 @@ impl Function {
         }
     }
 }
+
+#[derive(Debug, Clone)]
+pub enum FunctionImpl {
+    Bytecode(BytecodeImpl),
+    Native(NativeImpl),
+}
+
+impl FunctionImpl {
+    /// Returns `true` if the function impl is [`Native`].
+    ///
+    /// [`Native`]: FunctionImpl::Native
+    pub fn is_native(&self) -> bool {
+        matches!(self, Self::Native(..))
+    }
+
+    pub fn as_native(&self) -> Option<&NativeImpl> {
+        if let Self::Native(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    /// Returns `true` if the function impl is [`Bytecode`].
+    ///
+    /// [`Bytecode`]: FunctionImpl::Bytecode
+    pub fn is_bytecode(&self) -> bool {
+        matches!(self, Self::Bytecode(..))
+    }
+
+    pub fn as_bytecode(&self) -> Option<&BytecodeImpl> {
+        if let Self::Bytecode(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct BytecodeImpl {
+    pub varcount: u8,
+    pub has_native_impl: bool,
+    pub instructions: Vec<Instruction>,
+}
+
+#[derive(Debug, Clone)]
+pub struct NativeImpl {
+    pub fn_ptr: fn(Value) -> Value
+}
+
 pub struct ControlFlowGraph {
     pub blocks: Vec<BasicBlock>,
-    pub from_fn: FnLbl,
+    pub from_fn: FnId,
 }
 
 pub struct BasicBlock {
@@ -445,19 +713,21 @@ impl BasicBlock {
 
 impl ControlFlowGraph {
     pub fn from_function(fun: &Function) -> Self {
+        let implementation = fun.implementation.as_bytecode().expect("bytecode impl");
+
         // Create basic blocks
         // and edges between basic blocks
         // Greedily eat instructions and push into current basic block
         // When encountering a jump or label:
         //   create new basic block and repeat
-        // Link up basic blocks - how?
+        // Link up basic blocks - how?/
 
         let mut basic_blocks = Vec::new();
 
         let mut pc = 0;
         let mut current_block = BasicBlock::starting_from(pc);
 
-        for instr in fun.instructions.iter() {
+        for instr in implementation.instructions.iter() {
             match instr {
                 Instruction::Return(_) => {
                     basic_blocks.push(current_block);
@@ -525,7 +795,7 @@ impl ControlFlowGraph {
                 .expect("Basic block doesn't exist")
         }
 
-        for (pc, instr) in fun.instructions.iter().enumerate() {
+        for (pc, instr) in implementation.instructions.iter().enumerate() {
             match instr {
                 Instruction::Jmp(l) => {
                     let target = l + pc as i16;
@@ -565,22 +835,24 @@ impl ControlFlowGraph {
     }
 
     pub fn print_dot(&self, src_fn: &Function) {
-        fn print_block(bb: &BasicBlock, fun: &Function) {
+        fn print_block(bb: &BasicBlock, instructions: &Vec<Instruction>) {
             print!("\"");
 
-            for instr in fun.instructions[(bb.first as usize)..=(bb.last as usize)].iter() {
+            for instr in instructions[(bb.first as usize)..=(bb.last as usize)].iter() {
                 print!("{}\\n", instr);
             }
 
             print!("\"");
         }
 
+        let implementation = src_fn.implementation.as_bytecode().expect("bytecode impl");
+
         assert_eq!(self.from_fn, src_fn.location);
 
         println!("digraph g {{");
         for (i, bb) in self.blocks.iter().enumerate() {
             print!("\t{} [label=", i);
-            print_block(bb, src_fn);
+            print_block(bb, &implementation.instructions);
             println!("]");
         }
         for (i, bb) in self.blocks.iter().enumerate() {

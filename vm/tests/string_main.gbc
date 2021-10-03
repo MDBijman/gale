@@ -1,10 +1,12 @@
+mod strings_main
+
 .types
 .const
 .code
 fn main ($0: &[&str]) -> &str
         movc $1, 8
         idx $2, $0, $1
-        load $3, $2, u64
+        load $3, $2, ui64
         idx $4, $3, $1
         ret $4
 endfn

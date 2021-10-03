@@ -4,6 +4,8 @@ mod jit;
 mod parser;
 mod vm;
 mod memory;
+mod primitives;
+mod runtime;
 
 extern crate nom;
 

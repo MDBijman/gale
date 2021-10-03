@@ -1,5 +1,5 @@
 main: [str] -> ui64
-main s = fib (31);
+main s = fib (45);
 
 fib: ui64 -> ui64
 fib 0 = 1;

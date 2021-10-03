@@ -6,12 +6,13 @@ main: Program(fns) ->
 collect_string: (constants, StringLiteral(s)) -> (!concat (constants, [ConstDecl(!len constants, StringLiteral(s))]), ReadConst(!len constants));
 
 compile: (env, [h|t]) -> !env_map[!compile] (env, [h|t]);
-compile: Function(name, Pattern(param), body) ->
+compile: Function(name, Type(Func(from, to)), Pattern(param), body) ->
     !reset_num "loc"
-  > param_loc := Var(!gen_num "loc")
-  in env := !put[param, param_loc] .new_map ()
+  > param_loc := !gen_num "loc"
+  in param_var := Var(param_loc)
+  in env := !put[param, param_var] .new_map ()
   in compiled_body := !compile (env, body) > !second
-  in Function(name, [param_loc], compiled_body);
+  in Function(name, [Param(param_loc, Type(from))], Type(to), compiled_body);
   
 #(env, Call(name, !compile (env, expr) > !second));
 compile: (env, Store(res, Call(name, arg))) -> 

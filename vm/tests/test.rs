@@ -1,6 +1,5 @@
-use galevm::parse_bytecode_file;
 use galevm::Instruction;
-use galevm::Module;
+use galevm::ModuleLoader;
 use galevm::VM;
 use std::fs;
 use std::path::Path;
@@ -12,7 +11,7 @@ fn test_instr_size() {
 }
 
 struct TestCase {
-    module: Option<Module>,
+    module_loader: Option<ModuleLoader>,
     input: Option<String>,
     output: Option<String>, // TODO use once we can capture stdout
     ret: Option<String>,
@@ -25,13 +24,13 @@ fn load_test_file(name: &str) -> TestCase {
     let stdout_path = path.join(Path::new(name)).with_extension("stdout");
     let ret_path = path.join(Path::new(name)).with_extension("ret");
 
-    let bc = parse_bytecode_file(bytecode_path.to_str().unwrap());
+    let ml = ModuleLoader::from_module_file(bytecode_path.to_str().unwrap());
     let stdin = fs::read_to_string(stdin_path);
     let stdout = fs::read_to_string(stdout_path);
     let ret = fs::read_to_string(ret_path);
 
     TestCase {
-        module: bc,
+        module_loader: Some(ml),
         input: stdin.ok(),
         output: stdout.ok(),
         ret: ret.ok(),
@@ -40,7 +39,7 @@ fn load_test_file(name: &str) -> TestCase {
 
 fn run_testcase(name: &str, jit: bool) {
     let testcase = load_test_file(name);
-    let module = testcase.module.unwrap();
+    let module_loader = testcase.module_loader.unwrap();
     let input = testcase.input.unwrap_or(String::from("0"));
     let args = input
         .split(" ")
@@ -48,15 +47,22 @@ fn run_testcase(name: &str, jit: bool) {
         .collect::<Vec<String>>();
     let ret = testcase.ret.unwrap_or(String::from("0"));
 
-    let vm = VM::new(&module);
+    let vm = VM::new(module_loader);
     print!("Running {} ...", name);
-    let state = vm.run(args, jit);
+    let state = vm.run(
+        vm.module_loader
+            .get_by_id(0)
+            .expect("missing module")
+            .expect("missing impl"),
+        args,
+        jit,
+    );
     let out = state.result.unwrap().to_string();
     assert_eq!(ret, out);
     println!(" ok")
 }
 
-const TEST_NAMES: [&str; 3] = ["fib_15", "identity", "nested_calls"];
+const TEST_NAMES: [&str; 4] = ["fib_15", "identity", "nested_calls", "heap"];
 
 #[test]
 fn test_files_interp() {

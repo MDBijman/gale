@@ -1,5 +1,5 @@
 extern crate nom;
-use crate::bytecode::{Module, Type, TypeDecl, TypeLbl, Var, ConstDecl, ConstLbl, Value, Param};
+use crate::bytecode::{ConstDecl, ConstId, Module, Param, Type, TypeDecl, Value, VarId, ModuleLoader};
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_while, take_while1},
@@ -12,37 +12,37 @@ use nom::{
 };
 use std::fs;
 
-
 #[derive(Debug, Clone)]
 pub enum ParsedInstruction {
-    ConstU32(Var, u32),
-    Copy(Var, Var),
-    EqVarVar(Var, Var, Var),
-    LtVarVar(Var, Var, Var),
-    SubVarVar(Var, Var, Var),
-    AddVarVar(Var, Var, Var),
-    NotVar(Var, Var),
+    ConstU32(VarId, u32),
+    Copy(VarId, VarId),
+    EqVarVar(VarId, VarId, VarId),
+    LtVarVar(VarId, VarId, VarId),
+    SubVarVar(VarId, VarId, VarId),
+    AddVarVar(VarId, VarId, VarId),
+    NotVar(VarId, VarId),
 
-    Return(Var),
-    Print(Var),
-    Call(Var, String, Var),
+    Return(VarId),
+    Print(VarId),
+    Call(VarId, String, VarId),
+    ModuleCall(VarId, String, String, VarId),
     Jmp(String),
-    JmpIf(String, Var),
-    JmpIfNot(String, Var),
+    JmpIf(String, VarId),
+    JmpIfNot(String, VarId),
 
-    Alloc(Var, Type),
-    LoadConst(Var, ConstLbl),
-    LoadVar(Var, Var, Type),
-    StoreVar(Var, Var, Type),
-    Index(Var, Var, Var),
+    Alloc(VarId, Type),
+    LoadConst(VarId, ConstId),
+    LoadVar(VarId, VarId, Type),
+    StoreVar(VarId, VarId, Type),
+    Index(VarId, VarId, VarId, Type),
 
     Lbl(String),
 }
 
 impl Into<crate::bytecode::Instruction> for ParsedInstruction {
     fn into(self) -> crate::bytecode::Instruction {
-        use ParsedInstruction::*;
         use crate::bytecode::Instruction;
+        use ParsedInstruction::*;
 
         match self {
             ConstU32(a, b) => Instruction::ConstU32(a, b),
@@ -55,8 +55,10 @@ impl Into<crate::bytecode::Instruction> for ParsedInstruction {
             Return(v) => Instruction::Return(v),
             Print(v) => Instruction::Print(v),
             LoadConst(a, b) => Instruction::LoadConst(a, b),
-            Index(a, b, c) => Instruction::Index(a, b, c),
-            s => panic!("This instruction variant cannot be converted automatically: {:?}", s)
+            s => panic!(
+                "This instruction variant cannot be converted automatically: {:?}",
+                s
+            ),
         }
     }
 }
@@ -64,18 +66,23 @@ impl Into<crate::bytecode::Instruction> for ParsedInstruction {
 #[derive(Debug, Clone)]
 pub struct ParsedFunction {
     pub name: String,
-    pub varcount: u16,
+    pub varcount: u8,
     pub instructions: Vec<ParsedInstruction>,
-    pub return_type: Type,
+    pub type_: Type,
 }
 
 impl ParsedFunction {
-    pub fn new(name: String, varcount: u16, instructions: Vec<ParsedInstruction>, return_type: Type) -> Self {
+    pub fn new(
+        name: String,
+        varcount: u8,
+        instructions: Vec<ParsedInstruction>,
+        type_: Type,
+    ) -> Self {
         Self {
             name,
             varcount,
             instructions,
-            return_type
+            type_,
         }
     }
 }
@@ -97,9 +104,18 @@ fn spaces_around<'a, F: 'a, O, E: ParseError<&'a str>>(
     inner: F,
 ) -> impl FnMut(&'a str) -> IResult<&'a str, O, E>
 where
-    F: Fn(&'a str) -> IResult<&'a str, O, E>,
+    F: FnMut(&'a str) -> IResult<&'a str, O, E>,
 {
     delimited(space0, inner, space0)
+}
+
+fn whitespace_around<'a, F: 'a, O, E: ParseError<&'a str>>(
+    inner: F,
+) -> impl FnMut(&'a str) -> IResult<&'a str, O, E>
+where
+    F: FnMut(&'a str) -> IResult<&'a str, O, E>,
+{
+    delimited(multispace0, inner, multispace0)
 }
 
 type MyParseResult<'a, O> = IResult<&'a str, O, VerboseError<&'a str>>;
@@ -120,8 +136,12 @@ fn parse_u16(i: &str) -> MyParseResult<u16> {
     map(digit1, |s: &str| s.parse::<u16>().unwrap())(i)
 }
 
-fn parse_var_idx(i: &str) -> MyParseResult<Var> {
-    preceded(tag("$"), cut(parse_u16))(i)
+fn parse_u8(i: &str) -> MyParseResult<u8> {
+    map(digit1, |s: &str| s.parse::<u8>().unwrap())(i)
+}
+
+fn parse_var_idx(i: &str) -> MyParseResult<VarId> {
+    preceded(tag("$"), cut(parse_u8))(i)
 }
 
 fn parse_identifier(i: &str) -> MyParseResult<String> {
@@ -131,7 +151,11 @@ fn parse_identifier(i: &str) -> MyParseResult<String> {
 }
 
 fn parse_lbl(i: &str) -> MyParseResult<String> {
-    map(preceded(spaces_around(tag("@")), parse_identifier), |id| id)(i)
+    preceded(spaces_around(tag("@")), parse_identifier)(i)
+}
+
+fn parse_call_target(i: &str) -> MyParseResult<(Option<String>, String)> {
+    preceded(tag("@"), pair(opt(terminated(parse_identifier, tag(":"))), parse_identifier))(i)
 }
 
 /*
@@ -140,13 +164,15 @@ fn parse_lbl(i: &str) -> MyParseResult<String> {
 
 fn parse_type(i: &str) -> MyParseResult<Type> {
     alt((
-        map(tag("u64"), |_| Type::U64),
+        map(tag("ui64"), |_| Type::U64),
         map(delimited(tag("["), parse_type, tag("]")), |t| {
             Type::Array(Box::new(t))
         }),
         map(tag("()"), |_| Type::Unit),
         map(tag("str"), |_| Type::Str),
-        map(preceded(tag("&"), parse_type), |t| Type::Pointer(Box::from(t))),
+        map(preceded(tag("&"), parse_type), |t| {
+            Type::Pointer(Box::from(t))
+        }),
     ))(i)
 }
 
@@ -185,7 +211,7 @@ fn parse_string(i: &str) -> MyParseResult<Value> {
 
 fn parse_three_var_command<'a>(
     op: &'a str,
-) -> impl FnMut(&'a str) -> MyParseResult<(Var, Var, Var)> {
+) -> impl FnMut(&'a str) -> MyParseResult<(VarId, VarId, VarId)> {
     move |i| {
         tuple((
             preceded(tag(op), spaces_around(parse_var_idx)),
@@ -195,7 +221,7 @@ fn parse_three_var_command<'a>(
     }
 }
 
-fn parse_two_var_command<'a>(op: &'a str) -> impl FnMut(&'a str) -> MyParseResult<(Var, Var)> {
+fn parse_two_var_command<'a>(op: &'a str) -> impl FnMut(&'a str) -> MyParseResult<(VarId, VarId)> {
     move |i| {
         tuple((
             preceded(tag(op), spaces_around(parse_var_idx)),
@@ -204,7 +230,9 @@ fn parse_two_var_command<'a>(op: &'a str) -> impl FnMut(&'a str) -> MyParseResul
     }
 }
 
-fn parse_two_var_one_type_command<'a>(op: &'a str) -> impl FnMut(&'a str) -> MyParseResult<(Var, Var, Type)> {
+fn parse_two_var_one_type_command<'a>(
+    op: &'a str,
+) -> impl FnMut(&'a str) -> MyParseResult<(VarId, VarId, Type)> {
     move |i| {
         tuple((
             preceded(tag(op), spaces_around(parse_var_idx)),
@@ -214,7 +242,7 @@ fn parse_two_var_one_type_command<'a>(op: &'a str) -> impl FnMut(&'a str) -> MyP
     }
 }
 
-fn parse_one_var_command<'a>(op: &'a str) -> impl FnMut(&'a str) -> MyParseResult<Var> {
+fn parse_one_var_command<'a>(op: &'a str) -> impl FnMut(&'a str) -> MyParseResult<VarId> {
     move |i| preceded(tag(op), spaces_around(parse_var_idx))(i)
 }
 
@@ -245,9 +273,13 @@ fn parse_instruction(i: &str) -> MyParseResult<ParsedInstruction> {
             map(parse_two_var_command("cp"), |(l, e)| {
                 ParsedInstruction::Copy(l, e)
             }),
-            map(parse_three_var_command("idx"), |(r, a, i)| {
-                ParsedInstruction::Index(r, a, i)
-            }),
+            map(
+                pair(
+                    parse_three_var_command("idx"),
+                    preceded(tag(","), spaces_around(parse_type)),
+                ),
+                |((r, a, i), t)| ParsedInstruction::Index(r, a, i, t),
+            ),
             map(
                 tuple((
                     preceded(spaces_around(tag("movc")), cut(parse_var_idx)),
@@ -267,7 +299,7 @@ fn parse_instruction(i: &str) -> MyParseResult<ParsedInstruction> {
                     preceded(spaces_around(tag("loadc")), cut(parse_var_idx)),
                     preceded(spaces_around(tag(",")), parse_u32),
                 )),
-                |(a, b)| ParsedInstruction::LoadConst(a, b as ConstLbl),
+                |(a, b)| ParsedInstruction::LoadConst(a, b as ConstId),
             ),
             map(parse_one_var_command("ret"), |e| {
                 ParsedInstruction::Return(e)
@@ -298,7 +330,7 @@ fn parse_call(i: &str) -> MyParseResult<ParsedInstruction> {
     map(
         tuple((
             preceded(spaces_around(tag("call")), cut(parse_var_idx)),
-            preceded(spaces_around(tag(",")), cut(parse_lbl)),
+            preceded(spaces_around(tag(",")), cut(parse_call_target)),
             space0,
             delimited(
                 tag("("),
@@ -306,7 +338,10 @@ fn parse_call(i: &str) -> MyParseResult<ParsedInstruction> {
                 tag(")"),
             ),
         )),
-        |(r, id, _, args)| ParsedInstruction::Call(r, id, args[0]),
+        |(r, target, _, args)| match target.0 {
+            Some(module) => ParsedInstruction::ModuleCall(r, module, target.1, args[0]),
+            None => ParsedInstruction::Call(r, target.1, args[0]),
+        },
     )(i)
 }
 
@@ -359,16 +394,18 @@ fn parse_params(i: &str) -> MyParseResult<Vec<Param>> {
 
 fn parse_function(i: &str) -> MyParseResult<ParsedFunction> {
     map(
-        tuple((
+        preceded(
             ws(tag("fn")),
-            cut(parse_identifier),
-            ws(parse_params),
-            preceded(ws(tag("->")), parse_type),
-            preceded(multispace0, many1(parse_instruction)),
-            multispace0,
-            tag("endfn"),
-        )),
-        |(_, name, parameters, return_type, instructions, _, _)| {
+            cut(tuple((
+                cut(parse_identifier),
+                ws(parse_params),
+                preceded(ws(tag("->")), parse_type),
+                preceded(multispace0, many1(parse_instruction)),
+                multispace0,
+                tag("endfn"),
+            ))),
+        ),
+        |(name, parameters, return_type, instructions, _, _)| {
             /*
              * Compute local variables frame size
              */
@@ -376,70 +413,88 @@ fn parse_function(i: &str) -> MyParseResult<ParsedFunction> {
             let mut vars = 0;
 
             for par in parameters.iter() {
-                vars = Var::max(vars, par.var);
+                vars = VarId::max(vars, par.var);
             }
+            let arg_types = parameters.into_iter().map(|a| a.type_).collect();
 
             for instr in instructions.iter() {
                 match instr {
                     ParsedInstruction::ConstU32(i, _) => {
-                        vars = Var::max(vars, *i);
+                        vars = VarId::max(vars, *i);
                     }
                     ParsedInstruction::Copy(i, _) => {
-                        vars = Var::max(vars, *i);
+                        vars = VarId::max(vars, *i);
                     }
                     ParsedInstruction::EqVarVar(a, b, c) => {
-                        vars = Var::max(vars, *a);
-                        vars = Var::max(vars, *b);
-                        vars = Var::max(vars, *c);
+                        vars = VarId::max(vars, *a);
+                        vars = VarId::max(vars, *b);
+                        vars = VarId::max(vars, *c);
                     }
                     ParsedInstruction::LtVarVar(a, b, c) => {
-                        vars = Var::max(vars, *a);
-                        vars = Var::max(vars, *b);
-                        vars = Var::max(vars, *c);
+                        vars = VarId::max(vars, *a);
+                        vars = VarId::max(vars, *b);
+                        vars = VarId::max(vars, *c);
                     }
                     ParsedInstruction::SubVarVar(a, b, c) => {
-                        vars = Var::max(vars, *a);
-                        vars = Var::max(vars, *b);
-                        vars = Var::max(vars, *c);
+                        vars = VarId::max(vars, *a);
+                        vars = VarId::max(vars, *b);
+                        vars = VarId::max(vars, *c);
                     }
                     ParsedInstruction::AddVarVar(a, b, c) => {
-                        vars = Var::max(vars, *a);
-                        vars = Var::max(vars, *b);
-                        vars = Var::max(vars, *c);
+                        vars = VarId::max(vars, *a);
+                        vars = VarId::max(vars, *b);
+                        vars = VarId::max(vars, *c);
                     }
                     ParsedInstruction::NotVar(a, b) => {
-                        vars = Var::max(vars, *a);
-                        vars = Var::max(vars, *b);
+                        vars = VarId::max(vars, *a);
+                        vars = VarId::max(vars, *b);
                     }
                     ParsedInstruction::LoadVar(a, b, _) => {
-                        vars = Var::max(vars, *a);
-                        vars = Var::max(vars, *b);
+                        vars = VarId::max(vars, *a);
+                        vars = VarId::max(vars, *b);
                     }
                     ParsedInstruction::LoadConst(i, _) => {
-                        vars = Var::max(vars, *i);
+                        vars = VarId::max(vars, *i);
                     }
-                    ParsedInstruction::Index(a, b, c) => {
-                        vars = Var::max(vars, *a);
-                        vars = Var::max(vars, *b);
-                        vars = Var::max(vars, *c);
+                    ParsedInstruction::Index(a, b, c, _) => {
+                        vars = VarId::max(vars, *a);
+                        vars = VarId::max(vars, *b);
+                        vars = VarId::max(vars, *c);
                     }
                     ParsedInstruction::StoreVar(a, b, _) => {
-                        vars = Var::max(vars, *a);
-                        vars = Var::max(vars, *b);
+                        vars = VarId::max(vars, *a);
+                        vars = VarId::max(vars, *b);
                     }
                     ParsedInstruction::Alloc(i, _) => {
-                        vars = Var::max(vars, *i);
+                        vars = VarId::max(vars, *i);
                     }
                     ParsedInstruction::Call(i, _, _) => {
-                        vars = Var::max(vars, *i);
+                        vars = VarId::max(vars, *i);
                     }
                     _ => {}
                 }
             }
 
-            ParsedFunction::new(name, vars + 1, instructions, return_type)
+            ParsedFunction::new(
+                name,
+                vars + 1,
+                instructions,
+                Type::Fn(Box::from(Type::Tuple(arg_types)), Box::from(return_type)),
+            )
         },
     )(i)
+}
+
+/*
+* Top level sections:
+* - module declaration
+* - types declarations
+* - const declarations
+* - function declarations
+*/
+
+fn parse_module_declaration(i: &str) -> MyParseResult<String> {
+    whitespace_around(preceded(tag("mod"), spaces_around(parse_identifier)))(i)
 }
 
 fn parse_const_section(i: &str) -> MyParseResult<Vec<ConstDecl>> {
@@ -482,13 +537,23 @@ fn parse_types_section(i: &str) -> MyParseResult<Vec<TypeDecl>> {
 }
 
 fn parse_code_section(i: &str) -> MyParseResult<Vec<ParsedFunction>> {
-    preceded(ws(tag(".code")), many1(parse_function))(i)
+    preceded(
+        ws(tag(".code")),
+        many1(preceded(multispace0, parse_function)),
+    )(i)
 }
 
-pub fn parse_bytecode_string(i: &str) -> Module {
+pub fn parse_bytecode_string(module_loader: &ModuleLoader, i: &str) -> Module {
     match map(
-        tuple((parse_types_section, parse_const_section, parse_code_section)),
-        |(t, c, f)| Module::from_long_functions(t, c, f),
+        whitespace_around(tuple((
+            parse_module_declaration,
+            parse_types_section,
+            parse_const_section,
+            parse_code_section,
+        ))),
+        |(name, types, consts, functions)| {
+            Module::from_long_functions(module_loader, name, types, consts, functions)
+        },
     )(i)
     {
         Ok((leftover, m)) => {
@@ -507,9 +572,9 @@ pub fn parse_bytecode_string(i: &str) -> Module {
     }
 }
 
-pub fn parse_bytecode_file(filename: &str) -> Option<Module> {
+pub fn parse_bytecode_file(module_loader: &ModuleLoader, filename: &str) -> Option<Module> {
     match fs::read_to_string(filename) {
-        Ok(f) => Some(parse_bytecode_string(f.as_str())),
+        Ok(f) => Some(parse_bytecode_string(module_loader, f.as_str())),
         Err(_) => None,
     }
 }

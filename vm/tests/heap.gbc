@@ -1,15 +1,16 @@
+mod heap
+
 .types
-0: u64
 .const
 .code
 
-fn main ($0: u64)
-        alloc $1, %0
-        store $1, $0, %0
-        load $2, $1, %0
+fn main ($0: ui64) -> ui64
+        alloc $1, ui64
+        store $1, $0, ui64
+        load $2, $1, ui64
         movc $3, 6
         add $2, $2, $3
-        store $1, $2, %0
-        load $4, $1, %0
+        store $1, $2, ui64
+        load $4, $1, ui64
         ret $4
 endfn

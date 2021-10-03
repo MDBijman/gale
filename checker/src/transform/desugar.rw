@@ -18,8 +18,9 @@ group_one: (env, FnDef(name, pattern, body){Type(t)}) ->
     +  new_fn_group := [FnDef(name, pattern, body){Type(t)}]
     in (.put[name, new_fn_group] env, FnDef(name, pattern, body){Type(t)});
 
-merge_functions: (name, impls) -> FnDef(name, "_arg", !reverse impls > !map[!to_match_branch] > !merge_match_branches);
-to_match_branch: FnDef(_, p, b){Type(t)} -> MatchBranch(p, b);
+merge_functions: (name, [h{Type(ty)}|t]) ->
+     FnDef(name, "_arg", !reverse [h|t] > !map[!to_match_branch] > !merge_match_branches){Type(ty)};
+to_match_branch: FnDef(_, p, b) -> MatchBranch(p, b);
 merge_match_branches: branches -> Match(Ref("_arg"), branches);
 
 # Match desugaring into if-then-else chains

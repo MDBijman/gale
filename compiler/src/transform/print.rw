@@ -6,14 +6,16 @@ print: StringLiteral(s) -> !concat_str ["str ", "\"", s, "\""];
 
 print: FunctionSection(funcs)     -> !concat_str [".code\n",  !concat_str !intersperse["\n"] !flatmap_some[!print] funcs];
 
-print: Function(name, params, body) ->
+print: Function(name, params, return_type, body) ->
      paramstr := !concat_str !flatmap_some[!print] params
   in bodystr  := !print body
   in !concat_str !flatten_some [
-      "fn ", name, " (", paramstr, ") -> ()\n",
+      "fn ", name, " (", paramstr, ") -> ", !print return_type, "\n",
         bodystr,
       "\nendfn\n"
     ];
+
+print: Param(name, type) -> !concat_str [!print Var(name), ": ", !print type];
 
 print: Eq(res, lhs, rhs)  -> !concat_str ["  eq ", !print res, ", ", !print lhs, ", ", !print rhs];
 print: Sub(res, lhs, rhs) -> !concat_str ["  sub ", !print res, ", ", !print lhs, ", ", !print rhs];
@@ -38,4 +40,7 @@ print: True() -> "true";
 print: False() -> "false";
 print: ReadConst(num) -> !concat_str ["loadc ", !to_str num];
 print: Index(expr, idx) -> !concat_str ["index ", !print expr, " ", !print idx];
+print: Type(t) -> !print t;
+print: Ref(n) -> n;
+print: HeapArray(t) -> !concat_str ["&[", !print t, "]"];
 print: x -> !debug x > !fail;

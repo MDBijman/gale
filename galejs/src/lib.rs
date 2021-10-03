@@ -24,6 +24,6 @@ pub fn run_gale(code: &str, arg: &str) -> String {
     let bytecode = galelib::compile_gale_program(code);
     let module   = galevm::parse_bytecode_string(bytecode.as_str());
     let vm = galevm::VM::new(&module);
-    let state = vm.run(arg.split(" ").collect(), false);
+    let state = vm.run(arg.split(" ").map(|s| String::from(s)).collect(), false);
     format!("{}", state.result.unwrap())
 }

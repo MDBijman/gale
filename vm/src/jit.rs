@@ -1,4 +1,7 @@
-use crate::bytecode::{BasicBlock, ControlFlowGraph, FnLbl, Function, InstrLbl, Instruction, Var, Module};
+use crate::bytecode::{
+    BasicBlock, BytecodeImpl, CallTarget, ControlFlowGraph, FnId, Function, InstrLbl, Instruction,
+    Module, VarId,
+};
 use crate::vm::{VMState, VM};
 use dynasmrt::x64::Assembler;
 use dynasmrt::{
@@ -7,7 +10,6 @@ use dynasmrt::{
 use nom::AsBytes;
 use std::marker::PhantomPinned;
 use std::{collections::HashMap, fmt::Debug, mem};
-
 
 macro_rules! x64_asm {
     ($ops:ident $($t:tt)*) => {
@@ -76,7 +78,12 @@ impl Default for JITEngine {
 }
 
 impl JITEngine {
-    pub fn call_if_compiled(vm: &VM, state: &mut VMState, name: &str, arg: u64) -> Option<u64> {
+    pub fn call_if_compiled(
+        vm: &VM,
+        state: &mut VMState,
+        target: CallTarget,
+        arg: u64,
+    ) -> Option<u64> {
         /*
          * We access the compiled function and call it.
          * This is unsafe because we pass the VMState as mutable reference to the callee,
@@ -89,7 +96,18 @@ impl JITEngine {
          * JIT state must be mutable so that we can compile new functions.
          * Cloning CompiledFns to satisfy the borrowchecker is a no-go.
          */
-        let opt_fn = state.jit_state.compiled_fns.get(&String::from(name));
+        let name = &vm
+            .module_loader
+            .get_by_id(target.module)
+            .expect("missing module")
+            .as_ref()
+            .expect("missing impl")
+            .get_function_by_id(target.function)
+            .expect("function")
+            .name;
+
+        let opt_fn = state.jit_state.compiled_fns.get(name);
+
         match opt_fn {
             Some(compiled_fn) => {
                 let compiled_fn: *const CompiledFn = &**compiled_fn;
@@ -122,6 +140,7 @@ impl JITEngine {
     }
 
     pub fn compile(state: &mut JITState, module: &Module, func: &Function) {
+        let implementation = func.implementation.as_bytecode().expect("bytecode impl");
         let cfg = ControlFlowGraph::from_function(func);
         let mut fn_state = FunctionJITState::new(func.location);
         let native_fn_loc = fn_state.ops.offset();
@@ -130,7 +149,7 @@ impl JITEngine {
         // RDX contains &VMState
         // R8 contains arg
 
-        let mut space_for_variables = func.varcount * 8;
+        let mut space_for_variables = implementation.varcount * 8;
 
         // Align stack at the same time
         // At the beginning of the function, stack is aligned (return address + 5 register saves)
@@ -168,7 +187,7 @@ impl JITEngine {
         fn_state.register_state = Some(RegisterAllocation::new());
 
         for bb in cfg.blocks.iter() {
-            Self::compile_basic_block(&mut fn_state, module, func, bb);
+            Self::compile_basic_block(&mut fn_state, module, implementation, bb);
         }
 
         {
@@ -195,7 +214,12 @@ impl JITEngine {
         });
     }
 
-    fn compile_basic_block(state: &mut FunctionJITState, module: &Module, func: &Function, block: &BasicBlock) {
+    fn compile_basic_block(
+        state: &mut FunctionJITState,
+        module: &Module,
+        func: &BytecodeImpl,
+        block: &BasicBlock,
+    ) {
         let mut pc = block.first;
         for &instr in func.instructions[(block.first as usize)..=(block.last as usize)].iter() {
             emit_instr_as_asm(state, module, pc as InstrLbl, instr);
@@ -204,19 +228,18 @@ impl JITEngine {
     }
 
     // Jump from native to bytecode or native
-    pub extern "win64" fn trampoline(vm: &VM, state: &mut VMState, func: FnLbl, arg: u64) -> u64 {
-        let func_name = &vm
-            .module
-            .get_function_by_id(func)
-            .expect("Called unknown function")
-            .name;
-
-        if let Some(res) = JITEngine::call_if_compiled(vm, state, func_name.as_str(), arg) {
+    pub extern "win64" fn trampoline(
+        vm: &VM,
+        state: &mut VMState,
+        target: CallTarget,
+        arg: u64,
+    ) -> u64 {
+        if let Some(res) = JITEngine::call_if_compiled(vm, state, target, arg) {
             res
         } else {
             vm.interpreter
-                .push_native_caller_frame(&mut state.interpreter_state, func, arg);
-            vm.interpreter.finish_function(&mut state.interpreter_state, &mut state.heap);
+                .push_native_caller_frame(vm, &mut state.interpreter_state, target, arg);
+            vm.interpreter.finish_function(vm, state);
             let res = vm
                 .interpreter
                 .pop_native_caller_frame(&mut state.interpreter_state);
@@ -233,21 +256,21 @@ struct Interval {
 
 #[derive(Clone, Copy, Debug)]
 struct LivenessInterval {
-    var: Var,
+    var: VarId,
     interval: Interval,
 }
 
 #[derive(Debug, Clone)]
 struct Spill {
     location: InstrLbl,
-    var: Var,
+    var: VarId,
     reg: Rq,
 }
 
 #[derive(Debug, Clone)]
 struct Load {
     location: InstrLbl,
-    var: Var,
+    var: VarId,
     reg: Rq,
 }
 
@@ -283,7 +306,7 @@ impl Debug for MemoryActions {
 }
 
 impl MemoryActions {
-    fn from_liveness_intervals(intervals: &HashMap<Var, (InstrLbl, InstrLbl)>) -> Self {
+    fn from_liveness_intervals(intervals: &HashMap<VarId, (InstrLbl, InstrLbl)>) -> Self {
         let mut as_vec: Vec<LivenessInterval> = intervals
             .iter()
             .map(|(v, (a, b))| LivenessInterval {
@@ -378,14 +401,14 @@ impl MemoryActions {
 
 struct FunctionJITState {
     ops: Assembler,
-    function_location: FnLbl,
+    function_location: FnId,
     dynamic_labels: HashMap<i16, DynamicLabel>,
     memory_actions: Option<MemoryActions>,
     register_state: Option<RegisterAllocation>,
 }
 
 impl FunctionJITState {
-    pub fn new(function_location: FnLbl) -> Self {
+    pub fn new(function_location: FnId) -> Self {
         Self {
             ops: Assembler::new().unwrap(),
             function_location,
@@ -398,7 +421,7 @@ impl FunctionJITState {
 
 #[derive(Debug)]
 struct RegisterAllocation {
-    registers: [(Rq, Option<Var>); 7],
+    registers: [(Rq, Option<VarId>); 7],
 }
 
 impl RegisterAllocation {
@@ -416,7 +439,7 @@ impl RegisterAllocation {
         }
     }
 
-    fn load(&mut self, var: Var, reg: Rq) {
+    fn load(&mut self, var: VarId, reg: Rq) {
         self.registers.iter_mut().find(|a| a.0 == reg).unwrap().1 = Some(var);
     }
 
@@ -424,13 +447,13 @@ impl RegisterAllocation {
         self.registers.iter_mut().find(|a| a.0 == reg).unwrap().1 = None;
     }
 
-    fn lookup(&self, var: Var) -> Option<Rq> {
+    fn lookup(&self, var: VarId) -> Option<Rq> {
         self.registers
             .iter()
             .find_map(|a| if a.1 == Some(var) { Some(a.0) } else { None })
     }
 
-    fn lookup_register(&self, reg: Rq) -> Option<Var> {
+    fn lookup_register(&self, reg: Rq) -> Option<VarId> {
         let r = self.registers.iter().find(|a| a.0 == reg)?;
         r.1
     }
@@ -478,8 +501,8 @@ macro_rules! x64_asm_resolve_mem {
     ($ops:ident, $mem:ident ; $op:tt QWORD [resolve($dst:expr)], resolve($src:expr)) => {
         match ($mem.lookup($dst), $mem.lookup($src)) {
             (Some(reg_dst), Some(reg_src)) => x64_asm!($ops ; $op QWORD [Rq(reg_dst as u8)], Rq(reg_src as u8)),
-            (None, Some(reg_src)) => x64_asm!($ops 
-                ; mov rsi, QWORD [rsp + ($dst as i32) * 8] 
+            (None, Some(reg_src)) => x64_asm!($ops
+                ; mov rsi, QWORD [rsp + ($dst as i32) * 8]
                 ; $op QWORD [rsi], Rq(reg_src as u8)),
             (Some(reg_dst), None) => x64_asm!($ops
                 ; mov rsi, QWORD [rsp + ($src as i32) * 8]
@@ -524,8 +547,8 @@ macro_rules! store_if_loaded {
 fn store_volatiles_except(
     ops: &mut Assembler,
     memory: &RegisterAllocation,
-    var: Var,
-) -> Vec<(Rq, Var)> {
+    var: VarId,
+) -> Vec<(Rq, VarId)> {
     let mut stored = Vec::new();
 
     let mut do_register = |reg: Rq| {
@@ -547,7 +570,7 @@ fn store_volatiles_except(
     stored
 }
 
-fn load_volatiles(ops: &mut Assembler, stored: &Vec<(Rq, Var)>) {
+fn load_volatiles(ops: &mut Assembler, stored: &Vec<(Rq, VarId)>) {
     for pair in stored.iter().rev() {
         x64_asm!(ops ; mov Rq(pair.0 as u8), [rsp + (pair.1 as i32) * 8]);
     }
@@ -555,7 +578,12 @@ fn load_volatiles(ops: &mut Assembler, stored: &Vec<(Rq, Var)>) {
 
 use libc::malloc;
 
-fn emit_instr_as_asm<'a>(fn_state: &mut FunctionJITState, module: &Module, cur: InstrLbl, instr: Instruction) {
+fn emit_instr_as_asm<'a>(
+    fn_state: &mut FunctionJITState,
+    module: &Module,
+    cur: InstrLbl,
+    instr: Instruction,
+) {
     // Ops cannot be referenced in x64_asm macros if it's inside fn_state
     let ops = &mut fn_state.ops;
     let memory = fn_state
@@ -635,6 +663,19 @@ fn emit_instr_as_asm<'a>(fn_state: &mut FunctionJITState, module: &Module, cur: 
             x64_asm_resolve_mem!(ops, memory; mov resolve(r), rsi);
             emit_spills(ops, &mem_actions, memory, cur);
         }
+        NotVar(r, a) => {
+            x64_asm_resolve_mem!(ops, memory; cmp resolve(a), 0);
+            x64_asm!(ops
+                ; mov rsi, 0
+                ; mov rdi, 1
+                ; cmove rsi, rdi);
+            x64_asm_resolve_mem!(ops, memory; mov resolve(r), rsi);
+            emit_spills(ops, &mem_actions, memory, cur);
+        }
+        Copy(dest, src) => {
+            x64_asm_resolve_mem!(ops, memory; mov resolve(dest), resolve(src));
+            emit_spills(ops, &mem_actions, memory, cur);
+        }
         StoreVar(dst_ptr, src, ty) => {
             let size = module.get_type_by_id(ty).unwrap().size() as i32;
             assert_eq!(size, 8, "Can only store size 8 for now");
@@ -644,7 +685,6 @@ fn emit_instr_as_asm<'a>(fn_state: &mut FunctionJITState, module: &Module, cur: 
             let size = module.get_type_by_id(ty).unwrap().size() as i32;
             assert_eq!(size, 8, "Can only load size 8 for now");
             x64_asm_resolve_mem!(ops, memory; mov resolve(dst), QWORD [resolve(src_ptr)]);
-
         }
         Alloc(r, t) => {
             let saved = store_volatiles_except(ops, memory, r);
@@ -653,7 +693,8 @@ fn emit_instr_as_asm<'a>(fn_state: &mut FunctionJITState, module: &Module, cur: 
                     malloc as unsafe extern "C" fn(usize) -> *mut libc::c_void,
                 )
             };
-            
+            // FIXME This needs to use the memory.rs module
+
             let stack_space = if saved.len() % 2 == 1 { 0x28 } else { 0x20 };
             let size = module.get_type_by_id(t).unwrap().size() as i32;
             x64_asm!(ops
@@ -664,7 +705,7 @@ fn emit_instr_as_asm<'a>(fn_state: &mut FunctionJITState, module: &Module, cur: 
                     ; add rsp, BYTE stack_space
                     ;;x64_asm_resolve_mem!(ops, memory; mov resolve(r), rax));
             load_volatiles(ops, &saved);
-                // TODO avoid loading if it is spilled V here  
+            // TODO avoid loading if it is spilled V here
             emit_spills(ops, &mem_actions, memory, cur);
         }
         Call(a, b, c) => {
@@ -681,8 +722,8 @@ fn emit_instr_as_asm<'a>(fn_state: &mut FunctionJITState, module: &Module, cur: 
                     ; call ->_self
                     ; add rsp, BYTE stack_space
                     ;; x64_asm_resolve_mem!(ops, memory; mov resolve(a), rax));
-                load_volatiles(ops, &saved); 
-                // TODO avoid loading if it is spilled V here  
+                load_volatiles(ops, &saved);
+                // TODO avoid loading if it is spilled V here
                 emit_spills(ops, &mem_actions, memory, cur);
             }
             // Unknown target
@@ -691,7 +732,7 @@ fn emit_instr_as_asm<'a>(fn_state: &mut FunctionJITState, module: &Module, cur: 
                 let fn_ref: i64 = unsafe {
                     std::mem::transmute::<_, i64>(
                         JITEngine::trampoline
-                            as extern "win64" fn(&VM, &mut VMState, FnLbl, u64) -> u64,
+                            as extern "win64" fn(&VM, &mut VMState, CallTarget, u64) -> u64,
                     )
                 };
 
@@ -707,8 +748,9 @@ fn emit_instr_as_asm<'a>(fn_state: &mut FunctionJITState, module: &Module, cur: 
                     ; add rsp, BYTE 0x20
                     ;;x64_asm_resolve_mem!(ops, memory; mov resolve(a), rax));
                 load_volatiles(ops, &saved);
-                // TODO avoid loading if it is spilled V here  
+                // TODO avoid loading if it is spilled V here
                 emit_spills(ops, &mem_actions, memory, cur);
+                todo!("pass CallTarget instead of FnId");
             }
         }
         Lbl => {
@@ -720,6 +762,16 @@ fn emit_instr_as_asm<'a>(fn_state: &mut FunctionJITState, module: &Module, cur: 
             x64_asm!(ops
                 ; =>*dyn_lbl);
         }
+        Jmp(l) => {
+            let jmp_target = cur as i64 + l as i64;
+            let dyn_lbl = fn_state
+                .dynamic_labels
+                .entry(jmp_target as InstrLbl)
+                .or_insert(ops.new_dynamic_label());
+            x64_asm!(ops
+                ;; emit_spills(ops, &mem_actions, memory, cur)
+                ; jmp =>*dyn_lbl);
+        }
         JmpIfNot(l, c) => {
             let jmp_target = cur as i64 + l as i64;
             let dyn_lbl = fn_state
@@ -728,6 +780,17 @@ fn emit_instr_as_asm<'a>(fn_state: &mut FunctionJITState, module: &Module, cur: 
                 .or_insert(ops.new_dynamic_label());
             x64_asm!(ops
                 ;;x64_asm_resolve_mem!(ops, memory ; cmp resolve(c), 0)
+                ;; emit_spills(ops, &mem_actions, memory, cur)
+                ; je =>*dyn_lbl);
+        }
+        JmpIf(l, c) => {
+            let jmp_target = cur as i64 + l as i64;
+            let dyn_lbl = fn_state
+                .dynamic_labels
+                .entry(jmp_target as InstrLbl)
+                .or_insert(ops.new_dynamic_label());
+            x64_asm!(ops
+                ;;x64_asm_resolve_mem!(ops, memory ; cmp resolve(c), 1)
                 ;; emit_spills(ops, &mem_actions, memory, cur)
                 ; je =>*dyn_lbl);
         }

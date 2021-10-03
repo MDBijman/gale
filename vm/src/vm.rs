@@ -1,7 +1,7 @@
-use crate::bytecode::{ControlFlowGraph, FnLbl, Module};
+use crate::bytecode::{CallTarget, Module, ModuleLoader, Type};
 use crate::interpreter::{Interpreter, InterpreterState};
 use crate::jit::{JITEngine, JITState};
-use crate::memory::{Heap, Pointer, POINTER_SIZE, ARRAY_HEADER_SIZE, STRING_HEADER_SIZE};
+use crate::memory::{Heap, Pointer, ARRAY_HEADER_SIZE, POINTER_SIZE};
 use std::time;
 
 pub struct VMState {
@@ -12,7 +12,7 @@ pub struct VMState {
 }
 
 impl VMState {
-    pub fn new(entry: FnLbl, entry_framesize: u64) -> VMState {
+    pub fn new(entry: CallTarget, entry_framesize: u64) -> VMState {
         VMState {
             interpreter_state: InterpreterState::new(entry, entry_framesize),
             jit_state: JITState::default(),
@@ -22,44 +22,70 @@ impl VMState {
     }
 }
 
-pub struct VM<'a> {
-    pub module: &'a Module,
-    pub interpreter: Interpreter<'a>,
+pub struct VM {
+    pub module_loader: ModuleLoader,
+    pub interpreter: Interpreter,
     pub jit: JITEngine,
-    debug: bool,
+    pub debug: bool,
 }
 
-impl<'a> VM<'a> {
-    pub fn new(m: &'a Module) -> VM {
+impl VM {
+    pub fn from_single_module(m: Module) -> VM {
         VM {
-            module: m,
-            interpreter: Interpreter::new(m),
+            module_loader: ModuleLoader::from_module(m),
+            interpreter: Interpreter::default(),
             jit: JITEngine::default(),
             debug: false,
         }
     }
 
-    pub fn new_debug(m: &'a Module) -> VM {
+    pub fn new(m: ModuleLoader) -> VM {
         VM {
-            module: m,
-            interpreter: Interpreter::new(m),
+            module_loader: m,
+            interpreter: Interpreter::default(),
+            jit: JITEngine::default(),
+            debug: false,
+        }
+    }
+
+    pub fn new_debug(m: ModuleLoader) -> VM {
+        VM {
+            module_loader: m,
+            interpreter: Interpreter::default(),
             jit: JITEngine::default(),
             debug: true,
         }
     }
 
-    pub fn run(&self, args: Vec<String>, jit: bool) -> VMState {
-        let main_idx = self.module.find_function_id("main").unwrap();
-        let main_frame_size = self.module.get_function_by_id(main_idx).unwrap().varcount;
+    pub fn run(&self, main_module: &Module, args: Vec<String>, jit: bool) -> VMState {
+        let main_id = main_module.find_function_id("main").expect("function");
+        let main_fn = main_module.get_function_by_name("main").expect("function");
+        let bytecode = main_fn.implementation.as_bytecode().expect("bytecode impl");
+        let main_type = main_module
+            .get_type_by_id(main_fn.type_id)
+            .expect("main function type idx");
+
+        let expected_main_type: Type =
+            Type::fun(Type::tuple(vec![Type::ptr(Type::array(Type::ptr(Type::Str)))]), Type::U64);
+
+        if main_type != &expected_main_type {
+            println!("main type {:?}", main_type);
+            panic!("Invalid main type");
+        }
+
+        let main_frame_size = bytecode.varcount;
 
         if self.debug {
             println!("Jit enabled: {}", jit);
         }
 
-        let mut state = VMState::new(main_idx, main_frame_size.into());
+        let mut state = VMState::new(
+            CallTarget::new(main_module.id, main_id),
+            main_frame_size.into(),
+        );
 
+        // TODO abstract this kind of logic
         let args_ptr = {
-            // TODO abstract this kind of logic
             let arr_ptr = state.heap.allocate_array(args.len() * POINTER_SIZE);
             unsafe {
                 let mut raw_arr_ptr = state.heap.raw(arr_ptr).offset(ARRAY_HEADER_SIZE as isize);
@@ -85,9 +111,9 @@ impl<'a> VM<'a> {
         };
 
         if jit {
-            self.run_jit(&mut state, args_ptr);
+            self.run_jit(main_module, &mut state, args_ptr);
         } else {
-            self.run_interp(&mut state, args_ptr);
+            self.run_interp(main_module, &mut state, args_ptr);
         }
 
         if self.debug {
@@ -97,46 +123,22 @@ impl<'a> VM<'a> {
         state
     }
 
-    fn run_jit(&self, state: &mut VMState, args_ptr: Pointer) {
+    fn run_jit(&self, main_module: &Module, state: &mut VMState, args_ptr: Pointer) {
         let start = time::SystemTime::now();
 
+        let main_id = main_module.find_function_id("main").expect("function");
+        let main_fn = main_module.get_function_by_name("main").expect("function");
+
         /* Compile the main function */
-        let main_idx = self.module.find_function_id("main").unwrap();
-        JITEngine::compile(
-            &mut state.jit_state,
-            &self.module,
-            &self.module.functions[main_idx as usize],
-        );
-
-        // Compile fib
-        // TODO remove
-        if let Some(idx) = self.module.find_function_id("fib") {
-            if self.debug {
-                println!("Compiling fib");
-            }
-
-            let fun = &self.module.functions[idx as usize];
-            let cfg = ControlFlowGraph::from_function(fun);
-
-            if self.debug {
-                cfg.print_dot(&self.module.functions[idx as usize]);
-            }
-
-            JITEngine::compile(&mut state.jit_state, &self.module, fun);
-
-            if self.debug {
-                println!(
-                    "JIT Dump:\n{}",
-                    JITEngine::to_hex_string(
-                        &mut state.jit_state,
-                        &self.module.functions[idx as usize]
-                    )
-                );
-            }
-        }
+        JITEngine::compile(&mut state.jit_state, &main_module, &main_fn);
 
         /* Run the main function in compiled mode */
-        let res = JITEngine::call_if_compiled(self, state, "main", args_ptr.into());
+        let res = JITEngine::call_if_compiled(
+            self,
+            state,
+            CallTarget::new(main_module.id, main_id),
+            args_ptr.into(),
+        );
 
         state.result = res;
 
@@ -145,13 +147,17 @@ impl<'a> VM<'a> {
         }
     }
 
-    fn run_interp(&self, state: &mut VMState, args_ptr: Pointer) {
+    fn run_interp(&self, main_module: &Module, state: &mut VMState, args_ptr: Pointer) {
         let start = time::SystemTime::now();
 
-        state.interpreter_state.init(args_ptr);
+        let main_id = main_module.find_function_id("main").expect("function");
+
+        state
+            .interpreter_state
+            .init(CallTarget::new(main_module.id, main_id), args_ptr);
 
         /* Run the program in interpreted mode */
-        while self.interpreter.step(&mut state.interpreter_state, &mut state.heap) {}
+        while self.interpreter.step(self, state) {}
 
         state.result = Some(state.interpreter_state.result);
 

@@ -1,5 +1,5 @@
 use clap::{App, Arg, ArgMatches, SubCommand};
-use galevm::{parse_bytecode_file, JITEngine, JITState};
+use galevm::{JITEngine, JITState, ModuleLoader};
 
 fn main() {
     let matches = App::new("Gale Utils")
@@ -78,7 +78,11 @@ fn vm_print_bin(args: &ArgMatches) {
         todo!("print-bin arch option")
     }
 
-    let module = parse_bytecode_file(file_name).unwrap();
+    let module_loader = ModuleLoader::from_module_file(file_name);
+    let module = module_loader
+        .get_by_id(0)
+        .expect("missing module")
+        .expect("missing impl");
     let func = module.get_function_by_name(function_name).unwrap();
     let mut state = JITState::default();
     JITEngine::compile(&mut state, &module, func);
@@ -94,7 +98,11 @@ fn vm_print_asm(args: &ArgMatches) {
         todo!("print-asm arch option")
     }
 
-    let module = parse_bytecode_file(file_name).unwrap();
+    let module_loader = ModuleLoader::from_module_file(file_name);
+    let module = module_loader
+        .get_by_id(0)
+        .expect("missing module")
+        .expect("missing impl");
     let func = module.get_function_by_name(function_name).unwrap();
     let mut state = JITState::default();
     JITEngine::compile(&mut state, &module, func);
@@ -119,7 +127,11 @@ fn vm_print_lifetimes(args: &ArgMatches) {
     let function_name = args.value_of("function").unwrap();
     let file_name = args.value_of("bytecode").unwrap();
 
-    let module = parse_bytecode_file(file_name).unwrap();
+    let module_loader = ModuleLoader::from_module_file(file_name);
+    let module = module_loader
+        .get_by_id(0)
+        .expect("missing module")
+        .expect("missing impl");
     let func = module.get_function_by_name(function_name).unwrap();
     func.print_liveness(&func.liveness_intervals());
 }
