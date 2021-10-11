@@ -1,5 +1,5 @@
 
-main: File(fns) -> File(!desugar_separate_functions fns > !desugar_matches > !desugar_brackets);
+main: File(mod, fns) -> File(mod, !desugar_separate_functions fns > !desugar_matches > !desugar_brackets);
 
 # Separated function definitions desugaring into single function with branch
 

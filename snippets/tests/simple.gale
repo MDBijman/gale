@@ -1,5 +1,7 @@
+mod simple;
+
 main: [str] -> ui64
-main s = fib (45);
+main s = fib (std:parse_ui64 (s@0));
 
 fib: ui64 -> ui64
 fib 0 = 1;

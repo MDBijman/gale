@@ -3,8 +3,7 @@ mod interpreter;
 mod jit;
 mod memory;
 mod parser;
-mod primitives;
-mod runtime;
+mod standard_library;
 mod vm;
 
 extern crate clap;
@@ -68,7 +67,7 @@ fn main() {
     });
     let use_jit = matches.is_present("enable_jit");
 
-    let mut module_loader = ModuleLoader::from_module(runtime::std_module());
+    let mut module_loader = ModuleLoader::from_module(standard_library::std_module());
     let main_module_id = module_loader.load_module(input_file_name);
     let mut vm = VM::new(module_loader);
     let main_module = vm

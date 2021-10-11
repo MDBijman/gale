@@ -1,13 +1,14 @@
 mod identity
 
-.const
 .code
-
 fn identity ($0: ui64) -> ui64
         ret $0
 endfn
 
 fn main ($0: &[&str]) -> ui64
-        call $1, @identity ($0)
-        ret $1
+        movc $1, 0
+        idx $2, $0, $1, &str
+        call $3, @std:parse_ui64 ($2)
+        call $3, @identity ($3)
+        ret $3
 endfn

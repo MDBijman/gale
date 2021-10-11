@@ -1,7 +1,5 @@
 mod strings_main
 
-.types
-.const
 .code
 fn main ($0: &[&str]) -> &str
         movc $1, 8

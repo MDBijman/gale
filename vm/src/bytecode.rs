@@ -1,4 +1,5 @@
-use crate::parser::{parse_bytecode_file, ParsedFunction, ParsedInstruction};
+use crate::memory::{Heap, Pointer, ARRAY_HEADER_SIZE, STRING_HEADER_SIZE};
+use crate::parser::parse_bytecode_file;
 use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
 use std::fmt::{self, Display};
@@ -124,8 +125,8 @@ impl Module {
         module_loader: &ModuleLoader,
         name: String,
         mut types: Vec<TypeDecl>,
-        consts: Vec<ConstDecl>,
-        fns: Vec<ParsedFunction>,
+        consts: Vec<LongConstDecl>,
+        fns: Vec<LongFunction>,
     ) -> Module {
         let mut compact_fns = Vec::new();
 
@@ -143,7 +144,35 @@ impl Module {
             ));
         }
 
-        Module::from(name, types, consts, compact_fns)
+        let mut compact_consts = Vec::new();
+        for c in consts.into_iter() {
+            compact_consts.push(ConstDecl {
+                idx: c.idx,
+                type_: c.type_,
+                value: c.value,
+            });
+        }
+
+        Module::from(name, types, compact_consts, compact_fns)
+    }
+
+    pub extern "C" fn write_constant_to_heap(heap: &mut Heap, ty: &Type, constant: &LongConstant) -> Pointer {
+        let ptr = heap.allocate_type(&ty);
+
+        match (&ty, &constant) {
+            (Type::U64, LongConstant::U64(n)) => unsafe {
+                heap.store::<u64>(ptr, *n);
+            },
+            (Type::Pointer(t), LongConstant::Str(string)) => match &**t {
+                Type::Str(_) => unsafe {
+                    heap.store_string(ptr, string);
+                },
+                _ => panic!("Invalid pointer type"),
+            },
+            _ => panic!("Invalid constant type"),
+        }
+
+        ptr
     }
 
     pub fn find_function_id(&self, name: &str) -> Option<FnId> {
@@ -167,13 +196,112 @@ impl Module {
     pub fn get_type_by_id(&self, lbl: TypeId) -> Option<&Type> {
         Some(self.types.iter().find(|f| f.idx == lbl).map(|x| &x.type_)?)
     }
+
+    pub fn get_constant_by_id(&self, lbl: ConstId) -> Option<&ConstDecl> {
+        Some(self.constants.iter().find(|f| f.idx == lbl)?)
+    }
 }
+
+/*
+* Long datatypes that are parsed from files.
+*/
+
+#[derive(Debug, Clone)]
+pub enum LongInstruction {
+    ConstU32(VarId, u32),
+    Copy(VarId, VarId),
+    EqVarVar(VarId, VarId, VarId),
+    LtVarVar(VarId, VarId, VarId),
+    SubVarVar(VarId, VarId, VarId),
+    AddVarVar(VarId, VarId, VarId),
+    NotVar(VarId, VarId),
+
+    Return(VarId),
+    Print(VarId),
+    Call(VarId, String, VarId),
+    ModuleCall(VarId, String, String, VarId),
+    Jmp(String),
+    JmpIf(String, VarId),
+    JmpIfNot(String, VarId),
+
+    Alloc(VarId, Type),
+    LoadConst(VarId, ConstId),
+    LoadVar(VarId, VarId, Type),
+    StoreVar(VarId, VarId, Type),
+    Index(VarId, VarId, VarId, Type),
+
+    Lbl(String),
+}
+
+impl Into<Instruction> for LongInstruction {
+    fn into(self) -> Instruction {
+        use LongInstruction::*;
+
+        match self {
+            ConstU32(a, b) => Instruction::ConstU32(a, b),
+            Copy(a, b) => Instruction::Copy(a, b),
+            EqVarVar(a, b, c) => Instruction::EqVarVar(a, b, c),
+            LtVarVar(a, b, c) => Instruction::LtVarVar(a, b, c),
+            SubVarVar(a, b, c) => Instruction::SubVarVar(a, b, c),
+            AddVarVar(a, b, c) => Instruction::AddVarVar(a, b, c),
+            NotVar(a, b) => Instruction::NotVar(a, b),
+            Return(v) => Instruction::Return(v),
+            Print(v) => Instruction::Print(v),
+            LoadConst(a, b) => Instruction::LoadConst(a, b),
+            s => panic!(
+                "This instruction variant cannot be converted automatically: {:?}",
+                s
+            ),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct LongFunction {
+    pub name: String,
+    pub varcount: u8,
+    pub instructions: Vec<LongInstruction>,
+    pub type_: Type,
+}
+
+impl LongFunction {
+    pub fn new(
+        name: String,
+        varcount: u8,
+        instructions: Vec<LongInstruction>,
+        type_: Type,
+    ) -> Self {
+        Self {
+            name,
+            varcount,
+            instructions,
+            type_,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum LongConstant {
+    U64(u64),
+    Str(String),
+}
+
+#[derive(Debug, Clone)]
+pub struct LongConstDecl {
+    pub idx: u16,
+    pub type_: Type,
+    pub value: LongConstant,
+}
+
+/*
+* Compact representations of the long datatypes for interpretation
+*/
 
 #[derive(Debug, Clone)]
 pub struct ConstDecl {
     pub idx: u16,
     pub type_: Type,
-    pub value: Value,
+    pub value: LongConstant,
 }
 
 #[derive(Debug, Clone)]
@@ -189,19 +317,33 @@ impl TypeDecl {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum Size {
+    Unsized,
+    Sized(usize),
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Type {
     U64,
-    Array(Box<Type>),
+    Array(Box<Type>, Size),
     Tuple(Vec<Type>),
     Pointer(Box<Type>),
     Fn(Box<Type>, Box<Type>),
+    Str(Size),
     Unit,
-    Str,
 }
 
 impl Type {
-    pub fn array(type_: Type) -> Type {
-        Type::Array(Box::from(type_))
+    pub fn sized_array(type_: Type, len: usize) -> Type {
+        Type::Array(Box::from(type_), Size::Sized(len))
+    }
+
+    pub fn unsized_array(type_: Type) -> Type {
+        Type::Array(Box::from(type_), Size::Unsized)
+    }
+
+    pub fn unsized_string() -> Type {
+        Type::Str(Size::Unsized)
     }
 
     pub fn tuple(types: Vec<Type>) -> Type {
@@ -223,39 +365,17 @@ impl Type {
     pub fn size(&self) -> usize {
         match self {
             Self::U64 => 8,
+            Self::Pointer(_) => 8,
+            Self::Array(_ty, len) => match len {
+                Size::Unsized => panic!("Cannot get size of unsized array"),
+                Size::Sized(len) => _ty.size() * len + ARRAY_HEADER_SIZE,
+            },
+            Self::Tuple(_tys) => _tys.iter().map(|t| t.size()).sum(),
+            Self::Str(len) => match len {
+                Size::Unsized => panic!("Cannot get size of unsized string"),
+                Size::Sized(len) => len + STRING_HEADER_SIZE + 1, /* \0 byte */
+            },
             _ => panic!("No such size"),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
-pub enum Value {
-    U64(u64),
-    Array(Vec<Value>),
-    Pointer(u64),
-    Null,
-    Str(String),
-}
-
-impl fmt::Display for Value {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Value::U64(v) => write!(f, "{}", v),
-            Value::Array(values) => {
-                write!(f, "[")?;
-                let mut first = true;
-                for v in values {
-                    if !first {
-                        write!(f, ", ")?;
-                    }
-                    write!(f, "{}", v)?;
-                    first = false;
-                }
-                write!(f, "]")
-            }
-            Value::Null => write!(f, "null"),
-            Value::Pointer(b) => write!(f, "&{}", b),
-            Value::Str(s) => write!(f, "\"{}\"", s),
         }
     }
 }
@@ -273,6 +393,7 @@ pub type FnId = u16;
 pub type ModuleId = u16;
 pub type ConstId = u16;
 
+// We need repr(C) since we pass a CallTarget to the JIT::trampoline from compiled code
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct CallTarget {
@@ -315,91 +436,91 @@ pub enum Instruction {
 
 impl Instruction {
     pub fn write_variables(&self) -> Vec<VarId> {
+        use Instruction::*;
         match self {
-            Instruction::ConstU32(r, _)
-            | Instruction::LtVarVar(r, _, _)
-            | Instruction::EqVarVar(r, _, _)
-            | Instruction::Copy(r, _)
-            | Instruction::SubVarVar(r, _, _)
-            | Instruction::AddVarVar(r, _, _)
-            | Instruction::Alloc(r, _)
-            | Instruction::LoadVar(r, _, _)
-            | Instruction::NotVar(r, _)
-            | Instruction::Call(r, _, _)
-            | Instruction::ModuleCall(r, _, _) => vec![*r],
-            Instruction::JmpIfNot(_, _)
-            | Instruction::JmpIf(_, _)
-            | Instruction::Jmp(_)
-            | Instruction::Return(_)
-            | Instruction::Print(_)
-            | Instruction::Nop
-            | Instruction::StoreVar(_, _, _)
-            | Instruction::Lbl => vec![],
-            Instruction::LoadConst(_, _) | Instruction::Index(_, _, _, _) => todo!(),
+            ConstU32(r, _)
+            | LtVarVar(r, _, _)
+            | EqVarVar(r, _, _)
+            | Copy(r, _)
+            | SubVarVar(r, _, _)
+            | AddVarVar(r, _, _)
+            | Alloc(r, _)
+            | LoadVar(r, _, _)
+            | NotVar(r, _)
+            | Call(r, _, _)
+            | Index(r, _, _, _)
+            | LoadConst(r, _)
+            | ModuleCall(r, _, _) => vec![*r],
+            JmpIfNot(_, _)
+            | JmpIf(_, _)
+            | Jmp(_)
+            | Return(_)
+            | Print(_)
+            | Nop
+            | StoreVar(_, _, _)
+            | Lbl => vec![],
         }
     }
 
     pub fn read_variables(&self) -> Vec<VarId> {
+        use Instruction::*;
         match self {
-            Instruction::LtVarVar(_, b, c)
-            | Instruction::EqVarVar(_, b, c)
-            | Instruction::SubVarVar(_, b, c)
-            | Instruction::StoreVar(b, c, _)
-            | Instruction::AddVarVar(_, b, c) => vec![*b, *c],
-            Instruction::JmpIfNot(_, a)
-            | Instruction::NotVar(_, a)
-            | Instruction::Call(_, _, a)
-            | Instruction::ModuleCall(_, _, a)
-            | Instruction::Return(a)
-            | Instruction::Print(a)
-            | Instruction::JmpIf(_, a)
-            | Instruction::LoadVar(_, a, _)
-            | Instruction::Copy(_, a) => vec![*a],
-            Instruction::Lbl
-            | Instruction::ConstU32(_, _)
-            | Instruction::Jmp(_)
-            | Instruction::Alloc(_, _)
-            | Instruction::LoadConst(_, _)
-            | Instruction::Nop => vec![],
-            Instruction::Index(_, _, _, _) => todo!(),
+            LtVarVar(_, b, c)
+            | EqVarVar(_, b, c)
+            | SubVarVar(_, b, c)
+            | StoreVar(b, c, _)
+            | Index(_, b, c, _)
+            | AddVarVar(_, b, c) => vec![*b, *c],
+            JmpIfNot(_, a)
+            | NotVar(_, a)
+            | Call(_, _, a)
+            | ModuleCall(_, _, a)
+            | Return(a)
+            | Print(a)
+            | JmpIf(_, a)
+            | LoadVar(_, a, _)
+            | Copy(_, a) => vec![*a],
+            Lbl | ConstU32(_, _) | Jmp(_) | Alloc(_, _) | LoadConst(_, _) | Nop => vec![],
         }
     }
 
     pub fn get_call_target(&self, default_mod: ModuleId) -> Option<CallTarget> {
+        use Instruction::*;
         match self {
-            Instruction::Call(_, loc, _) => Some(CallTarget::new(default_mod, *loc)),
-            Instruction::ModuleCall(_, ct, _) => Some(*ct),
-            _ => None
+            Call(_, loc, _) => Some(CallTarget::new(default_mod, *loc)),
+            ModuleCall(_, ct, _) => Some(*ct),
+            _ => None,
         }
     }
 }
 
 impl Display for Instruction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use Instruction::*;
         match self {
-            Instruction::ConstU32(a, b) => write!(f, "movc ${}, {}", a, b),
-            Instruction::Copy(a, b) => write!(f, "cp ${}, {}", a, b),
-            Instruction::EqVarVar(a, b, c) => write!(f, "eq ${}, ${}, ${}", a, b, c),
-            Instruction::LtVarVar(a, b, c) => write!(f, "lt ${}, ${}, ${}", a, b, c),
-            Instruction::SubVarVar(a, b, c) => write!(f, "sub ${}, ${}, ${}", a, b, c),
-            Instruction::AddVarVar(a, b, c) => write!(f, "add ${}, ${}, ${}", a, b, c),
-            Instruction::NotVar(_, _) => todo!(),
-            Instruction::Return(a) => write!(f, "ret ${}", a),
-            Instruction::Print(r) => write!(f, "print ${}", r),
-            Instruction::Call(a, b, c) => write!(f, "call ${}, @{} (${})", a, b, c),
-            Instruction::ModuleCall(a, b, c) => {
+            ConstU32(a, b) => write!(f, "movc ${}, {}", a, b),
+            Copy(a, b) => write!(f, "cp ${}, {}", a, b),
+            EqVarVar(a, b, c) => write!(f, "eq ${}, ${}, ${}", a, b, c),
+            LtVarVar(a, b, c) => write!(f, "lt ${}, ${}, ${}", a, b, c),
+            SubVarVar(a, b, c) => write!(f, "sub ${}, ${}, ${}", a, b, c),
+            AddVarVar(a, b, c) => write!(f, "add ${}, ${}, ${}", a, b, c),
+            NotVar(_, _) => todo!(),
+            Return(a) => write!(f, "ret ${}", a),
+            Print(r) => write!(f, "print ${}", r),
+            Call(a, b, c) => write!(f, "call ${}, @{} (${})", a, b, c),
+            ModuleCall(a, b, c) => {
                 write!(f, "call ${}, @{}:{} (${})", a, b.module, b.function, c)
             }
-            Instruction::Jmp(l) => write!(f, "jmp @{}", l),
-            Instruction::JmpIf(l, c) => write!(f, "jmpif ${} @{}", c, l),
-            Instruction::JmpIfNot(l, c) => write!(f, "jmpifn ${} @{}", c, l),
-            Instruction::LoadConst(_, _) => todo!(),
-            Instruction::LoadVar(a, b, c) => write!(f, "load ${}, ${}, %{}", a, b, c),
-            Instruction::StoreVar(a, b, c) => write!(f, "store ${}, ${}, %{}", a, b, c),
-            Instruction::Index(_, _, _, _) => todo!(),
-            Instruction::Alloc(a, b) => write!(f, "alloc ${}, %{}", a, b),
-            Instruction::Lbl => write!(f, "label:"),
-            Instruction::Nop => todo!(),
+            Jmp(l) => write!(f, "jmp @{}", l),
+            JmpIf(l, c) => write!(f, "jmpif ${} @{}", c, l),
+            JmpIfNot(l, c) => write!(f, "jmpifn ${} @{}", c, l),
+            LoadConst(_, _) => todo!(),
+            LoadVar(a, b, c) => write!(f, "load ${}, ${}, %{}", a, b, c),
+            StoreVar(a, b, c) => write!(f, "store ${}, ${}, %{}", a, b, c),
+            Index(_, _, _, _) => todo!(),
+            Alloc(a, b) => write!(f, "alloc ${}, %{}", a, b),
+            Lbl => write!(f, "label:"),
+            Nop => todo!(),
         }
     }
 }
@@ -437,14 +558,12 @@ impl Function {
         }
     }
 
-    pub fn new_native(name: String, type_id: TypeId, native: fn(Value) -> Value) -> Function {
+    pub fn new_native(name: String, type_id: TypeId, native: extern "C" fn() -> ()) -> Function {
         Function {
             name,
             location: FnId::MAX,
             type_id,
-            implementation: FunctionImpl::Native(NativeImpl {
-                fn_ptr: native
-            })
+            implementation: FunctionImpl::Native(NativeImpl { fn_ptr: native }),
         }
     }
 
@@ -452,7 +571,7 @@ impl Function {
     /// converting long instructions to short (8 byte) instructions.
     /// This loses some information in the process.
     pub fn from_long_instr(
-        long_fn: ParsedFunction,
+        long_fn: LongFunction,
         module_loader: &ModuleLoader,
         fns: &HashMap<String, FnId>,
         type_decls: &mut Vec<TypeDecl>,
@@ -461,7 +580,7 @@ impl Function {
         let mut pc: usize = 0;
         for instr in long_fn.instructions.iter() {
             match instr {
-                ParsedInstruction::Lbl(name) => {
+                LongInstruction::Lbl(name) => {
                     jump_table.insert(name.clone(), pc);
                 }
                 _ => {}
@@ -477,30 +596,32 @@ impl Function {
         pc = 0;
         for instr in long_fn.instructions.iter() {
             match instr {
-                ParsedInstruction::Jmp(n) => {
+                LongInstruction::Jmp(n) => {
                     compact_instructions.push(Instruction::Jmp(
                         (jump_table[n] as isize - pc as isize).try_into().unwrap(),
                     ));
                 }
-                ParsedInstruction::JmpIf(n, e) => {
+                LongInstruction::JmpIf(n, e) => {
                     compact_instructions.push(Instruction::JmpIf(
                         (jump_table[n] as isize - pc as isize).try_into().unwrap(),
                         e.clone(),
                     ));
                 }
-                ParsedInstruction::JmpIfNot(n, e) => {
+                LongInstruction::JmpIfNot(n, e) => {
                     compact_instructions.push(Instruction::JmpIfNot(
                         (jump_table[n] as isize - pc as isize).try_into().unwrap(),
                         e.clone(),
                     ));
                 }
-                ParsedInstruction::Lbl(_) => {
+                LongInstruction::Lbl(_) => {
                     compact_instructions.push(Instruction::Lbl);
                 }
-                ParsedInstruction::Call(res, n, var) => compact_instructions.push(
-                    Instruction::Call(res.clone(), fns[n].try_into().unwrap(), *var),
-                ),
-                ParsedInstruction::ModuleCall(res, module_name, function, var) => {
+                LongInstruction::Call(res, n, var) => compact_instructions.push(Instruction::Call(
+                    res.clone(),
+                    fns[n].try_into().unwrap(),
+                    *var,
+                )),
+                LongInstruction::ModuleCall(res, module_name, function, var) => {
                     let module = module_loader
                         .get_by_name(module_name.as_str())
                         .expect("missing module")
@@ -517,22 +638,22 @@ impl Function {
                         *var,
                     ));
                 }
-                ParsedInstruction::LoadVar(res, v, ty) => {
+                LongInstruction::LoadVar(res, v, ty) => {
                     let idx: u16 = type_decls.len().try_into().unwrap();
                     type_decls.push(TypeDecl::new(idx, ty.clone()));
                     compact_instructions.push(Instruction::LoadVar(*res, *v, idx));
                 }
-                ParsedInstruction::Alloc(res, ty) => {
+                LongInstruction::Alloc(res, ty) => {
                     let idx: u16 = type_decls.len().try_into().unwrap();
                     type_decls.push(TypeDecl::new(idx, ty.clone()));
                     compact_instructions.push(Instruction::Alloc(*res, idx));
                 }
-                ParsedInstruction::StoreVar(res_ptr, src, ty) => {
+                LongInstruction::StoreVar(res_ptr, src, ty) => {
                     let idx: u16 = type_decls.len().try_into().unwrap();
                     type_decls.push(TypeDecl::new(idx, ty.clone()));
                     compact_instructions.push(Instruction::StoreVar(*res_ptr, *src, idx));
                 }
-                ParsedInstruction::Index(a, b, c, ty) => {
+                LongInstruction::Index(a, b, c, ty) => {
                     let idx: u16 = type_decls.len().try_into().unwrap();
                     type_decls.push(TypeDecl::new(idx, ty.clone()));
                     compact_instructions.push(Instruction::Index(*a, *b, *c, idx));
@@ -673,7 +794,9 @@ pub struct BytecodeImpl {
 
 #[derive(Debug, Clone)]
 pub struct NativeImpl {
-    pub fn_ptr: fn(Value) -> Value
+    // We'll use transmute when calling so the in-out types don't matter
+    // But maybe there is a better way to represent this?
+    pub fn_ptr: extern "C" fn() -> (),
 }
 
 pub struct ControlFlowGraph {

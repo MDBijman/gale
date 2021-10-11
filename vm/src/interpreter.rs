@@ -1,6 +1,5 @@
 use crate::bytecode::*;
 use crate::memory::Pointer;
-use crate::primitives;
 use crate::vm::{VMState, VM};
 
 use std::collections::HashMap;
@@ -98,7 +97,6 @@ impl Interpreter {
     }
 
     fn get_instruction<'a>(&self, module: &'a Module, state: &InterpreterState) -> &'a Instruction {
-        println!("get {}", module.name);
         &module
             .get_function_by_id(state.func)
             .expect("function")
@@ -202,6 +200,7 @@ impl Interpreter {
 
                 vm_state.interpreter_state.ip = ci.prev_ip;
                 vm_state.interpreter_state.func = ci.prev_fn;
+                vm_state.interpreter_state.module = ci.prev_mod;
 
                 // Native function
                 if ci.called_by_native {
@@ -255,7 +254,6 @@ impl Interpreter {
 
                 match &func.implementation {
                     FunctionImpl::Bytecode(implementation) => {
-                        println!("{}", func.name);
                         let stack_size = implementation.varcount;
 
                         let new_base = vm_state.interpreter_state.stack.slots.len() as isize;
@@ -283,12 +281,17 @@ impl Interpreter {
                         vm_state.interpreter_state.module = target.module;
                     }
                     FunctionImpl::Native(implementation) => {
-                        let arg_value = Value::U64(vm_state.interpreter_state.get_stack_var(*arg));
+                        let arg_value = vm_state.interpreter_state.get_stack_var(*arg);
 
-                        match (implementation.fn_ptr)(arg_value) {
-                            Value::U64(res) => vm_state.interpreter_state.set_stack_var(*r, res),
-                            _ => panic!(),
-                        }
+                        let res = unsafe {
+                            let unsafe_fn_ptr = std::mem::transmute::<
+                                _,
+                                fn(&mut VMState, u64) -> u64,
+                            >(implementation.fn_ptr);
+                            (unsafe_fn_ptr)(vm_state, arg_value)
+                        };
+
+                        vm_state.interpreter_state.set_stack_var(*r, res);
 
                         vm_state.interpreter_state.ip += 1;
                     }
@@ -324,18 +327,11 @@ impl Interpreter {
                 vm_state.interpreter_state.ip += 1;
             }
             Instruction::Alloc(loc, ty) => {
-                match current_module.get_type_by_id(*ty).expect("type idx") {
-                    Type::U64 => {
-                        let pointer = primitives::alloc(vm_state, 8);
-                        vm_state
-                            .interpreter_state
-                            .set_stack_var(*loc, pointer.into());
-                    }
-                    Type::Str => {
-                        todo!();
-                    }
-                    _ => panic!("Illegal alloc operand: {:?}", ty),
-                }
+                let ty = current_module.get_type_by_id(*ty).expect("type idx");
+                let pointer = vm_state.heap.allocate_type(ty);
+                vm_state
+                    .interpreter_state
+                    .set_stack_var(*loc, pointer.into());
 
                 vm_state.interpreter_state.ip += 1;
             }
@@ -344,16 +340,33 @@ impl Interpreter {
 
                 match current_module.get_type_by_id(*ty_idx).expect("type idx") {
                     Type::U64 => {
-                        let value = primitives::load::<u64>(vm_state, ptr);
+                        let value = unsafe { vm_state.heap.load::<u64>(ptr) };
                         vm_state.interpreter_state.set_stack_var(*dest, value);
                     }
-                    _ => panic!("Illegal load operand: {:?}", ty_idx),
+                    Type::Pointer(_) => {
+                        let value = unsafe { vm_state.heap.load::<u64>(ptr) };
+                        vm_state.interpreter_state.set_stack_var(*dest, value);
+                    }
+                    _ => {
+                        panic!(
+                            "Illegal load operand: {:?}",
+                            current_module.get_type_by_id(*ty_idx)
+                        );
+                    }
                 }
                 vm_state.interpreter_state.ip += 1;
             }
-            Instruction::LoadConst(_, _) => {
+            Instruction::LoadConst(res, idx) => {
+                let const_decl = current_module.get_constant_by_id(*idx).unwrap();
+
+                let ptr = Module::write_constant_to_heap(
+                    &mut vm_state.heap,
+                    &const_decl.type_,
+                    &const_decl.value,
+                );
+
+                vm_state.interpreter_state.set_stack_var(*res, ptr.into());
                 vm_state.interpreter_state.ip += 1;
-                unimplemented!();
             }
             Instruction::StoreVar(dest, src, ty_idx) => {
                 let ptr: Pointer = vm_state.interpreter_state.get_stack_var(*dest).into();
@@ -361,7 +374,7 @@ impl Interpreter {
 
                 match current_module.get_type_by_id(*ty_idx).expect("type idx") {
                     Type::U64 => unsafe {
-                        primitives::store::<u64>(vm_state, ptr, value);
+                        vm_state.heap.store::<u64>(ptr, value);
                     },
                     _ => panic!("Illegal load operand: {:?}", ty_idx),
                 }
@@ -372,8 +385,8 @@ impl Interpreter {
                 let ptr = vm_state.interpreter_state.get_stack_var(*ptr).into();
                 match current_module.get_type_by_id(*ty_idx).expect("type idx") {
                     Type::U64 | Type::Pointer(_) => {
-                        let new_ptr = primitives::index::<u64>(vm_state, ptr, idx as usize);
-                        let loaded_value = primitives::load::<u64>(vm_state, new_ptr);
+                        let new_ptr = vm_state.heap.index::<u64>(ptr, idx as usize);
+                        let loaded_value = unsafe { vm_state.heap.load::<u64>(new_ptr) };
                         vm_state
                             .interpreter_state
                             .set_stack_var(*dest, loaded_value);
@@ -444,6 +457,10 @@ impl InterpreterState {
         unsafe {
             self.stack.slots[0] = std::mem::transmute(args_ptr);
         }
+    }
+
+    pub fn init_empty(&mut self) {
+        self.state = InterpreterStatus::Running;
     }
 
     fn get_stack_var(&mut self, var: VarId) -> u64 {

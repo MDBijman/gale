@@ -1,4 +1,4 @@
-main: File(fns) -> Program(!flatmap_some[!lower] fns);
+main: File(ModuleName(mod), fns) -> Program(Name(mod), !flatmap_some[!lower] fns);
 
 lower: FnDecl(func, type) -> [];
 lower: FnDef(func, arg, body){Type(t)} ->
@@ -28,11 +28,11 @@ lower: Appl(fn, arg){Type(t)} ->
 
 lower: String(i) -> tmp_name := !gen_name "tmp" in Hoist([Store(tmp_name, StringLiteral(i))], Load(tmp_name));
 
-lower: Int(i){Type(Builtin("ui8"))} -> UI8(i);
-lower: Int(i) -> UI8(i);
+lower: Int(i){Type(Builtin("ui64"))} -> UI64(i);
+lower: Int(i) -> UI64(i);
 
-lower: True() -> UI8(1);
-lower: False() -> UI8(0);
+lower: True() -> UI64(1);
+lower: False() -> UI64(0);
 
 lower: Add(lhs, rhs) -> 
      lhs_tmp_name := !gen_name "tmp"
@@ -75,16 +75,19 @@ lower: Not(cond) ->
 lower: Ref(n) -> Load(n);
 lower: Array(elems) -> Array(!map[!lower] elems);
 
-lower: ArrIndex(arr, idx) -> 
+lower: ArrIndex(arr{Type(t)}, idx) -> 
      arr_name := !gen_name "tmp"
   in idx_name := !gen_name "tmp"
   in tmp_name := !gen_name "tmp"
+  in elem_type := !array_element_type Type(t)
   in Hoist([
     Store(arr_name, !lower arr),
     Store(idx_name, !lower idx),
-    Store(tmp_name ,
-    ReadIdx(arr_name, idx_name))
+    Store(tmp_name, ReadIdx(Load(arr_name), Load(idx_name), elem_type))
   ], Load(tmp_name));
+
+array_element_type: Type(HeapArray(elem)) -> Type(elem);
+array_element_type: Type(Array(elem, _)) -> Type(elem);
 
 lower: If(cond, then, else) ->
      end_lbl  := !gen_name "lbl"
@@ -108,7 +111,12 @@ lower: If(cond, then) ->
   in tmp_name := !gen_name "tmp"
   in res_name := !gen_name "tmp"
   in low_then := !lower then
-  in Hoist([Store(tmp_name, !lower Not(cond)), JmpIf(end_lbl, Load(tmp_name)), Store(res_name, low_then), Lbl(end_lbl)], Load(res_name));
+  in Hoist([
+    Store(tmp_name, !lower Not(cond)),
+    JmpIf(end_lbl, Load(tmp_name)),
+    Store(res_name, low_then),
+    Lbl(end_lbl)
+  ], Load(res_name));
 
 lower: [h|t] -> !map[!lower] [h|t];
 

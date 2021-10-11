@@ -1,7 +1,8 @@
 use crate::bytecode::{
     BasicBlock, BytecodeImpl, CallTarget, ControlFlowGraph, FnId, Function, InstrLbl, Instruction,
-    Module, VarId,
+    LongConstant, Module, Type, VarId,
 };
+use crate::memory::{Heap, Pointer};
 use crate::vm::{VMState, VM};
 use dynasmrt::x64::Assembler;
 use dynasmrt::{
@@ -111,6 +112,10 @@ impl JITEngine {
         match opt_fn {
             Some(compiled_fn) => {
                 let compiled_fn: *const CompiledFn = &**compiled_fn;
+                // Currently the parameter types of each JITted function are the same
+                // But we need to support n-ary functions
+                // From asm to asm we need to generate code with the proper calling conventions
+                // But from rust to asm we probably need something like libffi
                 unsafe { Some(compiled_fn.as_ref()?.call(vm, state, arg)) }
             }
             None => None,
@@ -169,6 +174,8 @@ impl JITEngine {
                 ; push rsi
                 ; push _vm
                 ; push _vm_state
+                ; push r14
+                ; push r15
                 ; sub rsp, space_for_variables.into()
                 ; mov QWORD [rsp], r8
                 ; mov _vm, rcx
@@ -196,6 +203,8 @@ impl JITEngine {
             x64_asm!(ops
                 ; ->_cleanup:
                 ; add rsp, space_for_variables.into()
+                ; pop r15
+                ; pop r14
                 ; pop _vm_state
                 ; pop _vm
                 ; pop rsi
@@ -234,16 +243,40 @@ impl JITEngine {
         target: CallTarget,
         arg: u64,
     ) -> u64 {
-        if let Some(res) = JITEngine::call_if_compiled(vm, state, target, arg) {
-            res
+        let func = vm
+            .module_loader
+            .get_by_id(target.module)
+            .expect("missing module")
+            .as_ref()
+            .expect("missing impl")
+            .get_function_by_id(target.function)
+            .expect("function id");
+
+        if func.implementation.is_native() {
+            unsafe {
+                let unsafe_fn_ptr = std::mem::transmute::<_, fn(&mut VMState, u64) -> u64>(
+                    func.implementation.as_native().unwrap().fn_ptr,
+                );
+                (unsafe_fn_ptr)(state, arg)
+            }
+        } else if func.implementation.is_bytecode() {
+            if let Some(res) = JITEngine::call_if_compiled(vm, state, target, arg) {
+                res
+            } else {
+                vm.interpreter.push_native_caller_frame(
+                    vm,
+                    &mut state.interpreter_state,
+                    target,
+                    arg,
+                );
+                vm.interpreter.finish_function(vm, state);
+                let res = vm
+                    .interpreter
+                    .pop_native_caller_frame(&mut state.interpreter_state);
+                res
+            }
         } else {
-            vm.interpreter
-                .push_native_caller_frame(vm, &mut state.interpreter_state, target, arg);
-            vm.interpreter.finish_function(vm, state);
-            let res = vm
-                .interpreter
-                .pop_native_caller_frame(&mut state.interpreter_state);
-            res
+            panic!("Unknown implementation type");
         }
     }
 }
@@ -547,12 +580,12 @@ macro_rules! store_if_loaded {
 fn store_volatiles_except(
     ops: &mut Assembler,
     memory: &RegisterAllocation,
-    var: VarId,
+    var: Option<VarId>,
 ) -> Vec<(Rq, VarId)> {
     let mut stored = Vec::new();
 
     let mut do_register = |reg: Rq| {
-        if memory.lookup_register(reg) != Some(var) {
+        if memory.lookup_register(reg) != var {
             if let Some(v) = store_if_loaded!(ops, memory, reg) {
                 stored.push((reg, v));
             }
@@ -677,51 +710,139 @@ fn emit_instr_as_asm<'a>(
             emit_spills(ops, &mem_actions, memory, cur);
         }
         StoreVar(dst_ptr, src, ty) => {
-            let size = module.get_type_by_id(ty).unwrap().size() as i32;
-            assert_eq!(size, 8, "Can only store size 8 for now");
-            x64_asm_resolve_mem!(ops, memory; mov QWORD [resolve(dst_ptr)], resolve(src));
-        }
-        LoadVar(dst, src_ptr, ty) => {
-            let size = module.get_type_by_id(ty).unwrap().size() as i32;
-            assert_eq!(size, 8, "Can only load size 8 for now");
-            x64_asm_resolve_mem!(ops, memory; mov resolve(dst), QWORD [resolve(src_ptr)]);
-        }
-        Alloc(r, t) => {
-            let saved = store_volatiles_except(ops, memory, r);
-            let address = unsafe {
+            let get_heap_address = unsafe {
                 std::mem::transmute::<_, i64>(
-                    malloc as unsafe extern "C" fn(usize) -> *mut libc::c_void,
+                    VMState::heap_mut as unsafe extern "C" fn(&mut VMState) -> &mut Heap,
                 )
             };
-            // FIXME This needs to use the memory.rs module
 
-            let stack_space = if saved.len() % 2 == 1 { 0x28 } else { 0x20 };
-            let size = module.get_type_by_id(t).unwrap().size() as i32;
+            let store_address = unsafe {
+                std::mem::transmute::<_, i64>(
+                    Heap::store_u64 as unsafe extern "C" fn(&mut Heap, Pointer, u64),
+                )
+            };
+
+            let size = module.get_type_by_id(ty).unwrap().size() as i32;
+            assert_eq!(size, 8, "Can only store size 8 for now");
+
+            let saved = store_volatiles_except(ops, memory, None);
+            let stack_space = 0x20;
+
             x64_asm!(ops
-                    ; mov rcx, size
-                    ; mov r10, QWORD address
-                    ; sub rsp, BYTE stack_space
-                    ; call r10
-                    ; add rsp, BYTE stack_space
-                    ;;x64_asm_resolve_mem!(ops, memory; mov resolve(r), rax));
+                // Load first because they might be overriden
+                ;; x64_asm_resolve_mem!(ops, memory; mov r14, resolve(dst_ptr))
+                ;; x64_asm_resolve_mem!(ops, memory; mov r15, resolve(src))
+
+                ; mov rcx, _vm_state
+                ; sub rsp, BYTE stack_space
+                ; mov r10, QWORD get_heap_address
+                ; call r10
+                ; add rsp, BYTE stack_space
+
+                ; mov rcx, rax
+                ; mov rdx, r14
+                ; mov r8, r15
+                ; sub rsp, BYTE stack_space
+                ; mov r10, QWORD store_address
+                ; call r10
+                ; add rsp, BYTE stack_space);
+
             load_volatiles(ops, &saved);
-            // TODO avoid loading if it is spilled V here
             emit_spills(ops, &mem_actions, memory, cur);
         }
-        Call(a, b, c) => {
+        LoadVar(dst, src_ptr, ty) => {
+            let get_heap_address = unsafe {
+                std::mem::transmute::<_, i64>(
+                    VMState::heap_mut as unsafe extern "C" fn(&mut VMState) -> &mut Heap,
+                )
+            };
+
+            let load_address = unsafe {
+                std::mem::transmute::<_, i64>(
+                    Heap::load_u64 as unsafe extern "C" fn(&mut Heap, Pointer) -> u64,
+                )
+            };
+
+            let size = module.get_type_by_id(ty).unwrap().size() as i32;
+            assert_eq!(size, 8, "Can only store size 8 for now");
+
+            let saved = store_volatiles_except(ops, memory, Some(dst));
+            let stack_space = 0x20;
+
+            x64_asm!(ops
+                // Load first because they might be overriden
+                ;; x64_asm_resolve_mem!(ops, memory; mov r14, resolve(src_ptr))
+
+                ; mov rcx, _vm_state
+                ; sub rsp, BYTE stack_space
+                ; mov r10, QWORD get_heap_address
+                ; call r10
+                ; add rsp, BYTE stack_space
+
+                ; mov rcx, rax
+                ; mov rdx, r14
+                ; sub rsp, BYTE stack_space
+                ; mov r10, QWORD load_address
+                ; call r10
+                ; add rsp, BYTE stack_space
+                ;; x64_asm_resolve_mem!(ops, memory; mov resolve(dst), rax)
+            );
+
+            load_volatiles(ops, &saved);
+            emit_spills(ops, &mem_actions, memory, cur);
+        }
+        Alloc(r, t) => {
+            let saved = store_volatiles_except(ops, memory, Some(r));
+            let get_heap_address = unsafe {
+                std::mem::transmute::<_, i64>(
+                    VMState::heap_mut as unsafe extern "C" fn(&mut VMState) -> &mut Heap,
+                )
+            };
+
+            let alloc_address = unsafe {
+                std::mem::transmute::<_, i64>(
+                    Heap::allocate_type as unsafe extern "C" fn(&mut Heap, &Type) -> Pointer,
+                )
+            };
+
+            let ty = module.get_type_by_id(t).expect("type idx");
+
+            let stack_space = 0x20;
+            x64_asm!(ops
+                    ; mov rcx, _vm_state
+                    ; sub rsp, BYTE stack_space
+                    ; mov r10, QWORD get_heap_address
+                    ; call r10
+                    ; add rsp, BYTE stack_space
+
+                    ; mov rcx, rax
+                    ; mov rdx, QWORD ty as *const _ as i64
+                    ; sub rsp, BYTE stack_space
+                    ; mov r10, QWORD alloc_address
+                    ; call r10
+                    ; add rsp, BYTE stack_space
+
+                    ;;x64_asm_resolve_mem!(ops, memory; mov resolve(r), rax));
+
+            load_volatiles(ops, &saved);
+            emit_spills(ops, &mem_actions, memory, cur);
+        }
+        Call(res, func, arg) => {
+            let module = module.id;
+
             // Recursive call
             // We know we can call the native impl. directly
-            if b == fn_state.function_location {
-                let saved = store_volatiles_except(ops, memory, a);
-                let stack_space = if saved.len() % 2 == 1 { 0x28 } else { 0x20 };
+            if func == fn_state.function_location {
+                let saved = store_volatiles_except(ops, memory, Some(res));
+                let stack_space = 0x20;
                 x64_asm!(ops
-                    ; mov r8, [rsp + (c as i32) * 8]
+                    ; mov r8, [rsp + (arg as i32) * 8]
                     ; mov rcx, _vm
                     ; mov rdx, _vm_state
                     ; sub rsp, BYTE stack_space
                     ; call ->_self
                     ; add rsp, BYTE stack_space
-                    ;; x64_asm_resolve_mem!(ops, memory; mov resolve(a), rax));
+                    ;; x64_asm_resolve_mem!(ops, memory; mov resolve(res), rax));
                 load_volatiles(ops, &saved);
                 // TODO avoid loading if it is spilled V here
                 emit_spills(ops, &mem_actions, memory, cur);
@@ -736,22 +857,53 @@ fn emit_instr_as_asm<'a>(
                     )
                 };
 
-                let saved = store_volatiles_except(ops, memory, a);
+                let saved = store_volatiles_except(ops, memory, Some(res));
+                let stack_space = 0x20;
                 x64_asm!(ops
-                    ;;x64_asm_resolve_mem!(ops, memory; mov r9, resolve(c))
+                    ;;x64_asm_resolve_mem!(ops, memory; mov r9, resolve(arg))
                     ; mov rcx, _vm
                     ; mov rdx, _vm_state
-                    ; mov r8w, b as i16
-                    ; sub rsp, BYTE 0x20
+                    ; mov r8w, func as i16
+                    ; shl r8, 16
+                    ; mov r8w, module as i16
+                    ; sub rsp, BYTE stack_space
                     ; mov r10, QWORD fn_ref
                     ; call r10
-                    ; add rsp, BYTE 0x20
-                    ;;x64_asm_resolve_mem!(ops, memory; mov resolve(a), rax));
+                    ; add rsp, BYTE stack_space
+                    ;;x64_asm_resolve_mem!(ops, memory; mov resolve(res), rax));
                 load_volatiles(ops, &saved);
-                // TODO avoid loading if it is spilled V here
+                // TODO avoid loading if it is spilled here
                 emit_spills(ops, &mem_actions, memory, cur);
-                todo!("pass CallTarget instead of FnId");
             }
+        }
+        ModuleCall(res, target, arg) => {
+            let fn_ref: i64 = unsafe {
+                std::mem::transmute::<_, i64>(
+                    JITEngine::trampoline
+                        as extern "win64" fn(&VM, &mut VMState, CallTarget, u64) -> u64,
+                )
+            };
+
+            let func = target.function;
+            let module = target.module;
+
+            let saved = store_volatiles_except(ops, memory, Some(res));
+            let stack_space = 0x20;
+            x64_asm!(ops
+                    ;;x64_asm_resolve_mem!(ops, memory; mov r9, resolve(arg))
+                    ; mov rcx, _vm
+                    ; mov rdx, _vm_state
+                    ; mov r8w, func as i16
+                    ; shl r8, 16
+                    ; mov r8w, module as i16
+                    ; sub rsp, BYTE stack_space
+                    ; mov r10, QWORD fn_ref
+                    ; call r10
+                    ; add rsp, BYTE stack_space
+                    ;;x64_asm_resolve_mem!(ops, memory; mov resolve(res), rax));
+            load_volatiles(ops, &saved);
+            // TODO avoid loading if it is spilled here
+            emit_spills(ops, &mem_actions, memory, cur);
         }
         Lbl => {
             let dyn_lbl = fn_state
@@ -768,6 +920,7 @@ fn emit_instr_as_asm<'a>(
                 .dynamic_labels
                 .entry(jmp_target as InstrLbl)
                 .or_insert(ops.new_dynamic_label());
+
             x64_asm!(ops
                 ;; emit_spills(ops, &mem_actions, memory, cur)
                 ; jmp =>*dyn_lbl);
@@ -778,6 +931,7 @@ fn emit_instr_as_asm<'a>(
                 .dynamic_labels
                 .entry(jmp_target as InstrLbl)
                 .or_insert(ops.new_dynamic_label());
+
             x64_asm!(ops
                 ;;x64_asm_resolve_mem!(ops, memory ; cmp resolve(c), 0)
                 ;; emit_spills(ops, &mem_actions, memory, cur)
@@ -789,16 +943,124 @@ fn emit_instr_as_asm<'a>(
                 .dynamic_labels
                 .entry(jmp_target as InstrLbl)
                 .or_insert(ops.new_dynamic_label());
+
             x64_asm!(ops
-                ;;x64_asm_resolve_mem!(ops, memory ; cmp resolve(c), 1)
+                ;; x64_asm_resolve_mem!(ops, memory ; cmp resolve(c), 1)
                 ;; emit_spills(ops, &mem_actions, memory, cur)
                 ; je =>*dyn_lbl);
         }
         Return(r) => {
             x64_asm!(ops
-                ;;x64_asm_resolve_mem!(ops, memory; mov rax, resolve(r))
+                ;; x64_asm_resolve_mem!(ops, memory; mov rax, resolve(r))
                 ;; emit_spills(ops, &mem_actions, memory, cur)
                 ; jmp ->_cleanup)
+        }
+        LoadConst(res, idx) => {
+            let const_decl = module.get_constant_by_id(idx).unwrap();
+
+            let get_heap_address = unsafe {
+                std::mem::transmute::<_, i64>(
+                    VMState::heap_mut as unsafe extern "C" fn(&mut VMState) -> &mut Heap,
+                )
+            };
+
+            let write_to_heap_address = unsafe {
+                std::mem::transmute::<_, i64>(
+                    Module::write_constant_to_heap
+                        as unsafe extern "C" fn(&mut Heap, &Type, &LongConstant) -> Pointer,
+                )
+            };
+
+            let saved = store_volatiles_except(ops, memory, Some(res));
+            let stack_space = 0x20;
+            x64_asm!(ops
+                ; mov rcx, _vm_state
+                ; sub rsp, BYTE stack_space
+                ; mov r10, QWORD get_heap_address
+                ; call r10
+                ; add rsp, BYTE stack_space
+                ; mov rcx, rax
+                // TODO investigate, this wont work if the constdecl is moved, dangling ptr
+                ; mov rdx, QWORD &const_decl.type_ as *const _ as i64
+                ; mov r8, QWORD &const_decl.value as *const _ as i64
+                ; sub rsp, BYTE stack_space
+                ; mov r10, QWORD write_to_heap_address
+                ; add rsp, BYTE stack_space
+                ;; x64_asm_resolve_mem!(ops, memory; mov resolve(res), rax)
+            );
+
+            load_volatiles(ops, &saved);
+            emit_spills(ops, &mem_actions, memory, cur);
+        }
+        Index(res, src, idx, ty) => {
+            let get_heap_address = unsafe {
+                std::mem::transmute::<_, i64>(
+                    VMState::heap_mut as unsafe extern "C" fn(&mut VMState) -> &mut Heap,
+                )
+            };
+
+            let index_bytes_address = unsafe {
+                std::mem::transmute::<_, i64>(
+                    Heap::index_bytes as unsafe extern "C" fn(&mut Heap, Pointer, usize) -> Pointer,
+                )
+            };
+
+            let index_bytes: i32 = match module.get_type_by_id(ty).expect("type idx") {
+                Type::U64 | Type::Pointer(_) => 8,
+                ty => panic!("Illegal index operand: {:?}", ty),
+            };
+
+            let load_8_bytes_address = unsafe {
+                std::mem::transmute::<_, i64>(
+                    Heap::load_u64 as unsafe extern "C" fn(&mut Heap, Pointer) -> u64,
+                )
+            };
+
+            // call get_heap_address to get heap ptr
+            // load idx, multiply with element size in bytes
+            // load src
+            // call heap.index_bytes on src value with idx
+            // write res
+
+            let saved = store_volatiles_except(ops, memory, Some(res));
+            let stack_space = 0x20;
+            x64_asm!(ops
+                // Load first because they might be overriden
+                ;; x64_asm_resolve_mem!(ops, memory; mov r14, resolve(src))
+                ;; x64_asm_resolve_mem!(ops, memory; mov r15, resolve(idx))
+
+                ; mov rcx, _vm_state
+                ; sub rsp, BYTE stack_space
+                ; mov r10, QWORD get_heap_address
+                ; call r10
+                ; add rsp, BYTE stack_space
+                // rax contains pointer to heap, mov into rcx (first arg)
+                ; mov rcx, rax
+                ; mov rdi, rax // store in non-vol register for later
+                // compute idx and put into r8
+                ; mov rax, r15
+                ; mov r8, index_bytes
+                ; imul r8
+                ; mov r8, rax
+                // put src into rdx
+                ; mov r14, rdx
+                ; sub rsp, BYTE stack_space
+                ; mov r10, QWORD index_bytes_address
+                ; call r10
+                ; add rsp, BYTE stack_space
+                // rax contains proxy
+                // load value
+                ; mov rcx, rdi
+                ; mov rdx, rax
+                ; sub rsp, BYTE stack_space
+                ; mov r10, QWORD load_8_bytes_address
+                ; call r10
+                ; add rsp, BYTE stack_space
+                ;; x64_asm_resolve_mem!(ops, memory; mov resolve(res), rax)
+            );
+
+            load_volatiles(ops, &saved);
+            emit_spills(ops, &mem_actions, memory, cur);
         }
         instr => panic!("Unknown instr {:?}", instr),
     }

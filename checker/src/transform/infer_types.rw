@@ -1,12 +1,14 @@
 
-main: File(fns) ->
-     map_with_functions := !env_map[!gather_function_type] (!new_map, fns) > .first
-  in File(.env_map[.typecheck] (map_with_functions, fns) > .second);
+main: File(mod, fns) ->
+     map_with_functions := !env_map[!gather_function_type] (!new_map, fns) > !first > !add_std_fns
+  in File(mod, .env_map[.typecheck] (map_with_functions, fns) > !second);
 
 gather_function_type: (env, FnDecl(name, type)) ->
      as_type := !typeof type
   in (.put[name, as_type] env, FnDecl(name, type));
 gather_function_type: _ -> .id;
+
+add_std_fns: env -> !put["std:parse_ui64", Type(Func(Builtin("str"), Builtin("ui64")))];
 
 typecheck: (env, FnDecl(name, type)) -> .id;
 
@@ -28,12 +30,12 @@ typecheck: (env, Decl(name, type, expr)) ->
   in (new_env, Decl(name, type, !typecheck (env, expr {as_type}) > !second));
 
 typecheck: (env, String(s){Type(t)}) ->
-    (.is_subtype (Type(Ref("str")), Type(t))
+    (.is_subtype (Type(Builtin("str")), Type(t))
   ? (env, String(s) {Type(t)})
   : (env, String(s) {TypeError("Cannot cast to expected type")}));
 
 typecheck: (env, Int(i){Type(t)}) ->
-    (.is_subtype (Type(Builtin("ui8")), Type(t))
+    (.is_subtype (Type(Builtin("ui64")), Type(t))
   ? (env, Int(i) {Type(t)})
   : (env, Int(i) {TypeError("Cannot cast to expected type")}));
 
@@ -54,10 +56,12 @@ typecheck: (env, Array(elems){Type(Array(elemtype, size))}) ->
   in checked_elems   := !map[.typecheck_env[env]] annotated_elems
   in (env, Array(checked_elems){Type(Array(elemtype, size))});
 
-typecheck: (env, ArrIndex(arr, idx)) -> 
+typecheck: (env, ArrIndex(arr, idx){Type(expected)}) -> 
      checked_arr{Type(HeapArray(elemtype))} := !typecheck (env, arr{Type(HeapArray(Any()))}) > !second
-  in checked_idx{Type(Builtin("ui8"))}      := !typecheck (env, idx{Type(Builtin("ui8"))})   > !second
-  in (env, ArrIndex(checked_arr, checked_idx){Type(elemtype)});
+  in checked_idx{Type(Builtin("ui64"))}     := !typecheck (env, idx{Type(Builtin("ui64"))})  > !second
+  in .is_subtype (Type(elemtype), Type(expected))
+  ? (env, ArrIndex(checked_arr, checked_idx){Type(elemtype)})
+  : (env, ArrIndex(checked_arr, checked_idx){TypeError("Array element is wrong type")});
 
 typecheck: (env, Ref(n){Type(t)}) ->
      Type(lt) := .get[n] env
@@ -82,10 +86,10 @@ typecheck_env[env]: t -> .typecheck (env, t) > !second;
 # Working with patterns
 
 typecheck_pattern: (pat, Type(t)) -> !typecheck_pattern (pat, t); 
-typecheck_pattern: (PatternNum(_), Builtin("ui8")) -> .id;
+typecheck_pattern: (PatternNum(_), Builtin("ui64")) -> .id;
 typecheck_pattern: (PatternNum(_), _) -> !fail "Cannot match number literal against this type";
 
-typecheck_pattern: (PatternStr(_), Ref("str")) -> .id;
+typecheck_pattern: (PatternStr(_), Builtin("str")) -> .id;
 typecheck_pattern: (PatternStr(_), _) -> !fail "Cannot match string literal against this type";
 typecheck_pattern: (PatternVar(_), _) -> .id;
 
@@ -95,10 +99,11 @@ extract_pattern_types: (env, PatternStr(_), _) -> env;
 
 # Working with Types
 
-is_integer_type: Builtin("ui8") -> .id;
+is_integer_type: Builtin("ui64") -> .id;
 
 typeof: t -> Type(!typeof_type t);
-typeof_type: TypeId("ui8") -> Builtin("ui8");
+typeof_type: TypeId("ui64") -> Builtin("ui64");
+typeof_type: TypeId("str") -> Builtin("str");
 typeof_type: TypeId(n)     -> Ref(n);
 typeof_type: TypeTuple()   -> Tuple();
 typeof_type: TypeArray(ts, s) -> Array(!typeof_type ts, s);

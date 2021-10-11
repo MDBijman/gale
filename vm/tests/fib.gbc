@@ -1,7 +1,7 @@
-.types
-.const
+mod fib
+
 .code
-fn fib ($0: ui64)
+fn fib ($0: ui64) -> ui64
         movc $1, 2
         lt $1, $0, $1
         jmpifn $1 @lbl_1
@@ -17,11 +17,10 @@ lbl_1:  movc $1, 1
         ret $1
 endfn
 
-fn main ($0: [string])
+fn main ($0: &[&str]) -> ui64
         movc $1, 0
-        index $2, $0, $1
-        call $3, @parse_ui64 ($2)
-        print $3
+        idx $2, $0, $1, &str
+        call $3, @std:parse_ui64 ($2)
         call $4, @fib ($3)
         ret $4
 endfn

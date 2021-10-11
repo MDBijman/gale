@@ -1,7 +1,7 @@
-use crate::bytecode::{CallTarget, Module, ModuleLoader, Type};
+use crate::bytecode::{CallTarget, Module, ModuleLoader, Size, Type};
 use crate::interpreter::{Interpreter, InterpreterState};
 use crate::jit::{JITEngine, JITState};
-use crate::memory::{Heap, Pointer, ARRAY_HEADER_SIZE, POINTER_SIZE};
+use crate::memory::{Heap, Pointer, ARRAY_HEADER_SIZE};
 use std::time;
 
 pub struct VMState {
@@ -19,6 +19,10 @@ impl VMState {
             result: None,
             heap: Box::new(Heap::default()),
         }
+    }
+
+    pub extern "C" fn heap_mut(&mut self) -> &mut Heap {
+        &mut *self.heap
     }
 }
 
@@ -65,8 +69,12 @@ impl VM {
             .get_type_by_id(main_fn.type_id)
             .expect("main function type idx");
 
-        let expected_main_type: Type =
-            Type::fun(Type::tuple(vec![Type::ptr(Type::array(Type::ptr(Type::Str)))]), Type::U64);
+        let expected_main_type: Type = Type::fun(
+            Type::tuple(vec![Type::ptr(Type::unsized_array(Type::ptr(Type::Str(
+                Size::Unsized,
+            ))))]),
+            Type::U64,
+        );
 
         if main_type != &expected_main_type {
             println!("main type {:?}", main_type);
@@ -84,25 +92,21 @@ impl VM {
             main_frame_size.into(),
         );
 
+        state.interpreter_state.init_empty();
+
         // TODO abstract this kind of logic
         let args_ptr = {
-            let arr_ptr = state.heap.allocate_array(args.len() * POINTER_SIZE);
+            let arr_ptr = state.heap.allocate_type(&Type::sized_array(
+                Type::ptr(Type::Str(Size::Unsized)),
+                args.len(),
+            ));
             unsafe {
                 let mut raw_arr_ptr = state.heap.raw(arr_ptr).offset(ARRAY_HEADER_SIZE as isize);
 
                 for arg in args.iter() {
-                    let str_ptr = state.heap.allocate_string(arg.len());
-                    let mut raw_str_ptr: *mut u8 = state.heap.raw(str_ptr).offset(8);
-
-                    for b in arg.as_bytes() {
-                        *raw_str_ptr = *b;
-                        raw_str_ptr = raw_str_ptr.add(1);
-                    }
-
-                    *raw_str_ptr = '\0' as u8;
-
+                    let str_ptr = state.heap.allocate_type(&Type::Str(Size::Sized(arg.len())));
+                    state.heap.store_string(str_ptr, arg.as_str());
                     *(raw_arr_ptr as *mut u64) = str_ptr.into();
-
                     raw_arr_ptr = raw_arr_ptr.add(1);
                 }
             }
@@ -131,6 +135,14 @@ impl VM {
 
         /* Compile the main function */
         JITEngine::compile(&mut state.jit_state, &main_module, &main_fn);
+
+        /* Compile the fib function */
+        match main_module.get_function_by_name("fib") {
+            Some(fib_fn) => {
+                JITEngine::compile(&mut state.jit_state, &main_module, &fib_fn);
+            }
+            _ => {}
+        }
 
         /* Run the main function in compiled mode */
         let res = JITEngine::call_if_compiled(
