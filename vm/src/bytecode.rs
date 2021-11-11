@@ -125,7 +125,7 @@ impl Module {
         module_loader: &ModuleLoader,
         name: String,
         mut types: Vec<TypeDecl>,
-        consts: Vec<LongConstDecl>,
+        consts: Vec<ConstDecl>,
         fns: Vec<LongFunction>,
     ) -> Module {
         let mut compact_fns = Vec::new();
@@ -156,14 +156,18 @@ impl Module {
         Module::from(name, types, compact_consts, compact_fns)
     }
 
-    pub extern "C" fn write_constant_to_heap(heap: &mut Heap, ty: &Type, constant: &LongConstant) -> Pointer {
+    pub extern "C" fn write_constant_to_heap(
+        heap: &mut Heap,
+        ty: &Type,
+        constant: &Constant,
+    ) -> Pointer {
         let ptr = heap.allocate_type(&ty);
 
         match (&ty, &constant) {
-            (Type::U64, LongConstant::U64(n)) => unsafe {
+            (Type::U64, Constant::U64(n)) => unsafe {
                 heap.store::<u64>(ptr, *n);
             },
-            (Type::Pointer(t), LongConstant::Str(string)) => match &**t {
+            (Type::Pointer(t), Constant::Str(string)) => match &**t {
                 Type::Str(_) => unsafe {
                     heap.store_string(ptr, string);
                 },
@@ -281,27 +285,22 @@ impl LongFunction {
 }
 
 #[derive(Debug, Clone)]
-pub enum LongConstant {
+pub struct Param {
+    pub var: VarId,
+    pub type_: Type,
+}
+
+#[derive(Debug, Clone)]
+pub enum Constant {
     U64(u64),
     Str(String),
 }
 
 #[derive(Debug, Clone)]
-pub struct LongConstDecl {
-    pub idx: u16,
-    pub type_: Type,
-    pub value: LongConstant,
-}
-
-/*
-* Compact representations of the long datatypes for interpretation
-*/
-
-#[derive(Debug, Clone)]
 pub struct ConstDecl {
     pub idx: u16,
     pub type_: Type,
-    pub value: LongConstant,
+    pub value: Constant,
 }
 
 #[derive(Debug, Clone)]
@@ -379,6 +378,10 @@ impl Type {
         }
     }
 }
+
+/*
+* Compact representations of the larger datatypes for interpretation and compilation
+*/
 
 pub type InstrLbl = i16;
 
@@ -523,12 +526,6 @@ impl Display for Instruction {
             Nop => todo!(),
         }
     }
-}
-
-#[derive(Debug, Clone)]
-pub struct Param {
-    pub var: VarId,
-    pub type_: Type,
 }
 
 #[derive(Debug, Clone)]

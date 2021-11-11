@@ -1,6 +1,6 @@
 use crate::bytecode::{
-    BasicBlock, BytecodeImpl, CallTarget, ControlFlowGraph, FnId, Function, InstrLbl, Instruction,
-    LongConstant, Module, Type, VarId,
+    BasicBlock, BytecodeImpl, CallTarget, ConstId, Constant, ControlFlowGraph, FnId, Function,
+    InstrLbl, Instruction, Module, Type, TypeId, VarId,
 };
 use crate::memory::{Heap, Pointer};
 use crate::vm::{VMState, VM};
@@ -8,10 +8,6 @@ use dynasmrt::x64::Assembler;
 use dynasmrt::{
     dynasm, x64::Rq, AssemblyOffset, DynamicLabel, DynasmApi, DynasmLabelApi, ExecutableBuffer,
 };
-use nom::AsBytes;
-use std::marker::PhantomPinned;
-use std::{collections::HashMap, fmt::Debug, mem};
-
 macro_rules! x64_asm {
     ($ops:ident $($t:tt)*) => {
         dynasm!($ops
@@ -20,6 +16,91 @@ macro_rules! x64_asm {
             ; .alias _vm_state, r13
             $($t)*
         )
+    }
+}
+use nom::AsBytes;
+use std::marker::PhantomPinned;
+use std::{collections::HashMap, fmt::Debug, mem};
+
+#[derive(Debug, Clone, Copy)]
+pub enum Operand {
+    Var(VarId),
+    Reg(u8),
+}
+
+impl From<VarId> for Operand {
+    fn from(v: VarId) -> Self {
+        Operand::Var(v)
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum LowInstruction {
+    // Mirrors of Instruction, but with enum operands
+    ConstU32(Operand, u32),
+    Copy(Operand, Operand),
+    EqVarVar(Operand, Operand, Operand),
+    LtVarVar(Operand, Operand, Operand),
+    SubVarVar(Operand, Operand, Operand),
+    AddVarVar(Operand, Operand, Operand),
+    NotVar(Operand, Operand),
+    Return(Operand),
+    Print(Operand),
+    Call(Operand, FnId, Operand),
+    ModuleCall(Operand, CallTarget, Operand),
+    Jmp(InstrLbl),
+    JmpIf(InstrLbl, Operand),
+    JmpIfNot(InstrLbl, Operand),
+    Alloc(Operand, TypeId),
+    LoadConst(Operand, ConstId),
+    LoadVar(Operand, Operand, TypeId),
+    StoreVar(Operand, Operand, TypeId),
+    Index(Operand, Operand, Operand, TypeId),
+    Lbl,
+    Nop,
+    
+    // LowInstruction specific
+    Push(VarId),
+    Pop(u8),
+}
+
+impl From<Instruction> for LowInstruction {
+    fn from(i: Instruction) -> Self {
+        match i {
+            Instruction::ConstU32(a, b) => LowInstruction::ConstU32(a.into(), b),
+            Instruction::Copy(a, b) => LowInstruction::Copy(a.into(), b.into()),
+            Instruction::EqVarVar(a, b, c) => {
+                LowInstruction::EqVarVar(a.into(), b.into(), c.into())
+            }
+            Instruction::LtVarVar(a, b, c) => {
+                LowInstruction::LtVarVar(a.into(), b.into(), c.into())
+            }
+            Instruction::SubVarVar(a, b, c) => {
+                LowInstruction::SubVarVar(a.into(), b.into(), c.into())
+            }
+            Instruction::AddVarVar(a, b, c) => {
+                LowInstruction::AddVarVar(a.into(), b.into(), c.into())
+            }
+            Instruction::NotVar(a, b) => LowInstruction::NotVar(a.into(), b.into()),
+            Instruction::Return(a) => LowInstruction::Return(a.into()),
+            Instruction::Print(a) => LowInstruction::Print(a.into()),
+            Instruction::Call(a, b, c) => LowInstruction::Call(a.into(), b.into(), c.into()),
+            Instruction::ModuleCall(a, b, c) => LowInstruction::ModuleCall(a.into(), b, c.into()),
+            Instruction::Jmp(a) => LowInstruction::Jmp(a),
+            Instruction::JmpIf(a, b) => LowInstruction::JmpIf(a, b.into()),
+            Instruction::JmpIfNot(a, b) => LowInstruction::JmpIfNot(a, b.into()),
+            Instruction::Alloc(a, b) => LowInstruction::Alloc(a.into(), b),
+            Instruction::LoadConst(a, b) => LowInstruction::LoadConst(a.into(), b),
+            Instruction::LoadVar(a, b, c) => LowInstruction::LoadVar(a.into(), b.into(), c.into()),
+            Instruction::StoreVar(a, b, c) => {
+                LowInstruction::StoreVar(a.into(), b.into(), c.into())
+            }
+            Instruction::Index(a, b, c, d) => {
+                LowInstruction::Index(a.into(), b.into(), c.into(), d)
+            }
+            Instruction::Lbl => LowInstruction::Lbl,
+            Instruction::Nop => LowInstruction::Nop,
+        }
     }
 }
 
@@ -609,8 +690,6 @@ fn load_volatiles(ops: &mut Assembler, stored: &Vec<(Rq, VarId)>) {
     }
 }
 
-use libc::malloc;
-
 fn emit_instr_as_asm<'a>(
     fn_state: &mut FunctionJITState,
     module: &Module,
@@ -967,7 +1046,7 @@ fn emit_instr_as_asm<'a>(
             let write_to_heap_address = unsafe {
                 std::mem::transmute::<_, i64>(
                     Module::write_constant_to_heap
-                        as unsafe extern "C" fn(&mut Heap, &Type, &LongConstant) -> Pointer,
+                        as unsafe extern "C" fn(&mut Heap, &Type, &Constant) -> Pointer,
                 )
             };
 
@@ -1061,6 +1140,328 @@ fn emit_instr_as_asm<'a>(
 
             load_volatiles(ops, &saved);
             emit_spills(ops, &mem_actions, memory, cur);
+        }
+        instr => panic!("Unknown instr {:?}", instr),
+    }
+}
+
+fn emit_low_instr_as_asm<'a>(
+    fn_state: &mut FunctionJITState,
+    module: &Module,
+    cur: InstrLbl,
+    instr: LowInstruction,
+) {
+    // Ops cannot be referenced in x64_asm macros if it's inside fn_state
+    let ops = &mut fn_state.ops;
+    let get_heap_address = unsafe {
+        std::mem::transmute::<_, i64>(
+            VMState::heap_mut as unsafe extern "C" fn(&mut VMState) -> &mut Heap,
+        )
+    };
+
+    let store_address = unsafe {
+        std::mem::transmute::<_, i64>(
+            Heap::store_u64 as unsafe extern "C" fn(&mut Heap, Pointer, u64),
+        )
+    };
+
+    let load_address = unsafe {
+        std::mem::transmute::<_, i64>(
+            Heap::load_u64 as unsafe extern "C" fn(&mut Heap, Pointer) -> u64,
+        )
+    };
+
+    let load_const_to_heap_address = unsafe {
+        std::mem::transmute::<_, i64>(
+            Module::write_constant_to_heap
+                as unsafe extern "C" fn(&mut Heap, &Type, &Constant) -> Pointer,
+        )
+    };
+
+    let alloc_address = unsafe {
+        std::mem::transmute::<_, i64>(
+            Heap::allocate_type as unsafe extern "C" fn(&mut Heap, &Type) -> Pointer,
+        )
+    };
+
+    let trampoline_address: i64 = unsafe {
+        std::mem::transmute::<_, i64>(
+            JITEngine::trampoline as extern "win64" fn(&VM, &mut VMState, CallTarget, u64) -> u64,
+        )
+    };
+
+    let index_bytes_address = unsafe {
+        std::mem::transmute::<_, i64>(
+            Heap::index_bytes as unsafe extern "C" fn(&mut Heap, Pointer, usize) -> Pointer,
+        )
+    };
+
+    use LowInstruction::*;
+    use Operand::*;
+    match instr {
+        ConstU32(Reg(res), val) => {
+            x64_asm!(ops; mov Rq(res), val as i32);
+        }
+        LtVarVar(Reg(res), Reg(lhs), Reg(rhs)) => {
+            x64_asm!(ops
+                ; cmp Rq(lhs), Rq(rhs)
+                ; mov Rq(res), 0
+                ; mov rdi, 1
+                ; cmovl Rq(res), rdi);
+        }
+        AddVarVar(Reg(a), Reg(b), Reg(c)) => {
+            x64_asm!(ops
+                ; xor Rq(a), Rq(a)
+                ; mov Rq(a), Rq(b)
+                ; add Rq(a), Rq(c));
+        }
+        SubVarVar(Reg(a), Reg(b), Reg(c)) => {
+            x64_asm!(ops
+                ; xor Rq(a), Rq(a)
+                ; mov Rq(a), Rq(b)
+                ; sub Rq(a), Rq(c));
+        }
+        EqVarVar(Reg(res), Reg(lhs), Reg(rhs)) => {
+            x64_asm!(ops
+                ; cmp Rq(lhs), Rq(rhs)
+                ; mov Rq(res), 0
+                ; mov rdi, 1
+                ; cmove Rq(res), rdi);
+        }
+        NotVar(Reg(res), Reg(val)) => {
+            x64_asm!(ops
+                ; cmp Rq(val), 0
+                ; mov Rq(res), 0
+                ; mov rdi, 1
+                ; cmove Rq(res), rdi)
+        }
+        Copy(Reg(res), Reg(src)) => {
+            x64_asm!(ops; mov Rq(res), Rq(src));
+        }
+        StoreVar(Reg(res_ptr), Reg(src), ty) => {
+            let size = module.get_type_by_id(ty).unwrap().size() as i32;
+            assert_eq!(size, 8, "Can only store size 8 for now");
+
+            let stack_space = 0x20;
+
+            x64_asm!(ops
+                ; mov rcx, _vm_state
+                ; sub rsp, BYTE stack_space
+                ; mov r10, QWORD get_heap_address
+                ; call r10
+                ; add rsp, BYTE stack_space
+
+                ; mov rcx, rax
+                ; mov rdx, Rq(res_ptr)
+                ; mov r8, Rq(src)
+                ; sub rsp, BYTE stack_space
+                ; mov r10, QWORD store_address
+                ; call r10
+                ; add rsp, BYTE stack_space);
+        }
+        LoadVar(Reg(dst), Reg(src_ptr), ty) => {
+            let size = module.get_type_by_id(ty).unwrap().size() as i32;
+            assert_eq!(size, 8, "Can only store size 8 for now");
+            let stack_space = 0x20;
+
+            x64_asm!(ops
+                ; mov rcx, _vm_state
+                ; sub rsp, BYTE stack_space
+                ; mov r10, QWORD get_heap_address
+                ; call r10
+                ; add rsp, BYTE stack_space
+
+                ; mov rcx, rax
+                ; mov rdx, Rq(src_ptr)
+                ; sub rsp, BYTE stack_space
+                ; mov r10, QWORD load_address
+                ; call r10
+                ; add rsp, BYTE stack_space
+
+                ; mov Rq(dst), rax);
+        }
+        Alloc(Reg(res), t) => {
+            let ty = module.get_type_by_id(t).expect("type idx");
+            let stack_space = 0x20;
+
+            x64_asm!(ops
+                    ; mov rcx, _vm_state
+                    ; sub rsp, BYTE stack_space
+                    ; mov r10, QWORD get_heap_address
+                    ; call r10
+                    ; add rsp, BYTE stack_space
+
+                    ; mov rcx, rax
+                    ; mov rdx, QWORD ty as *const _ as i64
+                    ; sub rsp, BYTE stack_space
+                    ; mov r10, QWORD alloc_address
+                    ; call r10
+                    ; add rsp, BYTE stack_space
+
+                    ; mov Rq(res), rax);
+        }
+        Call(Reg(res), func, Reg(arg)) => {
+            let module = module.id;
+
+            // Recursive call
+            // We know we can call the native impl. directly
+            if func == fn_state.function_location {
+                let stack_space = 0x20;
+                x64_asm!(ops
+                    ; mov rcx, _vm
+                    ; mov rdx, _vm_state
+                    ; mov r8, Rq(arg)
+                    ; sub rsp, BYTE stack_space
+                    ; call ->_self
+                    ; add rsp, BYTE stack_space
+                    ; mov Rq(res), rax);
+            }
+            // Unknown target
+            // Conservatively call trampoline
+            else {
+                let stack_space = 0x20;
+                x64_asm!(ops
+                    ; mov rcx, _vm
+                    ; mov rdx, _vm_state
+                    ; mov r8w, func as i16
+                    ; shl r8, 16
+                    ; mov r8w, module as i16
+                    ; mov r9, Rq(arg)
+                    ; sub rsp, BYTE stack_space
+                    ; mov r10, QWORD trampoline_address
+                    ; call r10
+                    ; add rsp, BYTE stack_space
+                    ; mov Rq(res), rax);
+            }
+        }
+        ModuleCall(Reg(res), target, Reg(arg)) => {
+            let func = target.function;
+            let module = target.module;
+
+            let stack_space = 0x20;
+            x64_asm!(ops
+                    ; mov rcx, _vm
+                    ; mov rdx, _vm_state
+                    ; mov r8w, func as i16
+                    ; shl r8, 16
+                    ; mov r8w, module as i16
+                    ; mov r9, Rq(arg)
+                    ; sub rsp, BYTE stack_space
+                    ; mov r10, QWORD trampoline_address
+                    ; call r10
+                    ; add rsp, BYTE stack_space
+                    ; mov Rq(res), rax);
+        }
+        Lbl => {
+            let dyn_lbl = fn_state
+                .dynamic_labels
+                .entry(cur)
+                .or_insert(ops.new_dynamic_label());
+
+            x64_asm!(ops; =>*dyn_lbl);
+        }
+        Jmp(l) => {
+            let jmp_target = cur as i64 + l as i64;
+            let dyn_lbl = fn_state
+                .dynamic_labels
+                .entry(jmp_target as InstrLbl)
+                .or_insert(ops.new_dynamic_label());
+
+            x64_asm!(ops; jmp =>*dyn_lbl);
+        }
+        JmpIfNot(l, Reg(c)) => {
+            let jmp_target = cur as i64 + l as i64;
+            let dyn_lbl = fn_state
+                .dynamic_labels
+                .entry(jmp_target as InstrLbl)
+                .or_insert(ops.new_dynamic_label());
+
+            x64_asm!(ops
+                ; cmp Rq(c), 0
+                ; je =>*dyn_lbl);
+        }
+        JmpIf(l, Reg(c)) => {
+            let jmp_target = cur as i64 + l as i64;
+            let dyn_lbl = fn_state
+                .dynamic_labels
+                .entry(jmp_target as InstrLbl)
+                .or_insert(ops.new_dynamic_label());
+
+            x64_asm!(ops
+                ; cmp Rq(c), 0
+                ; jne =>*dyn_lbl);
+        }
+        Return(Reg(r)) => {
+            x64_asm!(ops
+                ; mov rax, Rq(r)
+                ; jmp ->_cleanup)
+        }
+        LoadConst(Reg(res), idx) => {
+            let const_decl = module.get_constant_by_id(idx).unwrap();
+
+            let stack_space = 0x20;
+            x64_asm!(ops
+                ; mov rcx, _vm_state
+                ; sub rsp, BYTE stack_space
+                ; mov r10, QWORD get_heap_address
+                ; call r10
+                ; add rsp, BYTE stack_space
+                ; mov rcx, rax
+                // TODO investigate, this wont work if the constdecl is moved, dangling ptr
+                ; mov rdx, QWORD &const_decl.type_ as *const _ as i64
+                ; mov r8, QWORD &const_decl.value as *const _ as i64
+                ; sub rsp, BYTE stack_space
+                ; mov r10, QWORD load_const_to_heap_address
+                ; add rsp, BYTE stack_space
+                ; mov Rq(res), rax);
+        }
+        Index(Reg(res), Reg(src), Reg(idx), ty) => {
+            let index_bytes: i32 = match module.get_type_by_id(ty).expect("type idx") {
+                Type::U64 | Type::Pointer(_) => 8,
+                ty => panic!("Illegal index operand: {:?}", ty),
+            };
+            // call get_heap_address to get heap ptr
+            // load idx, multiply with element size in bytes
+            // load src
+            // call heap.index_bytes on src value with idx
+            // write res
+
+            let stack_space = 0x20;
+            x64_asm!(ops
+                // Load first because they might be overriden
+                ; mov r14, Rq(src)
+                ; mov r15, Rq(idx)
+
+                ; mov rcx, _vm_state
+                ; sub rsp, BYTE stack_space
+                ; mov r10, QWORD get_heap_address
+                ; call r10
+                ; add rsp, BYTE stack_space
+                // rax contains pointer to heap, mov into rcx (first arg)
+                ; mov rcx, rax
+                ; mov rdi, rax // store in non-vol register for later
+                // compute idx and put into r8
+                ; mov rax, r15
+                ; mov r8, index_bytes
+                ; imul r8
+                ; mov r8, rax
+                // put src into rdx
+                ; mov r14, rdx
+                ; sub rsp, BYTE stack_space
+                ; mov r10, QWORD index_bytes_address
+                ; call r10
+                ; add rsp, BYTE stack_space
+                // rax contains proxy
+                // load value
+                ; mov rcx, rdi
+                ; mov rdx, rax
+                ; sub rsp, BYTE stack_space
+                ; mov r10, QWORD load_address
+                ; call r10
+                ; add rsp, BYTE stack_space
+
+                ; mov Rq(res), rax
+            );
         }
         instr => panic!("Unknown instr {:?}", instr),
     }

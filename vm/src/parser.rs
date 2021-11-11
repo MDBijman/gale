@@ -1,6 +1,6 @@
 extern crate nom;
 use crate::bytecode::{
-    ConstId, LongInstruction, Module, ModuleLoader, Param, LongConstDecl, LongConstant,
+    ConstId, LongInstruction, Module, ModuleLoader, Param, ConstDecl, Constant,
     LongFunction, Type, TypeDecl, VarId,
 };
 use nom::{
@@ -112,28 +112,28 @@ fn parse_type(i: &str) -> MyParseResult<Type> {
 * Expressions
 */
 
-fn parse_constant(i: &str) -> MyParseResult<LongConstant> {
+fn parse_constant(i: &str) -> MyParseResult<Constant> {
     preceded(
         space0,
         alt((
-            map(parse_u64, |n| LongConstant::U64(n)),
+            map(parse_u64, |n| Constant::U64(n)),
             parse_boolean,
             parse_string,
         )),
     )(i)
 }
 
-fn parse_boolean(i: &str) -> MyParseResult<LongConstant> {
+fn parse_boolean(i: &str) -> MyParseResult<Constant> {
     alt((
-        map(tag("true"), |_| LongConstant::U64(1)),
-        map(tag("false"), |_| LongConstant::U64(0)),
+        map(tag("true"), |_| Constant::U64(1)),
+        map(tag("false"), |_| Constant::U64(0)),
     ))(i)
 }
 
-fn parse_string(i: &str) -> MyParseResult<LongConstant> {
+fn parse_string(i: &str) -> MyParseResult<Constant> {
     map(
         delimited(tag("\""), take_while(|c| c != '\"'), tag("\"")),
-        |r| LongConstant::Str(String::from(r)),
+        |r| Constant::Str(String::from(r)),
     )(i)
 }
 
@@ -435,13 +435,13 @@ fn parse_module_declaration(i: &str) -> MyParseResult<String> {
     whitespace_around(preceded(tag("mod"), spaces_around(parse_identifier)))(i)
 }
 
-fn parse_const_section(i: &str) -> MyParseResult<Vec<LongConstDecl>> {
+fn parse_const_section(i: &str) -> MyParseResult<Vec<ConstDecl>> {
     map(
         opt(preceded(
             ws(tag(".const")),
             many0(map(
                 tuple((parse_u64, tag(":"), ws(parse_type), ws(parse_constant))),
-                |(idx, _, type_, value)| LongConstDecl {
+                |(idx, _, type_, value)| ConstDecl {
                     idx: std::convert::TryInto::try_into(idx).unwrap(),
                     type_,
                     value,

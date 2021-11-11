@@ -1,0 +1,13 @@
+mod id
+
+.code
+fn main ($0: &[&str]) -> ui64
+    movc $1, 1
+    neg $2, $1
+    mov $3, $2
+    jmpif $3 @lbl_0
+    mov $4, $0
+    mov $5, $4
+  lbl_0:
+    ret $5
+endfn
