@@ -1,3 +1,0 @@
-mod id;
-main: [str] -> ui64
-main s = s;

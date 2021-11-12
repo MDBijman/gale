@@ -1,0 +1,6 @@
+mod id;
+
+type 
+
+main: [str] -> ui64
+main s = std:parse_ui64 (s@0);
