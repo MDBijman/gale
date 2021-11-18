@@ -23,9 +23,12 @@ print: Function(name, params, return_type, body) ->
 
 print: Param(name, type)    -> !concat_str [!print Var(name), ": ", !print type];
 
+print: Panic()                    -> "panic!";
+print: Sizeof(res, arr)           -> !concat_str ["sizeof ", !print res, ", ", !print arr];
 print: Eq(res, lhs, rhs)          -> !concat_str ["eq ", !print res, ", ", !print lhs, ", ", !print rhs];
 print: Sub(res, lhs, rhs)         -> !concat_str ["sub ", !print res, ", ", !print lhs, ", ", !print rhs];
 print: Add(res, lhs, rhs)         -> !concat_str ["add ", !print res, ", ", !print lhs, ", ", !print rhs];
+print: Mul(res, lhs, rhs)         -> !concat_str ["mul ", !print res, ", ", !print lhs, ", ", !print rhs];
 print: Not(res, op)               -> !concat_str ["neg ", !print res, ", ", !print op];
 print: Index(res, src, idx, type) -> !concat_str ["idx ", !print res, ", ", !print src, ", ", !print idx, ", ", !print type];
 print: Store(into, UI64(n))       -> !concat_str ["movc ", !print into, ", ", !to_str n];

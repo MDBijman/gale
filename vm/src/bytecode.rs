@@ -1,5 +1,9 @@
+use dataflow::Lattice;
+
+use crate::dataflow::run;
+use crate::jit::LowInstruction;
 use crate::memory::{Heap, Pointer, ARRAY_HEADER_SIZE, STRING_HEADER_SIZE};
-use crate::parser::parse_bytecode_file;
+use crate::parser::{parse_bytecode_file, ParserError};
 use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
 use std::fmt::{self, Display};
@@ -47,15 +51,15 @@ impl ModuleLoader {
         ml
     }
 
-    pub fn load_module(&mut self, filename: &str) -> ModuleId {
-        let module = parse_bytecode_file(&self, filename).expect("module load");
-        self.add(module)
+    pub fn load_module(&mut self, filename: &str) -> Result<ModuleId, ParserError> {
+        let module = parse_bytecode_file(&self, filename)?;
+        Ok(self.add(module))
     }
 
-    pub fn from_module_file(filename: &str) -> Self {
+    pub fn from_module_file(filename: &str) -> Result<Self, ParserError> {
         let mut empty_loader = Self::default();
-        empty_loader.load_module(filename);
-        empty_loader
+        empty_loader.load_module(filename)?;
+        Ok(empty_loader)
     }
 }
 
@@ -218,6 +222,7 @@ pub enum LongInstruction {
     LtVarVar(VarId, VarId, VarId),
     SubVarVar(VarId, VarId, VarId),
     AddVarVar(VarId, VarId, VarId),
+    MulVarVar(VarId, VarId, VarId),
     NotVar(VarId, VarId),
 
     Return(VarId),
@@ -231,10 +236,12 @@ pub enum LongInstruction {
     Alloc(VarId, Type),
     LoadConst(VarId, ConstId),
     LoadVar(VarId, VarId, Type),
+    Sizeof(VarId, VarId),
     StoreVar(VarId, VarId, Type),
     Index(VarId, VarId, VarId, Type),
 
     Lbl(String),
+    Panic,
 }
 
 impl Into<Instruction> for LongInstruction {
@@ -248,10 +255,15 @@ impl Into<Instruction> for LongInstruction {
             LtVarVar(a, b, c) => Instruction::LtVarVar(a, b, c),
             SubVarVar(a, b, c) => Instruction::SubVarVar(a, b, c),
             AddVarVar(a, b, c) => Instruction::AddVarVar(a, b, c),
+            MulVarVar(a, b, c) => Instruction::MulVarVar(a, b, c),
             NotVar(a, b) => Instruction::NotVar(a, b),
             Return(v) => Instruction::Return(v),
             Print(v) => Instruction::Print(v),
+            Panic => Instruction::Panic,
+            Sizeof(a, b) => Instruction::Sizeof(a, b),
+
             LoadConst(a, b) => Instruction::LoadConst(a, b),
+
             s => panic!(
                 "This instruction variant cannot be converted automatically: {:?}",
                 s
@@ -418,6 +430,7 @@ pub enum Instruction {
     LtVarVar(VarId, VarId, VarId),
     SubVarVar(VarId, VarId, VarId),
     AddVarVar(VarId, VarId, VarId),
+    MulVarVar(VarId, VarId, VarId),
     NotVar(VarId, VarId),
 
     Return(VarId),
@@ -433,8 +446,10 @@ pub enum Instruction {
     LoadVar(VarId, VarId, TypeId),
     StoreVar(VarId, VarId, TypeId),
     Index(VarId, VarId, VarId, TypeId),
+    Sizeof(VarId, VarId),
     Lbl,
     Nop,
+    Panic,
 }
 
 impl Instruction {
@@ -447,12 +462,14 @@ impl Instruction {
             | Copy(r, _)
             | SubVarVar(r, _, _)
             | AddVarVar(r, _, _)
+            | MulVarVar(r, _, _)
             | Alloc(r, _)
             | LoadVar(r, _, _)
             | NotVar(r, _)
             | Call(r, _, _)
             | Index(r, _, _, _)
             | LoadConst(r, _)
+            | Sizeof(r, _)
             | ModuleCall(r, _, _) => vec![*r],
             JmpIfNot(_, _)
             | JmpIf(_, _)
@@ -460,6 +477,7 @@ impl Instruction {
             | Return(_)
             | Print(_)
             | Nop
+            | Panic
             | StoreVar(_, _, _)
             | Lbl => vec![],
         }
@@ -471,6 +489,7 @@ impl Instruction {
             LtVarVar(_, b, c)
             | EqVarVar(_, b, c)
             | SubVarVar(_, b, c)
+            | MulVarVar(_, b, c)
             | StoreVar(b, c, _)
             | Index(_, b, c, _)
             | AddVarVar(_, b, c) => vec![*b, *c],
@@ -480,10 +499,11 @@ impl Instruction {
             | ModuleCall(_, _, a)
             | Return(a)
             | Print(a)
+            | Sizeof(_, a)
             | JmpIf(_, a)
             | LoadVar(_, a, _)
             | Copy(_, a) => vec![*a],
-            Lbl | ConstU32(_, _) | Jmp(_) | Alloc(_, _) | LoadConst(_, _) | Nop => vec![],
+            Lbl | ConstU32(_, _) | Jmp(_) | Alloc(_, _) | LoadConst(_, _) | Nop | Panic => vec![],
         }
     }
 
@@ -502,12 +522,14 @@ impl Display for Instruction {
         use Instruction::*;
         match self {
             ConstU32(a, b) => write!(f, "movc ${}, {}", a, b),
-            Copy(a, b) => write!(f, "cp ${}, {}", a, b),
+            Copy(a, b) => write!(f, "mov ${}, ${}", a, b),
             EqVarVar(a, b, c) => write!(f, "eq ${}, ${}, ${}", a, b, c),
             LtVarVar(a, b, c) => write!(f, "lt ${}, ${}, ${}", a, b, c),
             SubVarVar(a, b, c) => write!(f, "sub ${}, ${}, ${}", a, b, c),
             AddVarVar(a, b, c) => write!(f, "add ${}, ${}, ${}", a, b, c),
-            NotVar(_, _) => todo!(),
+            MulVarVar(a, b, c) => write!(f, "mul ${}, ${}, ${}", a, b, c),
+            Sizeof(a, b) => write!(f, "sizeof ${}, ${}", a, b),
+            NotVar(a, b) => write!(f, "neg ${}, ${}", a, b),
             Return(a) => write!(f, "ret ${}", a),
             Print(r) => write!(f, "print ${}", r),
             Call(a, b, c) => write!(f, "call ${}, @{} (${})", a, b, c),
@@ -520,8 +542,9 @@ impl Display for Instruction {
             LoadConst(_, _) => todo!(),
             LoadVar(a, b, c) => write!(f, "load ${}, ${}, %{}", a, b, c),
             StoreVar(a, b, c) => write!(f, "store ${}, ${}, %{}", a, b, c),
-            Index(_, _, _, _) => todo!(),
+            Index(a, b, c, d) => write!(f, "idx ${}, ${}, ${}, %{}", a, b, c, d),
             Alloc(a, b) => write!(f, "alloc ${}, %{}", a, b),
+            Panic => write!(f, "panic!"),
             Lbl => write!(f, "label:"),
             Nop => todo!(),
         }
@@ -533,7 +556,7 @@ pub struct Function {
     pub name: String,
     pub location: FnId,
     pub type_id: TypeId,
-    pub implementation: FunctionImpl,
+    pub implementations: Vec<FunctionImpl>,
 }
 
 impl Function {
@@ -547,11 +570,11 @@ impl Function {
             name,
             location: FnId::MAX,
             type_id,
-            implementation: FunctionImpl::Bytecode(BytecodeImpl {
+            implementations: vec![FunctionImpl::Bytecode(BytecodeImpl {
                 varcount,
                 instructions,
                 has_native_impl: false,
-            }),
+            })],
         }
     }
 
@@ -560,8 +583,50 @@ impl Function {
             name,
             location: FnId::MAX,
             type_id,
-            implementation: FunctionImpl::Native(NativeImpl { fn_ptr: native }),
+            implementations: vec![FunctionImpl::Native(NativeImpl { fn_ptr: native })],
         }
+    }
+
+    pub fn has_bytecode_impl(&self) -> bool {
+        self.implementations
+            .iter()
+            .find(|x| x.is_bytecode())
+            .is_some()
+    }
+
+    pub fn has_low_bytecode_impl(&self) -> bool {
+        self.implementations
+            .iter()
+            .find(|x| x.is_low_bytecode())
+            .is_some()
+    }
+
+    pub fn has_native_impl(&self) -> bool {
+        self.implementations
+            .iter()
+            .find(|x| x.is_native())
+            .is_some()
+    }
+
+    pub fn bytecode_impl(&self) -> Option<&BytecodeImpl> {
+        self.implementations
+            .iter()
+            .find(|x| x.is_bytecode())
+            .map(|x| x.as_bytecode().unwrap())
+    }
+
+    pub fn low_bytecode_impl(&self) -> Option<&LowBytecodeImpl> {
+        self.implementations
+            .iter()
+            .find(|x| x.is_low_bytecode())
+            .map(|x| x.as_low_bytecode().unwrap())
+    }
+
+    pub fn native_impl(&self) -> Option<&NativeImpl> {
+        self.implementations
+            .iter()
+            .find(|x| x.is_native())
+            .map(|x| x.as_native().unwrap())
     }
 
     /// Creates a new Function from the output of the bytecode parser,
@@ -670,56 +735,31 @@ impl Function {
         )
     }
 
-    /// For each variable, computes the first and last instruction in which it is used (write or read).
-    pub fn liveness_intervals(&self) -> HashMap<VarId, (InstrLbl, InstrLbl)> {
-        let implementation = self.implementation.as_bytecode().expect("bytecode impl");
-        let mut intervals: HashMap<VarId, (InstrLbl, InstrLbl)> = HashMap::new();
-
-        intervals.insert(0, (0, 0));
-
-        for (idx, instr) in implementation.instructions.iter().enumerate() {
-            let reads_from = instr.read_variables();
-            let writes_to = instr.write_variables();
-
-            for var in reads_from {
-                let entry = intervals
-                    .entry(var)
-                    .or_insert((idx as InstrLbl, idx as InstrLbl));
-                entry.1 = idx as InstrLbl;
-            }
-
-            for var in writes_to {
-                let entry = intervals
-                    .entry(var)
-                    .or_insert((idx as InstrLbl, idx as InstrLbl));
-                entry.1 = idx as InstrLbl;
-            }
-        }
-
-        intervals
-    }
-
     /// Takes a map of liveness intervals and prints them neatly next to the instructions of this function.
     pub fn print_liveness(&self, intervals: &HashMap<VarId, (InstrLbl, InstrLbl)>) {
-        let implementation = self.implementation.as_bytecode().expect("bytecode impl");
+        let implementation = self.bytecode_impl().expect("bytecode impl");
 
         let mut current_vars: Vec<Option<VarId>> = Vec::new();
 
         for (idx, instr) in implementation.instructions.iter().enumerate() {
+            // Find a location for variables used for the first time
             for entry in intervals.iter() {
                 // First instr where var is live
                 if idx == entry.1 .0 as usize {
                     let e = current_vars.iter_mut().find(|e| e.is_none());
+                    // Put var in spot that is now empty
                     if e.is_some() {
                         *e.unwrap() = Some(*entry.0);
+                    // No empty spots, create new
                     } else {
                         current_vars.push(Some(*entry.0));
                     }
                 }
             }
 
-            let s = format!("{}", instr);
-            print!("{:<20}", s);
+            // Print locations of variables at current instruction
+            let s = format!("{:<3} {}", idx, instr);
+            print!("{:<30}", s);
 
             for v in current_vars.iter() {
                 if v.is_some() {
@@ -729,6 +769,7 @@ impl Function {
                 }
             }
 
+            // Remove variables that are not live anymore after this instruction
             for entry in intervals.iter() {
                 // Last instr where var is live
                 if idx == entry.1 .1 as usize {
@@ -736,7 +777,9 @@ impl Function {
                         .iter_mut()
                         .find(|v| v.is_some() && v.unwrap().eq(entry.0));
                     // "deallocate"
-                    *e.unwrap() = None;
+                    if e.is_some() {
+                        *e.unwrap() = None;
+                    }
                 }
             }
             println!();
@@ -747,6 +790,7 @@ impl Function {
 #[derive(Debug, Clone)]
 pub enum FunctionImpl {
     Bytecode(BytecodeImpl),
+    LowBytecode(LowBytecodeImpl),
     Native(NativeImpl),
 }
 
@@ -780,8 +824,24 @@ impl FunctionImpl {
             None
         }
     }
+
+    /// Returns `true` if the function impl is [`LowBytecode`].
+    ///
+    /// [`LowBytecode`]: FunctionImpl::LowBytecode
+    pub fn is_low_bytecode(&self) -> bool {
+        matches!(self, Self::LowBytecode(..))
+    }
+
+    pub fn as_low_bytecode(&self) -> Option<&LowBytecodeImpl> {
+        if let Self::LowBytecode(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
 }
 
+/// Bytecode implementation of function. This implementation can be executed by the interpreter.
 #[derive(Debug, Clone)]
 pub struct BytecodeImpl {
     pub varcount: u8,
@@ -789,6 +849,16 @@ pub struct BytecodeImpl {
     pub instructions: Vec<Instruction>,
 }
 
+/// Low bytecode implementation of function. This implementation is generated as part of the JIT phase.
+/// It is not directly interpreted but instead compiled further down to machine code.
+#[derive(Debug, Clone)]
+pub struct LowBytecodeImpl {
+    pub varcount: u8,
+    pub instructions: Vec<LowInstruction>,
+}
+
+/// Native implementation. This implementation can be used to implement built-in (i.e. Rust) implementations
+/// of functions. It is not the implementation generated by the JIT.
 #[derive(Debug, Clone)]
 pub struct NativeImpl {
     // We'll use transmute when calling so the in-out types don't matter
@@ -832,15 +902,14 @@ impl BasicBlock {
 }
 
 impl ControlFlowGraph {
-    pub fn from_function(fun: &Function) -> Self {
-        let implementation = fun.implementation.as_bytecode().expect("bytecode impl");
+    pub fn from_function_instructions(fun: &Function) -> Self {
+        let implementation = fun.bytecode_impl().expect("bytecode impl");
 
         // Create basic blocks
         // and edges between basic blocks
         // Greedily eat instructions and push into current basic block
         // When encountering a jump or label:
         //   create new basic block and repeat
-        // Link up basic blocks - how?/
 
         let mut basic_blocks = Vec::new();
 
@@ -865,6 +934,10 @@ impl ControlFlowGraph {
                     basic_blocks.push(current_block);
                     current_block = BasicBlock::starting_from(pc + 1);
                 }
+                Instruction::Panic => {
+                    basic_blocks.push(current_block);
+                    current_block = BasicBlock::starting_from(pc + 1);
+                } 
                 Instruction::Lbl => {
                     // If this is not the first in the block, we need to make a new block
                     if current_block.first != pc {
@@ -901,34 +974,27 @@ impl ControlFlowGraph {
             pc += 1;
         }
 
-        fn find_basic_block_starting_at(blocks: &Vec<BasicBlock>, pc: i16) -> usize {
-            blocks
-                .iter()
-                .position(|x| x.first == pc)
-                .expect("Basic block doesn't exist")
-        }
-
-        fn find_basic_block_ending_at(blocks: &Vec<BasicBlock>, pc: i16) -> usize {
-            blocks
-                .iter()
-                .position(|x| x.last == pc)
-                .expect("Basic block doesn't exist")
-        }
-
         for (pc, instr) in implementation.instructions.iter().enumerate() {
             match instr {
                 Instruction::Jmp(l) => {
                     let target = l + pc as i16;
-                    let child = find_basic_block_starting_at(&basic_blocks, target);
-                    let parent = find_basic_block_ending_at(&basic_blocks, pc as i16);
+                    let child =
+                        ControlFlowGraph::find_basic_block_starting_at(&basic_blocks, target);
+                    let parent =
+                        ControlFlowGraph::find_basic_block_ending_at(&basic_blocks, pc as i16);
                     basic_blocks[parent].add_child(child);
                     basic_blocks[child].add_parent(parent);
                 }
                 Instruction::JmpIf(l, _) => {
                     let target = l + pc as i16;
-                    let child = find_basic_block_starting_at(&basic_blocks, target);
-                    let child_no_jump = find_basic_block_starting_at(&basic_blocks, pc as i16 + 1);
-                    let parent = find_basic_block_ending_at(&basic_blocks, pc as i16);
+                    let child =
+                        ControlFlowGraph::find_basic_block_starting_at(&basic_blocks, target);
+                    let child_no_jump = ControlFlowGraph::find_basic_block_starting_at(
+                        &basic_blocks,
+                        pc as i16 + 1,
+                    );
+                    let parent =
+                        ControlFlowGraph::find_basic_block_ending_at(&basic_blocks, pc as i16);
                     basic_blocks[parent].add_child(child);
                     basic_blocks[parent].add_child(child_no_jump);
                     basic_blocks[child].add_parent(parent);
@@ -936,9 +1002,14 @@ impl ControlFlowGraph {
                 }
                 Instruction::JmpIfNot(l, _) => {
                     let target = l + pc as i16;
-                    let child = find_basic_block_starting_at(&basic_blocks, target);
-                    let child_no_jump = find_basic_block_starting_at(&basic_blocks, pc as i16 + 1);
-                    let parent = find_basic_block_ending_at(&basic_blocks, pc as i16);
+                    let child =
+                        ControlFlowGraph::find_basic_block_starting_at(&basic_blocks, target);
+                    let child_no_jump = ControlFlowGraph::find_basic_block_starting_at(
+                        &basic_blocks,
+                        pc as i16 + 1,
+                    );
+                    let parent =
+                        ControlFlowGraph::find_basic_block_ending_at(&basic_blocks, pc as i16);
                     basic_blocks[parent].add_child(child);
                     basic_blocks[parent].add_child(child_no_jump);
                     basic_blocks[child].add_parent(parent);
@@ -954,6 +1025,168 @@ impl ControlFlowGraph {
         }
     }
 
+    pub fn from_function_low_instructions(fun: &Function) -> Self {
+        let implementation = fun.bytecode_impl().expect("bytecode impl");
+
+        // Create basic blocks
+        // and edges between basic blocks
+        // Greedily eat instructions and push into current basic block
+        // When encountering a jump or label:
+        //   create new basic block and repeat
+        // Link up basic blocks - how?/
+
+        let mut basic_blocks = Vec::new();
+
+        let mut pc = 0;
+        let mut current_block = BasicBlock::starting_from(pc);
+
+        for instr in implementation.instructions.iter() {
+            match instr {
+                Instruction::Return(_) => {
+                    basic_blocks.push(current_block);
+                    current_block = BasicBlock::starting_from(pc + 1);
+                }
+                Instruction::Jmp(_) => {
+                    basic_blocks.push(current_block);
+                    current_block = BasicBlock::starting_from(pc + 1);
+                }
+                Instruction::JmpIf(_, _) => {
+                    basic_blocks.push(current_block);
+                    current_block = BasicBlock::starting_from(pc + 1);
+                }
+                Instruction::JmpIfNot(_, _) => {
+                    basic_blocks.push(current_block);
+                    current_block = BasicBlock::starting_from(pc + 1);
+                }
+                Instruction::Panic => {
+                    basic_blocks.push(current_block);
+                    current_block = BasicBlock::starting_from(pc + 1);
+                } 
+                Instruction::Lbl => {
+                    // If this is not the first in the block, we need to make a new block
+                    if current_block.first != pc {
+                        // Remove this label from this current_block
+                        current_block.last -= 1;
+
+                        // Create a new block starting from this lbl
+                        // do not replace current_block yet, need to update its children
+                        let mut new_block = BasicBlock::starting_from(pc);
+
+                        // We were not the first in the block, so previous instruction
+                        // was not a jump, so this is child of last block
+                        // current_block will be at basic_blocks.len, new block adds 1
+                        current_block.add_child(basic_blocks.len() + 1);
+                        new_block.add_parent(basic_blocks.len());
+
+                        // Commit the current_block
+                        basic_blocks.push(current_block);
+
+                        // Replace the current with the new
+                        current_block = new_block;
+
+                        // Extend one
+                        current_block.extend_one();
+                    } else {
+                        current_block.extend_one();
+                    }
+                }
+                _ => {
+                    current_block.extend_one();
+                }
+            }
+
+            pc += 1;
+        }
+
+        for (pc, instr) in implementation.instructions.iter().enumerate() {
+            match instr {
+                Instruction::Jmp(l) => {
+                    let target = l + pc as i16;
+                    let child =
+                        ControlFlowGraph::find_basic_block_starting_at(&basic_blocks, target);
+                    let parent =
+                        ControlFlowGraph::find_basic_block_ending_at(&basic_blocks, pc as i16);
+                    basic_blocks[parent].add_child(child);
+                    basic_blocks[child].add_parent(parent);
+                }
+                Instruction::JmpIf(l, _) => {
+                    let target = l + pc as i16;
+                    let child =
+                        ControlFlowGraph::find_basic_block_starting_at(&basic_blocks, target);
+                    let child_no_jump = ControlFlowGraph::find_basic_block_starting_at(
+                        &basic_blocks,
+                        pc as i16 + 1,
+                    );
+                    let parent =
+                        ControlFlowGraph::find_basic_block_ending_at(&basic_blocks, pc as i16);
+                    basic_blocks[parent].add_child(child);
+                    basic_blocks[parent].add_child(child_no_jump);
+                    basic_blocks[child].add_parent(parent);
+                    basic_blocks[child_no_jump].add_parent(parent);
+                }
+                Instruction::JmpIfNot(l, _) => {
+                    let target = l + pc as i16;
+                    let child =
+                        ControlFlowGraph::find_basic_block_starting_at(&basic_blocks, target);
+                    let child_no_jump = ControlFlowGraph::find_basic_block_starting_at(
+                        &basic_blocks,
+                        pc as i16 + 1,
+                    );
+                    let parent =
+                        ControlFlowGraph::find_basic_block_ending_at(&basic_blocks, pc as i16);
+                    basic_blocks[parent].add_child(child);
+                    basic_blocks[parent].add_child(child_no_jump);
+                    basic_blocks[child].add_parent(parent);
+                    basic_blocks[child_no_jump].add_parent(parent);
+                }
+                _ => {}
+            }
+        }
+
+        Self {
+            blocks: basic_blocks,
+            from_fn: fun.location,
+        }
+    }
+
+    /// For each variable, computes the first and last instruction in which it is used (write or read).
+    pub fn liveness_intervals(&self, func: &Function) -> HashMap<VarId, (InstrLbl, InstrLbl)> {
+        let mut intervals: HashMap<VarId, (InstrLbl, InstrLbl)> = HashMap::new();
+
+        let liveness_analysis_results = run(self, func);
+
+        for (instr, live_at_instr) in liveness_analysis_results {
+            for var in live_at_instr.data() {
+                // We add one here (and in the first if) since liveness analysis gives results
+                // that indicate if a variables is live _after_ executing a particular instruction
+                // JIT expects the interval to end at the last instruction to use a variable, not 1 before it 
+                let v = intervals.entry(*var).or_insert((instr, instr));
+                if instr > v.1 {
+                    v.1 = instr;
+                };
+                if instr < v.0 {
+                    v.0 = instr;
+                };
+            }
+        }
+
+        intervals
+    }
+
+    fn find_basic_block_starting_at(blocks: &Vec<BasicBlock>, pc: i16) -> usize {
+        blocks
+            .iter()
+            .position(|x| x.first == pc)
+            .expect("Basic block doesn't exist")
+    }
+
+    fn find_basic_block_ending_at(blocks: &Vec<BasicBlock>, pc: i16) -> usize {
+        blocks
+            .iter()
+            .position(|x| x.last == pc)
+            .expect("Basic block doesn't exist")
+    }
+
     pub fn print_dot(&self, src_fn: &Function) {
         fn print_block(bb: &BasicBlock, instructions: &Vec<Instruction>) {
             print!("\"");
@@ -965,7 +1198,7 @@ impl ControlFlowGraph {
             print!("\"");
         }
 
-        let implementation = src_fn.implementation.as_bytecode().expect("bytecode impl");
+        let implementation = src_fn.bytecode_impl().expect("bytecode impl");
 
         assert_eq!(self.from_fn, src_fn.location);
 

@@ -5,15 +5,17 @@ mod memory;
 mod parser;
 mod standard_library;
 mod vm;
+mod dataflow;
 
 extern crate clap;
 
+use crate::parser::ParserError;
 use bytecode::ModuleLoader;
 use clap::{App, Arg};
 use std::time;
 use vm::VM;
 
-fn main() {
+fn main() -> Result<(), ParserError> {
     let startup_time = time::SystemTime::now();
 
     let matches = App::new("Gale VM")
@@ -68,21 +70,21 @@ fn main() {
     let use_jit = matches.is_present("enable_jit");
 
     let mut module_loader = ModuleLoader::from_module(standard_library::std_module());
-    let main_module_id = module_loader.load_module(input_file_name);
-    let mut vm = VM::new(module_loader);
+    let main_module_id = module_loader.load_module(input_file_name)?;
+    let verbosity_level = matches.occurrences_of("verbosity");
+    
+    let vm = if verbosity_level == 0 {
+        VM::new(module_loader)
+    } else {
+        println!("verbosity: {} - enabling debug output", verbosity_level);
+        VM::new_debug(module_loader)
+    };
+
     let main_module = vm
         .module_loader
         .get_by_id(main_module_id)
         .expect("missing module")
         .expect("missing impl");
-
-    let verbosity_level = matches.occurrences_of("verbosity");
-    if verbosity_level == 0 {
-        vm.debug = false;
-    } else {
-        println!("verbosity: {} - enabling debug output", verbosity_level);
-        vm.debug = true;
-    };
 
     let state = vm.run(main_module, arguments, use_jit);
 
@@ -91,5 +93,7 @@ fn main() {
     let finish_time = startup_time.elapsed().unwrap().as_nanos();
     if measure_time {
         println!("elapsed: {:.3}s", finish_time as f64 / 1_000_000_000 as f64);
-    }
+    };
+
+    Ok(())
 }

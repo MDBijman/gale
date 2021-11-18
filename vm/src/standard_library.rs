@@ -13,6 +13,7 @@ extern "C" fn parse_ui64(state: &mut VMState, ptr: Pointer) -> u64 {
     };
 
     if DEBUG_STDLIB {
+        println!("parse_ui64: {}", str_ptr.to_str().unwrap());
         println!(
             "parse_ui64: {}",
             str_ptr.to_str().unwrap().parse::<u64>().unwrap()

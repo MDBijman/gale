@@ -1,0 +1,24 @@
+mod vars;
+
+main: [str] -> ui64
+main args = {
+    let v1: ui64 = 1;
+    let v2: ui64 = 1;
+    let v3: ui64 = 1;
+    let v4: ui64 = 1;
+    let v5: ui64 = 1;
+    let v6: ui64 = 1;
+    let v7: ui64 = 1;
+    let v8: ui64 = 1;
+    let v9: ui64 = 1;
+    let v10: ui64 = 1;
+    let v11: ui64 = 1;
+    let v12: ui64 = 1;
+    let v13: ui64 = 1;
+    let v14: ui64 = 1;
+    let sum: ui64 = 0;
+
+    sum = sum + v1 + v2 + v3 + v4 + v5 + v6 + v7 + v8 + v9 + v10 + v11 + v12 + v13 + v14;
+
+    sum
+};

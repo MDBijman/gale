@@ -45,7 +45,7 @@ impl Interpreter {
             .get_function_by_id(target.function)
             .expect("function id");
 
-        let bytecode = func.implementation.as_bytecode().expect("bytecode");
+        let bytecode = func.bytecode_impl().expect("bytecode");
 
         let stack_size = bytecode.varcount;
         let new_base = state.stack.slots.len() as isize;
@@ -100,8 +100,7 @@ impl Interpreter {
         &module
             .get_function_by_id(state.func)
             .expect("function")
-            .implementation
-            .as_bytecode()
+            .bytecode_impl()
             .expect("bytecode impl")
             .instructions[state.ip as usize]
     }
@@ -176,6 +175,14 @@ impl Interpreter {
                     .set_stack_var(*dest, val_a + val_b);
                 vm_state.interpreter_state.ip += 1;
             }
+            Instruction::MulVarVar(dest, a, b) => {
+                let val_a = vm_state.interpreter_state.get_stack_var(*a);
+                let val_b = vm_state.interpreter_state.get_stack_var(*b);
+                vm_state
+                    .interpreter_state
+                    .set_stack_var(*dest, val_a * val_b);
+                vm_state.interpreter_state.ip += 1;
+            }
             Instruction::NotVar(dest, src) => {
                 let src_val = vm_state.interpreter_state.get_stack_var(*src);
                 vm_state
@@ -216,8 +223,7 @@ impl Interpreter {
                     let new_func = current_module
                         .get_function_by_id(vm_state.interpreter_state.func)
                         .expect("function")
-                        .implementation
-                        .as_bytecode()
+                        .bytecode_impl()
                         .expect("bytecode impl");
 
                     vm_state
@@ -252,49 +258,49 @@ impl Interpreter {
                     .interpreter_state
                     .increment_function_counter(func.location);
 
-                match &func.implementation {
-                    FunctionImpl::Bytecode(implementation) => {
-                        let stack_size = implementation.varcount;
+                if func.has_native_impl() {
+                    let implementation = func.native_impl().unwrap();
+                    let arg_value = vm_state.interpreter_state.get_stack_var(*arg);
 
-                        let new_base = vm_state.interpreter_state.stack.slots.len() as isize;
+                    let res = unsafe {
+                        let unsafe_fn_ptr = std::mem::transmute::<_, fn(&mut VMState, u64) -> u64>(
+                            implementation.fn_ptr,
+                        );
+                        (unsafe_fn_ptr)(vm_state, arg_value)
+                    };
 
-                        vm_state
-                            .interpreter_state
-                            .stack
-                            .slots
-                            .resize(new_base as usize + stack_size as usize, u64::MAX);
+                    vm_state.interpreter_state.set_stack_var(*r, res);
 
-                        let new_ci = CallInfo {
-                            called_by_native: false,
-                            var_base: new_base,
-                            result_var: *r,
-                            prev_ip: vm_state.interpreter_state.ip,
-                            prev_fn: vm_state.interpreter_state.func,
-                            prev_mod: vm_state.interpreter_state.module,
-                        };
+                    vm_state.interpreter_state.ip += 1;
+                } else if func.has_bytecode_impl() {
+                    let implementation = func.bytecode_impl().unwrap();
+                    let stack_size = implementation.varcount;
 
-                        let val = vm_state.interpreter_state.get_stack_var(*arg);
-                        vm_state.interpreter_state.call_info.push(new_ci);
-                        vm_state.interpreter_state.set_stack_var(0, val);
-                        vm_state.interpreter_state.ip = 0;
-                        vm_state.interpreter_state.func = target.function;
-                        vm_state.interpreter_state.module = target.module;
-                    }
-                    FunctionImpl::Native(implementation) => {
-                        let arg_value = vm_state.interpreter_state.get_stack_var(*arg);
+                    let new_base = vm_state.interpreter_state.stack.slots.len() as isize;
 
-                        let res = unsafe {
-                            let unsafe_fn_ptr = std::mem::transmute::<
-                                _,
-                                fn(&mut VMState, u64) -> u64,
-                            >(implementation.fn_ptr);
-                            (unsafe_fn_ptr)(vm_state, arg_value)
-                        };
+                    vm_state
+                        .interpreter_state
+                        .stack
+                        .slots
+                        .resize(new_base as usize + stack_size as usize, u64::MAX);
 
-                        vm_state.interpreter_state.set_stack_var(*r, res);
+                    let new_ci = CallInfo {
+                        called_by_native: false,
+                        var_base: new_base,
+                        result_var: *r,
+                        prev_ip: vm_state.interpreter_state.ip,
+                        prev_fn: vm_state.interpreter_state.func,
+                        prev_mod: vm_state.interpreter_state.module,
+                    };
 
-                        vm_state.interpreter_state.ip += 1;
-                    }
+                    let val = vm_state.interpreter_state.get_stack_var(*arg);
+                    vm_state.interpreter_state.call_info.push(new_ci);
+                    vm_state.interpreter_state.set_stack_var(0, val);
+                    vm_state.interpreter_state.ip = 0;
+                    vm_state.interpreter_state.func = target.function;
+                    vm_state.interpreter_state.module = target.module;
+                } else {
+                    panic!("Unknown function implementation");
                 }
             }
             Instruction::Jmp(instr) => {
@@ -385,13 +391,23 @@ impl Interpreter {
                 let ptr = vm_state.interpreter_state.get_stack_var(*ptr).into();
                 match current_module.get_type_by_id(*ty_idx).expect("type idx") {
                     Type::U64 | Type::Pointer(_) => {
-                        let new_ptr = vm_state.heap.index::<u64>(ptr, idx as usize);
+                        let new_ptr = vm_state.heap.index::<u64>(ptr, idx as usize + 1 /* array header */);
                         let loaded_value = unsafe { vm_state.heap.load::<u64>(new_ptr) };
                         vm_state
                             .interpreter_state
                             .set_stack_var(*dest, loaded_value);
                     }
                     ty => panic!("Illegal index operand: {:?}", ty),
+                }
+
+                vm_state.interpreter_state.ip += 1;
+            }
+            Instruction::Sizeof(dest, src) => {
+                let src_ptr = vm_state.interpreter_state.get_stack_var(*src);
+
+                unsafe {
+                    let size = vm_state.heap.load_u64(src_ptr.into());
+                    vm_state.interpreter_state.set_stack_var(*dest, size);
                 }
 
                 vm_state.interpreter_state.ip += 1;

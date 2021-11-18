@@ -1,4 +1,4 @@
-mod simple;
+mod fib;
 
 main: [str] -> ui64
 main s = fib (std:parse_ui64 (s@0));

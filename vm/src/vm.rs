@@ -12,10 +12,10 @@ pub struct VMState {
 }
 
 impl VMState {
-    pub fn new(entry: CallTarget, entry_framesize: u64) -> VMState {
+    pub fn new(entry: CallTarget, entry_framesize: u64, debug: bool) -> VMState {
         VMState {
             interpreter_state: InterpreterState::new(entry, entry_framesize),
-            jit_state: JITState::default(),
+            jit_state: JITState::new(debug),
             result: None,
             heap: Box::new(Heap::default()),
         }
@@ -64,7 +64,7 @@ impl VM {
     pub fn run(&self, main_module: &Module, args: Vec<String>, jit: bool) -> VMState {
         let main_id = main_module.find_function_id("main").expect("function");
         let main_fn = main_module.get_function_by_name("main").expect("function");
-        let bytecode = main_fn.implementation.as_bytecode().expect("bytecode impl");
+        let bytecode = main_fn.bytecode_impl().expect("bytecode impl");
         let main_type = main_module
             .get_type_by_id(main_fn.type_id)
             .expect("main function type idx");
@@ -90,6 +90,7 @@ impl VM {
         let mut state = VMState::new(
             CallTarget::new(main_module.id, main_id),
             main_frame_size.into(),
+            self.debug,
         );
 
         state.interpreter_state.init_empty();
@@ -107,7 +108,7 @@ impl VM {
                     let str_ptr = state.heap.allocate_type(&Type::Str(Size::Sized(arg.len())));
                     state.heap.store_string(str_ptr, arg.as_str());
                     *(raw_arr_ptr as *mut u64) = str_ptr.into();
-                    raw_arr_ptr = raw_arr_ptr.add(1);
+                    raw_arr_ptr = raw_arr_ptr.add(8);
                 }
             }
 
@@ -121,6 +122,7 @@ impl VM {
         }
 
         if self.debug {
+            println!("Execution finished");
             println!("{}", state.heap.heap_dump());
         }
 

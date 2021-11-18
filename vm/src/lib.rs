@@ -5,6 +5,7 @@ mod memory;
 mod parser;
 mod standard_library;
 mod vm;
+mod dataflow;
 
 extern crate nom;
 

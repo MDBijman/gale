@@ -8,7 +8,9 @@ gather_function_type: (env, FnDecl(name, type)) ->
   in (.put[name, as_type] env, FnDecl(name, type));
 gather_function_type: _ -> .id;
 
-add_std_fns: env -> !put["std:parse_ui64", Type(Func(Builtin("str"), Builtin("ui64")))];
+add_std_fns: env -> 
+    !put["std:parse_ui64", Type(Func(Builtin("str"), Builtin("ui64")))]
+  > !put["std:print_str", Type(Func(Builtin("str"), Unit()))];
 
 typecheck: (env, FnDecl(name, type)) -> .id;
 
@@ -19,10 +21,42 @@ typecheck: (env, FnDef(func, pattern, expr)) ->
   in new_env       := !extract_pattern_types (env, pattern, input_type)
   in (env, FnDef(func, pattern, !typecheck (new_env, expr {output_type, ReturnType(output_type)}) > .second){function_type});
 
+# Seq with Unit type result (no final expression)
+typecheck: (env, Seq(elems)) -> (new_env, checked_elems) := !env_map[.typecheck] (env, elems) in (new_env, Seq(checked_elems));
+
+# Seq with final expression
+typecheck: (env, Seq(elems, res){Type(t)}) ->
+     (new_env, checked_elems) := !env_map[.typecheck] (env, elems)
+  in (last_env, checked_res) := !typecheck (new_env, res {Type(t)})
+  in (last_env, Seq(checked_elems, checked_res));
+
+typecheck: (env, For(binding, list, body)) -> 
+     (list_env, checked_list{Type(t)}) := !typecheck (env, list)
+  in binding_t := Type(!element_type t)
+  in bound_env := .put[binding, binding_t] env
+  in (body_env, checked_body) := !typecheck (bound_env, body)
+  in (body_env, For(binding{Type(t)}, checked_list, checked_body));
+
 typecheck: (env, Let(decls, body) {Type(t)}) -> 
      (new_env, checked_decls) := !env_map[.typecheck] (env, decls)
   in (_, checked_body) := !typecheck (new_env, body {Type(t)})
   in (env, Let(checked_decls, checked_body));
+
+typecheck: (env, Let(decls)) -> 
+     (new_env, checked_decls) := !env_map[.typecheck] (env, decls)
+  in (new_env, Let(checked_decls));
+
+typecheck: (env, If(cond, body)) -> 
+     (cond_env, checked_cond) := !typecheck (env, cond{Type(Builtin("bool"))})
+  in (body_env, checked_body) := !typecheck (cond_env, body)
+  in (body_env, If(checked_cond, checked_body));
+
+typecheck: (env, Assign(Ref(n), e)) -> 
+     Type(t) := .get[n] env
+  in (new_env, checked_e{Type(et)}) := !typecheck (env, e{Type(t)})
+  in (.is_subtype (Type(et), Type(t))
+  ? (new_env, Assign(Ref(n), checked_e{Type(et)}))
+  : (new_env, Assign(Ref(n), checked_e{TypeError("Cannot assign to different type")})));
 
 typecheck: (env, Decl(name, type, expr)) ->
      as_type := !typeof type
@@ -39,10 +73,38 @@ typecheck: (env, Int(i){Type(t)}) ->
   ? (env, Int(i) {Type(t)})
   : (env, Int(i) {TypeError("Cannot cast to expected type")}));
 
+# Add
+
 typecheck: (env, Add(lhs, rhs){Type(t)}) ->
   (env, Add(!typecheck (env, lhs{Type(t)}) > !second, !typecheck (env, rhs{Type(t)}) > !second){Type(t)});
+
+typecheck: (env, Add(lhs, rhs)) ->
+     (lhs_env, checked_lhs{Type(lhs_type)}) := !typecheck (env, lhs)
+  in (lhs_env, Add(checked_lhs{Type(lhs_type)}, !typecheck (env, rhs{Type(lhs_type)}) > !second){Type(lhs_type)});
+
+# Sub
+
 typecheck: (env, Sub(lhs, rhs){Type(t)}) ->
   (env, Sub(!typecheck (env, lhs{Type(t)}) > !second, !typecheck (env, rhs{Type(t)}) > !second){Type(t)});
+
+typecheck: (env, Sub(lhs, rhs)) ->
+     (lhs_env, checked_lhs{Type(lhs_type)}) := !typecheck (env, lhs)
+  in (lhs_env, Sub(checked_lhs{Type(lhs_type)}, !typecheck (env, rhs{Type(lhs_type)}) > !second){Type(lhs_type)});
+
+# Mul
+
+typecheck: (env, Mul(lhs, rhs){Type(t)}) ->
+  (env, Mul(!typecheck (env, lhs{Type(t)}) > !second, !typecheck (env, rhs{Type(t)}) > !second){Type(t)});
+
+typecheck: (env, Mul(lhs, rhs)) ->
+     (lhs_env, checked_lhs{Type(lhs_type)}) := !typecheck (env, lhs)
+  in (lhs_env, Mul(checked_lhs{Type(lhs_type)}, !typecheck (env, rhs{Type(lhs_type)}) > !second){Type(lhs_type)});
+
+# Eq
+
+typecheck: (env, Eq(lhs, rhs){Type(Builtin("bool"))}) ->
+     (lhs_env, checked_lhs{Type(lhs_type)}) := !typecheck (env, lhs)
+  in (env, Eq(checked_lhs{Type(lhs_type)}, !typecheck (env, rhs{Type(lhs_type)}) > !second){Type(Builtin("bool"))});
 
 typecheck: (env, Return(e){ReturnType(t)}) ->
   !typecheck (env, e {Type(t)});
@@ -67,10 +129,19 @@ typecheck: (env, Ref(n){Type(t)}) ->
      Type(lt) := .get[n] env
   in (env, .is_subtype (Type(lt), Type(t)) ? Ref(n){Type(lt)} : Ref(n){TypeError("Different type")});
 
+typecheck: (env, Ref(n)) ->
+     Type(lt) := .get[n] env
+  in (env, Ref(n){Type(lt)});
+
 typecheck: (env, Appl(Ref(fn), arg){Type(t)}) -> 
      Type(Func(i, o)) := .get[fn] env
   in checked_arg := !typecheck (env, arg {Type(i)}) > !second
   in (env, .is_subtype (Type(o), Type(t)) ? Appl(fn, checked_arg){Type(o)} : TypeError("Different types"));
+
+typecheck: (env, Appl(Ref(fn), arg)) -> 
+     Type(Func(i, o)) := .get[fn] env
+  in checked_arg := !typecheck (env, arg {Type(i)}) > !second
+  in (env, .eq (Type(o), Type(Unit())) ? Appl(fn, checked_arg) : TypeError("Different types"));
 
 typecheck: (env, Match(expr, branches){Type(t)}) -> 
      checked_expr{Type(t2)} := !typecheck (env, expr{Type(Any())}) > !second
@@ -99,9 +170,12 @@ extract_pattern_types: (env, PatternStr(_), _) -> env;
 
 # Working with Types
 
+element_type: HeapArray(ts) -> ts;
+
 is_integer_type: Builtin("ui64") -> .id;
 
 typeof: t -> Type(!typeof_type t);
+typeof_type: TypeId("bool") -> Builtin("bool");
 typeof_type: TypeId("ui64") -> Builtin("ui64");
 typeof_type: TypeId("str") -> Builtin("str");
 typeof_type: TypeId(n)     -> Ref(n);

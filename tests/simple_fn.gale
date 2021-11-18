@@ -1,0 +1,8 @@
+mod simple;
+
+main: [str] -> ui64
+main s = let a: ui64 = 3 in (inc a);
+
+inc: ui64 -> ui64
+inc a = a + 1;
+

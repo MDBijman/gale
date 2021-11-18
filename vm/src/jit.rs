@@ -18,6 +18,83 @@ macro_rules! x64_asm {
         )
     }
 }
+
+macro_rules! x64_asm_resolve_mem {
+    /*
+    * Uses $src from a register if it is in a register, otherwise loads it from memory.
+    */
+    ($ops:ident, $mem:ident ; $op:tt $reg:tt, resolve($src:expr)) => {
+        match $mem.lookup($src) {
+            VarLoc::Register(l) => x64_asm!($ops ; $op $reg, Rq(l as u8)),
+            VarLoc::Stack => x64_asm!($ops ; $op $reg, QWORD [rbp + ($src as i32) * 8]),
+        }
+    };
+    /*
+    * Writes to $dst in a register if it is in a register, otherwise writes into its memory location.
+    */
+    ($ops:ident, $mem:ident ; $op:tt resolve($dst:expr), $reg:tt) => {
+        match $mem.lookup($dst) {
+            VarLoc::Register(l) => x64_asm!($ops ; $op Rq(l as u8), $reg),
+            VarLoc::Stack => x64_asm!($ops ; $op QWORD [rbp + ($dst as i32) * 8], $reg),
+        }
+    };
+    /*
+    * Resolves the locations of both $src and $dst, using registers whenever possible.
+    * If both are in memory, we need to use an intermediary register so RSI is used.
+    * This overwrites whatever was in RSI!
+    */
+    ($ops:ident, $mem:ident ; $op:tt resolve($dst:expr), resolve($src:expr)) => {
+        match ($mem.lookup($dst), $mem.lookup($src)) {
+            (VarLoc::Register(reg_dst), VarLoc::Register(reg_src)) => x64_asm!($ops ; $op Rq(reg_dst as u8), Rq(reg_src as u8)),
+            (VarLoc::Stack, VarLoc::Register(reg_src)) => x64_asm!($ops ; $op QWORD [rbp + ($dst as i32) * 8], Rq(reg_src as u8)),
+            (VarLoc::Register(reg_dst), VarLoc::Stack) => x64_asm!($ops ; $op Rq(reg_dst as u8), QWORD [rbp + ($src as i32) * 8]),
+            (VarLoc::Stack, VarLoc::Stack) => x64_asm!($ops
+                ; mov rsi, QWORD [rbp + ($src as i32) * 8]
+                ; $op QWORD [rbp + ($dst as i32) * 8], rsi),
+        }
+    };
+
+    /*
+    * Resolves the locations of both $src and $dst, using registers whenever possible.
+    * This may overwrite whatever was in RSI and RDI, depending on which variables are in memory!
+    */
+    ($ops:ident, $mem:ident ; $op:tt QWORD [resolve($dst:expr)], resolve($src:expr)) => {
+        match ($mem.lookup($dst), $mem.lookup($src)) {
+            (VarLoc::Register(reg_dst), VarLoc::Register(reg_src)) => x64_asm!($ops ; $op QWORD [Rq(reg_dst as u8)], Rq(reg_src as u8)),
+            (VarLoc::Stack, VarLoc::Register(reg_src)) => x64_asm!($ops
+                ; mov rsi, QWORD [rbp + ($dst as i32) * 8]
+                ; $op QWORD [rsi], Rq(reg_src as u8)),
+            (VarLoc::Register(reg_dst), VarLoc::Stack) => x64_asm!($ops
+                ; mov rsi, QWORD [rbp + ($src as i32) * 8]
+                ; $op QWORD [Rq(reg_dst as u8)], rsi),
+            (VarLoc::Stack, VarLoc::Stack) => x64_asm!($ops
+                ; mov rsi, QWORD [rbp + ($src as i32) * 8]
+                ; mov rdi, QWORD [rbp + ($dst as i32) * 8]
+                ; $op QWORD [rdi], rsi),
+        }
+    };
+
+    /*
+    * Resolves the locations of both $src and $dst, using registers whenever possible.
+    * This may overwrite whatever was in RSI and RDI, depending on which variables are in memory!
+    */
+    ($ops:ident, $mem:ident ; $op:tt resolve($dst:expr), QWORD [resolve($src:expr)]) => {
+        match ($mem.lookup($dst), $mem.lookup($src)) {
+            (Some(reg_dst), Some(reg_src)) => x64_asm!($ops ; $op Rq(reg_dst as u8), QWORD [Rq(reg_src as u8)]),
+            (None, Some(reg_src)) => x64_asm!($ops
+                ; mov rdi, QWORD [Rq(reg_src as u8)]
+                ; $op QWORD [rbp + ($src as i32) * 8], rdi),
+            (Some(reg_dst), None) => x64_asm!($ops
+                ; mov rdi, QWORD [rbp + ($src as i32) * 8]
+                ; $op Rq(reg_dst as u8), QWORD [rdi]),
+            (None, None) => x64_asm!($ops
+                ; mov rsi, QWORD [rbp + ($src as i32) * 8]
+                ; mov rdi, QWORD [rbp + ($dst as i32) * 8]
+                ; $op rdi, QWORD [rsi]),
+        }
+    };
+}
+
 use nom::AsBytes;
 use std::marker::PhantomPinned;
 use std::{collections::HashMap, fmt::Debug, mem};
@@ -43,6 +120,7 @@ pub enum LowInstruction {
     LtVarVar(Operand, Operand, Operand),
     SubVarVar(Operand, Operand, Operand),
     AddVarVar(Operand, Operand, Operand),
+    MulVarVar(Operand, Operand, Operand),
     NotVar(Operand, Operand),
     Return(Operand),
     Print(Operand),
@@ -56,9 +134,11 @@ pub enum LowInstruction {
     LoadVar(Operand, Operand, TypeId),
     StoreVar(Operand, Operand, TypeId),
     Index(Operand, Operand, Operand, TypeId),
+    Sizeof(Operand, Operand),
     Lbl,
     Nop,
-    
+    Panic,
+
     // LowInstruction specific
     Push(VarId),
     Pop(u8),
@@ -81,6 +161,9 @@ impl From<Instruction> for LowInstruction {
             Instruction::AddVarVar(a, b, c) => {
                 LowInstruction::AddVarVar(a.into(), b.into(), c.into())
             }
+            Instruction::MulVarVar(a, b, c) => {
+                LowInstruction::MulVarVar(a.into(), b.into(), c.into())
+            }
             Instruction::NotVar(a, b) => LowInstruction::NotVar(a.into(), b.into()),
             Instruction::Return(a) => LowInstruction::Return(a.into()),
             Instruction::Print(a) => LowInstruction::Print(a.into()),
@@ -98,8 +181,10 @@ impl From<Instruction> for LowInstruction {
             Instruction::Index(a, b, c, d) => {
                 LowInstruction::Index(a.into(), b.into(), c.into(), d)
             }
+            Instruction::Sizeof(a, b) => LowInstruction::Sizeof(a.into(), b.into()),
             Instruction::Lbl => LowInstruction::Lbl,
             Instruction::Nop => LowInstruction::Nop,
+            Instruction::Panic => LowInstruction::Panic,
         }
     }
 }
@@ -146,6 +231,13 @@ pub struct JITState {
 }
 
 impl JITState {
+    pub fn new(debug: bool) -> Self {
+        JITState {
+            compiled_fns: HashMap::default(),
+            config: JITConfig { debug: debug },
+        }
+    }
+
     pub fn set_config(&mut self, new_config: JITConfig) {
         self.config = new_config;
     }
@@ -226,21 +318,33 @@ impl JITEngine {
     }
 
     pub fn compile(state: &mut JITState, module: &Module, func: &Function) {
-        let implementation = func.implementation.as_bytecode().expect("bytecode impl");
-        let cfg = ControlFlowGraph::from_function(func);
+        let implementation = func
+            .bytecode_impl()
+            .expect("Can only JIT function with bytecode implementation");
+        // let low_instructions: Vec<LowInstruction> = implementation
+        //     .instructions
+        //     .iter()
+        //     .map(|x| From::from(*x))
+        //     .collect();
+        let cfg = ControlFlowGraph::from_function_instructions(func);
         let mut fn_state = FunctionJITState::new(func.location);
         let native_fn_loc = fn_state.ops.offset();
+
+        let liveness = cfg.liveness_intervals(func);
+        let allocations = VariableLocations::from_liveness_intervals(&liveness);
+        fn_state.variable_locations = Some(allocations);
+
 
         // RCX contains &VM
         // RDX contains &VMState
         // R8 contains arg
 
-        let mut space_for_variables = implementation.varcount * 8;
+        let mut space_for_variables = implementation.varcount as i32 * 8;
 
         // Align stack at the same time
-        // At the beginning of the function, stack is aligned (return address + 5 register saves)
-        // Check if the the space for variables keeps stack aligned, otherwise add 8
-        if space_for_variables % 16 == 8 {
+        // At the beginning of the function, stack is unaligned (return address + 6 register saves)
+        // Check if the the space for variables makes stack aligned, otherwise add 8
+        if space_for_variables % 16 == 0 {
             space_for_variables += 8;
         }
 
@@ -250,6 +354,7 @@ impl JITEngine {
             let ops = &mut fn_state.ops;
             x64_asm!(ops
                 ; ->_self:
+                ; push rbp
                 ; push rbx
                 ; push rdi
                 ; push rsi
@@ -258,21 +363,23 @@ impl JITEngine {
                 ; push r14
                 ; push r15
                 ; sub rsp, space_for_variables.into()
-                ; mov QWORD [rsp], r8
+                ; mov rbp, rsp
                 ; mov _vm, rcx
                 ; mov _vm_state, rdx);
-        }
 
-        let liveness = func.liveness_intervals();
-        let allocations = MemoryActions::from_liveness_intervals(&liveness);
+            // Move argument into expected location
+            // FIXME: hardcoded that argument = var $0
+            let memory = fn_state
+                .variable_locations
+                .as_ref()
+                .expect("Memory actions must be initialized when emitting instructions");
+            x64_asm_resolve_mem!(ops, memory; mov resolve(0), r8);
+        }
 
         if state.config.debug {
             func.print_liveness(&liveness);
-            println!("{:?}", allocations);
+            println!("{:?}", fn_state.variable_locations);
         }
-
-        fn_state.memory_actions = Some(allocations);
-        fn_state.register_state = Some(RegisterAllocation::new());
 
         for bb in cfg.blocks.iter() {
             Self::compile_basic_block(&mut fn_state, module, implementation, bb);
@@ -291,6 +398,7 @@ impl JITEngine {
                 ; pop rsi
                 ; pop rdi
                 ; pop rbx
+                ; pop rbp 
                 ; ret);
         }
 
@@ -333,14 +441,14 @@ impl JITEngine {
             .get_function_by_id(target.function)
             .expect("function id");
 
-        if func.implementation.is_native() {
+        if func.has_native_impl() {
             unsafe {
                 let unsafe_fn_ptr = std::mem::transmute::<_, fn(&mut VMState, u64) -> u64>(
-                    func.implementation.as_native().unwrap().fn_ptr,
+                    func.native_impl().unwrap().fn_ptr,
                 );
                 (unsafe_fn_ptr)(state, arg)
             }
-        } else if func.implementation.is_bytecode() {
+        } else if func.has_bytecode_impl() {
             if let Some(res) = JITEngine::call_if_compiled(vm, state, target, arg) {
                 res
             } else {
@@ -359,6 +467,10 @@ impl JITEngine {
         } else {
             panic!("Unknown implementation type");
         }
+    }
+
+    pub extern "win64" fn internal_panic(vm: &VM, state: &mut VMState) {
+        panic!("Panic while executing");
     }
 }
 
@@ -389,28 +501,31 @@ struct Load {
 }
 
 #[derive(Clone)]
-struct MemoryActions {
-    spills: Vec<Spill>,
-    loads: Vec<Load>,
+pub struct VariableLocations {
+    locations: HashMap<VarId, VarLoc>,
 }
 
-impl Debug for MemoryActions {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("MemoryActions {")?;
+impl VariableLocations {
+    fn lookup(&self, var: VarId) -> VarLoc {
+        self.locations.get(&var).cloned().unwrap_or(VarLoc::Stack)
+    }
+}
 
-        for spill in self.spills.iter() {
-            write!(
-                f,
-                "spill {2:?} into {1} at {0}",
-                spill.location, spill.var, spill.reg
-            )?;
-        }
-        for load in self.loads.iter() {
-            write!(
-                f,
-                "load {1} into {2:?} at {0}",
-                load.location, load.var, load.reg
-            )?;
+#[derive(Debug, Clone, PartialEq, Copy)]
+enum VarLoc {
+    Register(Rq),
+    Stack,
+}
+
+impl Debug for VariableLocations {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("VariableLocations {\n")?;
+
+        let mut loc_copy = self.locations.iter().collect::<Vec::<_>>();
+        loc_copy.sort_by(|a, b| a.0.cmp(b.0));
+
+        for l in loc_copy {
+            f.write_fmt(format_args!("  {} -> {:?}\n", l.0, l.1))?;
         }
 
         f.write_str("}")?;
@@ -419,13 +534,16 @@ impl Debug for MemoryActions {
     }
 }
 
-impl MemoryActions {
-    fn from_liveness_intervals(intervals: &HashMap<VarId, (InstrLbl, InstrLbl)>) -> Self {
+impl VariableLocations {
+    pub fn from_liveness_intervals(intervals: &HashMap<VarId, (InstrLbl, InstrLbl)>) -> Self {
         let mut as_vec: Vec<LivenessInterval> = intervals
             .iter()
             .map(|(v, (a, b))| LivenessInterval {
                 var: *v,
-                interval: Interval { begin: *a, end: *b },
+                interval: Interval {
+                    begin: *a,
+                    end: *b + 1,
+                },
             })
             .collect();
 
@@ -440,10 +558,8 @@ impl MemoryActions {
             (Rq::R11, None),
             (Rq::RAX, None),
         ];
-        let mut allocations = Self {
-            spills: Vec::new(),
-            loads: Vec::new(),
-        };
+
+        let mut variable_locations = HashMap::<VarId, VarLoc>::new();
 
         // as_vec contains the liveness intervals in ascending start point
         for live_interval in as_vec.iter() {
@@ -453,18 +569,19 @@ impl MemoryActions {
                 .filter(|x| {
                     x.1.is_some() && x.1.unwrap().interval.end < live_interval.interval.begin
                 })
-                .for_each(|x| x.1 = None);
+                .for_each(|x| {
+                    // Confirm that variable should be kept in register
+                    // since it was not evicted
+                    variable_locations.insert(x.1.unwrap().var, VarLoc::Register(x.0));
+                    // Empty the register
+                    x.1 = None
+                });
 
             // Consider loading the variable into a reg
             match active.iter_mut().find(|x| x.1.is_none()) {
                 // There is an empty register
                 Some(r) => {
                     r.1 = Some(*live_interval);
-                    allocations.loads.push(Load {
-                        location: live_interval.interval.begin,
-                        var: live_interval.var,
-                        reg: r.0,
-                    });
                 }
                 // There is no empty register
                 None => {
@@ -473,43 +590,32 @@ impl MemoryActions {
                         x.is_some() && x.unwrap().interval.end > live_interval.interval.end
                     }) {
                         Some(r) => {
-                            let var = r.1.unwrap().var;
-                            // Spill, load into register
+                            // Spilled variable must be kept in memory
+                            variable_locations.insert(r.1.unwrap().var, VarLoc::Stack);
+                            // Replace register slot
                             r.1 = Some(*live_interval);
-                            allocations.spills.push(Spill {
-                                location: live_interval.interval.begin,
-                                var,
-                                reg: r.0,
-                            });
-                            allocations.loads.push(Load {
-                                location: live_interval.interval.begin,
-                                var: live_interval.var,
-                                reg: r.0,
-                            });
                         }
                         None => {
                             // Do nothing, variable remains in memory
+                            variable_locations.insert(live_interval.var, VarLoc::Stack);
                         }
                     }
                 }
             }
         }
 
-        allocations
-    }
+        // Everything still in active can be kept in registers
+        for a in active {
+            if a.1.is_none() {
+                continue;
+            }
 
-    fn spills_at(&self, instr: InstrLbl) -> Vec<&Spill> {
-        self.spills
-            .iter()
-            .filter(|spill| spill.location == instr)
-            .collect()
-    }
+            variable_locations.insert(a.1.unwrap().var, VarLoc::Register(a.0));
+        }
 
-    fn loads_at(&self, instr: InstrLbl) -> Vec<&Load> {
-        self.loads
-            .iter()
-            .filter(|load| load.location == instr)
-            .collect()
+        VariableLocations {
+            locations: variable_locations,
+        }
     }
 }
 
@@ -517,8 +623,7 @@ struct FunctionJITState {
     ops: Assembler,
     function_location: FnId,
     dynamic_labels: HashMap<i16, DynamicLabel>,
-    memory_actions: Option<MemoryActions>,
-    register_state: Option<RegisterAllocation>,
+    variable_locations: Option<VariableLocations>,
 }
 
 impl FunctionJITState {
@@ -527,150 +632,26 @@ impl FunctionJITState {
             ops: Assembler::new().unwrap(),
             function_location,
             dynamic_labels: HashMap::new(),
-            memory_actions: None,
-            register_state: None,
+            variable_locations: None,
         }
     }
 }
 
-#[derive(Debug)]
-struct RegisterAllocation {
-    registers: [(Rq, Option<VarId>); 7],
-}
-
-impl RegisterAllocation {
-    pub fn new() -> Self {
-        Self {
-            registers: [
-                (Rq::RAX, None),
-                (Rq::RCX, None),
-                (Rq::RDX, None),
-                (Rq::R8, None),
-                (Rq::R9, None),
-                (Rq::R10, None),
-                (Rq::R11, None),
-            ],
-        }
-    }
-
-    fn load(&mut self, var: VarId, reg: Rq) {
-        self.registers.iter_mut().find(|a| a.0 == reg).unwrap().1 = Some(var);
-    }
-
-    fn spill(&mut self, reg: Rq) {
-        self.registers.iter_mut().find(|a| a.0 == reg).unwrap().1 = None;
-    }
-
-    fn lookup(&self, var: VarId) -> Option<Rq> {
-        self.registers
-            .iter()
-            .find_map(|a| if a.1 == Some(var) { Some(a.0) } else { None })
-    }
-
-    fn lookup_register(&self, reg: Rq) -> Option<VarId> {
-        let r = self.registers.iter().find(|a| a.0 == reg)?;
-        r.1
-    }
-}
-
-macro_rules! x64_asm_resolve_mem {
-    /*
-    * Uses $src from a register if it is in a register, otherwise loads it from memory.
-    */
-    ($ops:ident, $mem:ident ; $op:tt $reg:tt, resolve($src:expr)) => {
-        match $mem.lookup($src) {
-            Some(l) => x64_asm!($ops ; $op $reg, Rq(l as u8)),
-            None => x64_asm!($ops ; $op $reg, QWORD [rsp + ($src as i32) * 8]),
-        }
-    };
-    /*
-    * Writes to $dst in a register if it is in a register, otherwise writes into its memory location.
-    */
-    ($ops:ident, $mem:ident ; $op:tt resolve($dst:expr), $reg:tt) => {
-        match $mem.lookup($dst) {
-            Some(l) => x64_asm!($ops ; $op Rq(l as u8), $reg),
-            None => x64_asm!($ops ; $op QWORD [rsp + ($dst as i32) * 8], $reg),
-        }
-    };
-    /*
-    * Resolves the locations of both $src and $dst, using registers whenever possible.
-    * If both are in memory, we need to use an intermediary register so RSI is used.
-    * This overwrites whatever was in RSI!
-    */
-    ($ops:ident, $mem:ident ; $op:tt resolve($dst:expr), resolve($src:expr)) => {
-        match ($mem.lookup($dst), $mem.lookup($src)) {
-            (Some(reg_dst), Some(reg_src)) => x64_asm!($ops ; $op Rq(reg_dst as u8), Rq(reg_src as u8)),
-            (None, Some(reg_src)) => x64_asm!($ops ; $op QWORD [rsp + ($dst as i32) * 8], Rq(reg_src as u8)),
-            (Some(reg_dst), None) => x64_asm!($ops ; $op Rq(reg_dst as u8), QWORD [rsp + ($dst as i32) * 8]),
-            (None, None) => x64_asm!($ops
-                ; mov rsi, QWORD [rsp + ($src as i32) * 8]
-                ; $op QWORD [rsp + ($dst as i32) * 8], rsi),
-        }
-    };
-
-    /*
-    * Resolves the locations of both $src and $dst, using registers whenever possible.
-    * This may overwrite whatever was in RSI and RDI, depending on which variables are in memory!
-    */
-    ($ops:ident, $mem:ident ; $op:tt QWORD [resolve($dst:expr)], resolve($src:expr)) => {
-        match ($mem.lookup($dst), $mem.lookup($src)) {
-            (Some(reg_dst), Some(reg_src)) => x64_asm!($ops ; $op QWORD [Rq(reg_dst as u8)], Rq(reg_src as u8)),
-            (None, Some(reg_src)) => x64_asm!($ops
-                ; mov rsi, QWORD [rsp + ($dst as i32) * 8]
-                ; $op QWORD [rsi], Rq(reg_src as u8)),
-            (Some(reg_dst), None) => x64_asm!($ops
-                ; mov rsi, QWORD [rsp + ($src as i32) * 8]
-                ; $op QWORD [Rq(reg_dst as u8)], rsi),
-            (None, None) => x64_asm!($ops
-                ; mov rsi, QWORD [rsp + ($src as i32) * 8]
-                ; mov rdi, QWORD [rsp + ($dst as i32) * 8]
-                ; $op QWORD [rdi], rsi),
-        }
-    };
-
-    /*
-    * Resolves the locations of both $src and $dst, using registers whenever possible.
-    * This may overwrite whatever was in RSI and RDI, depending on which variables are in memory!
-    */
-    ($ops:ident, $mem:ident ; $op:tt resolve($dst:expr), QWORD [resolve($src:expr)]) => {
-        match ($mem.lookup($dst), $mem.lookup($src)) {
-            (Some(reg_dst), Some(reg_src)) => x64_asm!($ops ; $op Rq(reg_dst as u8), QWORD [Rq(reg_src as u8)]),
-            (None, Some(reg_src)) => x64_asm!($ops
-                ; mov rdi, QWORD [Rq(reg_src as u8)]
-                ; $op QWORD [rsp + ($src as i32) * 8], rdi),
-            (Some(reg_dst), None) => x64_asm!($ops
-                ; mov rdi, QWORD [rsp + ($src as i32) * 8]
-                ; $op Rq(reg_dst as u8), QWORD [rdi]),
-            (None, None) => x64_asm!($ops
-                ; mov rsi, QWORD [rsp + ($src as i32) * 8]
-                ; mov rdi, QWORD [rsp + ($dst as i32) * 8]
-                ; $op rdi, QWORD [rsi]),
-        }
-    };
-}
-
-macro_rules! store_if_loaded {
-    ($ops:ident, $mem:ident, $src:expr) => {
-        match $mem.lookup_register($src) {
-            Some(v) => { x64_asm!($ops ; mov QWORD [rsp + (v as i32) * 8], Rq($src as u8)); Some(v) },
-            None => { None },
-        }
-    };
-}
 
 fn store_volatiles_except(
     ops: &mut Assembler,
-    memory: &RegisterAllocation,
+    memory: &VariableLocations,
     var: Option<VarId>,
-) -> Vec<(Rq, VarId)> {
+) -> Vec<Rq> {
     let mut stored = Vec::new();
 
     let mut do_register = |reg: Rq| {
-        if memory.lookup_register(reg) != var {
-            if let Some(v) = store_if_loaded!(ops, memory, reg) {
-                stored.push((reg, v));
-            }
+        if var.is_some() && memory.lookup(var.unwrap()) == VarLoc::Register(reg) {
+            return;
         }
+
+        x64_asm!(ops; push Rq(reg as u8));
+        stored.push(reg);
     };
 
     do_register(Rq::RAX);
@@ -681,12 +662,20 @@ fn store_volatiles_except(
     do_register(Rq::R10);
     do_register(Rq::R11);
 
+    if stored.len() % 2 == 1 {
+        x64_asm!(ops; sub rsp, 8);
+    }
+
     stored
 }
 
-fn load_volatiles(ops: &mut Assembler, stored: &Vec<(Rq, VarId)>) {
-    for pair in stored.iter().rev() {
-        x64_asm!(ops ; mov Rq(pair.0 as u8), [rsp + (pair.1 as i32) * 8]);
+fn load_volatiles(ops: &mut Assembler, stored: &Vec<Rq>) {
+    if stored.len() % 2 == 1 {
+        x64_asm!(ops; add rsp, 8);
+    }
+
+    for reg in stored.iter().rev() {
+        x64_asm!(ops; pop Rq(*reg as u8));
     }
 }
 
@@ -699,72 +688,47 @@ fn emit_instr_as_asm<'a>(
     // Ops cannot be referenced in x64_asm macros if it's inside fn_state
     let ops = &mut fn_state.ops;
     let memory = fn_state
-        .register_state
-        .as_mut()
-        .expect("Register state must be initialized when emitting instructions");
-    let mem_actions = fn_state
-        .memory_actions
+        .variable_locations
         .as_ref()
         .expect("Memory actions must be initialized when emitting instructions");
 
-    // Put spills into a closure so it can be used by individual instruction emitters
-    fn emit_spills(
-        ops: &mut Assembler,
-        mem_actions: &MemoryActions,
-        memory: &mut RegisterAllocation,
-        cur: InstrLbl,
-    ) {
-        for spill in mem_actions.spills_at(cur).iter() {
-            memory.spill(spill.reg);
-            x64_asm!(ops
-                ; mov QWORD [rsp + (spill.var as i32) * 8], Rq(spill.reg as u8));
-        }
-    }
-
-    // We do loads here, before the instruction
-    for load in mem_actions.loads_at(cur).iter() {
-        memory.load(load.var, load.reg);
-        x64_asm!(ops
-            ; mov Rq(load.reg as u8), QWORD [rsp + (load.var as i32) * 8]);
-    }
-
     use Instruction::*;
     match instr {
-        ConstU32(r, c) => match memory.lookup(r) {
-            Some(reg) => x64_asm!(ops
-                ; mov Rq(reg as u8), c as i32
-                ;; emit_spills(ops, &mem_actions, memory, cur)),
-            None => x64_asm!(ops
-                ; mov QWORD [rsp + (r as i32) * 8], c as i32
-                ;; emit_spills(ops, &mem_actions, memory, cur)),
+        ConstU32(r, c) => {
+            let c: i32 = c as i32;
+            x64_asm_resolve_mem!(ops, memory; mov resolve(r), c);
         },
         LtVarVar(r, a, b) => {
             x64_asm_resolve_mem!(ops, memory; cmp resolve(a), resolve(b));
             match memory.lookup(r) {
-                Some(reg_r) => x64_asm!(ops
-                        ; mov Rq(reg_r as u8), 0
+                VarLoc::Register(reg) => x64_asm!(ops
+                        ; mov Rq(reg as u8), 0
                         ; mov rdi, 1
-                        ; cmovl Rq(reg_r as u8), rdi
-                        ;; emit_spills(ops, &mem_actions, memory, cur)),
-                None => x64_asm!(ops
+                        ; cmovl Rq(reg as u8), rdi),
+                _ => x64_asm!(ops
                         ; mov rsi, 0
                         ; mov rdi, 1
                         ; cmovl rsi, rdi
-                        ; mov [rsp + (r as i32) * 8], rsi
-                        ;; emit_spills(ops, &mem_actions, memory, cur)),
+                        ; mov [rbp + (r as i32) * 8], rsi),
             }
         }
         AddVarVar(r, a, b) => {
             x64_asm_resolve_mem!(ops, memory; mov rsi, resolve(a));
             x64_asm_resolve_mem!(ops, memory; add rsi, resolve(b));
             x64_asm_resolve_mem!(ops, memory; mov resolve(r), rsi);
-            emit_spills(ops, &mem_actions, memory, cur);
         }
         SubVarVar(r, a, b) => {
             x64_asm_resolve_mem!(ops, memory; mov rsi, resolve(a));
             x64_asm_resolve_mem!(ops, memory; sub rsi, resolve(b));
             x64_asm_resolve_mem!(ops, memory; mov resolve(r), rsi);
-            emit_spills(ops, &mem_actions, memory, cur);
+        }
+        MulVarVar(r, a, b) => {
+            x64_asm!(ops; push rax);
+            x64_asm_resolve_mem!(ops, memory; mov rax, resolve(a));
+            x64_asm_resolve_mem!(ops, memory; mov rsi, resolve(b));
+            x64_asm!(ops; imul rsi);
+            x64_asm_resolve_mem!(ops, memory; mov resolve(r), rax);
+            x64_asm!(ops; pop rax);
         }
         EqVarVar(r, a, b) => {
             x64_asm_resolve_mem!(ops, memory; cmp resolve(a), resolve(b));
@@ -773,7 +737,6 @@ fn emit_instr_as_asm<'a>(
                 ; mov rdi, 1
                 ; cmove rsi, rdi);
             x64_asm_resolve_mem!(ops, memory; mov resolve(r), rsi);
-            emit_spills(ops, &mem_actions, memory, cur);
         }
         NotVar(r, a) => {
             x64_asm_resolve_mem!(ops, memory; cmp resolve(a), 0);
@@ -782,11 +745,9 @@ fn emit_instr_as_asm<'a>(
                 ; mov rdi, 1
                 ; cmove rsi, rdi);
             x64_asm_resolve_mem!(ops, memory; mov resolve(r), rsi);
-            emit_spills(ops, &mem_actions, memory, cur);
         }
         Copy(dest, src) => {
             x64_asm_resolve_mem!(ops, memory; mov resolve(dest), resolve(src));
-            emit_spills(ops, &mem_actions, memory, cur);
         }
         StoreVar(dst_ptr, src, ty) => {
             let get_heap_address = unsafe {
@@ -827,7 +788,6 @@ fn emit_instr_as_asm<'a>(
                 ; add rsp, BYTE stack_space);
 
             load_volatiles(ops, &saved);
-            emit_spills(ops, &mem_actions, memory, cur);
         }
         LoadVar(dst, src_ptr, ty) => {
             let get_heap_address = unsafe {
@@ -868,7 +828,6 @@ fn emit_instr_as_asm<'a>(
             );
 
             load_volatiles(ops, &saved);
-            emit_spills(ops, &mem_actions, memory, cur);
         }
         Alloc(r, t) => {
             let saved = store_volatiles_except(ops, memory, Some(r));
@@ -904,7 +863,6 @@ fn emit_instr_as_asm<'a>(
                     ;;x64_asm_resolve_mem!(ops, memory; mov resolve(r), rax));
 
             load_volatiles(ops, &saved);
-            emit_spills(ops, &mem_actions, memory, cur);
         }
         Call(res, func, arg) => {
             let module = module.id;
@@ -915,7 +873,7 @@ fn emit_instr_as_asm<'a>(
                 let saved = store_volatiles_except(ops, memory, Some(res));
                 let stack_space = 0x20;
                 x64_asm!(ops
-                    ; mov r8, [rsp + (arg as i32) * 8]
+                    ;;x64_asm_resolve_mem!(ops, memory; mov r8, resolve(arg))
                     ; mov rcx, _vm
                     ; mov rdx, _vm_state
                     ; sub rsp, BYTE stack_space
@@ -923,8 +881,6 @@ fn emit_instr_as_asm<'a>(
                     ; add rsp, BYTE stack_space
                     ;; x64_asm_resolve_mem!(ops, memory; mov resolve(res), rax));
                 load_volatiles(ops, &saved);
-                // TODO avoid loading if it is spilled V here
-                emit_spills(ops, &mem_actions, memory, cur);
             }
             // Unknown target
             // Conservatively call trampoline
@@ -951,8 +907,6 @@ fn emit_instr_as_asm<'a>(
                     ; add rsp, BYTE stack_space
                     ;;x64_asm_resolve_mem!(ops, memory; mov resolve(res), rax));
                 load_volatiles(ops, &saved);
-                // TODO avoid loading if it is spilled here
-                emit_spills(ops, &mem_actions, memory, cur);
             }
         }
         ModuleCall(res, target, arg) => {
@@ -981,15 +935,12 @@ fn emit_instr_as_asm<'a>(
                     ; add rsp, BYTE stack_space
                     ;;x64_asm_resolve_mem!(ops, memory; mov resolve(res), rax));
             load_volatiles(ops, &saved);
-            // TODO avoid loading if it is spilled here
-            emit_spills(ops, &mem_actions, memory, cur);
         }
         Lbl => {
             let dyn_lbl = fn_state
                 .dynamic_labels
                 .entry(cur)
                 .or_insert(ops.new_dynamic_label());
-            emit_spills(ops, &mem_actions, memory, cur);
             x64_asm!(ops
                 ; =>*dyn_lbl);
         }
@@ -1001,7 +952,6 @@ fn emit_instr_as_asm<'a>(
                 .or_insert(ops.new_dynamic_label());
 
             x64_asm!(ops
-                ;; emit_spills(ops, &mem_actions, memory, cur)
                 ; jmp =>*dyn_lbl);
         }
         JmpIfNot(l, c) => {
@@ -1013,7 +963,6 @@ fn emit_instr_as_asm<'a>(
 
             x64_asm!(ops
                 ;;x64_asm_resolve_mem!(ops, memory ; cmp resolve(c), 0)
-                ;; emit_spills(ops, &mem_actions, memory, cur)
                 ; je =>*dyn_lbl);
         }
         JmpIf(l, c) => {
@@ -1025,13 +974,11 @@ fn emit_instr_as_asm<'a>(
 
             x64_asm!(ops
                 ;; x64_asm_resolve_mem!(ops, memory ; cmp resolve(c), 1)
-                ;; emit_spills(ops, &mem_actions, memory, cur)
                 ; je =>*dyn_lbl);
         }
         Return(r) => {
             x64_asm!(ops
                 ;; x64_asm_resolve_mem!(ops, memory; mov rax, resolve(r))
-                ;; emit_spills(ops, &mem_actions, memory, cur)
                 ; jmp ->_cleanup)
         }
         LoadConst(res, idx) => {
@@ -1069,7 +1016,6 @@ fn emit_instr_as_asm<'a>(
             );
 
             load_volatiles(ops, &saved);
-            emit_spills(ops, &mem_actions, memory, cur);
         }
         Index(res, src, idx, ty) => {
             let get_heap_address = unsafe {
@@ -1119,10 +1065,12 @@ fn emit_instr_as_asm<'a>(
                 // compute idx and put into r8
                 ; mov rax, r15
                 ; mov r8, index_bytes
-                ; imul r8
+                ; mul r8
                 ; mov r8, rax
+                // Offset for array header
+                ; add r8, 8
                 // put src into rdx
-                ; mov r14, rdx
+                ; mov rdx, r14
                 ; sub rsp, BYTE stack_space
                 ; mov r10, QWORD index_bytes_address
                 ; call r10
@@ -1139,7 +1087,58 @@ fn emit_instr_as_asm<'a>(
             );
 
             load_volatiles(ops, &saved);
-            emit_spills(ops, &mem_actions, memory, cur);
+        }
+        Sizeof(res, src) => {
+            let get_heap_address = unsafe {
+                std::mem::transmute::<_, i64>(
+                    VMState::heap_mut as unsafe extern "C" fn(&mut VMState) -> &mut Heap,
+                )
+            };
+
+            let load_8_bytes_address = unsafe {
+                std::mem::transmute::<_, i64>(
+                    Heap::load_u64 as unsafe extern "C" fn(&mut Heap, Pointer) -> u64,
+                )
+            };
+
+            let saved = store_volatiles_except(ops, memory, Some(res));
+
+
+            let stack_space = 0x20;
+            x64_asm!(ops
+                // Load first because they might be overriden
+                ;; x64_asm_resolve_mem!(ops, memory; mov r14, resolve(src))
+
+                ; mov rcx, _vm_state
+                ; sub rsp, BYTE stack_space
+                ; mov r10, QWORD get_heap_address
+                ; call r10
+                ; add rsp, BYTE stack_space
+                // rax contains pointer to heap, mov into rcx (first arg)
+                ; mov rcx, rax
+                // load value
+                ; mov rdx, r14
+                ; sub rsp, BYTE stack_space
+                ; mov r10, QWORD load_8_bytes_address
+                ; call r10
+                ; add rsp, BYTE stack_space
+                ;; x64_asm_resolve_mem!(ops, memory; mov resolve(res), rax)
+            );
+
+            load_volatiles(ops, &saved);
+        }
+        Panic => {
+            let panic_address: i64 = unsafe {
+                std::mem::transmute::<_, i64>(
+                    JITEngine::internal_panic as extern "win64" fn(&VM, &mut VMState),
+                )
+            };
+
+            x64_asm!(ops
+                ; mov rcx, _vm
+                ; mov rdx, _vm_state
+                ; mov r10, QWORD panic_address
+                ; call r10);
         }
         instr => panic!("Unknown instr {:?}", instr),
     }

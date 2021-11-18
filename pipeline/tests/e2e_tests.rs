@@ -6,7 +6,6 @@ use std::thread;
 
 #[test]
 fn test_id_main() {
-
     let builder = thread::Builder::new()
         .name("rewriter".into())
         .stack_size(32 * 1000 * 1000);

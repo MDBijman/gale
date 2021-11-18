@@ -6,7 +6,8 @@ members = [
     "pipeline",
     "vm",
     "galejs",
-    "utils"
+    "utils",
+    "dataflow"
 ]
 
 [profile.release]

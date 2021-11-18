@@ -199,12 +199,19 @@ fn parse_instruction(i: &str) -> MyParseResult<LongInstruction> {
             map(parse_three_var_command("add"), |(l, e1, e2)| {
                 LongInstruction::AddVarVar(l, e1, e2)
             }),
+            map(parse_three_var_command("mul"), |(l, e1, e2)| {
+                LongInstruction::MulVarVar(l, e1, e2)
+            }),
             map(parse_two_var_command("neg"), |(l, e)| {
                 LongInstruction::NotVar(l, e)
             }),
             map(parse_two_var_command("cp"), |(l, e)| {
                 LongInstruction::Copy(l, e)
             }),
+            map(parse_two_var_command("sizeof"), |(l, e)| {
+                LongInstruction::Sizeof(l, e)
+            }),
+            map(spaces_around(tag("panic!")), |_| LongInstruction::Panic),
             map(
                 pair(
                     parse_three_var_command("idx"),
@@ -375,6 +382,11 @@ fn parse_function(i: &str) -> MyParseResult<LongFunction> {
                         vars = VarId::max(vars, *b);
                         vars = VarId::max(vars, *c);
                     }
+                    LongInstruction::MulVarVar(a, b, c) => {
+                        vars = VarId::max(vars, *a);
+                        vars = VarId::max(vars, *b);
+                        vars = VarId::max(vars, *c);
+                    }
                     LongInstruction::NotVar(a, b) => {
                         vars = VarId::max(vars, *a);
                         vars = VarId::max(vars, *b);
@@ -390,6 +402,10 @@ fn parse_function(i: &str) -> MyParseResult<LongFunction> {
                         vars = VarId::max(vars, *a);
                         vars = VarId::max(vars, *b);
                         vars = VarId::max(vars, *c);
+                    }
+                    LongInstruction::Sizeof(a, b) => {
+                        vars = VarId::max(vars, *a);
+                        vars = VarId::max(vars, *b);
                     }
                     LongInstruction::StoreVar(a, b, _) => {
                         vars = VarId::max(vars, *a);
@@ -409,7 +425,8 @@ fn parse_function(i: &str) -> MyParseResult<LongFunction> {
                     | LongInstruction::Jmp(_)
                     | LongInstruction::JmpIf(_, _)
                     | LongInstruction::JmpIfNot(_, _)
-                    | LongInstruction::Lbl(_) => {}
+                    | LongInstruction::Lbl(_)
+                    | LongInstruction::Panic => {}
                 }
             }
 
@@ -481,7 +498,13 @@ fn parse_code_section(i: &str) -> MyParseResult<Vec<LongFunction>> {
     )(i)
 }
 
-pub fn parse_bytecode_string(module_loader: &ModuleLoader, i: &str) -> Module {
+#[derive(Debug)]
+pub enum ParserError {
+    ParseFailure(String),
+    FileNotFound()
+}
+
+pub fn parse_bytecode_string(module_loader: &ModuleLoader, i: &str) -> Result<Module, ParserError> {
     match map(
         whitespace_around(tuple((
             parse_module_declaration,
@@ -502,23 +525,23 @@ pub fn parse_bytecode_string(module_loader: &ModuleLoader, i: &str) -> Module {
     {
         Ok((leftover, m)) => {
             if leftover.len() > 0 {
-                panic!("Didn't parse entire file: {}", leftover);
+                return Err(ParserError::ParseFailure(format!("Didn't parse entire file: {}", leftover)));
             }
 
-            m
+            Ok(m)
         }
         Err(nom::Err::Failure(err)) | Err(nom::Err::Error(err)) => {
-            panic!("{}", convert_error(i, err));
+            Err(ParserError::ParseFailure(format!("{}", convert_error(i, err))))
         }
         Err(err) => {
-            panic!("{}", err);
+            Err(ParserError::ParseFailure(format!("{}", err)))
         }
     }
 }
 
-pub fn parse_bytecode_file(module_loader: &ModuleLoader, filename: &str) -> Option<Module> {
+pub fn parse_bytecode_file(module_loader: &ModuleLoader, filename: &str) -> Result<Module, ParserError> {
     match fs::read_to_string(filename) {
-        Ok(f) => Some(parse_bytecode_string(module_loader, f.as_str())),
-        Err(_) => None,
+        Ok(f) => parse_bytecode_string(module_loader, f.as_str()),
+        Err(_) => Err(ParserError::FileNotFound()),
     }
 }

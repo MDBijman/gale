@@ -4,7 +4,7 @@ use std::mem::size_of;
 ///
 /// This is the capacity in bytes with which the heap space is initialized.
 ///
-const HEAP_INITIAL_CAPACITY: usize = 256;
+const HEAP_INITIAL_CAPACITY: usize = 1000 * 1000 * 1000;
 
 const DEBUG_HEAP: bool = false;
 
@@ -161,7 +161,7 @@ impl Heap {
 
         res
     }
-
+    
     pub unsafe extern "C" fn store_u64(&mut self, ptr: Pointer, value: u64)
     {
         if self.debug {

@@ -23,7 +23,7 @@ pub fn init_panic_hook() {
 pub fn run_gale(code: &str, arg: &str) -> String {
     let bytecode = galelib::compile_gale_program(code);
     let module_loader = ModuleLoader::default();
-    let module = galevm::parse_bytecode_string(&module_loader, bytecode.as_str());
+    let module = galevm::parse_bytecode_string(&module_loader, bytecode.as_str()).unwrap();
     let vm = galevm::VM::new(module_loader);
     let state = vm.run(
         &module,

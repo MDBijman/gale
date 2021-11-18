@@ -1,0 +1,4 @@
+mod test;
+
+main: [str] -> ui64
+main s = let x: ui64 = 3 in x;

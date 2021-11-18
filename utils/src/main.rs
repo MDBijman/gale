@@ -1,5 +1,5 @@
 use clap::{App, Arg, ArgMatches, SubCommand};
-use galevm::{JITEngine, JITState, ModuleLoader, std_module};
+use galevm::*;
 
 fn main() {
     let matches = App::new("Gale Utils")
@@ -71,6 +71,13 @@ fn main() {
     }
 }
 
+/// Prints a compiled function in binary format.
+///
+/// The function is specified by the `function` command line argument.
+/// The module is specified by the `bytecode` command line argument.
+///
+/// Arguments: 
+/// * `args`: Command line arguments
 fn vm_print_bin(args: &ArgMatches) {
     let function_name = args.value_of("function").unwrap();
     let file_name = args.value_of("bytecode").unwrap();
@@ -79,7 +86,7 @@ fn vm_print_bin(args: &ArgMatches) {
     }
 
     let mut module_loader = ModuleLoader::from_module(std_module());
-    let id = module_loader.load_module(file_name);
+    let id = module_loader.load_module(file_name).unwrap();
     let module = module_loader
         .get_by_id(id)
         .expect("missing module")
@@ -91,6 +98,13 @@ fn vm_print_bin(args: &ArgMatches) {
     print!("{}", hex_string);
 }
 
+/// Prints a compiled function in assembly format.
+///
+/// The function is specified by the `function` command line argument.
+/// The module is specified by the `bytecode` command line argument.
+///
+/// Arguments: 
+/// * `args`: Command line arguments
 fn vm_print_asm(args: &ArgMatches) {
     let function_name = args.value_of("function").unwrap();
     let file_name = args.value_of("bytecode").unwrap();
@@ -100,7 +114,7 @@ fn vm_print_asm(args: &ArgMatches) {
     }
 
     let mut module_loader = ModuleLoader::from_module(std_module());
-    let id = module_loader.load_module(file_name);
+    let id = module_loader.load_module(file_name).unwrap();
     let module = module_loader
         .get_by_id(id)
         .expect("missing module")
@@ -126,20 +140,30 @@ fn vm_print_asm(args: &ArgMatches) {
         decoder.decode_out(&mut instruction);
         output.clear();
         formatter.format(&instruction, &mut output);
+        print!("{:08X} ", instruction.ip());
         println!("{}", output);
     }
 }
 
+/// Prints the computed register lifetimes of a function.
+///
+/// The function is specified by the `function` command line argument.
+/// The module is specified by the `bytecode` command line argument.
+///
+/// Arguments: 
+/// * `args`: Command line arguments
 fn vm_print_lifetimes(args: &ArgMatches) {
     let function_name = args.value_of("function").unwrap();
     let file_name = args.value_of("bytecode").unwrap();
 
     let mut module_loader = ModuleLoader::from_module(std_module());
-    let id = module_loader.load_module(file_name);
+    let id = module_loader.load_module(file_name).unwrap();
     let module = module_loader
         .get_by_id(id)
         .expect("missing module")
         .expect("missing impl");
     let func = module.get_function_by_name(function_name).unwrap();
-    func.print_liveness(&func.liveness_intervals());
+    let cfg = ControlFlowGraph::from_function_instructions(func);
+    let intervals = &cfg.liveness_intervals(func);
+    func.print_liveness(intervals);
 }

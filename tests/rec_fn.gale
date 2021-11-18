@@ -1,0 +1,9 @@
+mod rec;
+
+main: [str] -> ui64
+main s = sum (std:parse_ui64 (s@0));
+
+sum: ui64 -> ui64
+sum 0 = 0;
+sum a = a + (sum (a - 1));
+

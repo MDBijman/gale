@@ -28,7 +28,7 @@ merge_match_branches: branches -> Match(Ref("_arg"), branches);
 desugar_matches: fns -> !topdown[!try[.desugar_match]] fns;
 
 desugar_match: Match(arg, branches) ->
-   !map[!branch_to_if[arg]] branches > !reverse > !reduce[!merge_if] (Dummy(), .id);
+   !map[!branch_to_if[arg]] branches > !reverse > !reduce[!merge_if] (Panic(), .id);
 
 branch_to_if[arg]: MatchBranch(pattern, body) ->  
    If(!pattern_to_boolean (arg, pattern), !pattern_to_statements (arg, pattern, body));
@@ -41,7 +41,7 @@ pattern_to_statements: (arg, PatternVar(name), body) -> Let([Decl(name, AnyType(
 pattern_to_statements: (arg, PatternNum(_), body) -> body;
 pattern_to_statements: (arg, PatternStr(_), body) -> body;
 
-merge_if: (Dummy(), if) -> if;
+merge_if: (Panic(), If(expr, stmt)) -> If(expr, stmt, Panic());
 merge_if: (if_chain, If(expr, stmt)) -> If(expr, stmt, if_chain);
 
 

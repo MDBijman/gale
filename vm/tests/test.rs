@@ -28,7 +28,7 @@ fn load_test_file(name: &str) -> TestCase {
     let ret_path = path.join(Path::new(name)).with_extension("ret");
 
     let mut ml = ModuleLoader::from_module(std_module());
-    let main_module_id = ml.load_module(bytecode_path.to_str().unwrap());
+    let main_module_id = ml.load_module(bytecode_path.to_str().unwrap()).unwrap();
     let stdin = fs::read_to_string(stdin_path);
     let stdout = fs::read_to_string(stdout_path);
     let ret = fs::read_to_string(ret_path);

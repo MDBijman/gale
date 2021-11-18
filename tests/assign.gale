@@ -1,0 +1,10 @@
+mod aoc_1;
+
+main: [str] -> ui64
+main s = 
+    let
+        sum: ui64 = 0
+    in {
+        sum = 3;
+        sum
+    };

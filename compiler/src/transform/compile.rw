@@ -33,6 +33,12 @@ compile: (env, Store(name, BinOp("+", lhs, rhs))) ->
     : (new_loc := Var(!gen_num "loc") in (new_loc, !put[name, new_loc] env)))
     in (new_env, Add(loc, !compile (env, lhs) > !second, !compile (env, rhs) > !second));
 
+compile: (env, Store(name, BinOp("*", lhs, rhs))) ->
+  (loc, new_env) := (.get[name] env
+    ? (!id, env)
+    : (new_loc := Var(!gen_num "loc") in (new_loc, !put[name, new_loc] env)))
+    in (new_env, Mul(loc, !compile (env, lhs) > !second, !compile (env, rhs) > !second));
+
 compile: (env, Store(name, BinOp("-", lhs, rhs))) ->
   (loc, new_env) := (.get[name] env
     ? (!id, env)
@@ -51,12 +57,22 @@ compile: (env, Store(name, ReadIdx(arr, idx, type))) ->
     : (new_loc := Var(!gen_num "loc") in (new_loc, !put[name, new_loc] env)))
     in (new_env, Index(loc, !compile (env, arr) > !second, !compile (env, idx) > !second, type));
 
+compile: (env, Store(name, Size(arr))) -> 
+  (loc, new_env) := (.get[name] env
+    ? (!id, env)
+    : (new_loc := Var(!gen_num "loc") in (new_loc, !put[name, new_loc] env)))
+    in (new_env, Sizeof(loc, !compile (env, arr) > !second));
+
+compile: (env, Store(name, Panic())) -> (env, Panic());
+
 compile: (env, Store(name, expr)) ->
   (loc, new_env) := (.get[name] env
     ? (!id, env)
     : (new_loc := Var(!gen_num "loc") in (new_loc, !put[name, new_loc] env)))
     in (new_env, Store(loc, !compile (new_env, expr) > !second));
 
+compile: (env, Panic()) -> (env, Panic());
+compile: (env, Size(name)) -> (env, Size(!get[name] env));
 compile: (env, Load(name)) -> (env, Load(!get[name] env));
 compile: (env, Return(e)) -> (env, Return(!compile (env, e) > !second));
 compile: (env, Array(elems)) -> (env, Array(!env_map[!compile] (env, elems) > !second));

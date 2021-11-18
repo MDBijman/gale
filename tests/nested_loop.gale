@@ -1,0 +1,16 @@
+mod nested_loop;
+
+main: [str] -> ui64
+main args = {
+    let sum: ui64 = 0;
+    
+    for s1 in args {
+        std:print_str s1;
+        for s2 in args {
+            std:print_str s2;
+            sum = 1;
+        };
+    };
+
+    sum
+};
