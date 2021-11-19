@@ -1,0 +1,108 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "Gale",
+	"patterns": [
+		{
+			"include": "#function_declaration"
+		},
+		{
+			"include": "#function_definition"
+		},
+		{
+			"include": "#keywords"
+		},
+		{
+			"include": "#strings"
+		},
+		{
+			"include": "#tokens"
+		}
+	],
+	"repository": {
+		"function_declaration": {
+			"comment": "Function declaration",
+			"match": "([a-zA-Z_]\\w*):\\s(.*)$",
+			"captures": {
+				"1": {
+					"name": "entity.name.type.gale"
+				},
+				"2": {
+					"patterns": [
+						{
+							"include": "#entities"
+						}
+					]
+				}
+			}
+		},
+		"function_definition": {
+			"comment": "Function definition",
+			"begin": "([a-zA-Z_]\\w*)[^:]",
+			"end": ";",
+			"patterns": [
+				{
+					"include": "#keywords"
+				},
+				{
+					"include": "#strings"
+				},
+				{
+					"include": "#tokens"
+				}
+			],
+			"beginCaptures": {
+				"1": {
+					"name": "entity.name.function.gale"
+				}
+			}
+		},
+		"entities": {
+			"patterns": [
+				{
+					"comment": "Matches names",
+					"match": "\\b([a-zA-Z_]\\w*:)*([a-zA-Z_]\\w*)\\b",
+					"captures": {
+						"1": {
+							"name": "entity.name.namespace.gale"
+						},
+						"2": {
+							"name": "entity.name.function.gale"
+						}
+					}
+				}
+			]
+		},
+		"keywords": {
+			"patterns": [
+				{
+					"name": "keyword.control.gale",
+					"match": "\\b(if|for|let|in)\\b"
+				},
+				{
+					"name": "keyword.other.gale",
+					"match": "\\b(use|mod|as)\\b"
+				}
+			]
+		},
+		"strings": {
+			"name": "string.quoted.double.gale",
+			"begin": "\"",
+			"end": "\"",
+			"patterns": [
+				{
+					"name": "constant.character.escape.gale",
+					"match": "\\\\."
+				}
+			]
+		},
+		"tokens": {
+			"patterns": [
+				{
+					"name": "keyword.operator.gale",
+					"match": "(->|=|:|\\+|>|>=|<|<=|@|&&)"
+				}
+			]
+		}
+	},
+	"scopeName": "source.gale"
+}

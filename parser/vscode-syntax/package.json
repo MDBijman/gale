@@ -1,0 +1,26 @@
+{
+    "name": "gale",
+    "displayName": "gale",
+    "description": "Gale syntax highlighting",
+    "version": "0.0.1",
+    "publisher": "mbijman",
+    "engines": {
+        "vscode": "^1.46.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [{
+            "id": "gale",
+            "aliases": ["Gale", "gale"],
+            "extensions": [".gale"],
+            "configuration": "./language-configuration.json"
+        }],
+        "grammars": [{
+            "language": "gale",
+            "scopeName": "source.gale",
+            "path": "./syntaxes/gale.tmLanguage.json"
+        }]
+    }
+}
