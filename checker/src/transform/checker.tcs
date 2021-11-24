@@ -1,0 +1,149 @@
+import "checker/src/transform/checker.rw".
+
+FileOk: File -> fact
+FileOk File(module, decls) :- 
+    file_scope := new scope,
+    DeclareBuiltins file_scope,
+    forall (ToplevelDeclsOk file_scope) decls,
+    forall (ToplevelDefsOk file_scope) decls.
+
+DeclareBuiltins: scope -> fact
+DeclareBuiltins s :-
+    s -> Decl("std:parse_ui64", Type(Func(Builtin("str"), Builtin("ui64")))),
+    s -> Decl("std:print_str", Type(Func(Builtin("str"), Unit()))).
+
+ToplevelDeclsOk: scope -> FnDecl -> fact
+ToplevelDeclsOk file_scope FnDecl(name, type) :-
+    type_type := !typeof_type type,
+    not (file_scope -?> Decl(name, type))
+        | error "Duplicate function with name and type",
+    file_scope -> Decl(name, Type(type_type)).
+ToplevelDeclsOk file_scope o.
+
+ToplevelDefsOk: scope -> FnDef -> fact
+ToplevelDefsOk file_scope fn_def@FnDef(name, fn_pattern, expr) :-
+    file_scope -?> Decl(name, fn_type@Type(Func(param_type, res_type))) | error "Definition before declaration",
+    
+    function_scope := new scope,    
+    function_scope -> file_scope,
+
+    mapping := !extract_pattern_types (fn_pattern, param_type),
+    forall (Declare function_scope) mapping,
+    ExprOk function_scope expr,
+    fn_def += fn_type.
+
+ToplevelDefsOk file_scope o.
+
+Declare: scope -> Decl -> fact
+Declare s Decl(n, t) :- s -> Decl(n, t).
+
+DeclOk: scope -> Decl
+DeclOk parent_scope Decl(name, type, expr) :-
+    ExprOk parent_scope expr,
+    type_type := !typeof_type type,
+    Declare parent_scope Decl(name, Type(type_type)).
+
+ExprOk: scope -> Expr -> fact
+ExprOk function_scope r@Ref(n) :-
+    function_scope -?> Decl(n, type) | error "Undefined reference",
+    r += type.
+
+ExprOk function_scope t@Seq(terms, res) :-
+    seq_scope := new scope,
+    seq_scope -> function_scope,
+    forall (ExprOk seq_scope) terms,
+    ExprOk seq_scope res,
+    t += !typeof res.
+
+ExprOk function_scope t@Seq(terms) :-
+    seq_scope := new scope,
+    seq_scope -> function_scope,
+    forall (ExprOk seq_scope) terms,
+    t += Type(Unit()).
+
+ExprOk parent_scope Let(decls) :- forall (DeclOk parent_scope) decls.
+
+ExprOk s b@Brackets(inner) :-
+    ExprOk s inner,
+    b += !typeof inner.
+
+ExprOk s appl@Appl(n, arg) :-
+    ExprOk s n,
+    ExprOk s arg,
+    fn_type := !typeof n,
+    res_type := !func_out_type fn_type,
+    arg_type := !func_in_type fn_type,
+    appl += res_type,
+    !typeof arg = arg_type | error "Argument type does not match expected type".
+
+ExprOk parent_scope let@Let(decls, expr) :-
+    let_scope := new scope,
+    let_scope -> parent_scope,
+    forall (DeclOk let_scope) decls,
+    ExprOk let_scope expr,
+    let += !typeof expr.
+
+ExprOk parent if@If(cond, then) :-
+    if_scope := new scope,
+    if_scope -> parent,
+    ExprOk parent cond,
+    IsBoolean !typeof cond | error "Conditional must have boolean type",
+    if += Type(Unit()),
+    ExprOk if_scope then,
+    !typeof then = Type(Unit()) | error "Branch with result type must also have 'then' branch".
+
+ExprOk parent_scope Assign(Ref(ref), expr) :-
+    parent_scope -?> Decl(ref, decl_type) | error "Assigning undefined variable",
+    ExprOk parent_scope expr,
+    expr_type := !typeof expr,
+    decl_type = expr_type | error "Assigning value of different type to variable".
+
+ExprOk s add@Add(l, r) :-
+    ExprOk s l,
+    ExprOk s r,
+    !typeof l = !typeof r | error "Lhs of + must be equal to rhs type",
+    add += !typeof l.
+
+ExprOk s sub@Sub(l, r) :-
+    ExprOk s l,
+    ExprOk s r,
+    !typeof l = !typeof r | error "Lhs of - must be equal to rhs type",
+    sub += !typeof l.
+
+ExprOk s mul@Mul(l, r) :-
+    ExprOk s l,
+    ExprOk s r,
+    !typeof l = !typeof r | error "Lhs of * must be equal to rhs type",
+    mul += !typeof l.
+
+ExprOk s eq@Eq(l, r) :-
+    ExprOk s l,
+    ExprOk s r,
+    !typeof l = !typeof r | error "Lhs of == must be equal to rhs type",
+    eq += Type(Builtin("bool")).
+
+ExprOk s t@Int(n) :- t += Type(Builtin("ui64")).
+ExprOk s s@String(n) :- s += Type(Builtin("str")).
+
+ExprOk s ai@ArrIndex(arr, idx) :-
+    ExprOk s arr,
+    ExprOk s idx,
+    IsNumeric !typeof idx | error "Can only index with numeric value",
+    IsArray !typeof arr | error "Can only index array",
+    ai += !element_type !typeof arr.
+
+ExprOk s loop@For(name, arr, inner) :-
+    loop_scope := new scope,
+    loop_scope -> s,
+    ExprOk s arr,
+    loop_scope -> Decl(name, !element_type !typeof arr),
+    ExprOk loop_scope inner.
+
+IsNumeric: Type -> fact
+IsNumeric Type(Builtin("ui64")).
+
+IsArray: Type -> fact
+IsArray Type(HeapArray(e)).
+
+IsBoolean: Type -> fact
+IsBoolean Type(Builtin("bool")).

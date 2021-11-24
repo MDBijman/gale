@@ -8,6 +8,7 @@ edition = "2018"
 clap = "2.33.3"
 ters   = { git="https://github.com/MDBijman/ters" }
 aterms = { git="https://github.com/MDBijman/ters" }
+tecs   = { git="https://github.com/MDBijman/tecs" }
 
 [lib]
 name = "checker"

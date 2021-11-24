@@ -1,11 +1,15 @@
 use aterms::*;
-use ters::{parse_rewrite_string, Rewriter};
+use tecs::Interpreter;
 
-const INFER_TYPES_RW: &str = include_str!("./transform/infer_types.rw");
+const TECS_CHECKER: &str = include_str!("./transform/checker.tcs");
 
 pub fn check(term: &Term) -> Term {
-    let mut infer_types = parse_rewrite_string(INFER_TYPES_RW).unwrap();
-    infer_types.set_filename("./transform/infer_types.rw");
-    let mut rw_infer_types = Rewriter::new_with_prelude(infer_types);
-    rw_infer_types.rewrite(term.clone())
+    let interp = Interpreter::new_from_string(TECS_CHECKER);
+    match interp.run(term.clone(), "FileOk") {
+        Err(e) => {
+            println!("{}", e);
+            panic!()
+        }
+        Ok(t) => t,
+    }
 }

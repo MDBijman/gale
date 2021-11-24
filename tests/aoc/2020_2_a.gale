@@ -1,0 +1,22 @@
+mod aoc_2_a;
+use parsing as p;
+
+parse: str -> (ui64, ui64, char, str)
+parse line = 
+    p:sequence [
+        p:ui64,
+        p:preceded (p:tag "-")  p:ui64,
+        p:preceded (p:tag " ")  p:char,
+        p:preceded (p:tag ": ") p:word
+    ] line;
+
+line_valid: str -> bool
+line_valid line =
+    let
+        (min, max, c, word) = parse line,
+        count = std:count c word
+    in
+        (count <= max) && (count >= min);
+
+main: [str] -> ui64
+main s = (std:open_file . std:lines . std:map line_valid (std:lines f) . std:count id) (s@0);

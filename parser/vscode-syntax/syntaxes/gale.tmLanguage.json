@@ -3,22 +3,37 @@
 	"name": "Gale",
 	"patterns": [
 		{
+			"include": "#modules"
+		},
+		{
 			"include": "#function_declaration"
 		},
 		{
 			"include": "#function_definition"
-		},
-		{
-			"include": "#keywords"
-		},
-		{
-			"include": "#strings"
-		},
-		{
-			"include": "#tokens"
 		}
 	],
 	"repository": {
+		"modules": {
+			"comment": "Module or use commands",
+			"begin": "(mod|use)\\b",
+			"end": ";",
+			"beginCaptures": {
+				"1": {
+					"name": "keyword.other.gale"
+				}
+			},
+			"patterns": [
+				{
+					"include": "#keywords"
+				},
+				{
+					"include": "#strings"
+				},
+				{
+					"include": "#tokens"
+				}
+			]
+		},
 		"function_declaration": {
 			"comment": "Function declaration",
 			"match": "([a-zA-Z_]\\w*):\\s(.*)$",

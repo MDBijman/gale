@@ -6,3 +6,4 @@ target/
 
 *.term
 snippets/bench
+scratchpad.*

@@ -125,7 +125,16 @@ pub fn parse_name(input: &str) -> MyParseResult<String> {
                     .join(":")
             },
         ),
-        |s: &str| s != "in" && s != "let" && s != "match" && s != "for" && s != "if",
+        |s: &str| {
+            s != "in"
+                && s != "let"
+                && s != "match"
+                && s != "for"
+                && s != "if"
+                && s != "as"
+                && s != "use"
+                && s != "import"
+        },
     )(input)
 }
 
@@ -149,7 +158,7 @@ fn parse_number(i: &str) -> MyParseResult<Term> {
 }
 
 fn parse_ref(i: &str) -> MyParseResult<Term> {
-    map(context("name", parse_name), |name: String| {
+    map(context("name", ws(parse_name)), |name: String| {
         Term::new_rec_term("Ref", vec![Term::new_string_term(name.as_str())])
     })(i)
 }
@@ -177,6 +186,7 @@ pub fn parse_string(input: &str) -> MyParseResult<Term> {
 }
 
 fn parse_type_array(input: &str) -> MyParseResult<Term> {
+    // TODO rewrite to match style
     let (input, _) = ws(tag("[")).parse(input)?;
     let (input, type_) = parse_type(input)?;
 
@@ -191,31 +201,46 @@ fn parse_type_array(input: &str) -> MyParseResult<Term> {
     }
 }
 
-fn parse_type_term(input: &str) -> MyParseResult<Term> {
+fn parse_type_term(i: &str) -> MyParseResult<Term> {
     alt((
-        map_res(parse_name, |n| -> Result<Term, String> {
-            Ok(Term::new_rec_term(
-                "TypeId",
-                vec![Term::new_string_term(n.as_str())],
-            ))
+        map(ws(parse_name), |n| {
+            Term::new_rec_term("TypeId", vec![Term::new_string_term(n.as_str())])
         }),
-        map_res(tag("()"), |_| -> Result<Term, String> {
-            Ok(Term::new_rec_term("TypeTuple", vec![]))
-        }),
-        parse_type_array,
-    ))(input)
+        map(
+            context(
+                "tuple type",
+                delimited(
+                    ws(tag("(")),
+                    cut(separated_list0(ws(tag(",")), parse_type)),
+                    cut(ws(tag(")"))),
+                ),
+            ),
+            |ts| match ts.len() {
+                0 => Term::new_rec_term("UnitType", vec![]),
+                _ => Term::new_rec_term("TypeTuple", vec![Term::new_list_term(ts)]),
+            },
+        ),
+        context("array type", parse_type_array),
+    ))(i)
 }
 
-fn parse_type(input: &str) -> MyParseResult<Term> {
-    let (input, in_type) = parse_type_term(input)?;
-    let (input, r) = opt(ws(tag("->")))(input)?;
-    match r {
-        Some(_) => {
-            let (input, out_type) = parse_type(input)?;
-            Ok((input, Term::new_rec_term("FnType", vec![in_type, out_type])))
-        }
-        _ => Ok((input, in_type)),
-    }
+fn parse_type(i: &str) -> MyParseResult<Term> {
+    context(
+        "type",
+        map(
+            tuple((
+                parse_type_term,
+                context(
+                    "function type",
+                    opt(preceded(ws(tag("->")), cut(parse_type))),
+                ),
+            )),
+            |(t, ot)| match ot {
+                Some(ot) => Term::new_rec_term("FnType", vec![t, ot]),
+                None => t,
+            },
+        ),
+    )(i)
 }
 
 fn parse_lambda(i: &str) -> MyParseResult<Term> {
@@ -223,15 +248,15 @@ fn parse_lambda(i: &str) -> MyParseResult<Term> {
         tuple((
             ws(tag("\\")),
             alt((
-                map_res(parse_name, |n| -> Result<Vec<Term>, String> {
-                    Ok(vec![Term::new_string_term(n.as_str())])
+                map(parse_name, |n| -> Vec<Term> {
+                    vec![Term::new_string_term(n.as_str())]
                 }),
                 delimited(
                     ws(char('(')),
                     separated_list0(
                         ws(char(',')),
-                        map_res(parse_name, |n| -> Result<Term, String> {
-                            Ok(Term::new_string_term(n.as_str()))
+                        map(parse_name, |n| -> Term {
+                            Term::new_string_term(n.as_str())
                         }),
                     ),
                     ws(char(')')),
@@ -293,9 +318,9 @@ fn parse_tuple(input: &str) -> MyParseResult<Term> {
         context(
             "tuple",
             delimited(
-                char('('),
-                separated_list0(ws(char(',')), parse_expr),
-                char(')'),
+                ws(char('(')),
+                cut(separated_list0(ws(tag(",")), parse_expr)),
+                cut(ws(char(')'))),
             ),
         ),
         |r| -> Result<Term, String> { Ok(Term::new_rec_term("Tuple", r)) },
@@ -323,16 +348,14 @@ fn parse_value(input: &str) -> MyParseResult<Term> {
     ))(input)
 }
 
-fn parse_arr_index(input: &str) -> MyParseResult<Term> {
-    let (input, lhs) = parse_value(input)?;
-    match ws::<_, (_, _), _>(tag("@")).parse(input) {
-        Ok((input, _)) => {
-            let (input, rhs) = parse_arr_index(input)?;
-
-            Ok((input, Term::new_rec_term("ArrIndex", vec![lhs, rhs])))
-        }
-        _ => Ok((input, lhs)),
-    }
+fn parse_arr_index(i: &str) -> MyParseResult<Term> {
+    map(
+        pair(parse_value, opt(pair(ws(tag("@")), parse_arr_index))),
+        |(lhs, rest)| match rest {
+            Some((_, rhs)) => Term::new_rec_term("ArrIndex", vec![lhs, rhs]),
+            None => lhs,
+        },
+    )(i)
 }
 
 #[derive(Debug)]
@@ -340,7 +363,14 @@ enum Op {
     Add,
     Sub,
     Mul,
+    Div,
     Eq,
+    And,
+    Or,
+    GtEq,
+    Gt,
+    LtEq,
+    Lt,
 }
 
 fn parse_num_op(i: &str) -> MyParseResult<Op> {
@@ -348,6 +378,7 @@ fn parse_num_op(i: &str) -> MyParseResult<Op> {
         map(tag("+"), |_| Op::Add),
         map(tag("-"), |_| Op::Sub),
         map(tag("*"), |_| Op::Mul),
+        map(tag("/"), |_| Op::Div),
     ))(i)
 }
 
@@ -358,6 +389,7 @@ fn parse_num_ops(i: &str) -> MyParseResult<Term> {
             Some((Op::Add, rhs)) => Term::new_rec_term("Add", vec![lhs, rhs]),
             Some((Op::Sub, rhs)) => Term::new_rec_term("Sub", vec![lhs, rhs]),
             Some((Op::Mul, rhs)) => Term::new_rec_term("Mul", vec![lhs, rhs]),
+            Some((Op::Div, rhs)) => Term::new_rec_term("Div", vec![lhs, rhs]),
             Some(_) => panic!("Cannot parse this operand here!"),
             None => lhs,
         },
@@ -365,7 +397,15 @@ fn parse_num_ops(i: &str) -> MyParseResult<Term> {
 }
 
 fn parse_bool_op(i: &str) -> MyParseResult<Op> {
-    map(tag("=="), |_| Op::Eq)(i)
+    alt((
+        map(tag("=="), |_| Op::Eq),
+        map(tag(">="), |_| Op::GtEq),
+        map(tag("<="), |_| Op::LtEq),
+        map(tag(">"), |_| Op::Gt),
+        map(tag("<"), |_| Op::Lt),
+        map(tag("&&"), |_| Op::And),
+        map(tag("||"), |_| Op::Or),
+    ))(i)
 }
 
 fn parse_bool_ops(i: &str) -> MyParseResult<Term> {
@@ -373,6 +413,12 @@ fn parse_bool_ops(i: &str) -> MyParseResult<Term> {
         pair(parse_num_ops, opt(pair(ws(parse_bool_op), parse_bool_ops))),
         |(lhs, opt_rhs)| match opt_rhs {
             Some((Op::Eq, rhs)) => Term::new_rec_term("Eq", vec![lhs, rhs]),
+            Some((Op::GtEq, rhs)) => Term::new_rec_term("GtEq", vec![lhs, rhs]),
+            Some((Op::LtEq, rhs)) => Term::new_rec_term("LtEq", vec![lhs, rhs]),
+            Some((Op::Gt, rhs)) => Term::new_rec_term("Gt", vec![lhs, rhs]),
+            Some((Op::Lt, rhs)) => Term::new_rec_term("Lt", vec![lhs, rhs]),
+            Some((Op::And, rhs)) => Term::new_rec_term("And", vec![lhs, rhs]),
+            Some((Op::Or, rhs)) => Term::new_rec_term("Or", vec![lhs, rhs]),
             Some(_) => panic!("Cannot parse this operand here!"),
             None => lhs,
         },
@@ -428,39 +474,74 @@ fn parse_appl(i: &str) -> MyParseResult<Term> {
     )(i)
 }
 
+fn parse_function_composition(i: &str) -> MyParseResult<Term> {
+    map(
+        tuple((
+            parse_appl,
+            opt(pair(
+                ws(tag(".")),
+                context("fn composition", cut(parse_function_composition)),
+            )),
+        )),
+        |(lhs, rest)| match rest {
+            Some((_, rhs)) => Term::new_rec_term("FnComposition", vec![lhs, rhs]),
+            None => lhs,
+        },
+    )(i)
+}
+
+fn parse_lhs(i: &str) -> MyParseResult<Term> {
+    context(
+        "lhs",
+        alt((
+            map(ws(parse_name), |n| Term::new_string_term(n.as_str())),
+            map(
+                delimited(
+                    cut(ws(tag("("))),
+                    cut(separated_list1(ws(tag(",")), parse_lhs)),
+                    cut(ws(tag(")"))),
+                ),
+                |n| Term::new_list_term(n),
+            ),
+        )),
+    )(i)
+}
+
 fn parse_let_decl(i: &str) -> MyParseResult<Term> {
     map(
         context(
-            "binding",
+            "let",
             tuple((
-                ws(parse_name),
-                ws(tag(":")),
-                parse_type,
+                parse_lhs,
+                opt(preceded(ws(tag(":")), cut(parse_type))),
                 ws(tag("=")),
                 parse_expr,
             )),
         ),
-        |(n, _, t, _, e)| Term::new_rec_term("Decl", vec![Term::new_string_term(n.as_str()), t, e]),
+        |(n, t, _, e)| match t {
+            Some(t) => Term::new_rec_term("Decl", vec![n, t, e]),
+            None => Term::new_rec_term("Decl", vec![n, e]),
+        },
     )(i)
 }
 
 fn parse_let(i: &str) -> MyParseResult<Term> {
     alt((
         map(
-            ws(context(
+            context(
                 "let",
                 tuple((
-                    tag("let"),
+                    ws(tag("let")),
                     cut(separated_list1(ws(char(',')), parse_let_decl)),
                     cut(opt(preceded(ws(tag("in")), cut(parse_expr)))),
                 )),
-            )),
+            ),
             |(_, decls, opt_expr)| match opt_expr {
                 Some(expr) => Term::new_rec_term("Let", vec![Term::new_list_term(decls), expr]),
                 None => Term::new_rec_term("Let", vec![Term::new_list_term(decls)]),
             },
         ),
-        parse_appl,
+        parse_function_composition,
     ))(i)
 }
 
@@ -500,21 +581,37 @@ fn parse_expr(input: &str) -> MyParseResult<Term> {
 */
 
 fn parse_pattern_var(i: &str) -> MyParseResult<Term> {
-    map(parse_name, |n| {
+    map(ws(parse_name), |n| {
         Term::new_rec_term("PatternVar", vec![Term::new_string_term(n.as_str())])
     })(i)
 }
 
 fn parse_pattern_int(i: &str) -> MyParseResult<Term> {
-    map(parse_number, |n| Term::new_rec_term("PatternNum", vec![n]))(i)
+    map(ws(parse_number), |n| Term::new_rec_term("PatternNum", vec![n]))(i)
 }
 
 fn parse_pattern_str(i: &str) -> MyParseResult<Term> {
-    map(parse_string, |n| Term::new_rec_term("PatternStr", vec![n]))(i)
+    map(ws(parse_string), |n| Term::new_rec_term("PatternStr", vec![n]))(i)
+}
+
+fn parse_pattern_tuple(i: &str) -> MyParseResult<Term> {
+    map(
+        context("tuple pattern", delimited(
+            ws(tag("(")),
+            cut(separated_list0(ws(char(',')), parse_pattern)),
+            cut(ws(tag(")"))),
+        )),
+        |ts| Term::new_rec_term("PatternTuple", ts),
+    )(i)
 }
 
 fn parse_pattern(i: &str) -> MyParseResult<Term> {
-    alt((parse_pattern_int, parse_pattern_var, parse_pattern_str))(i)
+    alt((
+        parse_pattern_int,
+        parse_pattern_var,
+        parse_pattern_str,
+        parse_pattern_tuple,
+    ))(i)
 }
 
 /*
@@ -527,49 +624,74 @@ fn parse_module_declaration(i: &str) -> MyParseResult<Term> {
     })(i)
 }
 
-fn parse_function_declaration(input: &str) -> MyParseResult<Term> {
-    let (input, name) = parse_name(input)?;
-    let (input, _) = ws(tag(":")).parse(input)?;
-    let (input, fn_type) = cut(parse_type)(input)?;
-    let (input, _) = newline(input)?;
-
-    Ok((
-        input,
-        Term::new_rec_term(
-            "FnDecl",
-            vec![Term::new_string_term(name.as_str()), fn_type],
-        ),
-    ))
+fn parse_function_declaration(i: &str) -> MyParseResult<Term> {
+    map(
+        tuple((parse_name, ws(tag(":")), cut(parse_type))),
+        |(n, _, t)| Term::new_rec_term("FnDecl", vec![Term::new_string_term(n.as_str()), t]),
+    )(i)
 }
 
 fn parse_function_definition(i: &str) -> MyParseResult<Term> {
     map(
         context(
-            "function definition",
+            "function",
             tuple((
                 parse_name,
-                ws(parse_pattern),
-                cut(ws(tag("="))),
+                many1(parse_pattern),
+                cut(ws(char('='))),
                 cut(parse_expr),
-                cut(ws(tag(";"))),
+                cut(ws(char(';'))),
             )),
         ),
-        |(func, pattern, _, body, _)| {
+        |(func, patterns, _, body, _)| {
             Term::new_rec_term(
                 "FnDef",
-                vec![Term::new_string_term(func.as_str()), pattern, body],
+                vec![Term::new_string_term(func.as_str()), Term::new_list_term(patterns), body],
             )
         },
     )(i)
 }
 
+fn parse_import(i: &str) -> MyParseResult<Term> {
+    context(
+        "import",
+        delimited(
+            ws(tag("import")),
+            cut(ws(map(parse_name, |n| Term::new_string_term(n.as_str())))),
+            cut(ws(cut(tag(";")))),
+        ),
+    )(i)
+}
+
+fn parse_use(i: &str) -> MyParseResult<Term> {
+    context(
+        "use",
+        map(
+            tuple((
+                ws(tag("use")),
+                cut(ws(map(parse_name, |n| Term::new_string_term(n.as_str())))),
+                cut(ws(tag("as"))),
+                cut(ws(map(parse_name, |n| Term::new_string_term(n.as_str())))),
+                cut(ws(tag(";"))),
+            )),
+            |(_, a, _, b, _)| Term::new_rec_term("UseModuleAs", vec![a, b]),
+        ),
+    )(i)
+}
+
+fn parse_toplevel(i: &str) -> MyParseResult<Term> {
+    alt((
+        parse_function_definition,
+        parse_function_declaration,
+        parse_import,
+        parse_use,
+    ))(i)
+}
+
 pub fn parse_gale_string(i: &str) -> Result<Term, &str> {
     match all_consuming(pair(
         terminated(parse_module_declaration, multispace0),
-        many0(terminated(
-            alt((parse_function_definition, parse_function_declaration)),
-            multispace0,
-        )),
+        many0(terminated(parse_toplevel, multispace0)),
     ))(i)
     {
         Ok((_, (module_decl, r))) => Ok(Term::new_rec_term(

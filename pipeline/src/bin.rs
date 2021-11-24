@@ -5,13 +5,14 @@ use checker::{check, desugar};
 use clap::{App, Arg};
 use compiler::{compile, lower, print};
 use parser::parse_gale_file;
+use std::any::Any;
 use std::fs;
 use std::io::prelude::*;
 use std::path;
 use std::thread;
 use std::time;
 
-fn main() {
+fn main() -> Result<(), Box<dyn Any + Send>> {
     let matches = App::new("Gale")
         .version("0.1")
         .author("Matthijs Bijman <matthijs@bijman.org>")
@@ -61,7 +62,8 @@ fn main() {
             //
 
             let mut time = time::SystemTime::now();
-            let term = parse_gale_file(&in_file.to_str().unwrap()).unwrap();
+            let term = parse_gale_file(&in_file.to_str().expect("Input file does not exist"))
+                .expect("Something went wrong during parsing");
             let parse_time = time.elapsed().unwrap().as_millis();
 
             if should_debug {
@@ -154,5 +156,5 @@ fn main() {
         })
         .unwrap();
 
-    handler.join().unwrap();
+    handler.join()
 }

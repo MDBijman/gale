@@ -36,10 +36,12 @@ branch_to_if[arg]: MatchBranch(pattern, body) ->
 pattern_to_boolean: (arg, PatternVar(name)) -> True();
 pattern_to_boolean: (arg, PatternNum(num)) -> Eq(arg, num);
 pattern_to_boolean: (arg, PatternStr(str)) -> Eq(arg, str);
+pattern_to_boolean: (arg, [p]) -> .pattern_to_boolean (arg, p);
 
 pattern_to_statements: (arg, PatternVar(name), body) -> Let([Decl(name, AnyType(), arg)], body);
 pattern_to_statements: (arg, PatternNum(_), body) -> body;
 pattern_to_statements: (arg, PatternStr(_), body) -> body;
+pattern_to_statements: (arg, [p], body) -> .pattern_to_statements (arg, p, body);
 
 merge_if: (Panic(), If(expr, stmt)) -> If(expr, stmt, Panic());
 merge_if: (if_chain, If(expr, stmt)) -> If(expr, stmt, if_chain);

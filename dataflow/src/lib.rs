@@ -129,7 +129,9 @@ pub trait TransferFunction<N, L: Lattice> {
 #[derive(Default)]
 struct TransferFunctionId {}
 impl TransferFunction<TestNode, MaySet<String>> for TransferFunctionId {
-    fn eval(&self, n: &TestNode, l: &MaySet<String>) -> MaySet<String> { (*l).clone() }
+    fn eval(&self, _: &TestNode, l: &MaySet<String>) -> MaySet<String> {
+        (*l).clone()
+    }
 }
 
 #[derive(Default)]
@@ -245,22 +247,27 @@ impl<'a> ControlFlowGraph<'a> for TestGraph {
 fn test_basic_block() {
     let mut tg = TestGraph::new();
 
+    let r = TestNode::new(0);
     let a = TestNode::new(1);
     let b = TestNode::new(2);
     let c = TestNode::new(3);
     let d = TestNode::new(4);
 
+    tg.add_node(r);
     tg.add_node(a);
     tg.add_node(b);
     tg.add_node(c);
     tg.add_node(d);
 
+    tg.make_edge(r, a);
     tg.make_edge(a, b);
     tg.make_edge(b, c);
     tg.make_edge(c, d);
 
     let mut la: LivenessAnalysis = LivenessAnalysis::new();
 
+    la.transfer
+        .insert(r, Box::from(TransferFunctionId::default()));
     la.transfer
         .insert(a, Box::from(TransferFunctionWrites::default()));
     la.transfer
@@ -272,9 +279,10 @@ fn test_basic_block() {
 
     let values = solve(&tg, &mut la);
 
-    assert!(!values.get(&a).unwrap().data().contains(&String::from("a")));
+    assert!(!values.get(&r).unwrap().data().contains(&String::from("a")));
+    assert!(values.get(&a).unwrap().data().contains(&String::from("a")));
     assert!(values.get(&b).unwrap().data().contains(&String::from("a")));
-    assert!(values.get(&c).unwrap().data().contains(&String::from("a")));
+    assert!(!values.get(&c).unwrap().data().contains(&String::from("a")));
     assert!(!values.get(&d).unwrap().data().contains(&String::from("a")));
 }
 
@@ -282,18 +290,21 @@ fn test_basic_block() {
 fn test_with_loop() {
     let mut tg = TestGraph::new();
 
+    let r = TestNode::new(0);
     let a = TestNode::new(1);
     let b = TestNode::new(2);
     let c = TestNode::new(3);
     let d = TestNode::new(4);
     let e = TestNode::new(5);
 
+    tg.add_node(r);
     tg.add_node(a);
     tg.add_node(b);
     tg.add_node(c);
     tg.add_node(d);
     tg.add_node(e);
 
+    tg.make_edge(r, a);
     tg.make_edge(a, b);
     tg.make_edge(b, c);
     tg.make_edge(c, d);
@@ -302,6 +313,8 @@ fn test_with_loop() {
 
     let mut la: LivenessAnalysis = LivenessAnalysis::new();
 
+    la.transfer
+        .insert(r, Box::from(TransferFunctionId::default()));
     la.transfer
         .insert(a, Box::from(TransferFunctionWrites::default()));
     la.transfer
@@ -315,7 +328,8 @@ fn test_with_loop() {
 
     let values = solve(&tg, &mut la);
 
-    assert!(!values.get(&a).unwrap().data().contains(&String::from("a")));
+    assert!(!values.get(&r).unwrap().data().contains(&String::from("a")));
+    assert!(values.get(&a).unwrap().data().contains(&String::from("a")));
     assert!(values.get(&b).unwrap().data().contains(&String::from("a")));
     assert!(values.get(&c).unwrap().data().contains(&String::from("a")));
     assert!(values.get(&d).unwrap().data().contains(&String::from("a")));

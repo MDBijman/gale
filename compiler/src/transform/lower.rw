@@ -14,19 +14,19 @@ lower: Let(decls) -> !map[!lower] decls;
 
 lower: Decl(n, t, e) -> Store(n, !lower e);
 
-lower: Appl(fn, a){Type(t)} ->
-     tmp_name := !gen_name "tmp"
-  in Hoist([
-      Store(tmp_name, Call(fn, !lower a))
-    ], Load(tmp_name));
-
-lower: Appl(fn, arg) ->
+lower: Appl(Ref(fn), arg){Type(Unit())} ->
      tmp_name := !gen_name "tmp"
   in arg_name := !gen_name "tmp"
   in [
       Store(arg_name, !lower arg),
       Store(tmp_name, Call(fn, Load(arg_name)))
     ];
+    
+lower: Appl(Ref(fn), a){Type(t)} ->
+     tmp_name := !gen_name "tmp"
+  in Hoist([
+      Store(tmp_name, Call(fn, !lower a))
+    ], Load(tmp_name));
 
 lower: Seq(elems) -> !map[!lower] elems;
 
