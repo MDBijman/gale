@@ -1,2 +1,3 @@
-*.gbc
 *.term
+*.gbc
+*.json

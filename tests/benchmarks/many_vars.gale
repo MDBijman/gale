@@ -1,0 +1,45 @@
+mod many_vars;
+main: [str] -> ui64
+main s = {
+	let v0: ui64 = 1;
+	let v1: ui64 = v0 + 1;
+	let v2: ui64 = v1 + 1;
+	let v3: ui64 = v2 + 1;
+	let v4: ui64 = v3 + 1;
+	let v5: ui64 = v4 + 1;
+	let v6: ui64 = v5 + 1;
+	let v7: ui64 = v6 + 1;
+	let v8: ui64 = v7 + 1;
+	let v9: ui64 = v8 + 1;
+	let v10: ui64 = v9 + 1;
+	let v11: ui64 = v10 + 1;
+	let v12: ui64 = v11 + 1;
+	let v13: ui64 = v12 + 1;
+	let v14: ui64 = v13 + 1;
+	let v15: ui64 = v14 + 1;
+	let v16: ui64 = v15 + 1;
+	let v17: ui64 = v16 + 1;
+	let v18: ui64 = v17 + 1;
+	let v19: ui64 = v18 + 1;
+	let v20: ui64 = v19 + 1;
+	let v21: ui64 = v20 + 1;
+	let v22: ui64 = v21 + 1;
+	let v23: ui64 = v22 + 1;
+	let v24: ui64 = v23 + 1;
+	let v25: ui64 = v24 + 1;
+	let v26: ui64 = v25 + 1;
+	let v27: ui64 = v26 + 1;
+	let v28: ui64 = v27 + 1;
+	let v29: ui64 = v28 + 1;
+	let v30: ui64 = v29 + 1;
+	let v31: ui64 = v30 + 1;
+	let v32: ui64 = v31 + 1;
+	let v33: ui64 = v32 + 1;
+	let v34: ui64 = v33 + 1;
+	let v35: ui64 = v34 + 1;
+	let v36: ui64 = v35 + 1;
+	let v37: ui64 = v36 + 1;
+	let v38: ui64 = v37 + 1;
+	let v39: ui64 = v38 + 1;
+	v39
+};

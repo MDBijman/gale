@@ -150,8 +150,7 @@ fn main() -> Result<(), Box<dyn Any + Send>> {
                     parse_time, check_time, desugar_time, lower_time, compile_time, print_time
                 );
 
-                let mut o = fs::File::create("./snippets/bench/times.json").unwrap();
-                o.write(json_times.as_bytes()).unwrap();
+                println!("{}", json_times);
             }
         })
         .unwrap();

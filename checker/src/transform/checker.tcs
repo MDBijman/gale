@@ -128,8 +128,8 @@ ExprOk s s@String(n) :- s += Type(Builtin("str")).
 ExprOk s ai@ArrIndex(arr, idx) :-
     ExprOk s arr,
     ExprOk s idx,
-    IsNumeric !typeof idx | error "Can only index with numeric value",
-    IsArray !typeof arr | error "Can only index array",
+    IsNumeric !typeof idx | error "Index value must have numeric type`",
+    IsArray !typeof arr | error "Indexed value must have array type",
     ai += !element_type !typeof arr.
 
 ExprOk s loop@For(name, arr, inner) :-
