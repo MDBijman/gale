@@ -5,7 +5,6 @@ members = [
     "parser",
     "pipeline",
     "vm",
-    "galejs",
     "utils",
     "dataflow"
 ]
