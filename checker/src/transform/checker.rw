@@ -5,6 +5,7 @@ typeof_type: TypeId("ui64") -> Builtin("ui64");
 typeof_type: TypeId("str") -> Builtin("str");
 typeof_type: TypeId("char") -> Builtin("char");
 typeof_type: TypeId(name) -> Ref(name);
+typeof_type: TypeTuple(elems) -> Tuple(!map[!typeof_type] elems);
 
 extract_pattern_types: ([p], t) -> .extract_pattern_types (p, t);
 extract_pattern_types: (PatternVar(n), t) -> [Decl(n, Type(t))];

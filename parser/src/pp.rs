@@ -34,7 +34,7 @@ fn delimit(lhs: &str, elems: &String, rhs: &str) -> String {
 #[allow(dead_code)]
 pub fn pretty_print_gale_term(term: &Term) -> String {
     match term {
-        Term::RTerm(rt, _) => {
+        Term::RTerm(rt) => {
             let mut children: Vec<String> = rt.terms.iter().map(|t| pretty_print_gale_term(t)).collect();
             match rt.constructor.as_str() {
                 "File"      => separate_with(append_each(children, ";"), "\n"),
@@ -53,7 +53,7 @@ pub fn pretty_print_gale_term(term: &Term) -> String {
                 "Block"     => {
                     match rt.terms.last() {
                         // Last one doesn't need to be wrapped in a return
-                        Some(Term::RTerm(ret, _)) if ret.constructor == "Return" => {
+                        Some(Term::RTerm(ret)) if ret.constructor == "Return" => {
                             let _ = children.pop();
                             let stmts = join(append_each(indent(1, children), ";\n"));
                             let res   = indent_single(1, pretty_print_gale_term(&ret.terms[0]));
@@ -68,9 +68,9 @@ pub fn pretty_print_gale_term(term: &Term) -> String {
                 _ => panic!("Unknown constructor: {}", rt.constructor)
             }
         },
-        Term::NTerm(n, _) => n.value.to_string(),
-        Term::STerm(s, _) => s.value.clone(),
-        Term::TTerm(_, _) => unimplemented!(),
-        Term::LTerm(_, _) => unimplemented!(),
+        Term::NTerm(n) => n.value.to_string(),
+        Term::STerm(s) => s.value.clone(),
+        Term::TTerm(_) => unimplemented!(),
+        Term::LTerm(_) => unimplemented!(),
     }
 }

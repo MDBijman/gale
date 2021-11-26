@@ -32,7 +32,7 @@ fn main() {
     let printed = print(compiled);
 
     match printed {
-        Term::STerm(s, _) => {
+        Term::STerm(s) => {
             let mut o = fs::File::create(out_file).unwrap();
             println!("{}", s.value);
             o.write(format!("{}", s.value).as_bytes()).unwrap();

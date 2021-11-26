@@ -15,18 +15,15 @@ DeclareBuiltins s :-
 ToplevelDeclsOk: scope -> FnDecl -> fact
 ToplevelDeclsOk file_scope FnDecl(name, type) :-
     type_type := !typeof_type type,
-    not (file_scope -?> Decl(name, type))
-        | error "Duplicate function with name and type",
+    not (file_scope -?> Decl(name, type)) | error "Duplicate function with name and type",
     file_scope -> Decl(name, Type(type_type)).
 ToplevelDeclsOk file_scope o.
 
 ToplevelDefsOk: scope -> FnDef -> fact
 ToplevelDefsOk file_scope fn_def@FnDef(name, fn_pattern, expr) :-
     file_scope -?> Decl(name, fn_type@Type(Func(param_type, res_type))) | error "Definition before declaration",
-    
     function_scope := new scope,    
     function_scope -> file_scope,
-
     mapping := !extract_pattern_types (fn_pattern, param_type),
     forall (Declare function_scope) mapping,
     ExprOk function_scope expr,
@@ -37,7 +34,7 @@ ToplevelDefsOk file_scope o.
 Declare: scope -> Decl -> fact
 Declare s Decl(n, t) :- s -> Decl(n, t).
 
-DeclOk: scope -> Decl
+DeclOk: scope -> Decl -> fact
 DeclOk parent_scope Decl(name, type, expr) :-
     ExprOk parent_scope expr,
     type_type := !typeof_type type,

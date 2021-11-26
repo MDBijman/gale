@@ -128,7 +128,7 @@ fn main() -> Result<(), Box<dyn Any + Send>> {
 
             // Write result to file
             match printed_term {
-                Term::STerm(s, _) => {
+                Term::STerm(s) => {
                     let mut o = fs::File::create(out_file).unwrap();
                     o.write(format!("{}", s.value).as_bytes()).unwrap();
                 }

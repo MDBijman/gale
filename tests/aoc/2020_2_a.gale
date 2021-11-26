@@ -1,13 +1,12 @@
 mod aoc_2_a;
-use parsing as p;
 
 parse: str -> (ui64, ui64, char, str)
 parse line = 
-    p:sequence [
-        p:ui64,
-        p:preceded (p:tag "-")  p:ui64,
-        p:preceded (p:tag " ")  p:char,
-        p:preceded (p:tag ": ") p:word
+    parsing:sequence [
+        parsing:ui64,
+        parsing:preceded (parsing:tag "-")  parsing:ui64,
+        parsing:preceded (parsing:tag " ")  parsing:char,
+        parsing:preceded (parsing:tag ": ") parsing:word
     ] line;
 
 line_valid: str -> bool

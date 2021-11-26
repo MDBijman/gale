@@ -13,8 +13,9 @@ members = [
 debug = true
 incremental = true
 
+[patch.'https://github.com/MDBijman/aterms']
+aterms = { path = "../aterms", version="0.1.0" }
 [patch.'https://github.com/MDBijman/ters']
-ters = { path = "../ters/ters", version="0.1.0" }
-aterms = { path = "../ters/aterms", version="0.1.0" }
+ters = { path = "../ters", version="0.1.0" }
 [patch.'https://github.com/MDBijman/tecs']
 tecs = { path = "../tecs", version="0.1.0" }

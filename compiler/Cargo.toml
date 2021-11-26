@@ -9,7 +9,7 @@ edition = "2018"
 [dependencies]
 clap = "2.33.3"
 ters   = { git="https://github.com/MDBijman/ters", version="0.1.0" }
-aterms = { git="https://github.com/MDBijman/ters", version="0.1.0" }
+aterms = { git="https://github.com/MDBijman/aterms" }
 
 [[bin]]
 name = "compiler"

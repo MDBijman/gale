@@ -619,7 +619,7 @@ fn parse_pattern(i: &str) -> MyParseResult<Term> {
 */
 
 fn parse_module_declaration(i: &str) -> MyParseResult<Term> {
-    map(delimited(tag("mod"), ws(parse_name), tag(";")), |s| {
+    map(delimited(tag("mod"), ws(cut(parse_name)), ws(cut(char(';')))), |s| {
         Term::new_rec_term("ModuleName", vec![Term::new_string_term(s.as_str())])
     })(i)
 }
@@ -658,7 +658,7 @@ fn parse_import(i: &str) -> MyParseResult<Term> {
         delimited(
             ws(tag("import")),
             cut(ws(map(parse_name, |n| Term::new_string_term(n.as_str())))),
-            cut(ws(cut(tag(";")))),
+            cut(ws(char(';'))),
         ),
     )(i)
 }
@@ -672,7 +672,7 @@ fn parse_use(i: &str) -> MyParseResult<Term> {
                 cut(ws(map(parse_name, |n| Term::new_string_term(n.as_str())))),
                 cut(ws(tag("as"))),
                 cut(ws(map(parse_name, |n| Term::new_string_term(n.as_str())))),
-                cut(ws(tag(";"))),
+                cut(ws(char(';'))),
             )),
             |(_, a, _, b, _)| Term::new_rec_term("UseModuleAs", vec![a, b]),
         ),
@@ -710,9 +710,9 @@ pub fn parse_gale_string(i: &str) -> Result<Term, &str> {
 pub fn parse_gale_file(filename: &str) -> Result<Term, &str> {
     match fs::read_to_string(filename) {
         Ok(file) => {
-            let r = parse_gale_string(file.as_str());
             // This doesn't make much sense but the file contents (which are part of the error)
             // cannot be returned from this function, so has to be refactored
+            let r = parse_gale_string(file.as_str());
             Ok(r.unwrap())
         }
         _ => panic!("Cannot find file {}", filename),

@@ -10,7 +10,7 @@ edition = "2018"
 clap = "2.33.3"
 nom = "6.0.0"
 ters   = { git="https://github.com/MDBijman/ters" }
-aterms = { git="https://github.com/MDBijman/ters" }
+aterms = { git="https://github.com/MDBijman/aterms" }
 
 [lib]
 name = "parser"
