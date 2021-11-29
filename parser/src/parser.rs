@@ -1,5 +1,5 @@
 extern crate aterms;
-use aterms::*;
+use aterms::base::*;
 use nom::{
     branch::alt,
     bytes::complete::{tag, take, take_while, take_while1},
@@ -24,40 +24,8 @@ fn ws<'a, O, E: ParseError<&'a str>, F: Parser<&'a str, O, E>>(f: F) -> impl Par
     delimited(multispace0, f, multispace0)
 }
 
-fn newline(input: &str) -> MyParseResult<&str> {
-    let (input, _) = take_while(|c: char| c == ' ' || c == '\t')(input)?;
-    alt((tag("\n"), tag("\r\n"))).parse(input)
-}
-
 fn u16_hex(i: &str) -> MyParseResult<u16> {
     map_res(take(4usize), |s| u16::from_str_radix(s, 16))(i)
-}
-
-fn dbg_in<'a, O, E: ParseError<&'a str>, F: Parser<&'a str, O, E>>(
-    mut f: F,
-) -> impl Parser<&'a str, O, E>
-where
-    O: std::fmt::Debug,
-    E: std::fmt::Debug,
-{
-    move |input: &'a str| {
-        println!("[dbg] {}", input);
-        f.parse(input)
-    }
-}
-
-fn dbg_out<'a, O, E: ParseError<&'a str>, F: Parser<&'a str, O, E>>(
-    mut f: F,
-) -> impl Parser<&'a str, O, E>
-where
-    O: std::fmt::Debug,
-    E: std::fmt::Debug,
-{
-    move |input: &'a str| {
-        let r = f.parse(input);
-        println!("[dbg] {:?}", r);
-        r
-    }
 }
 
 fn unicode_escape(input: &str) -> MyParseResult<char> {

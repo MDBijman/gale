@@ -1,4 +1,4 @@
-use aterms::Term;
+use aterms::base::Term;
 use checker::{check, desugar};
 use compiler::{compile, lower, print};
 use parser::parse_gale_string;

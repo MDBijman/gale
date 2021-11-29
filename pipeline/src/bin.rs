@@ -1,6 +1,6 @@
 extern crate clap;
 
-use aterms::Term;
+use aterms::base::Term;
 use checker::{check, desugar};
 use clap::{App, Arg};
 use compiler::{compile, lower, print};

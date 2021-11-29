@@ -3,7 +3,7 @@ mod compiler;
 use clap::{App, Arg};
 use std::fs;
 use std::io::prelude::*;
-use aterms::*;
+use aterms::base::*;
 use crate::compiler::*;
 
 fn main() {

@@ -1,15 +1,26 @@
 
-main: File(mod, fns) -> File(mod, !desugar_separate_functions fns > !desugar_matches > !desugar_brackets);
+main: File(mod, fns) -> 
+   File(mod, fns > !explicit_currying > !join_definitions > !matches_to_ifs > !remove_brackets);
+
+# Explicit currying in functions that match multiple arguments
+
+explicit_currying: fns -> !map[!explicit_currying_one] fns;
+
+explicit_currying_one: FnDecl(_, _) -> .id;
+explicit_currying_one: FnDef(name, [p], body){..a} -> FnDef(name, p, body){..a};
+explicit_currying_one: FnDef(name, [p|t], body){..a} -> FnDef(name, p, !explicit_currying_inner Closure(t, body)){..a};
+explicit_currying_inner: Closure([p], body) -> Closure(p, body);
+explicit_currying_inner: Closure([p|t], body) -> Closure(p, !explicit_currying_inner Closure(t, body));
 
 # Separated function definitions desugaring into single function with branch
 
-desugar_separate_functions: fns -> !group_functions fns > !map[!merge_functions];
+join_definitions: fns -> !group_functions fns > !map[!merge_functions];
 
 group_functions: fns -> 
      func_map := .new_map ()
   in !env_map[!group_one] (func_map, fns) > !fst;
 
-group_one: (env, FnDecl(name, type)) -> (env, FnDecl(name, type));
+group_one: (env, FnDecl(_, _)) -> .id;
 group_one: (env, FnDef(name, pattern, body){Type(t)}) ->
        (fn_group    := .get[name] env
     in new_fn_group := [FnDef(name, pattern, body){Type(t)} | fn_group]
@@ -25,7 +36,7 @@ merge_match_branches: branches -> Match(Ref("_arg"), branches);
 
 # Match desugaring into if-then-else chains
 
-desugar_matches: fns -> !topdown[!try[.desugar_match]] fns;
+matches_to_ifs: fns -> !topdown[!try[.desugar_match]] fns;
 
 desugar_match: Match(arg, branches) ->
    !map[!branch_to_if[arg]] branches > !reverse > !reduce[!merge_if] (Panic(), .id);
@@ -46,8 +57,7 @@ pattern_to_statements: (arg, [p], body) -> .pattern_to_statements (arg, p, body)
 merge_if: (Panic(), If(expr, stmt)) -> If(expr, stmt, Panic());
 merge_if: (if_chain, If(expr, stmt)) -> If(expr, stmt, if_chain);
 
-
 # Remove brackets
 
-desugar_brackets: t -> !bottomup[.try[.remove_bracket]] t;
+remove_brackets: t -> !bottomup[.try[.remove_bracket]] t;
 remove_bracket: Brackets(t) -> t;

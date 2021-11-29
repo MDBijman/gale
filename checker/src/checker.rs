@@ -1,6 +1,5 @@
-use aterms::*;
+use aterms::base::*;
 use tecs::Interpreter;
-use ters::{parse_rewrite_string, Rewriter};
 
 const TECS_CHECKER: &str = include_str!("./transform/checker.tcs");
 

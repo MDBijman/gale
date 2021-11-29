@@ -104,4 +104,4 @@ else:
     for test in tests:
         test_args, out = tests[test]
         run_one(test, test_args, out, args.debug, args.exec_only, args.interp)
-        cleanup(test)
+        #cleanup(test)

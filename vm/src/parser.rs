@@ -498,6 +498,13 @@ fn parse_code_section(i: &str) -> MyParseResult<Vec<LongFunction>> {
     )(i)
 }
 
+fn parse_section(i: &str) -> MyParseResult<Vec<LongFunction>> {
+    preceded(
+        ws(tag(".code")),
+        many1(preceded(multispace0, parse_function)),
+    )(i)
+}
+
 #[derive(Debug)]
 pub enum ParserError {
     ParseFailure(String),

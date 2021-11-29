@@ -5,7 +5,7 @@ mod desugarer;
 use clap::{App, Arg};
 use std::fs;
 use std::io::prelude::*;
-use aterms::*;
+use aterms::base::*;
 
 use crate::checker::*;
 use crate::desugarer::*;

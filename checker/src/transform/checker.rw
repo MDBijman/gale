@@ -7,8 +7,9 @@ typeof_type: TypeId("char") -> Builtin("char");
 typeof_type: TypeId(name) -> Ref(name);
 typeof_type: TypeTuple(elems) -> Tuple(!map[!typeof_type] elems);
 
-extract_pattern_types: ([p], t) -> .extract_pattern_types (p, t);
-extract_pattern_types: (PatternVar(n), t) -> [Decl(n, Type(t))];
+extract_pattern_types: ([p], Type(Func(i, o))) -> .extract_pattern_types (p, Type(i));
+extract_pattern_types: ([p|t], Type(Func(i, o))) -> .concat (.extract_pattern_types (p, Type(i)), .extract_pattern_types (t, Type(o)));
+extract_pattern_types: (PatternVar(n), t) -> [Decl(n, t)];
 extract_pattern_types: (PatternNum(_), _) -> [];
 extract_pattern_types: (PatternStr(_), _) -> [];
 

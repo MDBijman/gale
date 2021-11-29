@@ -1,4 +1,4 @@
-use aterms::*;
+use aterms::base::*;
 use ters::{parse_rewrite_string, Rewriter};
 
 const DESUGAR_RW: &str = include_str!("./transform/desugar.rw");
