@@ -287,7 +287,7 @@ fn parse_tuple(input: &str) -> MyParseResult<Term> {
             "tuple",
             delimited(
                 ws(char('(')),
-                cut(separated_list0(ws(tag(",")), parse_expr)),
+                terminated(cut(separated_list0(ws(tag(",")), parse_expr)), opt(ws(char(',')))),
                 cut(ws(char(')'))),
             ),
         ),

@@ -1,0 +1,10 @@
+mod curry;
+
+main: [str] -> ui64
+main s = add (std:parse_ui64 s@0) 1;
+
+_closure_add_1: ((ui64), ui64) -> ui64
+_closure_add_1 ((a), b) = a + b;
+
+add: ui64 -> ((ui64), ((ui64), ui64) -> ui64)
+add a = ((a,), _closure_add_1);

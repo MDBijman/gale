@@ -111,7 +111,7 @@ impl From<VarId> for Operand {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum LowInstruction {
     // Mirrors of Instruction, but with enum operands
     ConstU32(Operand, u32),
@@ -124,7 +124,8 @@ pub enum LowInstruction {
     NotVar(Operand, Operand),
     Return(Operand),
     Print(Operand),
-    Call(Operand, FnId, Operand),
+    Call1(Operand, FnId, Operand),
+    CallN(Operand, FnId, Vec<Operand>),
     ModuleCall(Operand, CallTarget, Operand),
     Jmp(InstrLbl),
     JmpIf(InstrLbl, Operand),
@@ -167,7 +168,8 @@ impl From<Instruction> for LowInstruction {
             Instruction::NotVar(a, b) => LowInstruction::NotVar(a.into(), b.into()),
             Instruction::Return(a) => LowInstruction::Return(a.into()),
             Instruction::Print(a) => LowInstruction::Print(a.into()),
-            Instruction::Call(a, b, c) => LowInstruction::Call(a.into(), b.into(), c.into()),
+            Instruction::Call1(a, b, c) => LowInstruction::Call1(a.into(), b.into(), c.into()),
+            Instruction::CallN(a, b, c, d) => LowInstruction::Call1(a.into(), b.into(), c.into()),
             Instruction::ModuleCall(a, b, c) => LowInstruction::ModuleCall(a.into(), b, c.into()),
             Instruction::Jmp(a) => LowInstruction::Jmp(a),
             Instruction::JmpIf(a, b) => LowInstruction::JmpIf(a, b.into()),
@@ -864,7 +866,7 @@ fn emit_instr_as_asm<'a>(
 
             load_volatiles(ops, &saved);
         }
-        Call(res, func, arg) => {
+        Call1(res, func, arg) => {
             let module = module.id;
 
             // Recursive call
@@ -1011,6 +1013,7 @@ fn emit_instr_as_asm<'a>(
                 ; mov r8, QWORD &const_decl.value as *const _ as i64
                 ; sub rsp, BYTE stack_space
                 ; mov r10, QWORD write_to_heap_address
+                ; call r10
                 ; add rsp, BYTE stack_space
                 ;; x64_asm_resolve_mem!(ops, memory; mov resolve(res), rax)
             );
@@ -1299,7 +1302,7 @@ fn emit_low_instr_as_asm<'a>(
 
                     ; mov Rq(res), rax);
         }
-        Call(Reg(res), func, Reg(arg)) => {
+        Call1(Reg(res), func, Reg(arg)) => {
             let module = module.id;
 
             // Recursive call

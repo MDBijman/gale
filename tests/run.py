@@ -86,6 +86,7 @@ tests = {
     "fib": (["30"], "1346269\n"),
     "parse_ui64": (["11"], "11\n"),
     "let": ([], "3\n"),
+    "curry": (["3"], "4\n"),
     "assign": ([], "3\n"),
     "aoc\\2020_1_a": (open(".\\tests\\aoc\\2020_1.txt").read().split(sep=" "), "987339\n"),
     "aoc\\2020_1_b": (open(".\\tests\\aoc\\2020_1.txt").read().split(sep=" "), "259521570\n"),

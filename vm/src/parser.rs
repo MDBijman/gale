@@ -1,7 +1,7 @@
 extern crate nom;
 use crate::bytecode::{
-    ConstId, LongInstruction, Module, ModuleLoader, Param, ConstDecl, Constant,
-    LongFunction, Type, TypeDecl, VarId,
+    ConstDecl, ConstId, Constant, LongFunction, LongInstruction, Module, ModuleLoader, Param, Type,
+    TypeDecl, VarId,
 };
 use nom::{
     branch::alt,
@@ -275,10 +275,12 @@ fn parse_call(i: &str) -> MyParseResult<LongInstruction> {
                 tag(")"),
             ),
         )),
-        |(r, target, _, args)| match target.0 {
-            Some(module) => LongInstruction::ModuleCall(r, module, target.1, args[0]),
-            None => LongInstruction::Call(r, target.1, args[0]),
-        },
+        |(r, target, _, args)| {
+            match target.0 {
+                Some(module) => LongInstruction::ModuleCall(r, module, target.1, args),
+                None => LongInstruction::Call(r, target.1, args),
+            }
+        }
     )(i)
 }
 
@@ -452,9 +454,15 @@ fn parse_module_declaration(i: &str) -> MyParseResult<String> {
     whitespace_around(preceded(tag("mod"), spaces_around(parse_identifier)))(i)
 }
 
-fn parse_const_section(i: &str) -> MyParseResult<Vec<ConstDecl>> {
+enum Section {
+    Constants(Vec<ConstDecl>),
+    Types(Vec<TypeDecl>),
+    Functions(Vec<LongFunction>),
+}
+
+fn parse_const_section(i: &str) -> MyParseResult<Section> {
     map(
-        opt(preceded(
+        preceded(
             ws(tag(".const")),
             many0(map(
                 tuple((parse_u64, tag(":"), ws(parse_type), ws(parse_constant))),
@@ -464,17 +472,14 @@ fn parse_const_section(i: &str) -> MyParseResult<Vec<ConstDecl>> {
                     value,
                 },
             )),
-        )),
-        |r| match r {
-            None => Vec::new(),
-            Some(r) => r,
-        },
+        ),
+        |r| Section::Constants(r),
     )(i)
 }
 
-fn parse_types_section(i: &str) -> MyParseResult<Vec<TypeDecl>> {
+fn parse_types_section(i: &str) -> MyParseResult<Section> {
     map(
-        opt(preceded(
+        preceded(
             ws(tag(".types")),
             many0(map(
                 tuple((parse_u64, tag(":"), ws(parse_type))),
@@ -483,70 +488,82 @@ fn parse_types_section(i: &str) -> MyParseResult<Vec<TypeDecl>> {
                     type_,
                 },
             )),
-        )),
-        |r| match r {
-            None => Vec::new(),
-            Some(r) => r,
-        },
+        ),
+        |r| Section::Types(r),
     )(i)
 }
 
-fn parse_code_section(i: &str) -> MyParseResult<Vec<LongFunction>> {
-    preceded(
+fn parse_code_section(i: &str) -> MyParseResult<Section> {
+    map(preceded(
         ws(tag(".code")),
-        many1(preceded(multispace0, parse_function)),
-    )(i)
+        many0(preceded(multispace0, parse_function)),
+    ), |fs| Section::Functions(fs))(i)
 }
 
-fn parse_section(i: &str) -> MyParseResult<Vec<LongFunction>> {
-    preceded(
-        ws(tag(".code")),
-        many1(preceded(multispace0, parse_function)),
-    )(i)
+fn parse_section(i: &str) -> MyParseResult<Section> {
+    alt((
+        parse_const_section,
+        parse_types_section,
+        parse_code_section
+    ))(i)
 }
 
 #[derive(Debug)]
 pub enum ParserError {
     ParseFailure(String),
-    FileNotFound()
+    FileNotFound(),
 }
 
 pub fn parse_bytecode_string(module_loader: &ModuleLoader, i: &str) -> Result<Module, ParserError> {
     match map(
         whitespace_around(tuple((
             parse_module_declaration,
-            opt(parse_types_section),
-            opt(parse_const_section),
-            opt(parse_code_section),
+            many0(parse_section)
         ))),
-        |(name, types, consts, functions)| {
+        |(name, sections)| {
+            let mut types = vec![];
+            let mut consts = vec![];
+            let mut functions = vec![];
+
+            for section in sections {
+                match section {
+                    Section::Functions(fs) => functions.extend(fs.into_iter()),
+                    Section::Constants(cs) => consts.extend(cs.into_iter()),
+                    Section::Types(ts) => types.extend(ts.into_iter()),
+                }
+            }
+
             Module::from_long_functions(
                 module_loader,
                 name,
-                types.unwrap_or(vec![]),
-                consts.unwrap_or(vec![]),
-                functions.unwrap_or(vec![]),
+                types, 
+                consts,
+                functions
             )
         },
     )(i)
     {
         Ok((leftover, m)) => {
             if leftover.len() > 0 {
-                return Err(ParserError::ParseFailure(format!("Didn't parse entire file: {}", leftover)));
+                return Err(ParserError::ParseFailure(format!(
+                    "Didn't parse entire file: {}",
+                    leftover
+                )));
             }
 
             Ok(m)
         }
-        Err(nom::Err::Failure(err)) | Err(nom::Err::Error(err)) => {
-            Err(ParserError::ParseFailure(format!("{}", convert_error(i, err))))
-        }
-        Err(err) => {
-            Err(ParserError::ParseFailure(format!("{}", err)))
-        }
+        Err(nom::Err::Failure(err)) | Err(nom::Err::Error(err)) => Err(ParserError::ParseFailure(
+            format!("{}", convert_error(i, err)),
+        )),
+        Err(err) => Err(ParserError::ParseFailure(format!("{}", err))),
     }
 }
 
-pub fn parse_bytecode_file(module_loader: &ModuleLoader, filename: &str) -> Result<Module, ParserError> {
+pub fn parse_bytecode_file(
+    module_loader: &ModuleLoader,
+    filename: &str,
+) -> Result<Module, ParserError> {
     match fs::read_to_string(filename) {
         Ok(f) => parse_bytecode_string(module_loader, f.as_str()),
         Err(_) => Err(ParserError::FileNotFound()),

@@ -1,0 +1,20 @@
+mod add
+
+.code
+fn add ($0: ui64, $1: ui64) -> ui64
+    add $2, $0, $1
+    ret $2
+endfn
+
+fn main ($0: &[&str]) -> ui64
+        movc $1, 0
+        idx $2, $0, $1, &str
+        call $3, @std:parse_ui64 ($2)
+
+        movc $1, 1
+        idx $2, $0, $1, &str
+        call $4, @std:parse_ui64 ($2)
+
+        call $3, @add ($3, $4)
+        ret $3
+endfn

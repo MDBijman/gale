@@ -237,7 +237,7 @@ impl Interpreter {
                     vm_state.interpreter_state.ip += 1;
                 }
             }
-            Instruction::Call(r, _, arg) | Instruction::ModuleCall(r, _, arg) => {
+            Instruction::Call1(r, _, arg) | Instruction::ModuleCall(r, _, arg) => {
                 let target = current_instruction
                     .get_call_target(current_module.id)
                     .expect("call target");

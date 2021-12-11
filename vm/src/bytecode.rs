@@ -227,8 +227,8 @@ pub enum LongInstruction {
 
     Return(VarId),
     Print(VarId),
-    Call(VarId, String, VarId),
-    ModuleCall(VarId, String, String, VarId),
+    Call(VarId, String, Vec<VarId>),
+    ModuleCall(VarId, String, String, Vec<VarId>),
     Jmp(String),
     JmpIf(String, VarId),
     JmpIfNot(String, VarId),
@@ -435,7 +435,8 @@ pub enum Instruction {
 
     Return(VarId),
     Print(VarId),
-    Call(VarId, FnId, VarId),
+    Call1(VarId, FnId, VarId),
+    CallN(VarId, FnId, VarId, VarId),
     ModuleCall(VarId, CallTarget, VarId),
     Jmp(InstrLbl),
     JmpIf(InstrLbl, VarId),
@@ -466,7 +467,8 @@ impl Instruction {
             | Alloc(r, _)
             | LoadVar(r, _, _)
             | NotVar(r, _)
-            | Call(r, _, _)
+            | Call1(r, _, _)
+            | CallN(r, _, _, _)
             | Index(r, _, _, _)
             | LoadConst(r, _)
             | Sizeof(r, _)
@@ -495,7 +497,7 @@ impl Instruction {
             | AddVarVar(_, b, c) => vec![*b, *c],
             JmpIfNot(_, a)
             | NotVar(_, a)
-            | Call(_, _, a)
+            | Call1(_, _, a)
             | ModuleCall(_, _, a)
             | Return(a)
             | Print(a)
@@ -504,13 +506,15 @@ impl Instruction {
             | LoadVar(_, a, _)
             | Copy(_, a) => vec![*a],
             Lbl | ConstU32(_, _) | Jmp(_) | Alloc(_, _) | LoadConst(_, _) | Nop | Panic => vec![],
+            CallN(_, _, a, b) => (*a..=*b).collect()
         }
     }
 
     pub fn get_call_target(&self, default_mod: ModuleId) -> Option<CallTarget> {
         use Instruction::*;
         match self {
-            Call(_, loc, _) => Some(CallTarget::new(default_mod, *loc)),
+            Call1(_, loc, _) => Some(CallTarget::new(default_mod, *loc)),
+            CallN(_, loc, _, _) => Some(CallTarget::new(default_mod, *loc)),
             ModuleCall(_, ct, _) => Some(*ct),
             _ => None,
         }
@@ -532,7 +536,8 @@ impl Display for Instruction {
             NotVar(a, b) => write!(f, "neg ${}, ${}", a, b),
             Return(a) => write!(f, "ret ${}", a),
             Print(r) => write!(f, "print ${}", r),
-            Call(a, b, c) => write!(f, "call ${}, @{} (${})", a, b, c),
+            Call1(a, b, c) => write!(f, "call ${}, @{} (${})", a, b, c),
+            CallN(a, b, c, d) => write!(f, "call ${}, @{} (${}..${})", a, b, c, d),
             ModuleCall(a, b, c) => {
                 write!(f, "call ${}, @{}:{} (${})", a, b.module, b.function, c)
             }
@@ -678,12 +683,30 @@ impl Function {
                 LongInstruction::Lbl(_) => {
                     compact_instructions.push(Instruction::Lbl);
                 }
-                LongInstruction::Call(res, n, var) => compact_instructions.push(Instruction::Call(
-                    res.clone(),
-                    fns[n].try_into().unwrap(),
-                    *var,
-                )),
-                LongInstruction::ModuleCall(res, module_name, function, var) => {
+                LongInstruction::Call(res, n, vars) => {
+                    if vars.len() == 1 {
+                        compact_instructions.push(Instruction::Call1(
+                            res.clone(),
+                            fns[n].try_into().unwrap(),
+                            vars[0],
+                        ))
+                    } else if vars.len() > 1 {
+                        let mut iter = vars.iter();
+                        let mut cur = iter.next().unwrap();
+                        for i in iter {
+                            assert!(*i == cur + 1);
+                            cur = i;
+                        }
+                        
+                        compact_instructions.push(Instruction::CallN(
+                            res.clone(),
+                            fns[n].try_into().unwrap(),
+                            vars[0],
+                            *vars.last().unwrap()
+                        ))
+                    }
+                }
+                LongInstruction::ModuleCall(res, module_name, function, vars) => {
                     let module = module_loader
                         .get_by_name(module_name.as_str())
                         .expect("missing module")
@@ -697,7 +720,7 @@ impl Function {
                     compact_instructions.push(Instruction::ModuleCall(
                         res.clone(),
                         CallTarget::new(module.id, function_id),
-                        *var,
+                        vars[0],
                     ));
                 }
                 LongInstruction::LoadVar(res, v, ty) => {
