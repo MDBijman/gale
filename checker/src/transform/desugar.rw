@@ -1,16 +1,54 @@
 
 main: File(mod, fns) -> 
-   File(mod, fns > !explicit_currying > !join_definitions > !matches_to_ifs > !remove_brackets);
+   File(mod, fns > !explicit_currying > !lift_closures > !desugar_function_ref > !join_definitions > !matches_to_ifs > !remove_brackets > !desugar_indexing);
 
-# Explicit currying in functions that match multiple arguments
+# Explicit currying with closures in functions that match multiple arguments
+
+# FIXME: ONLY WORKS FOR SINGLE NESTING
 
 explicit_currying: fns -> !map[!explicit_currying_one] fns;
 
 explicit_currying_one: FnDecl(_, _) -> .id;
 explicit_currying_one: FnDef(name, [p], body){..a} -> FnDef(name, p, body){..a};
-explicit_currying_one: FnDef(name, [p|t], body){..a} -> FnDef(name, p, !explicit_currying_inner Closure(t, body)){..a};
-explicit_currying_inner: Closure([p], body) -> Closure(p, body);
-explicit_currying_inner: Closure([p|t], body) -> Closure(p, !explicit_currying_inner Closure(t, body));
+explicit_currying_one: FnDef(name, [p|t], body){Type(fn_type), ..a} -> 
+      closure_body := !explicit_currying_inner Closure(t, body){Type(Closure([(p, !function_types_head fn_type)], !function_types_tail fn_type))}
+   in FnDef(name, p, closure_body){Type(fn_type), ..a};
+
+explicit_currying_inner: Closure([p], body){..a} -> Closure(p, body){..a};
+explicit_currying_inner: Closure([p|t], body){..a} -> !fail "Not yet implemented";
+
+function_types_head: Func(a, Func(b, c)) -> a;
+function_types_tail: Func(a, Func(b, c)) -> Func(b, c);
+
+# Creates new functions for anonymous closures
+
+lift_closures: fns -> !env_map[!lift_closures_in_function] ([], fns) > !concat;
+
+lift_closures_in_function: (env, fn) -> !env_bottomup[!try[!lift_closure]] (env, fn);
+
+lift_closure: (env, Closure(pat, expr){Type(Closure(captures, signature))}) ->
+      closure_name := !gen_name "_closure"
+   in closure_as_fn_type := !convert_closure_type_to_function Closure(captures, signature)
+   in closure_as_fn_pattern := !make_closure_pattern (captures, pat)
+   in closure_decl := FnDecl(closure_name, closure_as_fn_type)
+   in closure_def  := FnDef(closure_name, closure_as_fn_pattern, expr){Type(closure_as_fn_type)}
+   in x := (!gather_variables Closure(pat, expr))
+   in (!concat ([closure_decl, closure_def], env), Ref(closure_name){FnRef()});
+lift_closure: (env, e) -> !id;
+
+gather_variables: Closure(pat, expr) -> !gather[.is_variable] expr;
+is_variable: Ref(_) -> .id;
+
+convert_closure_type_to_function: Closure(captures, Func(from, to)) -> Func(Tuple(!concat (!map[!snd] captures, [from])), to);
+make_closure_pattern: (captures, pat) -> PatternTuple(!concat (!map[!fst] captures, [pat]));
+
+# Transforms Ref of function into FnRef
+
+desugar_function_ref: fns -> !bottomup[!try[!desugar_function_ref_one]] fns;
+
+desugar_function_ref_one: Ref(name){VarRef()} -> !id;
+desugar_function_ref_one: Ref(name){FnRef(), ..a} -> FnRef(name){FnRef(), ..a};
+desugar_function_ref_one: Ref(name) -> !debug > !fail "Cannot desugar ref";
 
 # Separated function definitions desugaring into single function with branch
 
@@ -22,17 +60,18 @@ group_functions: fns ->
 
 group_one: (env, FnDecl(_, _)) -> .id;
 group_one: (env, FnDef(name, pattern, body){Type(t)}) ->
-       (fn_group    := .get[name] env
-    in new_fn_group := [FnDef(name, pattern, body){Type(t)} | fn_group]
-    in new_env      := .put[name, new_fn_group] env
-    in (new_env, FnDef(name, pattern, body){Type(t)}))
-    +  new_fn_group := [FnDef(name, pattern, body){Type(t)}]
-    in (.put[name, new_fn_group] env, FnDef(name, pattern, body){Type(t)});
+      (fn_group    := .get[name] env
+   in new_fn_group := [FnDef(name, pattern, body){Type(t)} | fn_group]
+   in new_env      := .put[name, new_fn_group] env
+   in (new_env, FnDef(name, pattern, body){Type(t)}))
+   +  (new_fn_group := [FnDef(name, pattern, body){Type(t)}]
+   in (.put[name, new_fn_group] env, FnDef(name, pattern, body){Type(t)}));
 
-merge_functions: (name, [h{Type(ty)}|t]) ->
-     FnDef(name, "_arg", !reverse [h|t] > !map[!to_match_branch] > !merge_match_branches){Type(ty)};
+merge_functions: (name, [h{Type(Func(i, o))}|t]) ->
+     FnDef(name, "_arg", !reverse [h|t] > !map[!to_match_branch] > !merge_match_branches[i]){Type(Func(i, o))};
+
 to_match_branch: FnDef(_, p, b) -> MatchBranch(p, b);
-merge_match_branches: branches -> Match(Ref("_arg"), branches);
+merge_match_branches[ty]: branches -> Match(Ref("_arg"){Type(ty)}, branches);
 
 # Match desugaring into if-then-else chains
 
@@ -40,24 +79,49 @@ matches_to_ifs: fns -> !topdown[!try[.desugar_match]] fns;
 
 desugar_match: Match(arg, branches) ->
    !map[!branch_to_if[arg]] branches > !reverse > !reduce[!merge_if] (Panic(), .id);
-
-branch_to_if[arg]: MatchBranch(pattern, body) ->  
-   If(!pattern_to_boolean (arg, pattern), !pattern_to_statements (arg, pattern, body));
-
-pattern_to_boolean: (arg, PatternVar(name)) -> True();
-pattern_to_boolean: (arg, PatternNum(num)) -> Eq(arg, num);
-pattern_to_boolean: (arg, PatternStr(str)) -> Eq(arg, str);
-pattern_to_boolean: (arg, [p]) -> .pattern_to_boolean (arg, p);
-
-pattern_to_statements: (arg, PatternVar(name), body) -> Let([Decl(name, AnyType(), arg)], body);
-pattern_to_statements: (arg, PatternNum(_), body) -> body;
-pattern_to_statements: (arg, PatternStr(_), body) -> body;
-pattern_to_statements: (arg, [p], body) -> .pattern_to_statements (arg, p, body);
-
 merge_if: (Panic(), If(expr, stmt)) -> If(expr, stmt, Panic());
 merge_if: (if_chain, If(expr, stmt)) -> If(expr, stmt, if_chain);
+
+branch_to_if[arg]: MatchBranch(pattern, body) ->  
+   If(!pattern_to_boolean (arg, pattern) > !merge_boolean_exprs > !bottomup[!try[!fold_tautology]], Let(!pattern_to_decls (arg, pattern), body));
+
+# Turns pattern matching into a boolean expression
+
+pattern_to_boolean: (arg, PatternVar(name)) -> [True()];
+pattern_to_boolean: (arg, PatternNum(num)) -> [Eq(arg, num)];
+pattern_to_boolean: (arg, PatternStr(str)) -> [Eq(arg, str)];
+pattern_to_boolean: (arg, PatternTuple(elems)) -> !enumerate elems > !flatmap[!make_tuple_elem_compare[arg]];
+make_tuple_elem_compare[tuple]: (idx, elem) -> !pattern_to_boolean (TupleIndex(tuple, idx), elem);
+pattern_to_boolean: (arg, [p]) -> .pattern_to_boolean (arg, p);
+
+merge_boolean_exprs: [h|t] -> And(h, !merge_boolean_exprs t);
+merge_boolean_exprs: [] -> True();
+merge_boolean_exprs: x -> x;
+
+# This is a bit of optimization logic to cleanup generated boolean chains
+fold_tautology: And(True(), True()) -> True();
+fold_tautology: Or(True(), x) -> True();
+fold_tautology: Or(x, True()) -> True();
+
+# Turns pattern matching into a declarations that translate bindings from the pattern into declarations
+
+pattern_to_decls: (arg, PatternVar(name)) -> [Decl(name, AnyType(), arg)];
+pattern_to_decls: (arg, PatternNum(_)) -> [];
+pattern_to_decls: (arg, PatternStr(_)) -> [];
+pattern_to_decls: (arg, PatternTuple(elems)) -> !enumerate elems > !flatmap[!make_tuple_elem_decls[arg]];
+make_tuple_elem_decls[tuple]: (idx, elem) -> !pattern_to_decls (TupleIndex(tuple, Int(idx)), elem);
+pattern_to_decls: (arg, [p]) -> .pattern_to_decls (arg, p);
 
 # Remove brackets
 
 remove_brackets: t -> !bottomup[.try[.remove_bracket]] t;
 remove_bracket: Brackets(t) -> t;
+
+# Explicate array index type
+
+desugar_indexing: fns -> !bottomup[!try[.desugar_indexing_inner]];
+desugar_indexing_inner: x -> .desugar_array_index_inner + .desugar_tuple_index_inner;
+
+desugar_array_index_inner: ArrIndex(arr{Type(t)}, idx) -> ArrIndex(arr, Type(t), idx);
+desugar_tuple_index_inner: TupleIndex(tuple{Type(t)}, idx) -> TupleIndex(tuple, Type(t), idx);
+

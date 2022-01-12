@@ -27,9 +27,30 @@ fn main() {
     let out_file = matches.value_of("output_file").unwrap();
 
     let term = parse_term_from_file(&in_file.to_string()).unwrap();
-    let lowered = lower(term);
-    let compiled = compile(lowered);
-    let printed = print(compiled);
+    
+    let flattened = match flatten(term) {
+        Ok(r) => r,
+        Err(message) => {
+            print!("{}", message);
+            return;
+        }
+    };
+
+    let compiled = match compile(flattened) {
+        Ok(r) => r,
+        Err(message) => {
+            print!("{}", message);
+            return;
+        }
+    };
+
+    let printed = match print(compiled) {
+        Ok(r) => r,
+        Err(message) => {
+            print!("{}", message);
+            return;
+        }
+    };
 
     match printed {
         Term::STerm(s) => {

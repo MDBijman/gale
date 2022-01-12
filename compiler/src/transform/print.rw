@@ -34,9 +34,9 @@ print: Index(res, src, idx, type) -> !concat_str ["idx ", !print res, ", ", !pri
 print: Store(into, UI64(n))       -> !concat_str ["movc ", !print into, ", ", !to_str n];
 print: Store(into, expr)          -> !concat_str ["mov ", !print into, ", ", !print expr];
 print: Return(e)                  -> !concat_str ["ret ", !print e] ;
-print: Call(res, fn, arg)         -> !concat_str ["call ", !print res, ", @", fn, " (", !print arg, ")"];
+print: Call(res, fn, arg)         -> !concat_str ["call ", !print res, ", ", !print fn, " (", !print arg, ")"];
 print: Var(i)                     -> !concat_str ["$", !to_str i];
-print: Load(from)                 -> !print from;
+print: FnRef(i)                   -> !concat_str ["@", !to_str i];
 print: [h|t]                      -> !concat_str !flatten_some !intersperse["\n"] !flatmap_some[!print_with_indent] [h|t];
 print: Array(elems)               -> !concat_str !flatten_some ["[", !intersperse[", "] !map[!print] elems, "]"];
 print: UI64(i)                    -> !to_str i;
@@ -48,11 +48,15 @@ print: JmpIf(cond, lbl)           -> !concat_str ["jmpif", " ", !print cond, " @
 print: True()                     -> "true";
 print: False()                    -> "false";
 print: ReadConst(num)             -> !concat_str ["loadc ", !to_str num];
-print: Type(t)                    -> !print t;
+print: Ref(Var(v))                -> !print Var(v);
 print: Ref(n)                     -> n;
-print: HeapArray(t)               -> !concat_str ["&[", !print t, "]"];
-print: Builtin("str")             -> "&str";
-print: Builtin("ui64")            -> "ui64";
+print: Type(t)                    -> !print_type t;
+print_type: HeapArray(t)          -> !concat_str ["&[", !print_type t, "]"];
+print_type: Array(t, s)           -> !concat_str ["[", !print_type t, "; ", !print s, "]"];
+print_type: Builtin("str")        -> "&str";
+print_type: Builtin("ui64")       -> "ui64";
+print_type: Func(i, o)            -> !concat_str [!print_type i, " -> ", !print_type o];
+print_type: Tuple(ts)             -> !concat_str !flatten_some ["(", !intersperse[", "] !map[!print_type] ts, ")"];
 
 print_indent: Lbl(_) -> "  ";
 print_indent: _      -> "    ";

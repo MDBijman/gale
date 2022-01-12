@@ -1,0 +1,195 @@
+main: File(ModuleName(mod), fns) -> Program(Name(mod), !flatmap_some[!flatten_] fns);
+
+flatten_: FnDecl(func, type) -> [];
+flatten_: FnDef(func, arg, body){Type(t)} ->
+    Function(func, Type(t), !extract_pattern, !flatten_ body > .try[.flatten_some] > !do_hoist > !make_return);
+
+extract_pattern: FnDef(_, a, _) -> Pattern(a);
+
+# Lowering AST nodes
+
+flatten_: Let(decls, e) -> Hoist(!map[!flatten_] decls, !flatten_ e);
+
+flatten_: Let(decls) -> !map[!flatten_] decls;
+
+flatten_: Decl(n, t, e) -> Store(n, !flatten_ e);
+
+flatten_: Appl(fn, arg){Type(Unit())} ->
+     tmp_name := !gen_name "tmp"
+  in arg_name := !gen_name "tmp"
+  in fn_value := !flatten_ fn
+  in [
+    Store(arg_name, !flatten_ arg),
+    Store(tmp_name, Call(fn_value, Ref(arg_name)))
+  ];
+    
+flatten_: Appl(fn, arg){Type(t)} ->
+     tmp_name := !gen_name "tmp"
+  in arg_name := !gen_name "tmp"
+  in fn_value := !flatten_ fn
+  in Hoist([
+    Store(arg_name, !flatten_ arg),
+    Store(tmp_name, Call(fn_value, Ref(arg_name)))
+  ], Ref(tmp_name));
+
+flatten_: Seq(elems) -> !map[!flatten_] elems;
+
+flatten_: Seq(elems, res) -> Hoist(!map[!flatten_] elems, !flatten_ res);
+
+flatten_: For(bind, list{Type(t)}, body) ->
+     end_lbl  := !gen_name "lbl"
+  in loop_lbl := !gen_name "lbl"
+  in idx_name := !gen_name "tmp"
+  in inc_name := !gen_name "tmp"
+  in size_name := !gen_name "tmp"
+  in list_name := !gen_name "tmp"
+  in cond_name := !gen_name "tmp"
+  in [
+    Store(list_name, !flatten_ list),
+    Store(idx_name, UI64(0)),
+    Store(inc_name, UI64(1)),
+    Store(size_name, Size(Ref(list_name))),
+    Lbl(loop_lbl),
+    Store(cond_name, BinOp("=", Ref(size_name), Ref(idx_name))),
+    JmpIf(end_lbl, Ref(cond_name)),
+    Store(bind{}, ReadIdx(Ref(list_name), Ref(idx_name), Type(t))),
+    Store(idx_name, BinOp("+", Ref(idx_name), Ref(inc_name))),
+    !flatten_ body,
+    Jmp(loop_lbl),
+    Lbl(end_lbl)
+  ];
+
+flatten_: Assign(Ref(n), e) -> Store(n, !flatten_ e);
+
+flatten_: String(i) -> tmp_name := !gen_name "tmp" in Hoist([Store(tmp_name, StringLiteral(i))], Ref(tmp_name));
+
+flatten_: Int(i){Type(Builtin("ui64"))} -> UI64(i);
+flatten_: Int(i) -> UI64(i);
+
+flatten_: True() -> UI64(1);
+flatten_: False() -> UI64(0);
+
+flatten_: Panic() -> Panic();
+
+flatten_: Add(lhs, rhs) -> 
+     lhs_tmp_name := !gen_name "tmp"
+  in rhs_tmp_name := !gen_name "tmp"
+  in res_tmp_name := !gen_name "tmp"
+  in Hoist([
+    Store(lhs_tmp_name, !flatten_ lhs),
+    Store(rhs_tmp_name, !flatten_ rhs),
+    Store(res_tmp_name, BinOp("+", Ref(lhs_tmp_name), Ref(rhs_tmp_name)))
+  ], Ref(res_tmp_name));
+
+flatten_: Sub(lhs, rhs) -> 
+     lhs_tmp_name := !gen_name "tmp"
+  in rhs_tmp_name := !gen_name "tmp"
+  in res_tmp_name := !gen_name "tmp"
+  in Hoist([
+    Store(lhs_tmp_name, !flatten_ lhs),
+    Store(rhs_tmp_name, !flatten_ rhs),
+    Store(res_tmp_name, BinOp("-", Ref(lhs_tmp_name), Ref(rhs_tmp_name)))
+  ], Ref(res_tmp_name));
+
+flatten_: Mul(lhs, rhs) -> 
+     lhs_tmp_name := !gen_name "tmp"
+  in rhs_tmp_name := !gen_name "tmp"
+  in res_tmp_name := !gen_name "tmp"
+  in Hoist([
+    Store(lhs_tmp_name, !flatten_ lhs),
+    Store(rhs_tmp_name, !flatten_ rhs),
+    Store(res_tmp_name, BinOp("*", Ref(lhs_tmp_name), Ref(rhs_tmp_name)))
+  ], Ref(res_tmp_name));
+
+flatten_: Eq(lhs, rhs) -> 
+     lhs_tmp_name := !gen_name "tmp"
+  in rhs_tmp_name := !gen_name "tmp"
+  in res_tmp_name := !gen_name "tmp"
+  in Hoist([
+    Store(lhs_tmp_name, !flatten_ lhs),
+    Store(rhs_tmp_name, !flatten_ rhs),
+    Store(res_tmp_name, BinOp("=", Ref(lhs_tmp_name), Ref(rhs_tmp_name)))
+  ], Ref(res_tmp_name));
+
+flatten_: Not(cond) -> 
+     op_tmp := !gen_name "tmp"
+  in res_tmp := !gen_name "tmp"
+  in Hoist([
+    Store(op_tmp, !flatten_ cond),
+    Store(res_tmp, UnOp("~", Ref(op_tmp)))
+  ], Ref(res_tmp));
+
+flatten_: Ref(n) -> Ref(n);
+flatten_: FnRef(n) -> FnRef(n);
+flatten_: Array(elems) -> Array(!map[!flatten_] elems);
+
+flatten_: ArrIndex(arr, type, idx) -> 
+     arr_name := !gen_name "tmp"
+  in idx_name := !gen_name "tmp"
+  in tmp_name := !gen_name "tmp"
+  in Hoist([
+    Store(arr_name, !flatten_ arr),
+    Store(idx_name, !flatten_ idx),
+    Store(tmp_name, ReadIdx(Ref(arr_name), Ref(idx_name), type))
+  ], Ref(tmp_name));
+
+flatten_: TupleIndex(tuple, type, idx) -> 
+     tuple_name := !gen_name "tmp"
+  in idx_name   := !gen_name "tmp"
+  in tmp_name   := !gen_name "tmp"
+  in Hoist([
+    Store(tuple_name, !flatten_ tuple),
+    Store(idx_name, !flatten_ idx),
+    Store(tmp_name, ReadIdx(Ref(tuple_name), Ref(idx_name), type))
+  ], Ref(tmp_name));
+
+flatten_: If(cond, then, else) ->
+     end_lbl  := !gen_name "lbl"
+  in else_lbl := !gen_name "lbl"
+  in tmp_name := !gen_name "tmp"
+  in res_name := !gen_name "tmp"
+  in low_then := !flatten_ then 
+  in low_else := !flatten_ else
+  in Hoist([
+    Store(tmp_name, !flatten_ Not(cond)),
+    JmpIf(else_lbl, Ref(tmp_name)),
+    Store(res_name, low_then),
+    Jmp(end_lbl),
+    Lbl(else_lbl),
+    Store(res_name, low_else),
+    Lbl(end_lbl)
+  ], Ref(res_name));
+
+flatten_: If(cond, then) ->
+     end_lbl := !gen_name "lbl"
+  in tmp_name := !gen_name "tmp"
+  in res_name := !gen_name "tmp"
+  in low_then := !flatten_ then
+  in [
+    Store(tmp_name, !flatten_ Not(cond)),
+    JmpIf(end_lbl, Ref(tmp_name)),
+    low_then,
+    Lbl(end_lbl)
+  ];
+
+flatten_: [h|t] -> !map[!flatten_] [h|t];
+
+# Logic for hoisting statements to blocks
+
+do_hoist: t -> !bottomup[.try[.hoist]] t > .try[.hoist_to_arr];
+hoist: Hoist(stmts, Hoist(stmts2, expr)) -> Hoist(!concat (stmts, stmts2), expr);
+hoist: ?con(..subterms) -> 
+     [h|t] := !flatmap_some[.extract_hoisted_stmts] !retain_all[.is_hoist] subterms
+  in new_subterms := !map[.try[.extract_hoisted_expr]] subterms
+  in Hoist([h|t], ?con(..new_subterms));
+hoist: [h|t] -> !flatmap_some[.try[.hoist_to_arr]] [h|t];
+hoist: (..subts) -> new_subts := !flatmap_some[.try[.hoist_to_arr]] subts in (..new_subts);
+
+extract_hoisted_stmts: Hoist(stmts, _) -> stmts;
+extract_hoisted_expr: Hoist(_, expr) -> expr;
+hoist_to_arr: Hoist(stmts, expr) -> .concat (stmts, [expr]);
+wrap_hoist_return: Hoist(stmts, expr) -> Hoist(stmts, Return(expr));
+is_hoist: Hoist(_, _) -> .id;
+
+make_return: input -> (list, last) := !split_last input
+  in .concat (list, [Return(last)]);

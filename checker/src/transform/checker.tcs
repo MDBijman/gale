@@ -9,40 +9,43 @@ FileOk File(module, decls) :-
 
 DeclareBuiltins: scope * fact
 DeclareBuiltins s :-
-    s -> Decl("std:parse_ui64", Type(Func(Builtin("str"), Builtin("ui64")))),
-    s -> Decl("std:print_str", Type(Func(Builtin("str"), Unit()))).
+    s -> Decl(Fn("std:parse_ui64"), Type(Func(Builtin("str"), Builtin("ui64")))),
+    s -> Decl(Fn("std:print_str"), Type(Func(Builtin("str"), Unit()))).
 
 ToplevelDeclsOk: scope * term * fact
 ToplevelDeclsOk file_scope FnDecl(name, type) :-
     type_type := !typeof_type type,
     not (file_scope -?> Decl(name, type)) | error "Duplicate function with name and type",
-    file_scope -> Decl(name, Type(type_type)).
+    file_scope -> Decl(Fn(name), Type(type_type)).
 ToplevelDeclsOk file_scope o.
 
 ToplevelDefsOk: scope * term * fact
 ToplevelDefsOk file_scope fn_def@FnDef(name, fn_pattern, expr) :-
-    file_scope -?> Decl(name, fn_type@Type(Func(i, o))) | error "Definition before declaration",
+    file_scope -?> Decl(Fn(name), fn_type@Type(Func(i, o))) | error "Definition before declaration",
     function_scope := new scope,    
     function_scope -> file_scope,
     mapping := !extract_pattern_types (fn_pattern, fn_type),
-    forall (Declare function_scope) mapping,
+    forall (DeclareVar function_scope) mapping,
     ExprOk function_scope expr,
     fn_def += fn_type.
-
 ToplevelDefsOk file_scope o.
 
-Declare: scope * term * fact
-Declare s Decl(n, t) :- s -> Decl(n, t).
+DeclareVar: scope * term * fact
+DeclareVar s Decl(n, t) :- s -> Decl(Var(n), t).
+
+DeclareFn: scope * term * fact
+DeclareFn s Decl(n, t) :- s -> Decl(Fn(n), t).
 
 DeclOk: scope * term * fact
 DeclOk parent_scope Decl(name, type, expr) :-
     ExprOk parent_scope expr,
     type_type := !typeof_type type,
-    Declare parent_scope Decl(name, Type(type_type)).
+    DeclareVar parent_scope Decl(name, Type(type_type)).
 
 ExprOk: scope * term * fact
 ExprOk function_scope r@Ref(n) :-
-    function_scope -?> Decl(n, type) | error "Undefined reference",
+     (function_scope -?> Decl(Fn(n), type), r += FnRef()
+    ; function_scope -?> Decl(Var(n), type), r += VarRef()) | error "Undefined reference",
     r += type.
 
 ExprOk function_scope t@Seq(terms, res) :-
@@ -90,7 +93,7 @@ ExprOk parent if@If(cond, then) :-
     !typeof then = Type(Unit()) | error "Branch with result type must also have 'then' branch".
 
 ExprOk parent_scope Assign(Ref(ref), expr) :-
-    parent_scope -?> Decl(ref, decl_type) | error "Assigning undefined variable",
+    parent_scope -?> Decl(Var(ref), decl_type) | error "Assigning undefined variable",
     ExprOk parent_scope expr,
     expr_type := !typeof expr,
     decl_type = expr_type | error "Assigning value of different type to variable".
@@ -133,7 +136,7 @@ ExprOk s loop@For(name, arr, inner) :-
     loop_scope := new scope,
     loop_scope -> s,
     ExprOk s arr,
-    loop_scope -> Decl(name, !element_type !typeof arr),
+    loop_scope -> Decl(Var(name), !element_type !typeof arr),
     ExprOk loop_scope inner.
 
 IsNumeric: term

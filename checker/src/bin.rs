@@ -32,8 +32,14 @@ fn main() {
 
     let term = parse_term_from_file(&in_file.to_string()).unwrap();
     let checked = check(&term);
-    let desugared = desugar(&checked);
+    match desugar(&checked) {
+        Ok(desugared) => {
+            let mut o = fs::File::create(out_file).unwrap();
+            o.write(format!("{}", desugared).as_bytes()).unwrap();
+        },
+        Err(message) => {
+            eprintln!("{}", message);
+        }
+    }
 
-    let mut o = fs::File::create(out_file).unwrap();
-    o.write(format!("{}", desugared).as_bytes()).unwrap();
 }

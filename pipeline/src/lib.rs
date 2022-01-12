@@ -1,19 +1,21 @@
 use aterms::base::Term;
 use checker::{check, desugar};
-use compiler::{compile, lower, print};
+use compiler::{compile, flatten, print};
 use parser::parse_gale_string;
 
-pub fn compile_gale_program(program: &str) -> String {
+pub fn compile_gale_program(program: &str) -> Result<String, String> {
     let term = parse_gale_string(program).unwrap();
     let checked_term = check(&term);
-    let desugared_term = desugar(&checked_term);
-    let lowered_term = lower(desugared_term);
-    let compiled_term = compile(lowered_term);
-    let printed_term = print(compiled_term);
+    let printed_term = desugar(&checked_term)
+        .and_then(flatten)
+        .and_then(compile)
+        .and_then(print);
+
     match printed_term {
-        Term::STerm(s) => {
-            return s.value;
+        Ok(Term::STerm(s)) => {
+            return Ok(s.value);
         }
-        _ => panic!("Expected String term as output"),
+        Ok(_) => panic!("Expected String term as output"),
+        Err(message) => return Err(message),
     }
 }

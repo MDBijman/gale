@@ -3,7 +3,7 @@ extern crate clap;
 use aterms::base::Term;
 use checker::{check, desugar};
 use clap::{App, Arg};
-use compiler::{compile, lower, print};
+use compiler::{compile, flatten, print};
 use parser::parse_gale_file;
 use std::any::Any;
 use std::fs;
@@ -87,7 +87,13 @@ fn main() -> Result<(), Box<dyn Any + Send>> {
             //
 
             time = time::SystemTime::now();
-            let desugared_term = desugar(&checked_term);
+            let desugared_term = match desugar(&checked_term) {
+                Ok(t) => t,
+                Err(e) => {
+                    print!("{}", e);
+                    return;
+                }
+            };
             let desugar_time = time.elapsed().unwrap().as_millis();
 
             if should_debug {
@@ -99,19 +105,31 @@ fn main() -> Result<(), Box<dyn Any + Send>> {
             //
 
             time = time::SystemTime::now();
-            let lowered_term = lower(desugared_term);
-            let lower_time = time.elapsed().unwrap().as_millis();
+            let flattened_term = match flatten(desugared_term) {
+                Ok(t) => t,
+                Err(e) => {
+                    print!("{}", e);
+                    return;
+                }
+            };
+            let flatten_time = time.elapsed().unwrap().as_millis();
 
             if should_debug {
-                let lowered_out_path = out_file.with_extension("lowered.term");
-                let mut o = fs::File::create(lowered_out_path).unwrap();
-                o.write(format!("{}", lowered_term).as_bytes()).unwrap();
+                let flattened_out_path = out_file.with_extension("flattened.term");
+                let mut o = fs::File::create(flattened_out_path).unwrap();
+                o.write(format!("{}", flattened_term).as_bytes()).unwrap();
             }
 
             //
 
             time = time::SystemTime::now();
-            let compiled_term = compile(lowered_term);
+            let compiled_term = match compile(flattened_term) {
+                Ok(t) => t,
+                Err(e) => {
+                    print!("{}", e);
+                    return;
+                }
+            };
             let compile_time = time.elapsed().unwrap().as_millis();
 
             if should_debug {
@@ -123,7 +141,13 @@ fn main() -> Result<(), Box<dyn Any + Send>> {
             //
 
             time = time::SystemTime::now();
-            let printed_term = print(compiled_term);
+            let printed_term = match print(compiled_term) {
+                Ok(t) => t,
+                Err(e) => {
+                    print!("{}", e);
+                    return;
+                }
+            };
             let print_time = time.elapsed().unwrap().as_millis();
 
             // Write result to file
@@ -142,12 +166,12 @@ fn main() -> Result<(), Box<dyn Any + Send>> {
     "parse": {},
     "check": {},
     "desugar": {},
-    "lower": {},
+    "flatten": {},
     "compile": {},
     "print": {}
 }}
 "#,
-                    parse_time, check_time, desugar_time, lower_time, compile_time, print_time
+                    parse_time, check_time, desugar_time, flatten_time, compile_time, print_time
                 );
 
                 println!("{}", json_times);
