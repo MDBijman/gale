@@ -36,7 +36,7 @@ print: Store(into, expr)          -> !concat_str ["mov ", !print into, ", ", !pr
 print: Return(e)                  -> !concat_str ["ret ", !print e] ;
 print: Call(res, fn, arg)         -> !concat_str ["call ", !print res, ", ", !print fn, " (", !print arg, ")"];
 print: Var(i)                     -> !concat_str ["$", !to_str i];
-print: FnRef(i)                   -> !concat_str ["@", !to_str i];
+print: FnRef(i)                   -> !concat_str ["@", i];
 print: [h|t]                      -> !concat_str !flatten_some !intersperse["\n"] !flatmap_some[!print_with_indent] [h|t];
 print: Array(elems)               -> !concat_str !flatten_some ["[", !intersperse[", "] !map[!print] elems, "]"];
 print: UI64(i)                    -> !to_str i;
@@ -55,7 +55,7 @@ print_type: HeapArray(t)          -> !concat_str ["&[", !print_type t, "]"];
 print_type: Array(t, s)           -> !concat_str ["[", !print_type t, "; ", !print s, "]"];
 print_type: Builtin("str")        -> "&str";
 print_type: Builtin("ui64")       -> "ui64";
-print_type: Func(i, o)            -> !concat_str [!print_type i, " -> ", !print_type o];
+print_type: Func(i, o)            -> !concat_str ["(", !print_type i, " -> ", !print_type o, ")"];
 print_type: Tuple(ts)             -> !concat_str !flatten_some ["(", !intersperse[", "] !map[!print_type] ts, ")"];
 
 print_indent: Lbl(_) -> "  ";

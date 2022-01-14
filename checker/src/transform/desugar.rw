@@ -32,12 +32,15 @@ lift_closure: (env, Closure(pat, expr){Type(Closure(captures, signature))}) ->
    in closure_as_fn_pattern := !make_closure_pattern (captures, pat)
    in closure_decl := FnDecl(closure_name, closure_as_fn_type)
    in closure_def  := FnDef(closure_name, closure_as_fn_pattern, expr){Type(closure_as_fn_type)}
-   in x := (!gather_variables Closure(pat, expr))
-   in (!concat ([closure_decl, closure_def], env), Ref(closure_name){FnRef()});
-lift_closure: (env, e) -> !id;
+   in bound_closure_variables := !gather_binding_variables pat
+   in free_closure_variables  := !gather_free_variables[bound_closure_variables] expr
+   in (!concat ([closure_decl, closure_def], env), Tuple([Tuple(free_closure_variables), Ref(closure_name){FnRef()}]));
 
-gather_variables: Closure(pat, expr) -> !gather[.is_variable] expr;
-is_variable: Ref(_) -> .id;
+gather_binding_variables: pattern -> !gather[.is_pattern_variable] pattern;
+is_pattern_variable: PatternVar(n) -> n;
+
+gather_free_variables[bindings]: expr -> !gather[.is_free_variable[bindings]] expr;
+is_free_variable[bindings]: Ref(n){..a} -> .find[n] bindings ? .fail : Ref(n){..a};
 
 convert_closure_type_to_function: Closure(captures, Func(from, to)) -> Func(Tuple(!concat (!map[!snd] captures, [from])), to);
 make_closure_pattern: (captures, pat) -> PatternTuple(!concat (!map[!fst] captures, [pat]));
@@ -48,7 +51,7 @@ desugar_function_ref: fns -> !bottomup[!try[!desugar_function_ref_one]] fns;
 
 desugar_function_ref_one: Ref(name){VarRef()} -> !id;
 desugar_function_ref_one: Ref(name){FnRef(), ..a} -> FnRef(name){FnRef(), ..a};
-desugar_function_ref_one: Ref(name) -> !debug > !fail "Cannot desugar ref";
+desugar_function_ref_one: Ref(name) -> !debug > !fail "Cannot desugar ref without its annotated ref kind";
 
 # Separated function definitions desugaring into single function with branch
 

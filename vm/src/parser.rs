@@ -6,11 +6,11 @@ use crate::bytecode::{
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_while, take_while1},
-    character::complete::{digit1, multispace0, space0},
+    character::complete::{digit1, multispace0, space0, char},
     combinator::{cut, map, opt},
     error::{convert_error, ParseError, VerboseError},
     multi::{many0, many1, separated_list0},
-    sequence::{delimited, pair, preceded, terminated, tuple},
+    sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
     IResult,
 };
 use std::fs;
@@ -105,6 +105,14 @@ fn parse_type(i: &str) -> MyParseResult<Type> {
         map(tag("()"), |_| Type::Unit),
         map(tag("str"), |_| Type::unsized_string()),
         map(preceded(tag("&"), cut(parse_type)), |t| Type::ptr(t)),
+        map(
+            delimited(
+                ws(char('(')),
+                separated_pair(parse_type, ws(tag("->")), parse_type),
+                ws(char(')')),
+            ),
+            |(i, o)| Type::Fn(Box::from(i), Box::from(o)),
+        ),
     ))(i)
 }
 
@@ -275,12 +283,10 @@ fn parse_call(i: &str) -> MyParseResult<LongInstruction> {
                 tag(")"),
             ),
         )),
-        |(r, target, _, args)| {
-            match target.0 {
-                Some(module) => LongInstruction::ModuleCall(r, module, target.1, args),
-                None => LongInstruction::Call(r, target.1, args),
-            }
-        }
+        |(r, target, _, args)| match target.0 {
+            Some(module) => LongInstruction::ModuleCall(r, module, target.1, args),
+            None => LongInstruction::Call(r, target.1, args),
+        },
     )(i)
 }
 
@@ -494,18 +500,17 @@ fn parse_types_section(i: &str) -> MyParseResult<Section> {
 }
 
 fn parse_code_section(i: &str) -> MyParseResult<Section> {
-    map(preceded(
-        ws(tag(".code")),
-        many0(preceded(multispace0, parse_function)),
-    ), |fs| Section::Functions(fs))(i)
+    map(
+        preceded(
+            ws(tag(".code")),
+            many0(preceded(multispace0, parse_function)),
+        ),
+        |fs| Section::Functions(fs),
+    )(i)
 }
 
 fn parse_section(i: &str) -> MyParseResult<Section> {
-    alt((
-        parse_const_section,
-        parse_types_section,
-        parse_code_section
-    ))(i)
+    alt((parse_const_section, parse_types_section, parse_code_section))(i)
 }
 
 #[derive(Debug)]
@@ -516,10 +521,7 @@ pub enum ParserError {
 
 pub fn parse_bytecode_string(module_loader: &ModuleLoader, i: &str) -> Result<Module, ParserError> {
     match map(
-        whitespace_around(tuple((
-            parse_module_declaration,
-            many0(parse_section)
-        ))),
+        whitespace_around(tuple((parse_module_declaration, many0(parse_section)))),
         |(name, sections)| {
             let mut types = vec![];
             let mut consts = vec![];
@@ -533,13 +535,7 @@ pub fn parse_bytecode_string(module_loader: &ModuleLoader, i: &str) -> Result<Mo
                 }
             }
 
-            Module::from_long_functions(
-                module_loader,
-                name,
-                types, 
-                consts,
-                functions
-            )
+            Module::from_long_functions(module_loader, name, types, consts, functions)
         },
     )(i)
     {

@@ -123,6 +123,12 @@ flatten_: Ref(n) -> Ref(n);
 flatten_: FnRef(n) -> FnRef(n);
 flatten_: Array(elems) -> Array(!map[!flatten_] elems);
 
+flatten_: Tuple(elems) -> 
+     tuple_name := !gen_name "tmp"
+  in Hoist(
+    !map[!flatten_] elems,
+  );
+
 flatten_: ArrIndex(arr, type, idx) -> 
      arr_name := !gen_name "tmp"
   in idx_name := !gen_name "tmp"
