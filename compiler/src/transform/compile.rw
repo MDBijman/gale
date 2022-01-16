@@ -15,66 +15,54 @@ compile: Function(name, Type(Func(from, to)), Pattern(param), body) ->
   in Function(name, [Param(param_loc, Type(from))], Type(to), compiled_body);
   
 compile: (env, Store(res, Call(FnRef(name), arg))) ->
-  (loc, new_env) := (.get[res] env
-    ? (!id, env)
-    : (new_loc := Var(!gen_num "loc") in (new_loc, !put[res, new_loc] env)))
-    in (new_env, Call(loc, FnRef(name), !compile (env, arg) > !second));
+     (loc, new_env) := !var_loc (res, env)
+  in (new_env, Call(loc, FnRef(name), !compile (env, arg) > !second));
   
 compile: (env, Store(res, Call(Ref(name), arg))) ->
-  (loc, new_env) := (.get[res] env
-    ? (!id, env)
-    : (new_loc := Var(!gen_num "loc") in (new_loc, !put[res, new_loc] env)))
-    in (new_env, Call(loc, !compile (env, Ref(name)) > !second, !compile (env, arg) > !second));
+     (loc, new_env) := !var_loc (res, env)
+  in (new_env, Call(loc, !compile (env, Ref(name)) > !second, !compile (env, arg) > !second));
 
 compile: (env, Store(name, UnOp("~", op))) ->
-  (loc, new_env) := (.get[name] env
-    ? (!id, env)
-    : (new_loc := Var(!gen_num "loc") in (new_loc, !put[name, new_loc] env)))
-    in (new_env, Not(loc, !compile (env, op) > !second));
+     (loc, new_env) := !var_loc (name, env)
+  in (new_env, Not(loc, !compile (env, op) > !second));
 
 compile: (env, Store(name, BinOp("+", lhs, rhs))) ->
-  (loc, new_env) := (.get[name] env
-    ? (!id, env)
-    : (new_loc := Var(!gen_num "loc") in (new_loc, !put[name, new_loc] env)))
-    in (new_env, Add(loc, !compile (env, lhs) > !second, !compile (env, rhs) > !second));
+     (loc, new_env) := !var_loc (name, env)
+  in (new_env, Add(loc, !compile (env, lhs) > !second, !compile (env, rhs) > !second));
 
 compile: (env, Store(name, BinOp("*", lhs, rhs))) ->
-  (loc, new_env) := (.get[name] env
-    ? (!id, env)
-    : (new_loc := Var(!gen_num "loc") in (new_loc, !put[name, new_loc] env)))
-    in (new_env, Mul(loc, !compile (env, lhs) > !second, !compile (env, rhs) > !second));
+     (loc, new_env) := !var_loc (name, env)
+  in (new_env, Mul(loc, !compile (env, lhs) > !second, !compile (env, rhs) > !second));
 
 compile: (env, Store(name, BinOp("-", lhs, rhs))) ->
-  (loc, new_env) := (.get[name] env
-    ? (!id, env)
-    : (new_loc := Var(!gen_num "loc") in (new_loc, !put[name, new_loc] env)))
-    in (new_env, Sub(loc, !compile (env, lhs) > !second, !compile (env, rhs) > !second));
+     (loc, new_env) := !var_loc (name, env)
+  in (new_env, Sub(loc, !compile (env, lhs) > !second, !compile (env, rhs) > !second));
 
 compile: (env, Store(name, BinOp("=", lhs, rhs))) -> 
-  (loc, new_env) := (.get[name] env
-    ? (!id, env)
-    : (new_loc := Var(!gen_num "loc") in (new_loc, !put[name, new_loc] env)))
-    in (new_env, Eq(loc, !compile (env, lhs) > !second, !compile (env, rhs) > !second));
+     (loc, new_env) := !var_loc (name, env)
+  in (new_env, Eq(loc, !compile (env, lhs) > !second, !compile (env, rhs) > !second));
 
 compile: (env, Store(name, ReadIdx(arr, idx, type))) -> 
-  (loc, new_env) := (.get[name] env
-    ? (!id, env)
-    : (new_loc := Var(!gen_num "loc") in (new_loc, !put[name, new_loc] env)))
-    in (new_env, Index(loc, !compile (env, arr) > !second, !compile (env, idx) > !second, type));
+     (loc, new_env) := !var_loc (name, env)
+  in (new_env, Index(loc, !compile (env, arr) > !second, !compile (env, idx) > !second, type));
 
-compile: (env, Store(name, Size(arr))) -> 
-  (loc, new_env) := (.get[name] env
-    ? (!id, env)
-    : (new_loc := Var(!gen_num "loc") in (new_loc, !put[name, new_loc] env)))
-    in (new_env, Sizeof(loc, !compile (env, arr) > !second));
+compile: (env, StoreIdx(name, idx, value)) -> 
+     (loc, new_env) := !var_loc (name, env)
+  in (new_env, StoreIdx(loc, !compile (env, idx) > !second, !compile (env, value) > !second));
 
-compile: (env, Store(name, Panic())) -> (env, Panic());
+compile: (env, Store(name, Tuple(size))) -> 
+     (loc, new_env) := !var_loc (name, env)
+  in (new_env, MakeTuple(loc, !compile (env, size) > !second));
+
+compile: (env, Store(name, Size(arr))) ->
+     (loc, new_env) := !var_loc (name, env)
+  in (new_env, Sizeof(loc, !compile (env, arr) > !second));
 
 compile: (env, Store(name, expr)) ->
-  (loc, new_env) := (.get[name] env
-    ? (!id, env)
-    : (new_loc := Var(!gen_num "loc") in (new_loc, !put[name, new_loc] env)))
-    in (new_env, Store(loc, !compile (new_env, expr) > !second));
+     (loc, new_env) := !var_loc (name, env)
+  in (new_env, Store(loc, !compile (new_env, expr) > !second));
+
+compile: (env, Store(name, Panic())) -> (env, Panic());
 
 compile: (env, Panic()) -> (env, Panic());
 compile: (env, Size(name)) -> (env, Size(!get[name] env));
@@ -93,3 +81,8 @@ compile: (env, Lbl(lbl)) -> (env, Lbl(lbl));
 compile: (env, Jmp(lbl)) -> (env, Jmp(lbl));
 compile: (env, ReadConst(r)) -> (env, ReadConst(r));
 compile: t -> !debug t > !fail;
+
+var_loc: (name, env) -> .get[name] env
+    ? (!id, env)
+    : (new_loc := Var(!gen_num "loc")
+      in (new_loc, !put[name, new_loc] env));

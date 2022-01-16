@@ -125,9 +125,10 @@ flatten_: Array(elems) -> Array(!map[!flatten_] elems);
 
 flatten_: Tuple(elems) -> 
      tuple_name := !gen_name "tmp"
-  in Hoist(
-    !map[!flatten_] elems,
-  );
+  in flat_elems := !map[!flatten_] elems > !enumerate > !map[!set_tuple_element[tuple_name]]
+  in Hoist([Store(tuple_name, Tuple(UI64(!len elems))) | flat_elems],
+    Ref(tuple_name));
+set_tuple_element[tuple_name]: (i, v) -> StoreIdx(tuple_name, UI64(i), v);
 
 flatten_: ArrIndex(arr, type, idx) -> 
      arr_name := !gen_name "tmp"

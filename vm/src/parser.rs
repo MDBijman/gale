@@ -6,7 +6,7 @@ use crate::bytecode::{
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_while, take_while1},
-    character::complete::{digit1, multispace0, space0, char},
+    character::complete::{char, digit1, multispace0, space0},
     combinator::{cut, map, opt},
     error::{convert_error, ParseError, VerboseError},
     multi::{many0, many1, separated_list0},
@@ -234,28 +234,53 @@ fn parse_instruction(i: &str) -> MyParseResult<LongInstruction> {
                 )),
                 |(a, b)| LongInstruction::ConstU32(a, b),
             ),
-            map(
-                tuple((
-                    preceded(spaces_around(tag("mov")), cut(parse_var_idx)),
-                    preceded(spaces_around(tag(",")), parse_var_idx),
-                )),
-                |(a, b)| LongInstruction::Copy(a, b),
-            ),
-            map(
-                tuple((
-                    preceded(spaces_around(tag("loadc")), cut(parse_var_idx)),
-                    preceded(spaces_around(tag(",")), parse_u32),
-                )),
-                |(a, b)| LongInstruction::LoadConst(a, b as ConstId),
-            ),
-            map(parse_one_var_command("ret"), |e| LongInstruction::Return(e)),
-            map(parse_one_var_command("print"), |e| {
-                LongInstruction::Print(e)
-            }),
-            parse_call,
-            parse_alloc,
-            parse_jmp,
-            parse_lbl_instr,
+            alt((
+                map(
+                    tuple((
+                        preceded(spaces_around(tag("movi")), cut(parse_var_idx)),
+                        preceded(spaces_around(tag(",")), cut(parse_u8)),
+                        preceded(spaces_around(tag(",")), cut(parse_var_idx)),
+                    )),
+                    |(a, b, c)| LongInstruction::CopyIntoIndex(a, b, c),
+                ),
+                map(
+                    tuple((
+                        preceded(spaces_around(tag("movi")), cut(parse_var_idx)),
+                        preceded(spaces_around(tag(",")), cut(parse_u8)),
+                        preceded(spaces_around(tag(",")), cut(parse_call_target)),
+                    )),
+                    |(a, b, c)| LongInstruction::CopyIntoIndex(a, b, c),
+                ),
+                map(
+                    tuple((
+                        preceded(spaces_around(tag("mov")), cut(parse_var_idx)),
+                        preceded(spaces_around(tag(",")), parse_var_idx),
+                    )),
+                    |(a, b)| LongInstruction::Copy(a, b),
+                ),
+                map(
+                    tuple((
+                        preceded(spaces_around(tag("tup")), cut(parse_var_idx)),
+                        preceded(spaces_around(tag(",")), cut(parse_u8)),
+                    )),
+                    |(a, b)| LongInstruction::Tuple(a, b),
+                ),
+                map(
+                    tuple((
+                        preceded(spaces_around(tag("loadc")), cut(parse_var_idx)),
+                        preceded(spaces_around(tag(",")), parse_u32),
+                    )),
+                    |(a, b)| LongInstruction::LoadConst(a, b as ConstId),
+                ),
+                map(parse_one_var_command("ret"), |e| LongInstruction::Return(e)),
+                map(parse_one_var_command("print"), |e| {
+                    LongInstruction::Print(e)
+                }),
+                parse_call,
+                parse_alloc,
+                parse_jmp,
+                parse_lbl_instr,
+            )),
         )),
         multispace0,
     )(i)
@@ -410,6 +435,13 @@ fn parse_function(i: &str) -> MyParseResult<LongFunction> {
                         vars = VarId::max(vars, *a);
                         vars = VarId::max(vars, *b);
                         vars = VarId::max(vars, *c);
+                    }
+                    LongInstruction::CopyIntoIndex(a, _, c) => {
+                        vars = VarId::max(vars, *a);
+                        vars = VarId::max(vars, *c);
+                    }
+                    LongInstruction::Tuple(a, _) => {
+                        vars = VarId::max(vars, *a);
                     }
                     LongInstruction::Sizeof(a, b) => {
                         vars = VarId::max(vars, *a);

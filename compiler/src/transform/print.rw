@@ -39,6 +39,8 @@ print: Var(i)                     -> !concat_str ["$", !to_str i];
 print: FnRef(i)                   -> !concat_str ["@", i];
 print: [h|t]                      -> !concat_str !flatten_some !intersperse["\n"] !flatmap_some[!print_with_indent] [h|t];
 print: Array(elems)               -> !concat_str !flatten_some ["[", !intersperse[", "] !map[!print] elems, "]"];
+print: MakeTuple(res, size)       -> !concat_str ["tup ", !print res, ", ", !print size];
+print: StoreIdx(res, idx, value)  -> !concat_str ["movi ", !print res, ", ", !print idx, ", ", !print value];
 print: UI64(i)                    -> !to_str i;
 print: BinOp(symbol, lhs, rhs)    -> !concat_str [!print lhs, " ", !print rhs, " ", symbol ];
 print: UnOp(symbol, expr)         -> !concat_str [!print expr, " ", symbol];

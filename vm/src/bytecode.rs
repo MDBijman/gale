@@ -239,6 +239,8 @@ pub enum LongInstruction {
     Sizeof(VarId, VarId),
     StoreVar(VarId, VarId, Type),
     Index(VarId, VarId, VarId, Type),
+    CopyIntoIndex(VarId, u8, VarId),
+    Tuple(VarId, u8),
 
     Lbl(String),
     Panic,
