@@ -92,8 +92,9 @@ ExprOk parent if@If(cond, then) :-
     ExprOk if_scope then,
     !typeof then = Type(Unit()) | error "Branch with result type must also have 'then' branch".
 
-ExprOk parent_scope Assign(Ref(ref), expr) :-
+ExprOk parent_scope Assign(r@Ref(ref), expr) :-
     parent_scope -?> Decl(Var(ref), decl_type) | error "Assigning undefined variable",
+    r += VarRef(),
     ExprOk parent_scope expr,
     expr_type := !typeof expr,
     decl_type = expr_type | error "Assigning value of different type to variable".
