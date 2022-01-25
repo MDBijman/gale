@@ -1,21 +1,21 @@
 mod bytecode;
+mod dataflow;
+mod debugger;
 mod interpreter;
 mod jit;
 mod memory;
 mod parser;
 mod standard_library;
 mod vm;
-mod dataflow;
 
 extern crate clap;
 
-use crate::parser::ParserError;
 use bytecode::ModuleLoader;
 use clap::{App, Arg};
 use std::time;
 use vm::VM;
 
-fn main() -> Result<(), ParserError> {
+fn main() {
     let startup_time = time::SystemTime::now();
 
     let matches = App::new("Gale VM")
@@ -47,6 +47,12 @@ fn main() -> Result<(), ParserError> {
                 .help("Enables jit if specified"),
         )
         .arg(
+            Arg::with_name("enable_debugger")
+                .long("debug")
+                .takes_value(false)
+                .help("Enables debugging mode if specified"),
+        )
+        .arg(
             Arg::with_name("measure_time")
                 .long("time")
                 .takes_value(false)
@@ -63,6 +69,7 @@ fn main() -> Result<(), ParserError> {
 
     // Arguments
     let measure_time = matches.is_present("measure_time");
+    let debug_mode = matches.is_present("enable_debugger");
     let input_file_name = matches.value_of("input_file").unwrap();
     let arguments = matches.values_of("arguments").map_or(Vec::new(), |f| {
         f.into_iter().map(|s| String::from(s)).collect()
@@ -70,9 +77,15 @@ fn main() -> Result<(), ParserError> {
     let use_jit = matches.is_present("enable_jit");
 
     let mut module_loader = ModuleLoader::from_module(standard_library::std_module());
-    let main_module_id = module_loader.load_module(input_file_name)?;
+    let main_module_id = match module_loader.load_module(input_file_name) {
+        Ok(module_id) => module_id,
+        Err(pe) => {
+            eprintln!("{}", pe);
+            return;
+        }
+    };
     let verbosity_level = matches.occurrences_of("verbosity");
-    
+
     let vm = if verbosity_level == 0 {
         VM::new(module_loader)
     } else {
@@ -86,7 +99,12 @@ fn main() -> Result<(), ParserError> {
         .expect("missing module")
         .expect("missing impl");
 
-    let state = vm.run(main_module, arguments, use_jit);
+    let state = if debug_mode {
+        let debugger = crate::debugger::MyDebugger {};
+        vm.run_with_debugger(main_module, arguments, Some(&debugger), use_jit)
+    } else {
+        vm.run(main_module, arguments, use_jit)
+    };
 
     println!("{}", state.result.unwrap());
 
@@ -94,6 +112,4 @@ fn main() -> Result<(), ParserError> {
     if measure_time {
         println!("elapsed: {:.3}s", finish_time as f64 / 1_000_000_000 as f64);
     };
-
-    Ok(())
 }

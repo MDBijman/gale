@@ -21,6 +21,8 @@ pub struct ModuleLoader {
 
 impl ModuleLoader {
     pub fn add(&mut self, mut m: Module) -> ModuleId {
+        assert!(self.interfaces.len() != u16::MAX.into());
+
         m.id = self
             .implementations
             .len()
@@ -217,7 +219,11 @@ impl Module {
 #[derive(Debug, Clone)]
 pub enum LongInstruction {
     ConstU32(VarId, u32),
+    ConstBool(VarId, bool),
     Copy(VarId, VarId),
+    CopyAddress(VarId, Option<String>, String),
+    CopyIntoIndex(VarId, u8, VarId),
+    CopyAddressIntoIndex(VarId, u8, Option<String>, String),
     EqVarVar(VarId, VarId, VarId),
     LtVarVar(VarId, VarId, VarId),
     SubVarVar(VarId, VarId, VarId),
@@ -227,19 +233,21 @@ pub enum LongInstruction {
 
     Return(VarId),
     Print(VarId),
+
     Call(VarId, String, Vec<VarId>),
     ModuleCall(VarId, String, String, Vec<VarId>),
+    VarCall(VarId, VarId, Vec<VarId>),
+
     Jmp(String),
     JmpIf(String, VarId),
     JmpIfNot(String, VarId),
 
     Alloc(VarId, Type),
     LoadConst(VarId, ConstId),
-    LoadVar(VarId, VarId, Type),
     Sizeof(VarId, VarId),
+    LoadVar(VarId, VarId, Type),
     StoreVar(VarId, VarId, Type),
     Index(VarId, VarId, VarId, Type),
-    CopyIntoIndex(VarId, u8, VarId),
     Tuple(VarId, u8),
 
     Lbl(String),
@@ -252,6 +260,7 @@ impl Into<Instruction> for LongInstruction {
 
         match self {
             ConstU32(a, b) => Instruction::ConstU32(a, b),
+            ConstBool(a, b) => Instruction::ConstBool(a, b),
             Copy(a, b) => Instruction::Copy(a, b),
             EqVarVar(a, b, c) => Instruction::EqVarVar(a, b, c),
             LtVarVar(a, b, c) => Instruction::LtVarVar(a, b, c),
@@ -263,8 +272,9 @@ impl Into<Instruction> for LongInstruction {
             Print(v) => Instruction::Print(v),
             Panic => Instruction::Panic,
             Sizeof(a, b) => Instruction::Sizeof(a, b),
-
             LoadConst(a, b) => Instruction::LoadConst(a, b),
+            Tuple(a, b) => Instruction::Tuple(a, b),
+            CopyIntoIndex(a, b, c) => Instruction::CopyIntoIndex(a, b, c),
 
             s => panic!(
                 "This instruction variant cannot be converted automatically: {:?}",
@@ -407,6 +417,7 @@ pub type InstrLbl = i16;
 pub type VarId = u8;
 pub type TypeId = u16;
 pub type FnId = u16;
+// ModuleId::MAX indicates the current module
 pub type ModuleId = u16;
 pub type ConstId = u16;
 
@@ -427,7 +438,11 @@ impl CallTarget {
 #[derive(Debug, Clone, Copy)]
 pub enum Instruction {
     ConstU32(VarId, u32),
+    ConstBool(VarId, bool),
     Copy(VarId, VarId),
+    CopyAddress(VarId, CallTarget),
+    CopyIntoIndex(VarId, u8, VarId),
+    CopyAddressIntoIndex(VarId, u8, CallTarget),
     EqVarVar(VarId, VarId, VarId),
     LtVarVar(VarId, VarId, VarId),
     SubVarVar(VarId, VarId, VarId),
@@ -440,10 +455,12 @@ pub enum Instruction {
     Call1(VarId, FnId, VarId),
     CallN(VarId, FnId, VarId, VarId),
     ModuleCall(VarId, CallTarget, VarId),
+    VarCallN(VarId, VarId, VarId, VarId),
     Jmp(InstrLbl),
     JmpIf(InstrLbl, VarId),
     JmpIfNot(InstrLbl, VarId),
 
+    Tuple(VarId, u8),
     Alloc(VarId, TypeId),
     LoadConst(VarId, ConstId),
     LoadVar(VarId, VarId, TypeId),
@@ -460,9 +477,13 @@ impl Instruction {
         use Instruction::*;
         match self {
             ConstU32(r, _)
+            | ConstBool(r, _)
             | LtVarVar(r, _, _)
             | EqVarVar(r, _, _)
             | Copy(r, _)
+            | CopyAddress(r, _)
+            | CopyIntoIndex(r, _, _)
+            | CopyAddressIntoIndex(r, _, _)
             | SubVarVar(r, _, _)
             | AddVarVar(r, _, _)
             | MulVarVar(r, _, _)
@@ -471,9 +492,11 @@ impl Instruction {
             | NotVar(r, _)
             | Call1(r, _, _)
             | CallN(r, _, _, _)
+            | VarCallN(r, _, _, _)
             | Index(r, _, _, _)
             | LoadConst(r, _)
             | Sizeof(r, _)
+            | Tuple(r, _)
             | ModuleCall(r, _, _) => vec![*r],
             JmpIfNot(_, _)
             | JmpIf(_, _)
@@ -506,18 +529,41 @@ impl Instruction {
             | Sizeof(_, a)
             | JmpIf(_, a)
             | LoadVar(_, a, _)
+            | CopyIntoIndex(_, _, a)
             | Copy(_, a) => vec![*a],
-            Lbl | ConstU32(_, _) | Jmp(_) | Alloc(_, _) | LoadConst(_, _) | Nop | Panic => vec![],
-            CallN(_, _, a, b) => (*a..=*b).collect()
+            Lbl
+            | ConstU32(_, _)
+            | ConstBool(_, _)
+            | Jmp(_)
+            | Alloc(_, _)
+            | LoadConst(_, _)
+            | Tuple(_, _)
+            | Nop
+            | CopyAddress(_, _)
+            | CopyAddressIntoIndex(_, _, _)
+            | Panic => vec![],
+            CallN(_, _, a, b) => (*a..=*b).collect(),
+            VarCallN(_, t, a, b) => (*a..=*b).chain(vec![*t].into_iter()).collect(),
         }
     }
 
-    pub fn get_call_target(&self, default_mod: ModuleId) -> Option<CallTarget> {
+    pub fn get_call_target(
+        &self,
+        state: &crate::interpreter::InterpreterState,
+        default_mod: ModuleId,
+    ) -> Option<CallTarget> {
         use Instruction::*;
         match self {
             Call1(_, loc, _) => Some(CallTarget::new(default_mod, *loc)),
             CallN(_, loc, _, _) => Some(CallTarget::new(default_mod, *loc)),
             ModuleCall(_, ct, _) => Some(*ct),
+            VarCallN(_, loc, _, _) => Some(
+                state
+                    .get_stack_var(*loc)
+                    .as_call_target()
+                    .expect("invalid type")
+                    .clone(),
+            ),
             _ => None,
         }
     }
@@ -527,7 +573,8 @@ impl Display for Instruction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use Instruction::*;
         match self {
-            ConstU32(a, b) => write!(f, "movc ${}, {}", a, b),
+            ConstU32(a, b) => write!(f, "ui32 ${}, {}", a, b),
+            ConstBool(a, b) => write!(f, "bool ${}, {}", a, b),
             Copy(a, b) => write!(f, "mov ${}, ${}", a, b),
             EqVarVar(a, b, c) => write!(f, "eq ${}, ${}, ${}", a, b, c),
             LtVarVar(a, b, c) => write!(f, "lt ${}, ${}, ${}", a, b, c),
@@ -554,6 +601,17 @@ impl Display for Instruction {
             Panic => write!(f, "panic!"),
             Lbl => write!(f, "label:"),
             Nop => todo!(),
+            VarCallN(a, b, c, d) => write!(f, "call ${}, ${} (${}..${})", a, b, c, d),
+            Tuple(a, b) => write!(f, "tup ${}, ${}", a, b),
+            CopyAddressIntoIndex(a, b, c) => match c.module {
+                ModuleId::MAX => write!(f, "movi ${}, {}, @{}", a, b, c.function),
+                _ => write!(f, "movi ${}, {}, @{}:{}", a, b, c.module, c.function),
+            },
+            CopyIntoIndex(a, b, c) => write!(f, "mov ${}, {}, ${}", a, b, c),
+            CopyAddress(a, b) => match b.module {
+                ModuleId::MAX => write!(f, "mov ${}, @{}", a, b.function),
+                _ => write!(f, "mov ${}, @{}:{}", a, b.module, b.function),
+            },
         }
     }
 }
@@ -699,14 +757,29 @@ impl Function {
                             assert!(*i == cur + 1);
                             cur = i;
                         }
-                        
+
                         compact_instructions.push(Instruction::CallN(
                             res.clone(),
                             fns[n].try_into().unwrap(),
                             vars[0],
-                            *vars.last().unwrap()
+                            *vars.last().unwrap(),
                         ))
                     }
+                }
+                LongInstruction::VarCall(res, function, vars) => {
+                    let mut iter = vars.iter();
+                    let mut cur = iter.next().unwrap();
+                    for i in iter {
+                        assert!(*i == cur + 1);
+                        cur = i;
+                    }
+
+                    compact_instructions.push(Instruction::VarCallN(
+                        res.clone(),
+                        *function,
+                        vars[0],
+                        *vars.last().unwrap(),
+                    ))
                 }
                 LongInstruction::ModuleCall(res, module_name, function, vars) => {
                     let module = module_loader
@@ -744,6 +817,29 @@ impl Function {
                     let idx: u16 = type_decls.len().try_into().unwrap();
                     type_decls.push(TypeDecl::new(idx, ty.clone()));
                     compact_instructions.push(Instruction::Index(*a, *b, *c, idx));
+                }
+                LongInstruction::CopyAddressIntoIndex(res, idx, module_name, function_name) => {
+                    let (module, function) = match module_name {
+                        Some(module_name) => {
+                            let module = module_loader
+                                .get_by_name(module_name.as_str())
+                                .expect("missing module")
+                                .as_ref()
+                                .expect("missing impl");
+                            let function = module
+                                .find_function_id(function_name.as_str())
+                                .expect("missing fn");
+
+                            (module.id, function)
+                        }
+                        _ => (ModuleId::MAX, fns[function_name].try_into().unwrap()),
+                    };
+
+                    compact_instructions.push(Instruction::CopyAddressIntoIndex(
+                        res.clone(),
+                        *idx,
+                        CallTarget::new(module, function),
+                    ));
                 }
                 instr => compact_instructions.push(instr.clone().into()),
             }
@@ -962,7 +1058,7 @@ impl ControlFlowGraph {
                 Instruction::Panic => {
                     basic_blocks.push(current_block);
                     current_block = BasicBlock::starting_from(pc + 1);
-                } 
+                }
                 Instruction::Lbl => {
                     // If this is not the first in the block, we need to make a new block
                     if current_block.first != pc {
@@ -1086,7 +1182,7 @@ impl ControlFlowGraph {
                 Instruction::Panic => {
                     basic_blocks.push(current_block);
                     current_block = BasicBlock::starting_from(pc + 1);
-                } 
+                }
                 Instruction::Lbl => {
                     // If this is not the first in the block, we need to make a new block
                     if current_block.first != pc {
@@ -1184,7 +1280,7 @@ impl ControlFlowGraph {
             for var in live_at_instr.data() {
                 // We add one here (and in the first if) since liveness analysis gives results
                 // that indicate if a variables is live _after_ executing a particular instruction
-                // JIT expects the interval to end at the last instruction to use a variable, not 1 before it 
+                // JIT expects the interval to end at the last instruction to use a variable, not 1 before it
                 let v = intervals.entry(*var).or_insert((instr, instr));
                 if instr > v.1 {
                     v.1 = instr;

@@ -149,6 +149,7 @@ impl From<Instruction> for LowInstruction {
     fn from(i: Instruction) -> Self {
         match i {
             Instruction::ConstU32(a, b) => LowInstruction::ConstU32(a.into(), b),
+            Instruction::ConstBool(a, b) => LowInstruction::ConstU32(a.into(), if b { 1 } else { 0 }),
             Instruction::Copy(a, b) => LowInstruction::Copy(a.into(), b.into()),
             Instruction::EqVarVar(a, b, c) => {
                 LowInstruction::EqVarVar(a.into(), b.into(), c.into())
@@ -187,6 +188,11 @@ impl From<Instruction> for LowInstruction {
             Instruction::Lbl => LowInstruction::Lbl,
             Instruction::Nop => LowInstruction::Nop,
             Instruction::Panic => LowInstruction::Panic,
+            Instruction::VarCallN(_, _, _, _) => todo!(),
+            Instruction::Tuple(_, _) => todo!(),
+            Instruction::CopyAddressIntoIndex(_, _, _) => todo!(),
+            Instruction::CopyIntoIndex(_, _, _) => todo!(),
+            Instruction::CopyAddress(_, _) => todo!(),
         }
     }
 }
@@ -461,9 +467,10 @@ impl JITEngine {
                     arg,
                 );
                 vm.interpreter.finish_function(vm, state);
-                let res = vm
+                let res = *vm
                     .interpreter
-                    .pop_native_caller_frame(&mut state.interpreter_state);
+                    .pop_native_caller_frame(&mut state.interpreter_state)
+                    .as_ui64().expect("invalid return type");
                 res
             }
         } else {

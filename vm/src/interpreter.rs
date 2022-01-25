@@ -3,6 +3,7 @@ use crate::memory::Pointer;
 use crate::vm::{VMState, VM};
 
 use std::collections::HashMap;
+use std::fmt::Display;
 
 #[derive(PartialEq, Debug)]
 pub enum InterpreterStatus {
@@ -18,6 +19,82 @@ pub struct CallInfo {
     prev_ip: isize,
     prev_fn: FnId,
     prev_mod: ModuleId,
+}
+
+#[derive(Debug, Clone)]
+pub enum Value {
+    Uninit,
+    UI64(u64),
+    Bool(bool),
+    Tuple(Vec<Value>),
+    Pointer(Pointer),
+    CallTarget(CallTarget),
+}
+
+impl Value {
+    pub fn as_ui64(&self) -> Option<&u64> {
+        if let Self::UI64(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_bool(&self) -> Option<&bool> {
+        if let Self::Bool(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_tuple(&self) -> Option<&Vec<Value>> {
+        if let Self::Tuple(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_pointer(&self) -> Option<&Pointer> {
+        if let Self::Pointer(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_call_target(&self) -> Option<&CallTarget> {
+        if let Self::CallTarget(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+}
+
+impl Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Value::Uninit => write!(f, "<uninit>"),
+            Value::UI64(v) => write!(f, "{}", v),
+            Value::Bool(v) => write!(f, "{}", v),
+            Value::Tuple(elems) => {
+                write!(f, "(")?;
+                let mut iter = elems.iter();
+                if let Some(first) = iter.next() {
+                    write!(f, "{}", first)?;
+                    for e in iter {
+                        write!(f, ", {}", e)?;
+                    }
+                }
+
+                write!(f, ")")
+            }
+            Value::Pointer(v) => write!(f, "{:?}", v),
+            Value::CallTarget(ct) => write!(f, "{:?}", ct),
+        }
+    }
 }
 
 pub struct Interpreter {}
@@ -52,7 +129,7 @@ impl Interpreter {
 
         state.stack.slots.resize(
             new_base as usize + stack_size as usize + 1, /* <- for nfi result */
-            u64::MAX,
+            Value::Uninit,
         );
 
         let fun_ci = CallInfo {
@@ -66,14 +143,14 @@ impl Interpreter {
 
         state.call_info.push(fun_ci);
 
-        state.set_stack_var(0, arg);
+        state.set_stack_var(0, Value::UI64(arg));
 
         state.ip = 0;
         state.func = func.location;
         state.module = target.module;
     }
 
-    pub fn pop_native_caller_frame(&self, state: &mut InterpreterState) -> u64 {
+    pub fn pop_native_caller_frame(&self, state: &mut InterpreterState) -> Value {
         let ci = state
             .call_info
             .pop()
@@ -96,7 +173,11 @@ impl Interpreter {
         result
     }
 
-    fn get_instruction<'a>(&self, module: &'a Module, state: &InterpreterState) -> &'a Instruction {
+    pub fn get_instruction<'a>(
+        &self,
+        module: &'a Module,
+        state: &InterpreterState,
+    ) -> &'a Instruction {
         &module
             .get_function_by_id(state.func)
             .expect("function")
@@ -132,62 +213,141 @@ impl Interpreter {
 
         vm_state.interpreter_state.instr_counter += 1;
 
-        //println!("{:?}", current_instruction);
         match current_instruction {
             Instruction::ConstU32(loc, n) => {
-                vm_state.interpreter_state.set_stack_var(*loc, *n as u64);
+                vm_state
+                    .interpreter_state
+                    .set_stack_var(*loc, Value::UI64(*n as u64));
+                vm_state.interpreter_state.ip += 1;
+            }
+            Instruction::ConstBool(loc, n) => {
+                vm_state
+                    .interpreter_state
+                    .set_stack_var(*loc, Value::Bool(*n));
+                vm_state.interpreter_state.ip += 1;
+            }
+            Instruction::Tuple(loc, len) => {
+                vm_state
+                    .interpreter_state
+                    .set_stack_var(*loc, Value::Tuple(vec![Value::Uninit; *len as usize]));
                 vm_state.interpreter_state.ip += 1;
             }
             Instruction::Copy(loc, src) => {
-                let val = vm_state.interpreter_state.get_stack_var(*src);
+                let val = vm_state.interpreter_state.get_stack_var(*src).clone();
                 vm_state.interpreter_state.set_stack_var(*loc, val);
                 vm_state.interpreter_state.ip += 1;
             }
+            Instruction::CopyIntoIndex(loc, idx, src) => {
+                let val = vm_state.interpreter_state.get_stack_var(*src).clone();
+                match vm_state.interpreter_state.get_stack_var_mut(*loc) {
+                    Value::Tuple(elems) => {
+                        *elems.get_mut(*idx as usize).expect("invalid index") = val;
+                    }
+                    _ => panic!("invalid type"),
+                }
+
+                vm_state.interpreter_state.ip += 1;
+            }
+            Instruction::CopyAddressIntoIndex(loc, idx, calltarget) => {
+                match vm_state.interpreter_state.get_stack_var_mut(*loc) {
+                    Value::Tuple(elems) => {
+                        *elems.get_mut(*idx as usize).expect("invalid index") =
+                            Value::CallTarget(*calltarget);
+                    }
+                    _ => panic!("invalid type"),
+                }
+
+                vm_state.interpreter_state.ip += 1;
+            }
             Instruction::EqVarVar(dest, a, b) => {
-                let val_a = vm_state.interpreter_state.get_stack_var(*a);
-                let val_b = vm_state.interpreter_state.get_stack_var(*b);
+                let val_a = *vm_state
+                    .interpreter_state
+                    .get_stack_var(*a)
+                    .as_ui64()
+                    .expect("invalid type");
+                let val_b = *vm_state
+                    .interpreter_state
+                    .get_stack_var(*b)
+                    .as_ui64()
+                    .expect("invalid type");
                 vm_state
                     .interpreter_state
-                    .set_stack_var(*dest, (val_a == val_b) as u64);
+                    .set_stack_var(*dest, Value::Bool(val_a == val_b));
                 vm_state.interpreter_state.ip += 1;
             }
             Instruction::LtVarVar(dest, a, b) => {
-                let val_a = vm_state.interpreter_state.get_stack_var(*a);
-                let val_b = vm_state.interpreter_state.get_stack_var(*b);
+                let val_a = *vm_state
+                    .interpreter_state
+                    .get_stack_var(*a)
+                    .as_ui64()
+                    .expect("invalid type");
+                let val_b = *vm_state
+                    .interpreter_state
+                    .get_stack_var(*b)
+                    .as_ui64()
+                    .expect("invalid type");
                 vm_state
                     .interpreter_state
-                    .set_stack_var(*dest, (val_a < val_b) as u64);
+                    .set_stack_var(*dest, Value::Bool(val_a < val_b));
                 vm_state.interpreter_state.ip += 1;
             }
             Instruction::SubVarVar(dest, a, b) => {
-                let val_a = vm_state.interpreter_state.get_stack_var(*a);
-                let val_b = vm_state.interpreter_state.get_stack_var(*b);
+                let val_a = *vm_state
+                    .interpreter_state
+                    .get_stack_var(*a)
+                    .as_ui64()
+                    .expect("invalid type");
+                let val_b = *vm_state
+                    .interpreter_state
+                    .get_stack_var(*b)
+                    .as_ui64()
+                    .expect("invalid type");
                 vm_state
                     .interpreter_state
-                    .set_stack_var(*dest, val_a - val_b);
+                    .set_stack_var(*dest, Value::UI64(val_a - val_b));
                 vm_state.interpreter_state.ip += 1;
             }
             Instruction::AddVarVar(dest, a, b) => {
-                let val_a = vm_state.interpreter_state.get_stack_var(*a);
-                let val_b = vm_state.interpreter_state.get_stack_var(*b);
+                let val_a = *vm_state
+                    .interpreter_state
+                    .get_stack_var(*a)
+                    .as_ui64()
+                    .expect("invalid type");
+                let val_b = *vm_state
+                    .interpreter_state
+                    .get_stack_var(*b)
+                    .as_ui64()
+                    .expect("invalid type");
                 vm_state
                     .interpreter_state
-                    .set_stack_var(*dest, val_a + val_b);
+                    .set_stack_var(*dest, Value::UI64(val_a + val_b));
                 vm_state.interpreter_state.ip += 1;
             }
             Instruction::MulVarVar(dest, a, b) => {
-                let val_a = vm_state.interpreter_state.get_stack_var(*a);
-                let val_b = vm_state.interpreter_state.get_stack_var(*b);
+                let val_a = *vm_state
+                    .interpreter_state
+                    .get_stack_var(*a)
+                    .as_ui64()
+                    .expect("invalid type");
+                let val_b = *vm_state
+                    .interpreter_state
+                    .get_stack_var(*b)
+                    .as_ui64()
+                    .expect("invalid type");
                 vm_state
                     .interpreter_state
-                    .set_stack_var(*dest, val_a * val_b);
+                    .set_stack_var(*dest, Value::UI64(val_a * val_b));
                 vm_state.interpreter_state.ip += 1;
             }
             Instruction::NotVar(dest, src) => {
-                let src_val = vm_state.interpreter_state.get_stack_var(*src);
+                let src_val = *vm_state
+                    .interpreter_state
+                    .get_stack_var(*src)
+                    .as_bool()
+                    .expect("invalid type");
                 vm_state
                     .interpreter_state
-                    .set_stack_var(*dest, if src_val == 0 { 1 } else { 0 });
+                    .set_stack_var(*dest, Value::Bool(!src_val));
                 vm_state.interpreter_state.ip += 1;
             }
             Instruction::Print(src) => {
@@ -195,7 +355,7 @@ impl Interpreter {
                 vm_state.interpreter_state.ip += 1;
             }
             Instruction::Return(src) => {
-                let val = vm_state.interpreter_state.get_stack_var(*src);
+                let val = vm_state.interpreter_state.get_stack_var(*src).clone();
                 let ci = vm_state.interpreter_state.call_info.pop().unwrap();
 
                 // Finished execution
@@ -217,7 +377,7 @@ impl Interpreter {
                         .slots
                         .truncate(ci.var_base as usize);
 
-                    *vm_state.interpreter_state.stack.slots.last_mut().unwrap() = val;
+                    *vm_state.interpreter_state.stack.slots.last_mut().unwrap() = val.clone();
                 } else {
                     let new_ci = vm_state.interpreter_state.call_info.last().unwrap();
                     let new_func = current_module
@@ -232,16 +392,25 @@ impl Interpreter {
                         .slots
                         .truncate(new_ci.var_base as usize + new_func.varcount as usize);
 
-                    vm_state.interpreter_state.set_stack_var(ci.result_var, val);
+                    vm_state
+                        .interpreter_state
+                        .set_stack_var(ci.result_var, val.clone());
 
                     vm_state.interpreter_state.ip += 1;
                 }
             }
             Instruction::Call1(r, _, arg) | Instruction::ModuleCall(r, _, arg) => {
                 let target = current_instruction
-                    .get_call_target(current_module.id)
+                    .get_call_target(&vm_state.interpreter_state, current_module.id)
                     .expect("call target");
-                let func = if target.module != current_module.id {
+
+                let target_module = if target.module == ModuleId::MAX {
+                    current_module.id
+                } else {
+                    target.module
+                };
+
+                let func = if target_module != current_module.id {
                     vm.module_loader
                         .get_by_id(target.module)
                         .expect("module")
@@ -260,7 +429,11 @@ impl Interpreter {
 
                 if func.has_native_impl() {
                     let implementation = func.native_impl().unwrap();
-                    let arg_value = vm_state.interpreter_state.get_stack_var(*arg);
+                    let arg_value = *vm_state
+                        .interpreter_state
+                        .get_stack_var(*arg)
+                        .as_ui64()
+                        .expect("invalid type");
 
                     let res = unsafe {
                         let unsafe_fn_ptr = std::mem::transmute::<_, fn(&mut VMState, u64) -> u64>(
@@ -269,7 +442,9 @@ impl Interpreter {
                         (unsafe_fn_ptr)(vm_state, arg_value)
                     };
 
-                    vm_state.interpreter_state.set_stack_var(*r, res);
+                    vm_state
+                        .interpreter_state
+                        .set_stack_var(*r, Value::UI64(res));
 
                     vm_state.interpreter_state.ip += 1;
                 } else if func.has_bytecode_impl() {
@@ -282,7 +457,7 @@ impl Interpreter {
                         .interpreter_state
                         .stack
                         .slots
-                        .resize(new_base as usize + stack_size as usize, u64::MAX);
+                        .resize(new_base as usize + stack_size as usize, Value::Uninit);
 
                     let new_ci = CallInfo {
                         called_by_native: false,
@@ -293,12 +468,81 @@ impl Interpreter {
                         prev_mod: vm_state.interpreter_state.module,
                     };
 
-                    let val = vm_state.interpreter_state.get_stack_var(*arg);
+                    let val = vm_state.interpreter_state.get_stack_var(*arg).clone();
                     vm_state.interpreter_state.call_info.push(new_ci);
                     vm_state.interpreter_state.set_stack_var(0, val);
                     vm_state.interpreter_state.ip = 0;
                     vm_state.interpreter_state.func = target.function;
-                    vm_state.interpreter_state.module = target.module;
+                    vm_state.interpreter_state.module = target_module;
+                } else {
+                    panic!("Unknown function implementation");
+                }
+            }
+            Instruction::CallN(r, _, first_arg, last_arg)
+            | Instruction::VarCallN(r, _, first_arg, last_arg) => {
+                let target = current_instruction
+                    .get_call_target(&vm_state.interpreter_state, current_module.id)
+                    .expect("call target");
+
+                let target_module = if target.module == ModuleId::MAX {
+                    current_module.id
+                } else {
+                    target.module
+                };
+
+                let func = if target_module != current_module.id {
+                    vm.module_loader
+                        .get_by_id(target_module)
+                        .expect("module")
+                        .expect("mod impl")
+                        .get_function_by_id(target.function)
+                        .expect("function")
+                } else {
+                    &current_module
+                        .get_function_by_id(target.function)
+                        .expect("function")
+                };
+
+                vm_state
+                    .interpreter_state
+                    .increment_function_counter(func.location);
+
+                if func.has_native_impl() {
+                    todo!("Cannot turn large values into native values yet");
+                } else if func.has_bytecode_impl() {
+                    let implementation = func.bytecode_impl().unwrap();
+                    let stack_size = implementation.varcount;
+
+                    let new_base = vm_state.interpreter_state.stack.slots.len() as isize;
+
+                    vm_state
+                        .interpreter_state
+                        .stack
+                        .slots
+                        .resize(new_base as usize + stack_size as usize, Value::Uninit);
+
+                    let new_ci = CallInfo {
+                        called_by_native: false,
+                        var_base: new_base,
+                        result_var: *r,
+                        prev_ip: vm_state.interpreter_state.ip,
+                        prev_fn: vm_state.interpreter_state.func,
+                        prev_mod: vm_state.interpreter_state.module,
+                    };
+
+                    for idx in 0..=*last_arg - *first_arg {
+                        let val = vm_state
+                            .interpreter_state
+                            .get_stack_var(idx + first_arg)
+                            .clone();
+                        vm_state
+                            .interpreter_state
+                            .set_stack_var_raw_index(new_base as usize + idx as usize, val);
+                    }
+                    vm_state.interpreter_state.call_info.push(new_ci);
+                    vm_state.interpreter_state.ip = 0;
+                    vm_state.interpreter_state.func = target.function;
+                    vm_state.interpreter_state.module = target_module;
                 } else {
                     panic!("Unknown function implementation");
                 }
@@ -307,23 +551,27 @@ impl Interpreter {
                 vm_state.interpreter_state.ip += *instr as isize;
             }
             Instruction::JmpIf(instr, src) => {
-                match vm_state.interpreter_state.get_stack_var(*src) {
-                    0 => {
-                        vm_state.interpreter_state.ip += 1;
-                    }
-                    _ => {
-                        vm_state.interpreter_state.ip += *instr as isize;
-                    }
+                if !*vm_state
+                    .interpreter_state
+                    .get_stack_var(*src)
+                    .as_bool()
+                    .expect("invalid type")
+                {
+                    vm_state.interpreter_state.ip += 1;
+                } else {
+                    vm_state.interpreter_state.ip += *instr as isize;
                 }
             }
             Instruction::JmpIfNot(instr, src) => {
-                match vm_state.interpreter_state.get_stack_var(*src) {
-                    0 => {
-                        vm_state.interpreter_state.ip += *instr as isize;
-                    }
-                    _ => {
-                        vm_state.interpreter_state.ip += 1;
-                    }
+                if !*vm_state
+                    .interpreter_state
+                    .get_stack_var(*src)
+                    .as_bool()
+                    .expect("invalid type")
+                {
+                    vm_state.interpreter_state.ip += *instr as isize;
+                } else {
+                    vm_state.interpreter_state.ip += 1;
                 }
             }
             Instruction::Lbl => {
@@ -337,21 +585,29 @@ impl Interpreter {
                 let pointer = vm_state.heap.allocate_type(ty);
                 vm_state
                     .interpreter_state
-                    .set_stack_var(*loc, pointer.into());
+                    .set_stack_var(*loc, Value::Pointer(pointer));
 
                 vm_state.interpreter_state.ip += 1;
             }
             Instruction::LoadVar(dest, src, ty_idx) => {
-                let ptr: Pointer = vm_state.interpreter_state.get_stack_var(*src).into();
+                let ptr: Pointer = *vm_state
+                    .interpreter_state
+                    .get_stack_var(*src)
+                    .as_pointer()
+                    .expect("invalid type");
 
                 match current_module.get_type_by_id(*ty_idx).expect("type idx") {
                     Type::U64 => {
                         let value = unsafe { vm_state.heap.load::<u64>(ptr) };
-                        vm_state.interpreter_state.set_stack_var(*dest, value);
+                        vm_state
+                            .interpreter_state
+                            .set_stack_var(*dest, Value::UI64(value));
                     }
                     Type::Pointer(_) => {
                         let value = unsafe { vm_state.heap.load::<u64>(ptr) };
-                        vm_state.interpreter_state.set_stack_var(*dest, value);
+                        vm_state
+                            .interpreter_state
+                            .set_stack_var(*dest, Value::Pointer(Pointer::from(value)));
                     }
                     _ => {
                         panic!(
@@ -371,31 +627,62 @@ impl Interpreter {
                     &const_decl.value,
                 );
 
-                vm_state.interpreter_state.set_stack_var(*res, ptr.into());
+                vm_state
+                    .interpreter_state
+                    .set_stack_var(*res, Value::Pointer(ptr));
                 vm_state.interpreter_state.ip += 1;
             }
             Instruction::StoreVar(dest, src, ty_idx) => {
-                let ptr: Pointer = vm_state.interpreter_state.get_stack_var(*dest).into();
+                let ptr: Pointer = *vm_state
+                    .interpreter_state
+                    .get_stack_var(*dest)
+                    .as_pointer()
+                    .expect("invalid type");
                 let value = vm_state.interpreter_state.get_stack_var(*src);
 
                 match current_module.get_type_by_id(*ty_idx).expect("type idx") {
                     Type::U64 => unsafe {
-                        vm_state.heap.store::<u64>(ptr, value);
+                        vm_state
+                            .heap
+                            .store::<u64>(ptr, *value.as_ui64().expect("invalid type"));
                     },
                     _ => panic!("Illegal load operand: {:?}", ty_idx),
                 }
                 vm_state.interpreter_state.ip += 1;
             }
-            Instruction::Index(dest, ptr, idx, ty_idx) => {
-                let idx = vm_state.interpreter_state.get_stack_var(*idx);
-                let ptr = vm_state.interpreter_state.get_stack_var(*ptr).into();
+            Instruction::Index(dest, subject, idx, ty_idx) => {
+                let idx = *vm_state
+                    .interpreter_state
+                    .get_stack_var(*idx)
+                    .as_ui64()
+                    .expect("invalid type");
+
                 match current_module.get_type_by_id(*ty_idx).expect("type idx") {
                     Type::U64 | Type::Pointer(_) => {
-                        let new_ptr = vm_state.heap.index::<u64>(ptr, idx as usize + 1 /* array header */);
+                        let ptr = *vm_state
+                            .interpreter_state
+                            .get_stack_var(*subject)
+                            .as_pointer()
+                            .expect("invalid type");
+                        let new_ptr = vm_state
+                            .heap
+                            .index::<u64>(ptr, idx as usize + 1 /* array header */);
                         let loaded_value = unsafe { vm_state.heap.load::<u64>(new_ptr) };
                         vm_state
                             .interpreter_state
-                            .set_stack_var(*dest, loaded_value);
+                            .set_stack_var(*dest, Value::UI64(loaded_value));
+                    }
+                    Type::Tuple(_) => {
+                        let value = vm_state
+                            .interpreter_state
+                            .get_stack_var(*subject)
+                            .as_tuple()
+                            .expect("invalid type")
+                            .get(idx as usize)
+                            .expect("invalid type")
+                            .clone();
+
+                        vm_state.interpreter_state.set_stack_var(*dest, value);
                     }
                     ty => panic!("Illegal index operand: {:?}", ty),
                 }
@@ -403,11 +690,17 @@ impl Interpreter {
                 vm_state.interpreter_state.ip += 1;
             }
             Instruction::Sizeof(dest, src) => {
-                let src_ptr = vm_state.interpreter_state.get_stack_var(*src);
+                let src_ptr = *vm_state
+                    .interpreter_state
+                    .get_stack_var(*src)
+                    .as_pointer()
+                    .expect("invalid type");
 
                 unsafe {
-                    let size = vm_state.heap.load_u64(src_ptr.into());
-                    vm_state.interpreter_state.set_stack_var(*dest, size);
+                    let size = vm_state.heap.load_u64(src_ptr);
+                    vm_state
+                        .interpreter_state
+                        .set_stack_var(*dest, Value::UI64(size));
                 }
 
                 vm_state.interpreter_state.ip += 1;
@@ -420,13 +713,13 @@ impl Interpreter {
 }
 
 struct Stack {
-    slots: Vec<u64>,
+    slots: Vec<Value>,
 }
 
 impl Stack {
     pub fn new_with_framesize(framesize: usize) -> Stack {
         Stack {
-            slots: vec![u64::MAX; framesize],
+            slots: vec![Value::Uninit; framesize],
         }
     }
 }
@@ -435,11 +728,11 @@ pub struct InterpreterState {
     stack: Stack,
     call_info: Vec<CallInfo>,
     ip: isize,
-    func: FnId,
-    module: ModuleId,
+    pub func: FnId,
+    pub module: ModuleId,
     state: InterpreterStatus,
 
-    pub result: u64,
+    pub result: Value,
     pub instr_counter: u64,
     pub function_counters: HashMap<FnId, u64>,
 }
@@ -458,7 +751,7 @@ impl InterpreterState {
             }],
             ip: 0,
             state: InterpreterStatus::Created,
-            result: 0,
+            result: Value::Uninit,
             instr_counter: 0,
             function_counters: HashMap::new(),
             module: entry.module,
@@ -470,21 +763,32 @@ impl InterpreterState {
         self.state = InterpreterStatus::Running;
         self.module = entry.module;
         self.func = entry.function;
-        unsafe {
-            self.stack.slots[0] = std::mem::transmute(args_ptr);
-        }
+        self.stack.slots[0] = Value::Pointer(args_ptr);
     }
 
     pub fn init_empty(&mut self) {
         self.state = InterpreterStatus::Running;
     }
 
-    fn get_stack_var(&mut self, var: VarId) -> u64 {
-        let ci = self.call_info.last().unwrap();
-        self.stack.slots[ci.var_base as usize + var as usize]
+    pub fn get_stack_var_raw_index(&self, idx: usize) -> &Value {
+        &self.stack.slots[idx]
     }
 
-    fn set_stack_var(&mut self, var: VarId, val: u64) {
+    pub fn set_stack_var_raw_index(&mut self, idx: usize, val: Value) {
+        self.stack.slots[idx] = val;
+    }
+
+    pub fn get_stack_var(&self, var: VarId) -> &Value {
+        let ci = self.call_info.last().unwrap();
+        &self.stack.slots[ci.var_base as usize + var as usize]
+    }
+
+    pub fn get_stack_var_mut(&mut self, var: VarId) -> &mut Value {
+        let ci = self.call_info.last().unwrap();
+        &mut self.stack.slots[ci.var_base as usize + var as usize]
+    }
+
+    pub fn set_stack_var(&mut self, var: VarId, val: Value) {
         let ci = self.call_info.last().unwrap();
         self.stack.slots[ci.var_base as usize + var as usize] = val;
     }

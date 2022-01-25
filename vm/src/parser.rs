@@ -9,11 +9,11 @@ use nom::{
     character::complete::{char, digit1, multispace0, space0},
     combinator::{cut, map, opt},
     error::{convert_error, ParseError, VerboseError},
-    multi::{many0, many1, separated_list0},
+    multi::{many0, many1, separated_list0, separated_list1},
     sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
     IResult,
 };
-use std::fs;
+use std::{fmt::Display, fs};
 
 /*
 * Parser logic
@@ -68,6 +68,13 @@ fn parse_u8(i: &str) -> MyParseResult<u8> {
     map(digit1, |s: &str| s.parse::<u8>().unwrap())(i)
 }
 
+fn parse_bool(i: &str) -> MyParseResult<bool> {
+    alt((
+        map(tag("true"), |_| true),
+        map(tag("false"), |_| false)
+    ))(i)
+}
+
 fn parse_var_idx(i: &str) -> MyParseResult<VarId> {
     preceded(tag("$"), cut(parse_u8))(i)
 }
@@ -112,6 +119,14 @@ fn parse_type(i: &str) -> MyParseResult<Type> {
                 ws(char(')')),
             ),
             |(i, o)| Type::Fn(Box::from(i), Box::from(o)),
+        ),
+        map(
+            delimited(
+                ws(char('(')),
+                separated_list1(ws(char(',')), parse_type),
+                ws(char(')')),
+            ),
+            |t| Type::Tuple(t),
         ),
     ))(i)
 }
@@ -229,17 +244,24 @@ fn parse_instruction(i: &str) -> MyParseResult<LongInstruction> {
             ),
             map(
                 tuple((
-                    preceded(spaces_around(tag("movc")), cut(parse_var_idx)),
+                    preceded(spaces_around(tag("ui32")), cut(parse_var_idx)),
                     preceded(spaces_around(tag(",")), parse_u32),
                 )),
                 |(a, b)| LongInstruction::ConstU32(a, b),
+            ),
+            map(
+                tuple((
+                    preceded(spaces_around(tag("bool")), cut(parse_var_idx)),
+                    preceded(spaces_around(tag(",")), parse_bool),
+                )),
+                |(a, b)| LongInstruction::ConstBool(a, b),
             ),
             alt((
                 map(
                     tuple((
                         preceded(spaces_around(tag("movi")), cut(parse_var_idx)),
                         preceded(spaces_around(tag(",")), cut(parse_u8)),
-                        preceded(spaces_around(tag(",")), cut(parse_var_idx)),
+                        preceded(spaces_around(tag(",")), parse_var_idx),
                     )),
                     |(a, b, c)| LongInstruction::CopyIntoIndex(a, b, c),
                 ),
@@ -249,7 +271,7 @@ fn parse_instruction(i: &str) -> MyParseResult<LongInstruction> {
                         preceded(spaces_around(tag(",")), cut(parse_u8)),
                         preceded(spaces_around(tag(",")), cut(parse_call_target)),
                     )),
-                    |(a, b, c)| LongInstruction::CopyIntoIndex(a, b, c),
+                    |(a, b, (c, d))| LongInstruction::CopyAddressIntoIndex(a, b, c, d),
                 ),
                 map(
                     tuple((
@@ -257,6 +279,13 @@ fn parse_instruction(i: &str) -> MyParseResult<LongInstruction> {
                         preceded(spaces_around(tag(",")), parse_var_idx),
                     )),
                     |(a, b)| LongInstruction::Copy(a, b),
+                ),
+                map(
+                    tuple((
+                        preceded(spaces_around(tag("mov")), cut(parse_var_idx)),
+                        preceded(spaces_around(tag(",")), parse_call_target),
+                    )),
+                    |(a, (b, c))| LongInstruction::CopyAddress(a, b, c),
                 ),
                 map(
                     tuple((
@@ -297,22 +326,39 @@ fn parse_alloc(i: &str) -> MyParseResult<LongInstruction> {
 }
 
 fn parse_call(i: &str) -> MyParseResult<LongInstruction> {
-    map(
-        tuple((
-            preceded(spaces_around(tag("call")), cut(parse_var_idx)),
-            preceded(spaces_around(tag(",")), cut(parse_call_target)),
-            space0,
-            delimited(
-                tag("("),
-                separated_list0(spaces_around(tag(",")), parse_var_idx),
-                tag(")"),
-            ),
-        )),
-        |(r, target, _, args)| match target.0 {
-            Some(module) => LongInstruction::ModuleCall(r, module, target.1, args),
-            None => LongInstruction::Call(r, target.1, args),
-        },
-    )(i)
+    alt((
+        // Call target embedded directly
+        map(
+            tuple((
+                preceded(spaces_around(tag("call")), cut(parse_var_idx)),
+                preceded(spaces_around(tag(",")), parse_call_target),
+                space0,
+                delimited(
+                    tag("("),
+                    separated_list0(spaces_around(tag(",")), parse_var_idx),
+                    tag(")"),
+                ),
+            )),
+            |(r, target, _, args)| match target.0 {
+                Some(module) => LongInstruction::ModuleCall(r, module, target.1, args),
+                None => LongInstruction::Call(r, target.1, args),
+            },
+        ),
+        // Call target stored in variable
+        map(
+            tuple((
+                preceded(spaces_around(tag("call")), cut(parse_var_idx)),
+                preceded(spaces_around(tag(",")), cut(parse_var_idx)),
+                space0,
+                delimited(
+                    tag("("),
+                    separated_list0(spaces_around(tag(",")), parse_var_idx),
+                    tag(")"),
+                ),
+            )),
+            |(r, target, _, args)| LongInstruction::VarCall(r, target, args),
+        ),
+    ))(i)
 }
 
 fn parse_jmp(i: &str) -> MyParseResult<LongInstruction> {
@@ -392,8 +438,14 @@ fn parse_function(i: &str) -> MyParseResult<LongFunction> {
                     LongInstruction::ConstU32(i, _) => {
                         vars = VarId::max(vars, *i);
                     }
+                    LongInstruction::ConstBool(i, _) => {
+                        vars = VarId::max(vars, *i);
+                    }
                     LongInstruction::Copy(i, _) => {
                         vars = VarId::max(vars, *i);
+                    }
+                    LongInstruction::CopyAddress(a, _, _) => {
+                        vars = VarId::max(vars, *a);
                     }
                     LongInstruction::EqVarVar(a, b, c) => {
                         vars = VarId::max(vars, *a);
@@ -440,6 +492,9 @@ fn parse_function(i: &str) -> MyParseResult<LongFunction> {
                         vars = VarId::max(vars, *a);
                         vars = VarId::max(vars, *c);
                     }
+                    LongInstruction::CopyAddressIntoIndex(a, _, _, _) => {
+                        vars = VarId::max(vars, *a);
+                    }
                     LongInstruction::Tuple(a, _) => {
                         vars = VarId::max(vars, *a);
                     }
@@ -454,8 +509,18 @@ fn parse_function(i: &str) -> MyParseResult<LongFunction> {
                     LongInstruction::Alloc(i, _) => {
                         vars = VarId::max(vars, *i);
                     }
-                    LongInstruction::Call(i, _, _) => {
-                        vars = VarId::max(vars, *i);
+                    LongInstruction::Call(a, _, b) => {
+                        vars = VarId::max(vars, *a);
+                        for v in b {
+                            vars = VarId::max(vars, *v);
+                        }
+                    }
+                    LongInstruction::VarCall(a, b, c) => {
+                        vars = VarId::max(vars, *a);
+                        vars = VarId::max(vars, *b);
+                        for v in c {
+                            vars = VarId::max(vars, *v);
+                        }
                     }
                     LongInstruction::ModuleCall(i, _, _, _) => {
                         vars = VarId::max(vars, *i);
@@ -549,6 +614,15 @@ fn parse_section(i: &str) -> MyParseResult<Section> {
 pub enum ParserError {
     ParseFailure(String),
     FileNotFound(),
+}
+
+impl Display for ParserError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::FileNotFound() => write!(f, "File not found"),
+            Self::ParseFailure(message) => write!(f, "{}", message),
+        }
+    }
 }
 
 pub fn parse_bytecode_string(module_loader: &ModuleLoader, i: &str) -> Result<Module, ParserError> {

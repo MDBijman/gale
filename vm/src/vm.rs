@@ -4,6 +4,10 @@ use crate::jit::{JITEngine, JITState};
 use crate::memory::{Heap, Pointer, ARRAY_HEADER_SIZE};
 use std::time;
 
+pub trait VMDebugger {
+    fn inspect(&self, vm: &VM, state: &mut VMState);
+}
+
 pub struct VMState {
     pub interpreter_state: InterpreterState,
     pub jit_state: JITState,
@@ -62,6 +66,20 @@ impl VM {
     }
 
     pub fn run(&self, main_module: &Module, args: Vec<String>, jit: bool) -> VMState {
+        self.run_with_debugger(main_module, args, None, jit)
+    }
+
+    pub fn run_with_debugger(
+        &self,
+        main_module: &Module,
+        args: Vec<String>,
+        debug: Option<&dyn VMDebugger>,
+        jit: bool,
+    ) -> VMState {
+        if debug.is_some() && jit {
+            panic!("Cannot debug jitting VM instance yet");
+        }
+
         let main_id = main_module.find_function_id("main").expect("function");
         let main_fn = main_module.get_function_by_name("main").expect("function");
         let bytecode = main_fn.bytecode_impl().expect("bytecode impl");
@@ -117,8 +135,10 @@ impl VM {
 
         if jit {
             self.run_jit(main_module, &mut state, args_ptr);
-        } else {
+        } else if debug.is_none() {
             self.run_interp(main_module, &mut state, args_ptr);
+        } else if debug.is_some() {
+            self.run_interp_with_debugger(main_module, &mut state, args_ptr, debug.unwrap());
         }
 
         if self.debug {
@@ -162,6 +182,30 @@ impl VM {
     }
 
     fn run_interp(&self, main_module: &Module, state: &mut VMState, args_ptr: Pointer) {
+        let main_id = main_module.find_function_id("main").expect("function");
+
+        state
+            .interpreter_state
+            .init(CallTarget::new(main_module.id, main_id), args_ptr);
+
+        while self.interpreter.step(self, state) {}
+
+        state.result = Some(
+            *state
+                .interpreter_state
+                .result
+                .as_ui64()
+                .expect("invalid result type"),
+        );
+    }
+
+    fn run_interp_with_debugger(
+        &self,
+        main_module: &Module,
+        state: &mut VMState,
+        args_ptr: Pointer,
+        debugger: &dyn VMDebugger,
+    ) {
         let start = time::SystemTime::now();
 
         let main_id = main_module.find_function_id("main").expect("function");
@@ -171,9 +215,17 @@ impl VM {
             .init(CallTarget::new(main_module.id, main_id), args_ptr);
 
         /* Run the program in interpreted mode */
-        while self.interpreter.step(self, state) {}
+        while self.interpreter.step(self, state) {
+            debugger.inspect(self, state);
+        }
 
-        state.result = Some(state.interpreter_state.result);
+        state.result = Some(
+            *state
+                .interpreter_state
+                .result
+                .as_ui64()
+                .expect("invalid result type"),
+        );
 
         if self.debug {
             let end = start.elapsed().unwrap().as_millis();
