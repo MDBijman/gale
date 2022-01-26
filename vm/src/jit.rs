@@ -169,7 +169,6 @@ impl From<Instruction> for LowInstruction {
             Instruction::NotVar(a, b) => LowInstruction::NotVar(a.into(), b.into()),
             Instruction::Return(a) => LowInstruction::Return(a.into()),
             Instruction::Print(a) => LowInstruction::Print(a.into()),
-            Instruction::Call1(a, b, c) => LowInstruction::Call1(a.into(), b.into(), c.into()),
             Instruction::CallN(a, b, c, d) => LowInstruction::Call1(a.into(), b.into(), c.into()),
             Instruction::ModuleCall(a, b, c) => LowInstruction::ModuleCall(a.into(), b, c.into()),
             Instruction::Jmp(a) => LowInstruction::Jmp(a),
@@ -872,51 +871,6 @@ fn emit_instr_as_asm<'a>(
                     ;;x64_asm_resolve_mem!(ops, memory; mov resolve(r), rax));
 
             load_volatiles(ops, &saved);
-        }
-        Call1(res, func, arg) => {
-            let module = module.id;
-
-            // Recursive call
-            // We know we can call the native impl. directly
-            if func == fn_state.function_location {
-                let saved = store_volatiles_except(ops, memory, Some(res));
-                let stack_space = 0x20;
-                x64_asm!(ops
-                    ;;x64_asm_resolve_mem!(ops, memory; mov r8, resolve(arg))
-                    ; mov rcx, _vm
-                    ; mov rdx, _vm_state
-                    ; sub rsp, BYTE stack_space
-                    ; call ->_self
-                    ; add rsp, BYTE stack_space
-                    ;; x64_asm_resolve_mem!(ops, memory; mov resolve(res), rax));
-                load_volatiles(ops, &saved);
-            }
-            // Unknown target
-            // Conservatively call trampoline
-            else {
-                let fn_ref: i64 = unsafe {
-                    std::mem::transmute::<_, i64>(
-                        JITEngine::trampoline
-                            as extern "win64" fn(&VM, &mut VMState, CallTarget, u64) -> u64,
-                    )
-                };
-
-                let saved = store_volatiles_except(ops, memory, Some(res));
-                let stack_space = 0x20;
-                x64_asm!(ops
-                    ;;x64_asm_resolve_mem!(ops, memory; mov r9, resolve(arg))
-                    ; mov rcx, _vm
-                    ; mov rdx, _vm_state
-                    ; mov r8w, func as i16
-                    ; shl r8, 16
-                    ; mov r8w, module as i16
-                    ; sub rsp, BYTE stack_space
-                    ; mov r10, QWORD fn_ref
-                    ; call r10
-                    ; add rsp, BYTE stack_space
-                    ;;x64_asm_resolve_mem!(ops, memory; mov resolve(res), rax));
-                load_volatiles(ops, &saved);
-            }
         }
         ModuleCall(res, target, arg) => {
             let fn_ref: i64 = unsafe {

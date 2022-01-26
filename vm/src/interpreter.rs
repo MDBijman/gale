@@ -416,7 +416,7 @@ impl Interpreter {
                     vm_state.interpreter_state.ip += 1;
                 }
             }
-            Instruction::Call1(r, _, arg) | Instruction::ModuleCall(r, _, arg) => {
+            Instruction::ModuleCall(r, _, arg) => {
                 let target = current_instruction
                     .get_call_target(&vm_state.interpreter_state, current_module.id)
                     .expect("call target");
@@ -493,8 +493,8 @@ impl Interpreter {
                     panic!("Unknown function implementation");
                 }
             }
-            Instruction::CallN(r, _, first_arg, last_arg)
-            | Instruction::VarCallN(r, _, first_arg, last_arg) => {
+            Instruction::CallN(r, _, first_arg, num_args)
+            | Instruction::VarCallN(r, _, first_arg, num_args) => {
                 let target = current_instruction
                     .get_call_target(&vm_state.interpreter_state, current_module.id)
                     .expect("call target");
@@ -545,7 +545,7 @@ impl Interpreter {
                         prev_mod: vm_state.interpreter_state.module,
                     };
 
-                    for idx in 0..=*last_arg - *first_arg {
+                    for idx in 0..*num_args {
                         let val = vm_state
                             .interpreter_state
                             .get_stack_var(idx + first_arg)

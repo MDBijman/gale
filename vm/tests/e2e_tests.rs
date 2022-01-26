@@ -111,8 +111,8 @@ fn fn_as_param()
     run_testcase(make_test_case("fn_as_param", "", 2), false);
 }
 
-
-
-
-
-
+#[test]
+fn fn_as_result()
+{
+    run_testcase(make_test_case("fn_as_result", "", 2), false);
+}

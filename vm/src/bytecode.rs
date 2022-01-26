@@ -452,10 +452,9 @@ pub enum Instruction {
 
     Return(VarId),
     Print(VarId),
-    Call1(VarId, FnId, VarId),
-    CallN(VarId, FnId, VarId, VarId),
+    CallN(VarId, FnId, VarId, u8),
     ModuleCall(VarId, CallTarget, VarId),
-    VarCallN(VarId, VarId, VarId, VarId),
+    VarCallN(VarId, VarId, VarId, u8),
     Jmp(InstrLbl),
     JmpIf(InstrLbl, VarId),
     JmpIfNot(InstrLbl, VarId),
@@ -490,7 +489,6 @@ impl Instruction {
             | Alloc(r, _)
             | LoadVar(r, _, _)
             | NotVar(r, _)
-            | Call1(r, _, _)
             | CallN(r, _, _, _)
             | VarCallN(r, _, _, _)
             | Index(r, _, _, _)
@@ -522,7 +520,6 @@ impl Instruction {
             | AddVarVar(_, b, c) => vec![*b, *c],
             JmpIfNot(_, a)
             | NotVar(_, a)
-            | Call1(_, _, a)
             | ModuleCall(_, _, a)
             | Return(a)
             | Print(a)
@@ -542,8 +539,8 @@ impl Instruction {
             | CopyAddress(_, _)
             | CopyAddressIntoIndex(_, _, _)
             | Panic => vec![],
-            CallN(_, _, a, b) => (*a..=*b).collect(),
-            VarCallN(_, t, a, b) => (*a..=*b).chain(vec![*t].into_iter()).collect(),
+            CallN(_, _, a, b) => (*a..=(a + *b)).collect(),
+            VarCallN(_, t, a, b) => (*a..=(a + *b)).chain(vec![*t].into_iter()).collect(),
         }
     }
 
@@ -554,7 +551,6 @@ impl Instruction {
     ) -> Option<CallTarget> {
         use Instruction::*;
         match self {
-            Call1(_, loc, _) => Some(CallTarget::new(default_mod, *loc)),
             CallN(_, loc, _, _) => Some(CallTarget::new(default_mod, *loc)),
             ModuleCall(_, ct, _) => Some(*ct),
             VarCallN(_, loc, _, _) => Some(
@@ -585,8 +581,7 @@ impl Display for Instruction {
             NotVar(a, b) => write!(f, "neg ${}, ${}", a, b),
             Return(a) => write!(f, "ret ${}", a),
             Print(r) => write!(f, "print ${}", r),
-            Call1(a, b, c) => write!(f, "call ${}, @{} (${})", a, b, c),
-            CallN(a, b, c, d) => write!(f, "call ${}, @{} (${}..${})", a, b, c, d),
+            CallN(a, b, c, d) => write!(f, "call ${}, @{} (${}..${})", a, b, c, d + c),
             ModuleCall(a, b, c) => {
                 write!(f, "call ${}, @{}:{} (${})", a, b.module, b.function, c)
             }
@@ -601,7 +596,7 @@ impl Display for Instruction {
             Panic => write!(f, "panic!"),
             Lbl => write!(f, "label:"),
             Nop => todo!(),
-            VarCallN(a, b, c, d) => write!(f, "call ${}, ${} (${}..${})", a, b, c, d),
+            VarCallN(a, b, c, d) => write!(f, "call ${}, ${} (${}..${})", a, b, c, d + c),
             Tuple(a, b) => write!(f, "tup ${}, ${}", a, b),
             CopyAddressIntoIndex(a, b, c) => match c.module {
                 ModuleId::MAX => write!(f, "movi ${}, {}, @{}", a, b, c.function),
@@ -744,41 +739,40 @@ impl Function {
                     compact_instructions.push(Instruction::Lbl);
                 }
                 LongInstruction::Call(res, n, vars) => {
-                    if vars.len() == 1 {
-                        compact_instructions.push(Instruction::Call1(
-                            res.clone(),
-                            fns[n].try_into().unwrap(),
-                            vars[0],
-                        ))
-                    } else if vars.len() > 1 {
-                        let mut iter = vars.iter();
-                        let mut cur = iter.next().unwrap();
-                        for i in iter {
-                            assert!(*i == cur + 1);
-                            cur = i;
-                        }
+                    let mut iter = vars.iter();
 
-                        compact_instructions.push(Instruction::CallN(
-                            res.clone(),
-                            fns[n].try_into().unwrap(),
-                            vars[0],
-                            *vars.last().unwrap(),
-                        ))
+                    if let Some(mut prev) = iter.next() {
+                        for i in iter {
+                            assert!(*i == prev + 1);
+                            prev = i;
+                        }
                     }
+
+                    compact_instructions.push(Instruction::CallN(
+                        res.clone(),
+                        fns[n].try_into().unwrap(),
+                        *vars.get(0).unwrap_or(&0),
+                        vars.len()
+                            .try_into()
+                            .expect(format!("too many arguments, max is {}", u8::MAX).as_str()),
+                    ))
                 }
                 LongInstruction::VarCall(res, function, vars) => {
                     let mut iter = vars.iter();
-                    let mut cur = iter.next().unwrap();
-                    for i in iter {
-                        assert!(*i == cur + 1);
-                        cur = i;
+                    if let Some(mut prev) = iter.next() {
+                        for i in iter {
+                            assert!(*i == prev + 1);
+                            prev = i;
+                        }
                     }
 
                     compact_instructions.push(Instruction::VarCallN(
                         res.clone(),
                         *function,
-                        vars[0],
-                        *vars.last().unwrap(),
+                        *vars.get(0).unwrap_or(&0),
+                        vars.len()
+                            .try_into()
+                            .expect(format!("too many arguments, max is {}", u8::MAX).as_str()),
                     ))
                 }
                 LongInstruction::ModuleCall(res, module_name, function, vars) => {

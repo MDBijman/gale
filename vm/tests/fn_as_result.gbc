@@ -1,0 +1,19 @@
+mod fn_as_result
+
+fn add_one ($0: ui64) -> ui64 
+    ui32 $2, 1
+    add $1, $0, $2
+    ret $1
+endfn
+
+fn get_fn () -> (ui64 -> ui64)
+    mov $1, @add_one
+    ret $1
+endfn
+
+fn main ($0: &[&str]) -> ui64
+    ui32 $2, 1
+    call $1, @get_fn ()
+    call $3, $1 ($2)
+    ret $3
+endfn
