@@ -261,6 +261,10 @@ impl Interpreter {
 
                 vm_state.interpreter_state.ip += 1;
             }
+            Instruction::CopyAddress(loc, calltarget) => {
+                vm_state.interpreter_state.set_stack_var(*loc, Value::CallTarget(*calltarget));
+                vm_state.interpreter_state.ip += 1;
+            }
             Instruction::CopyAddressIntoIndex(loc, idx, calltarget) => {
                 match vm_state.interpreter_state.get_stack_var_mut(*loc) {
                     Value::Tuple(elems) => {

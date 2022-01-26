@@ -818,6 +818,28 @@ impl Function {
                     type_decls.push(TypeDecl::new(idx, ty.clone()));
                     compact_instructions.push(Instruction::Index(*a, *b, *c, idx));
                 }
+                LongInstruction::CopyAddress(res, module_name, function_name) => {
+                    let (module, function) = match module_name {
+                        Some(module_name) => {
+                            let module = module_loader
+                                .get_by_name(module_name.as_str())
+                                .expect("missing module")
+                                .as_ref()
+                                .expect("missing impl");
+                            let function = module
+                                .find_function_id(function_name.as_str())
+                                .expect("missing fn");
+
+                            (module.id, function)
+                        }
+                        _ => (ModuleId::MAX, fns[function_name].try_into().unwrap()),
+                    };
+
+                    compact_instructions.push(Instruction::CopyAddress(
+                        res.clone(),
+                        CallTarget::new(module, function),
+                    ));
+                }
                 LongInstruction::CopyAddressIntoIndex(res, idx, module_name, function_name) => {
                     let (module, function) = match module_name {
                         Some(module_name) => {

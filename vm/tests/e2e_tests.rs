@@ -105,4 +105,14 @@ fn test_const_decl()
     run_testcase(make_test_case("const_decl", "", 42), false);
 }
 
+#[test]
+fn fn_as_param()
+{
+    run_testcase(make_test_case("fn_as_param", "", 2), false);
+}
+
+
+
+
+
 
