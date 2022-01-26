@@ -73,6 +73,19 @@ impl Value {
     }
 }
 
+impl Into<u64> for Value {
+    fn into(self) -> u64 {
+        match self {
+            Value::UI64(v) => v,
+            Value::Bool(b) => b as u64,
+            Value::Pointer(p) => p.into(),
+            Value::CallTarget(t) => (((t.function as u32) << 16) | t.module as u32) as u64,
+            Value::Uninit => panic!(),
+            Value::Tuple(_) => panic!(),
+        }
+    }
+}
+
 impl Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -429,17 +442,15 @@ impl Interpreter {
 
                 if func.has_native_impl() {
                     let implementation = func.native_impl().unwrap();
-                    let arg_value = *vm_state
-                        .interpreter_state
-                        .get_stack_var(*arg)
-                        .as_ui64()
-                        .expect("invalid type");
+
+                    let arg_value = vm_state.interpreter_state.get_stack_var(*arg);
+                    let arg_in_64_bits: u64 = arg_value.clone().into();
 
                     let res = unsafe {
                         let unsafe_fn_ptr = std::mem::transmute::<_, fn(&mut VMState, u64) -> u64>(
                             implementation.fn_ptr,
                         );
-                        (unsafe_fn_ptr)(vm_state, arg_value)
+                        (unsafe_fn_ptr)(vm_state, arg_in_64_bits)
                     };
 
                     vm_state
@@ -658,7 +669,7 @@ impl Interpreter {
                     .expect("invalid type");
 
                 match current_module.get_type_by_id(*ty_idx).expect("type idx") {
-                    Type::U64 | Type::Pointer(_) => {
+                    Type::U64 => {
                         let ptr = *vm_state
                             .interpreter_state
                             .get_stack_var(*subject)
@@ -671,6 +682,20 @@ impl Interpreter {
                         vm_state
                             .interpreter_state
                             .set_stack_var(*dest, Value::UI64(loaded_value));
+                    }
+                    Type::Pointer(_) => {
+                        let ptr = *vm_state
+                            .interpreter_state
+                            .get_stack_var(*subject)
+                            .as_pointer()
+                            .expect("invalid type");
+                        let new_ptr = vm_state
+                            .heap
+                            .index::<u64>(ptr, idx as usize + 1 /* array header */);
+                        let loaded_value = unsafe { vm_state.heap.load::<u64>(new_ptr) };
+                        vm_state
+                            .interpreter_state
+                            .set_stack_var(*dest, Value::Pointer(loaded_value.into()));
                     }
                     Type::Tuple(_) => {
                         let value = vm_state

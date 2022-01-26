@@ -99,14 +99,12 @@ fn main() {
         .expect("missing module")
         .expect("missing impl");
 
-    let state = if debug_mode {
+    if debug_mode {
         let debugger = crate::debugger::MyDebugger {};
         vm.run_with_debugger(main_module, arguments, Some(&debugger), use_jit)
     } else {
         vm.run(main_module, arguments, use_jit)
     };
-
-    println!("{}", state.result.unwrap());
 
     let finish_time = startup_time.elapsed().unwrap().as_nanos();
     if measure_time {

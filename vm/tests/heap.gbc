@@ -2,13 +2,13 @@ mod heap
 
 .code
 fn main ($0: &[&str]) -> ui64
-        movc $1, 0
+        ui32 $1, 0
         idx $2, $0, $1, &str
         call $3, @std:parse_ui64 ($2)
         alloc $4, ui64
         store $4, $3, ui64
         load $5, $4, ui64
-        movc $6, 6
+        ui32 $6, 6
         add $7, $6, $5
         store $4, $7, ui64
         load $7, $4, ui64
