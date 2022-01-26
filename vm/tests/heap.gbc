@@ -1,6 +1,5 @@
 mod heap
 
-.code
 fn main ($0: &[&str]) -> ui64
         ui32 $1, 0
         idx $2, $0, $1, &str

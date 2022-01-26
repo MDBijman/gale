@@ -1,7 +1,5 @@
 mod nested_calls
 
-.const
-.code
 fn b ($0: ui64) -> ()
         ui32 $1, 1
         add $2, $0, $1

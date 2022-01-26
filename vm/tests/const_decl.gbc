@@ -1,0 +1,10 @@
+mod const_decl
+
+const 0: ui64 42
+
+fn main ($0: &[&str]) -> ui64
+    loadc $1, 0
+    load $2, $1, ui64
+    ret $2
+endfn
+

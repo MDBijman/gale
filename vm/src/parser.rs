@@ -69,10 +69,7 @@ fn parse_u8(i: &str) -> MyParseResult<u8> {
 }
 
 fn parse_bool(i: &str) -> MyParseResult<bool> {
-    alt((
-        map(tag("true"), |_| true),
-        map(tag("false"), |_| false)
-    ))(i)
+    alt((map(tag("true"), |_| true), map(tag("false"), |_| false)))(i)
 }
 
 fn parse_var_idx(i: &str) -> MyParseResult<VarId> {
@@ -557,57 +554,45 @@ fn parse_module_declaration(i: &str) -> MyParseResult<String> {
     whitespace_around(preceded(tag("mod"), spaces_around(parse_identifier)))(i)
 }
 
-enum Section {
-    Constants(Vec<ConstDecl>),
-    Types(Vec<TypeDecl>),
-    Functions(Vec<LongFunction>),
+enum Declaration {
+    ConstDecl(ConstDecl),
+    TypeDecl(TypeDecl),
+    FnDecl(LongFunction),
 }
 
-fn parse_const_section(i: &str) -> MyParseResult<Section> {
-    map(
-        preceded(
-            ws(tag(".const")),
-            many0(map(
-                tuple((parse_u64, tag(":"), ws(parse_type), ws(parse_constant))),
-                |(idx, _, type_, value)| ConstDecl {
-                    idx: std::convert::TryInto::try_into(idx).unwrap(),
-                    type_,
-                    value,
-                },
-            )),
-        ),
-        |r| Section::Constants(r),
+fn parse_const_declaration(i: &str) -> MyParseResult<ConstDecl> {
+    preceded(
+        ws(tag("const")),
+        cut(map(
+            tuple((parse_u64, tag(":"), ws(parse_type), ws(parse_constant))),
+            |(idx, _, type_, value)| ConstDecl {
+                idx: std::convert::TryInto::try_into(idx).unwrap(),
+                type_,
+                value,
+            },
+        )),
     )(i)
 }
 
-fn parse_types_section(i: &str) -> MyParseResult<Section> {
-    map(
-        preceded(
-            ws(tag(".types")),
-            many0(map(
-                tuple((parse_u64, tag(":"), ws(parse_type))),
-                |(idx, _, type_)| TypeDecl {
-                    idx: std::convert::TryInto::try_into(idx).unwrap(),
-                    type_,
-                },
-            )),
-        ),
-        |r| Section::Types(r),
+fn parse_type_declaration(i: &str) -> MyParseResult<TypeDecl> {
+    preceded(
+        ws(tag("type")),
+        cut(map(
+            tuple((parse_u64, tag(":"), ws(parse_type))),
+            |(idx, _, type_)| TypeDecl {
+                idx: std::convert::TryInto::try_into(idx).unwrap(),
+                type_,
+            },
+        )),
     )(i)
 }
 
-fn parse_code_section(i: &str) -> MyParseResult<Section> {
-    map(
-        preceded(
-            ws(tag(".code")),
-            many0(preceded(multispace0, parse_function)),
-        ),
-        |fs| Section::Functions(fs),
-    )(i)
-}
-
-fn parse_section(i: &str) -> MyParseResult<Section> {
-    alt((parse_const_section, parse_types_section, parse_code_section))(i)
+fn parse_declaration(i: &str) -> MyParseResult<Declaration> {
+    alt((
+        map(parse_const_declaration, |d| Declaration::ConstDecl(d)),
+        map(parse_type_declaration, |d| Declaration::TypeDecl(d)),
+        map(parse_function, |f| Declaration::FnDecl(f)),
+    ))(i)
 }
 
 #[derive(Debug)]
@@ -627,17 +612,20 @@ impl Display for ParserError {
 
 pub fn parse_bytecode_string(module_loader: &ModuleLoader, i: &str) -> Result<Module, ParserError> {
     match map(
-        whitespace_around(tuple((parse_module_declaration, many0(parse_section)))),
-        |(name, sections)| {
+        whitespace_around(tuple((
+            parse_module_declaration,
+            many0(preceded(multispace0, parse_declaration)),
+        ))),
+        |(name, decls)| {
             let mut types = vec![];
             let mut consts = vec![];
             let mut functions = vec![];
 
-            for section in sections {
-                match section {
-                    Section::Functions(fs) => functions.extend(fs.into_iter()),
-                    Section::Constants(cs) => consts.extend(cs.into_iter()),
-                    Section::Types(ts) => types.extend(ts.into_iter()),
+            for decl in decls {
+                match decl {
+                    Declaration::ConstDecl(c) => consts.push(c),
+                    Declaration::TypeDecl(t) => types.push(t),
+                    Declaration::FnDecl(f) => functions.push(f),
                 }
             }
 

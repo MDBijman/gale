@@ -99,3 +99,10 @@ fn test_multi_param()
     run_testcase(make_test_case("multi_param", "", 2), false);
 }
 
+#[test]
+fn test_const_decl()
+{
+    run_testcase(make_test_case("const_decl", "", 42), false);
+}
+
+

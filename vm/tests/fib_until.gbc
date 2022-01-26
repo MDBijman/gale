@@ -1,8 +1,7 @@
 mod fib
 
-.const
-0: &str " "
-.code
+const 0: &str " "
+
 fn fib ($0: ui64) -> ui64
         ui32 $1, 2
         lt $1, $0, $1

@@ -1,6 +1,5 @@
 mod identity
 
-.code
 fn identity ($0: ui64) -> ui64
         ret $0
 endfn

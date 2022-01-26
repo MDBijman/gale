@@ -1,6 +1,5 @@
 mod add
 
-.code
 fn add ($0: ui64, $1: ui64) -> ui64
     add $2, $0, $1
     ret $2

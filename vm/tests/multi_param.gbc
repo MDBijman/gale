@@ -1,10 +1,9 @@
 mod multi_param
 
-.code
 fn first ($0: ui64, $1: ui64) -> ui64
     ret $0
 endfn
-
+ 
 fn second ($0: ui64, $1: ui64) -> ui64
     ret $1
 endfn
