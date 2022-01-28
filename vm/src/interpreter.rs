@@ -24,6 +24,7 @@ pub struct CallInfo {
 #[derive(Debug, Clone)]
 pub enum Value {
     Uninit,
+    Unit,
     UI64(u64),
     Bool(bool),
     Tuple(Vec<Value>),
@@ -81,6 +82,7 @@ impl Into<u64> for Value {
             Value::Pointer(p) => p.into(),
             Value::CallTarget(t) => (((t.function as u32) << 16) | t.module as u32) as u64,
             Value::Uninit => panic!(),
+            Value::Unit => panic!(),
             Value::Tuple(_) => panic!(),
         }
     }
@@ -90,6 +92,7 @@ impl Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Value::Uninit => write!(f, "<uninit>"),
+            Value::Unit => write!(f, "()"),
             Value::UI64(v) => write!(f, "{}", v),
             Value::Bool(v) => write!(f, "{}", v),
             Value::Tuple(elems) => {
@@ -262,7 +265,9 @@ impl Interpreter {
                 vm_state.interpreter_state.ip += 1;
             }
             Instruction::CopyAddress(loc, calltarget) => {
-                vm_state.interpreter_state.set_stack_var(*loc, Value::CallTarget(*calltarget));
+                vm_state
+                    .interpreter_state
+                    .set_stack_var(*loc, Value::CallTarget(*calltarget));
                 vm_state.interpreter_state.ip += 1;
             }
             Instruction::CopyAddressIntoIndex(loc, idx, calltarget) => {
@@ -792,7 +797,8 @@ impl InterpreterState {
         self.state = InterpreterStatus::Running;
         self.module = entry.module;
         self.func = entry.function;
-        self.stack.slots[0] = Value::Pointer(args_ptr);
+        self.stack.slots[0] = 
+        Value::Tuple(vec![Value::Unit, Value::Pointer(args_ptr)]);
     }
 
     pub fn init_empty(&mut self) {

@@ -9,25 +9,24 @@ FileOk File(module, decls) :-
 
 DeclareBuiltins: scope * fact
 DeclareBuiltins s :-
-    s -> Decl(Fn("std:parse_ui64"), Type(Func(Builtin("str"), Builtin("ui64")))),
-    s -> Decl(Fn("std:print_str"), Type(Func(Builtin("str"), Unit()))).
+    s -> Decl(Fn("std:parse_ui64"), FnType(TypeId("str"), TypeId("ui64"))),
+    s -> Decl(Fn("std:print_str"), FnType(TypeId("str"), Unit())).
 
 ToplevelDeclsOk: scope * term * fact
 ToplevelDeclsOk file_scope FnDecl(name, type) :-
-    type_type := !typeof_type type,
     not (file_scope -?> Decl(name, type)) | error "Duplicate function with name and type",
-    file_scope -> Decl(Fn(name), Type(type_type)).
+    file_scope -> Decl(Fn(name), type).
 ToplevelDeclsOk file_scope o.
 
 ToplevelDefsOk: scope * term * fact
 ToplevelDefsOk file_scope fn_def@FnDef(name, fn_pattern, expr) :-
-    file_scope -?> Decl(Fn(name), fn_type@Type(Func(i, o))) | error "Definition before declaration",
+    file_scope -?> Decl(Fn(name), fn_type@FnType(i, o)) | error "Definition before declaration",
     function_scope := new scope,    
     function_scope -> file_scope,
     mapping := !extract_pattern_types (fn_pattern, fn_type),
     forall (DeclareVar function_scope) mapping,
     ExprOk function_scope expr,
-    fn_def += fn_type.
+    fn_def += Type(fn_type).
 ToplevelDefsOk file_scope o.
 
 DeclareVar: scope * term * fact
@@ -39,21 +38,20 @@ DeclareFn s Decl(n, t) :- s -> Decl(Fn(n), t).
 DeclOk: scope * term * fact
 DeclOk parent_scope Decl(name, type, expr) :-
     ExprOk parent_scope expr,
-    type_type := !typeof_type type,
-    DeclareVar parent_scope Decl(name, Type(type_type)).
+    DeclareVar parent_scope Decl(name, type).
 
 ExprOk: scope * term * fact
 ExprOk function_scope r@Ref(n) :-
      (function_scope -?> Decl(Fn(n), type), r += FnRef()
     ; function_scope -?> Decl(Var(n), type), r += VarRef()) | error "Undefined reference",
-    r += type.
+    r += Type(type).
 
 ExprOk function_scope t@Seq(terms, res) :-
     seq_scope := new scope,
     seq_scope -> function_scope,
     forall (ExprOk seq_scope) terms,
     ExprOk seq_scope res,
-    t += !typeof res.
+    t += Type(!typeof res).
 
 ExprOk function_scope t@Seq(terms) :-
     seq_scope := new scope,
@@ -65,7 +63,7 @@ ExprOk parent_scope Let(decls) :- forall (DeclOk parent_scope) decls.
 
 ExprOk s b@Brackets(inner) :-
     ExprOk s inner,
-    b += !typeof inner.
+    b += Type(!typeof inner).
 
 ExprOk s appl@Appl(n, arg) :-
     ExprOk s n,
@@ -73,7 +71,7 @@ ExprOk s appl@Appl(n, arg) :-
     fn_type := !typeof n,
     res_type := !func_out_type fn_type,
     arg_type := !func_in_type fn_type,
-    appl += res_type,
+    appl += Type(res_type),
     !typeof arg = arg_type | error "Argument type does not match expected type".
 
 ExprOk parent_scope let@Let(decls, expr) :-
@@ -81,7 +79,7 @@ ExprOk parent_scope let@Let(decls, expr) :-
     let_scope -> parent_scope,
     forall (DeclOk let_scope) decls,
     ExprOk let_scope expr,
-    let += !typeof expr.
+    let += Type(!typeof expr).
 
 ExprOk parent if@If(cond, then) :-
     if_scope := new scope,
@@ -90,7 +88,7 @@ ExprOk parent if@If(cond, then) :-
     IsBoolean !typeof cond | error "Conditional must have boolean type",
     if += Type(Unit()),
     ExprOk if_scope then,
-    !typeof then = Type(Unit()) | error "Branch with result type must also have 'then' branch".
+    !typeof then = Unit() | error "Branch with result type must also have 'then' branch".
 
 ExprOk parent_scope Assign(r@Ref(ref), expr) :-
     parent_scope -?> Decl(Var(ref), decl_type) | error "Assigning undefined variable",
@@ -103,35 +101,35 @@ ExprOk s add@Add(l, r) :-
     ExprOk s l,
     ExprOk s r,
     !typeof l = !typeof r | error "Lhs of + must be equal to rhs type",
-    add += !typeof l.
+    add += Type(!typeof l).
 
 ExprOk s sub@Sub(l, r) :-
     ExprOk s l,
     ExprOk s r,
     !typeof l = !typeof r | error "Lhs of - must be equal to rhs type",
-    sub += !typeof l.
+    sub += Type(!typeof l).
 
 ExprOk s mul@Mul(l, r) :-
     ExprOk s l,
     ExprOk s r,
     !typeof l = !typeof r | error "Lhs of * must be equal to rhs type",
-    mul += !typeof l.
+    mul += Type(!typeof l).
 
 ExprOk s eq@Eq(l, r) :-
     ExprOk s l,
     ExprOk s r,
     !typeof l = !typeof r | error "Lhs of == must be equal to rhs type",
-    eq += Type(Builtin("bool")).
+    eq += Type(TypeId("bool")).
 
-ExprOk s t@Int(n) :- t += Type(Builtin("ui64")).
-ExprOk s s@String(n) :- s += Type(Builtin("str")).
+ExprOk s t@Int(n) :- t += Type(TypeId("ui64")).
+ExprOk s s@String(n) :- s += Type(TypeId("str")).
 
 ExprOk s ai@ArrIndex(arr, idx) :-
     ExprOk s arr,
     ExprOk s idx,
     IsNumeric !typeof idx | error "Index value must have numeric type`",
     IsArray !typeof arr | error "Indexed value must have array type",
-    ai += !element_type !typeof arr.
+    ai += Type(!element_type !typeof arr).
 
 ExprOk s loop@For(name, arr, inner) :-
     loop_scope := new scope,
@@ -141,10 +139,10 @@ ExprOk s loop@For(name, arr, inner) :-
     ExprOk loop_scope inner.
 
 IsNumeric: term
-IsNumeric Type(Builtin("ui64")).
+IsNumeric TypeId("ui64").
 
 IsArray: term
-IsArray Type(HeapArray(e)).
+IsArray TypeHeapArray(e).
 
 IsBoolean: term
-IsBoolean Type(Builtin("bool")).
+IsBoolean TypeId("bool").

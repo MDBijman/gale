@@ -1,7 +1,10 @@
 mod curry;
 
 main: [str] -> ui64
-main s = add (std:parse_ui64 s@0) 1;
+main s = {
+    let (env, cl) = add (std:parse_ui64 s@0);
+    cl (env, 1);
+};
 
 _closure_0: ((ui64), ui64) -> ui64
 _closure_0 ((a), b) = a + b;

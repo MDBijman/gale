@@ -1,6 +1,5 @@
 main: File(ModuleName(mod), fns) -> Program(Name(mod), !flatmap_some[!flatten_] fns);
 
-flatten_: FnDecl(func, type) -> [];
 flatten_: FnDef(func, arg, body){Type(t)} ->
     Function(func, Type(t), !extract_pattern, !flatten_ body > .try[.flatten_some] > !do_hoist > !make_return);
 
@@ -66,8 +65,8 @@ flatten_: String(i) -> tmp_name := !gen_name "tmp" in Hoist([Store(tmp_name, Str
 flatten_: Int(i){Type(Builtin("ui64"))} -> UI64(i);
 flatten_: Int(i) -> UI64(i);
 
-flatten_: True() -> UI64(1);
-flatten_: False() -> UI64(0);
+flatten_: True() -> Bool(True());
+flatten_: False() -> Bool(False());
 
 flatten_: Panic() -> Panic();
 
@@ -111,6 +110,16 @@ flatten_: Eq(lhs, rhs) ->
     Store(res_tmp_name, BinOp("=", Ref(lhs_tmp_name), Ref(rhs_tmp_name)))
   ], Ref(res_tmp_name));
 
+flatten_: And(lhs, rhs) -> 
+     lhs_tmp_name := !gen_name "tmp"
+  in rhs_tmp_name := !gen_name "tmp"
+  in res_tmp_name := !gen_name "tmp"
+  in Hoist([
+    Store(lhs_tmp_name, !flatten_ lhs),
+    Store(rhs_tmp_name, !flatten_ rhs),
+    Store(res_tmp_name, BinOp("&&", Ref(lhs_tmp_name), Ref(rhs_tmp_name)))
+  ], Ref(res_tmp_name));
+
 flatten_: Not(cond) -> 
      op_tmp := !gen_name "tmp"
   in res_tmp := !gen_name "tmp"
@@ -128,7 +137,9 @@ flatten_: Tuple(elems) ->
   in flat_elems := !map[!flatten_] elems > !enumerate > !map[!set_tuple_element[tuple_name]]
   in Hoist([Store(tuple_name, Tuple(UI64(!len elems))) | flat_elems],
     Ref(tuple_name));
-set_tuple_element[tuple_name]: (i, v) -> StoreIdx(tuple_name, UI64(i), v);
+set_tuple_element[tuple_name]: (i, v) -> 
+     val_name := !gen_name "tmp"
+  in Hoist([Store(val_name, v)], StoreIdx(tuple_name, UI64(i), Ref(val_name)));
 
 flatten_: ArrIndex(arr, type, idx) -> 
      arr_name := !gen_name "tmp"
@@ -186,9 +197,11 @@ flatten_: [h|t] -> !map[!flatten_] [h|t];
 do_hoist: t -> !bottomup[.try[.hoist]] t > .try[.hoist_to_arr];
 hoist: Hoist(stmts, Hoist(stmts2, expr)) -> Hoist(!concat (stmts, stmts2), expr);
 hoist: ?con(..subterms) -> 
-     [h|t] := !flatmap_some[.extract_hoisted_stmts] !retain_all[.is_hoist] subterms
+     hoisted_stmts := subterms > !retain_all[.is_hoist] > !flatmap_some[.extract_hoisted_stmts] 
   in new_subterms := !map[.try[.extract_hoisted_expr]] subterms
-  in Hoist([h|t], ?con(..new_subterms));
+  in ([] := hoisted_stmts
+    in ?con(..new_subterms))
+    + Hoist(hoisted_stmts, ?con(..new_subterms));
 hoist: [h|t] -> !flatmap_some[.try[.hoist_to_arr]] [h|t];
 hoist: (..subts) -> new_subts := !flatmap_some[.try[.hoist_to_arr]] subts in (..new_subts);
 

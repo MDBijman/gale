@@ -1,21 +1,14 @@
-typeof_type: FnType(i, o) -> Func(!typeof_type i, !typeof_type o);
-typeof_type: TypeHeapArray(inner) -> HeapArray(!typeof_type inner);
-typeof_type: TypeId("bool") -> Builtin("bool");
-typeof_type: TypeId("ui64") -> Builtin("ui64");
-typeof_type: TypeId("str") -> Builtin("str");
-typeof_type: TypeId("char") -> Builtin("char");
-typeof_type: TypeId(name) -> Ref(name);
-typeof_type: TypeTuple(elems) -> Tuple(!map[!typeof_type] elems);
-
-extract_pattern_types: ([p], Type(Func(i, o))) -> .extract_pattern_types (p, Type(i));
-extract_pattern_types: ([p|t], Type(Func(i, o))) -> .concat (.extract_pattern_types (p, Type(i)), .extract_pattern_types (t, Type(o)));
+extract_pattern_types: ([p], FnType(i, o)) -> .extract_pattern_types (p, i);
+extract_pattern_types: ([p|t], FnType(i, o)) -> .concat (.extract_pattern_types (p, i), .extract_pattern_types (t, o));
 extract_pattern_types: (PatternVar(n), t) -> [Decl(n, t)];
+extract_pattern_types: (PatternTuple(ts), _) -> !fail "unknown";
+extract_pattern_types: (PatternIgnore(), _) -> !fail "unknown";
 extract_pattern_types: (PatternNum(_), _) -> [];
 extract_pattern_types: (PatternStr(_), _) -> [];
 
-typeof: x{Type(t)} -> Type(t);
+typeof: x{Type(t)} -> t;
 
-func_in_type: Type(Func(i, o)) -> Type(i);
-func_out_type: Type(Func(i, o)) -> Type(o);
+func_in_type: FnType(i, o) -> i;
+func_out_type: FnType(i, o) -> o;
 
-element_type: Type(HeapArray(elem)) -> Type(elem);
+element_type: TypeHeapArray(elem) -> elem;

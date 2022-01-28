@@ -3,12 +3,12 @@ main: Program(Name(name), Sections(sects)) -> !concat_str [!print_module_name na
 print_module_name: name -> !concat_str ["mod ", name, "\n"];
 
 print: ConstantSection(constants) -> "";
-print: ConstantSection(constants) -> !concat_str [".const\n", !concat_str !intersperse["\n"] !flatmap_some[!print] constants];
+print: ConstantSection(constants) -> !concat_str [!concat_str !intersperse["\n"] !flatmap_some[!print] constants];
 
-print: ConstDecl(idx, val) -> !concat_str [!to_str idx, ": ", !print val];
+print: ConstDecl(idx, val) -> !concat_str ["const ", !to_str idx, ": ", !print val];
 print: StringLiteral(s) -> !concat_str ["str ", "\"", s, "\""];
 
-print: FunctionSection(funcs)     -> !concat_str [".code\n",  !concat_str !intersperse["\n"] !flatmap_some[!print] funcs];
+print: FunctionSection(funcs)     -> !concat_str [!concat_str !intersperse["\n"] !flatmap_some[!print] funcs];
 
 print_with_indent: t -> !concat_str [!print_indent t, !print t];
 
@@ -31,7 +31,8 @@ print: Add(res, lhs, rhs)         -> !concat_str ["add ", !print res, ", ", !pri
 print: Mul(res, lhs, rhs)         -> !concat_str ["mul ", !print res, ", ", !print lhs, ", ", !print rhs];
 print: Not(res, op)               -> !concat_str ["neg ", !print res, ", ", !print op];
 print: Index(res, src, idx, type) -> !concat_str ["idx ", !print res, ", ", !print src, ", ", !print idx, ", ", !print type];
-print: Store(into, UI64(n))       -> !concat_str ["movc ", !print into, ", ", !to_str n];
+print: Store(into, UI64(n))       -> !concat_str ["ui32 ", !print into, ", ", !to_str n];
+print: Store(into, Bool(n))       -> !concat_str ["bool ", !print into, ", ", !print n];
 print: Store(into, expr)          -> !concat_str ["mov ", !print into, ", ", !print expr];
 print: Return(e)                  -> !concat_str ["ret ", !print e] ;
 print: Call(res, fn, arg)         -> !concat_str ["call ", !print res, ", ", !print fn, " (", !print arg, ")"];
@@ -42,23 +43,23 @@ print: Array(elems)               -> !concat_str !flatten_some ["[", !interspers
 print: MakeTuple(res, size)       -> !concat_str ["tup ", !print res, ", ", !print size];
 print: StoreIdx(res, idx, value)  -> !concat_str ["movi ", !print res, ", ", !print idx, ", ", !print value];
 print: UI64(i)                    -> !to_str i;
+print: True()                     -> "true";
+print: False()                    -> "false";
 print: BinOp(symbol, lhs, rhs)    -> !concat_str [!print lhs, " ", !print rhs, " ", symbol ];
 print: UnOp(symbol, expr)         -> !concat_str [!print expr, " ", symbol];
 print: Lbl(lbl)                   -> !concat_str [lbl, ":"];
 print: Jmp(lbl)                   -> !concat_str ["jmp", " @", lbl];
 print: JmpIf(cond, lbl)           -> !concat_str ["jmpif", " ", !print cond, " @", lbl];
-print: True()                     -> "true";
-print: False()                    -> "false";
 print: ReadConst(num)             -> !concat_str ["loadc ", !to_str num];
 print: Ref(Var(v))                -> !print Var(v);
 print: Ref(n)                     -> n;
 print: Type(t)                    -> !print_type t;
-print_type: HeapArray(t)          -> !concat_str ["&[", !print_type t, "]"];
-print_type: Array(t, s)           -> !concat_str ["[", !print_type t, "; ", !print s, "]"];
-print_type: Builtin("str")        -> "&str";
-print_type: Builtin("ui64")       -> "ui64";
-print_type: Func(i, o)            -> !concat_str ["(", !print_type i, " -> ", !print_type o, ")"];
-print_type: Tuple(ts)             -> !concat_str !flatten_some ["(", !intersperse[", "] !map[!print_type] ts, ")"];
+print_type: TypeHeapArray(t)      -> !concat_str ["&[", !print_type t, "]"];
+print_type: TypeArray(t, s)       -> !concat_str ["[", !print_type t, "; ", !print s, "]"];
+print_type: TypeId("str")         -> "&str";
+print_type: TypeId("ui64")        -> "ui64";
+print_type: FnType(i, o)          -> !concat_str ["(", !print_type i, " -> ", !print_type o, ")"];
+print_type: TypeTuple(ts)         -> !concat_str !flatten_some ["(", !intersperse[", "] !map[!print_type] ts, ")"];
 
 print_indent: Lbl(_) -> "  ";
 print_indent: _      -> "    ";

@@ -6,7 +6,7 @@ main: Program(mod, fns) ->
 collect_string: (constants, StringLiteral(s)) -> (!concat (constants, [ConstDecl(!len constants, StringLiteral(s))]), ReadConst(!len constants));
 
 compile: (env, [h|t]) -> !env_map[!compile] (env, [h|t]);
-compile: Function(name, Type(Func(from, to)), Pattern(param), body) ->
+compile: Function(name, Type(FnType(from, to)), Pattern(param), body) ->
     !reset_num "loc"
   > param_loc := !gen_num "loc"
   in param_var := Var(param_loc)
@@ -42,6 +42,10 @@ compile: (env, Store(name, BinOp("=", lhs, rhs))) ->
      (loc, new_env) := !var_loc (name, env)
   in (new_env, Eq(loc, !compile (env, lhs) > !second, !compile (env, rhs) > !second));
 
+compile: (env, Store(name, BinOp("&&", lhs, rhs))) -> 
+     (loc, new_env) := !var_loc (name, env)
+  in (new_env, And(loc, !compile (env, lhs) > !second, !compile (env, rhs) > !second));
+
 compile: (env, Store(name, ReadIdx(arr, idx, type))) -> 
      (loc, new_env) := !var_loc (name, env)
   in (new_env, Index(loc, !compile (env, arr) > !second, !compile (env, idx) > !second, type));
@@ -58,19 +62,20 @@ compile: (env, Store(name, Size(arr))) ->
      (loc, new_env) := !var_loc (name, env)
   in (new_env, Sizeof(loc, !compile (env, arr) > !second));
 
+compile: (env, Store(name, Panic())) -> (env, Panic());
+
 compile: (env, Store(name, expr)) ->
      (loc, new_env) := !var_loc (name, env)
   in (new_env, Store(loc, !compile (new_env, expr) > !second));
 
-compile: (env, Store(name, Panic())) -> (env, Panic());
-
 compile: (env, Panic()) -> (env, Panic());
-compile: (env, Size(name)) -> (env, Size(!get[name] env));
+compile: (env, Size(name)) -> (env, Size(!map_get[name] env));
 compile: (env, FnRef(name)) -> (env, FnRef(name));
-compile: (env, Ref(name)) -> (env, Ref(!get[name] env));
+compile: (env, Ref(name)) -> (env, Ref(!map_get[name] env));
 compile: (env, Return(e)) -> (env, Return(!compile (env, e) > !second));
 compile: (env, Array(elems)) -> (env, Array(!env_map[!compile] (env, elems) > !second));
 compile: (env, UI64(n)) -> .id;
+compile: (env, Bool(n)) -> .id;
 compile: (env, True()) -> .id;
 compile: (env, BinOp(op, lhs, rhs)) -> !debug "binop" > !debug op > !fail;
 compile: (env, UnOp(_, expr)) -> !debug "unop" > !fail;
@@ -82,7 +87,7 @@ compile: (env, Jmp(lbl)) -> (env, Jmp(lbl));
 compile: (env, ReadConst(r)) -> (env, ReadConst(r));
 compile: t -> !debug t > !fail;
 
-var_loc: (name, env) -> .get[name] env
+var_loc: (name, env) -> .map_get[name] env
     ? (!id, env)
     : (new_loc := Var(!gen_num "loc")
       in (new_loc, !put[name, new_loc] env));

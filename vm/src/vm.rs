@@ -88,11 +88,12 @@ impl VM {
             .expect("main function type idx");
 
         let expected_main_type: Type = Type::fun(
-            Type::tuple(vec![Type::ptr(Type::unsized_array(Type::ptr(Type::Str(
-                Size::Unsized,
-            ))))]),
+            Type::tuple(vec![Type::tuple(vec![
+                Type::Unit,
+                Type::ptr(Type::unsized_array(Type::ptr(Type::Str(Size::Unsized)))),
+            ])]),
             Type::U64,
-        );
+        ); 
 
         if main_type != &expected_main_type {
             println!("main type {:?}", main_type);
