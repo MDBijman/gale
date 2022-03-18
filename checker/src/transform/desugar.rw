@@ -1,6 +1,17 @@
 
 main: File(mod, fns) -> 
-   File(mod, fns > !desugar_partial_application > !make_everything_closure > !lift_closures > !desugar_function_ref > !add_empty_closures_to_fn_refs > !desugar_closure_appl > !join_definitions > !matches_to_ifs > !remove_brackets > !desugar_indexing);
+   File(mod, fns
+      > !desugar_partial_application
+      > !make_everything_closure
+      > !lift_closures
+      > !desugar_function_ref
+      > !add_empty_closures_to_fn_refs
+      > !desugar_closure_appl
+      > !desugar_closure_types
+      > !join_definitions
+      > !matches_to_ifs
+      > !remove_brackets
+      > !desugar_indexing);
 
 # Explicit currying with closures in functions that match multiple arguments
 
@@ -8,22 +19,22 @@ desugar_partial_application: fns -> !map[!partial_application_to_closure] fns;
 
 partial_application_to_closure: FnDecl(name, type) -> .id;
 partial_application_to_closure: FnDef(name, [p], body){..a} -> FnDef(name, p, body){..a};
-partial_application_to_closure: FnDef(name, [p|t], body){Type(FnType(in_type, out_type)), ..a} -> 
-      closure_type := ClosureType([(p, in_type)], out_type)
-   in closure_body := !desugar_multi_param_closure Closure(t, body){Type(closure_type)}
-   in FnDef(name, p, closure_body){Type(FnType(in_type, !convert_closure_type_to_function_type closure_type)), ..a};
+partial_application_to_closure: FnDef(name, [p|t], body){Type(FnType(in_type, FnType(closure_in_type, closure_out_type))), ..a} -> 
+      closure_type := ClosureType([in_type], closure_in_type, closure_out_type)
+   in closure_body := !desugar_multi_param_closure Closure(p, t, body){Type(closure_type)}
+   in FnDef(name, p, closure_body){Type(FnType(in_type, closure_type)), ..a};
 
-desugar_multi_param_closure: Closure([p], body){..a} -> Closure(p, body){..a};
-desugar_multi_param_closure: Closure([p|t], body){..a} -> !fail "Not yet implemented";
+desugar_multi_param_closure: Closure(env_pat, fn_pat, body){..a} -> .id;
+desugar_multi_param_closure: Closure(env_pat, [h|t], body){..a} -> !fail "Not yet implemented";
 
 # Turns all functions into closure-taking functions for homogenity after desugaring partial applications
 
 make_everything_closure: fns -> !map[!function_to_closure] fns;
 
 function_to_closure: FnDecl(name, type){..a} -> FnDecl(name, !make_function_type_closure_type type){..a};
-function_to_closure: FnDef(name, p, body){Type(FnType(i, o)), ..a} -> FnDef(name, !make_function_pattern_closure_pattern p, body){Type(!make_function_type_closure_type FnType(i, o)), ..a};
+function_to_closure: FnDef(name, p, body){Type(type), ..a} -> FnDef(name, !make_function_pattern_closure_pattern p, body){Type(!make_function_type_closure_type type), ..a};
 
-make_function_type_closure_type: FnType(i, o) -> FnType(TypeTuple([TypeTuple([]), i]), o);
+make_function_type_closure_type: FnType(i, o) -> ClosureType([], i, o);
 make_function_pattern_closure_pattern: p -> PatternTuple([PatternIgnore(), p]);
 
 # Creates new functions for anonymous closures
@@ -32,18 +43,15 @@ lift_closures: fns -> !env_map[!lift_closures_in_function] ([], fns) > !concat;
 
 lift_closures_in_function: (env, fn) -> !env_bottomup[!try[!lift_closure]] (env, fn);
 
-lift_closure: (env, Closure(pat, expr){Type(ClosureType(captures, signature))}) ->
+lift_closure: (env, Closure(env_pat, pat, expr){Type(ClosureType(closure_env, in_type, out_type))}) ->
       closure_name := !gen_name "_closure"
-   in closure_as_fn_type := !convert_closure_type_to_function_type ClosureType(captures, signature)
-   in closure_as_fn_pattern := !make_closure_pattern (captures, pat)
-   in closure_decl := FnDecl(closure_name, closure_as_fn_type)
-   in closure_def  := FnDef(closure_name, closure_as_fn_pattern, expr){Type(closure_as_fn_type)}
+   in closure_type := ClosureType(closure_env, in_type, out_type)
+   in closure_as_fn_pattern := PatternTuple([env_pat, pat])
+   in closure_decl := FnDecl(closure_name, closure_type)
+   in closure_def  := FnDef(closure_name, closure_as_fn_pattern, expr){Type(closure_type)}
    in bound_closure_variables := !gather_binding_variables pat
    in free_closure_variables  := !gather_free_variables[bound_closure_variables] expr
-   in (!concat ([closure_decl, closure_def], env), Tuple([Tuple(free_closure_variables), Ref(closure_name){FnRef()}]));
-
-convert_closure_type_to_function_type: ClosureType(captures, FnType(i, o)) -> FnType(TypeTuple([TypeTuple(!map[!snd] captures), i]), o);
-make_closure_pattern: (captures, pat) -> PatternTuple([PatternTuple(!map[!fst] captures), pat]);
+   in (!concat ([closure_decl, closure_def], env), Tuple([Tuple(free_closure_variables), Ref(closure_name){ClosureRef()}]));
 
 gather_binding_variables: pattern -> !gather[.is_pattern_variable] pattern;
 is_pattern_variable: PatternVar(n) -> n;
@@ -57,12 +65,13 @@ desugar_function_ref: fns -> !bottomup[!try[!desugar_function_ref_one]] fns;
 
 desugar_function_ref_one: Ref(name){VarRef()} -> !id;
 desugar_function_ref_one: Ref(name){FnRef(), ..a} -> FnRef(name){FnRef(), ..a};
+desugar_function_ref_one: Ref(name){ClosureRef(), ..a} -> FnRef(name){ClosureRef(), ..a};
 desugar_function_ref_one: Ref(name) -> !debug > !fail "Cannot desugar ref without its annotated ref kind";
 
 # Transforms a FnRef into a Tuple([Tuple([]), FnRef(n)]) for closure homogenity
 
 add_empty_closures_to_fn_refs: fns -> !bottomup[!try[!add_empty_closure_to_fn_ref]] fns;
-add_empty_closure_to_fn_ref: FnRef(n){..a} -> Tuple([Tuple([]), FnRef(n)]){..a};
+add_empty_closure_to_fn_ref: FnRef(n){FnRef(), ..a} -> Tuple([Tuple([]), FnRef(n)]){FnRef(), ..a};
 
 # Desugar applications of (env, fn)
 
@@ -71,9 +80,19 @@ desugar_single_closure_appl: Appl(closure, arg){..a} ->
       env_name := !gen_name "_env"
    in fn_ref   := !gen_name "_fn"
    in Let([
-      Decl(env_name, AnyType(), TupleIndex(closure, Int(0))),
-      Decl(fn_ref, AnyType(), TupleIndex(closure, Int(1)))
+      Decl(env_name, AnyType(), TupleIndex(closure{Type(TypeTuple([AnyType(), AnyType()]))}, Int(0))),
+      Decl(fn_ref, AnyType(), TupleIndex(closure{Type(TypeTuple([AnyType(), AnyType()]))}, Int(1)))
    ], Appl(Ref(fn_ref){VarRef()}, Tuple([Ref(env_name){VarRef()}, arg])){..a}){..a};
+
+# Desugar closure types
+
+desugar_closure_types: fns -> !map[!desugar_toplevel_closure_type];
+desugar_toplevel_closure_type: FnDecl(n, t) -> FnDecl(n, !desugar_closure_type t);
+desugar_toplevel_closure_type: FnDef(n, p, b){Type(t), ..a} -> FnDef(n, p, b){Type(!desugar_closure_type t), ..a};
+desugar_closure_type: t -> !bottomup[!try[!desugar_closure_type_single]] t;
+desugar_closure_type_single: ClosureType(e, i, o) -> FnType(TypeTuple([TypeTuple(e), i]), o);
+desugar_type_annotations: fns -> !bottomup[!try[!desugar_type_annotation]];
+#desugar_type_annotation: ?x(..s){Type(FnType(i, o)), ..a} -> ?x(..s){Type(FnType(TypeTuple([AnyType(), i]), o)), ..a};
 
 # Separated function definitions desugaring into single function with branch
 
@@ -92,7 +111,7 @@ group_one: (env, FnDef(name, pattern, body){Type(t)}) ->
    +  (new_fn_group := [FnDef(name, pattern, body){Type(t)}]
    in (.put[name, new_fn_group] env, FnDef(name, pattern, body){Type(t)}));
 
-merge_functions: (name, [h{Type(FnType(i, o))}|t]) ->
+merge_functions: (name, [h{Type(FnType(i, o))}|t]) -> 
      FnDef(name, "_arg", !reverse [h|t] > !map[!to_match_branch] > !merge_match_branches[i]){Type(FnType(i, o))};
 
 to_match_branch: FnDef(_, p, b) -> MatchBranch(p, b);
@@ -107,7 +126,7 @@ desugar_match: Match(arg, branches) ->
 merge_if: (Panic(), If(expr, stmt)) -> If(expr, stmt, Panic());
 merge_if: (if_chain, If(expr, stmt)) -> If(expr, stmt, if_chain);
 
-branch_to_if[arg]: MatchBranch(pattern, body) ->  
+branch_to_if[arg]: MatchBranch(pattern, body) -> 
    If(!pattern_to_boolean (arg, pattern) > !merge_boolean_exprs > !bottomup[!try[!fold_tautology]], Let(!pattern_to_decls (arg, pattern), body));
 
 # Turns pattern matching into a boolean expression

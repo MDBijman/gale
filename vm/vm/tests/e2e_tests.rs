@@ -1,15 +1,11 @@
-use galevm::std_module;
-use galevm::Instruction;
-use galevm::ModuleId;
-use galevm::ModuleLoader;
-use galevm::VM;
 use std::path::Path;
+use galevm::standard_dialect;
 
-#[test]
-fn test_instr_size() {
-    use std::mem::size_of;
-    assert_eq!(size_of::<Instruction>(), 8);
-}
+use vm_internal::{
+    bytecode::{ModuleId, ModuleLoader},
+    standard_library::std_module,
+    vm::VM,
+};
 
 struct TestCase {
     name: String,
@@ -24,6 +20,7 @@ fn make_test_case(name: &str, stdin: &str, out: u64) -> TestCase {
     let bytecode_path = path.join(Path::new(name)).with_extension("gbc");
 
     let mut ml = ModuleLoader::from_module(std_module());
+    ml.add_dialect(Box::from(standard_dialect::StandardDialect {}));
     let main_module_id = ml.load_module(bytecode_path.to_str().unwrap()).unwrap();
 
     TestCase {
@@ -47,9 +44,8 @@ fn run_testcase(testcase: TestCase, jit: bool) {
     print!("Running {} ...", testcase.name);
     let state = vm.run(
         vm.module_loader
-            .get_by_id(testcase.main_module_id)
-            .expect("missing module")
-            .expect("missing impl"),
+            .get_module_by_id(testcase.main_module_id)
+            .expect("missing module impl"),
         args,
         jit,
     );

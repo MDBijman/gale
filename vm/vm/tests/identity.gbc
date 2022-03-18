@@ -1,0 +1,13 @@
+mod identity
+
+fn identity ($0: ui64) -> ui64 {
+    std:ret $0
+}
+
+fn main ($0: &[&str]) -> ui64 {
+    std:ui32 $1, 0
+    std:idx $2, $0, $1, &str
+    std:call $3, @std:parse_ui64, ($2)
+    std:call $3, @identity, ($3)
+    std:ret $3
+}

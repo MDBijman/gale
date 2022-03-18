@@ -7,7 +7,7 @@ edition = "2018"
 [dependencies]
 clap = { version = "2.33.3" }
 iced-x86 = { version = "1.14.0", default-features = false, features = ["std", "decoder", "nasm"] }
-galevm = { path= "../vm", version="0.1.0" }
+galevm = { path= "../vm/vm", version="0.1.0" }
 
 [[bin]]
 name = "gale-utils"

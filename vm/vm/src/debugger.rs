@@ -1,6 +1,6 @@
 use std::io::Write;
+use vm_internal::dialect::Var;
 
-use crate::bytecode::VarId;
 use crate::interpreter::Value;
 use crate::vm::{VMState, VM};
 
@@ -12,7 +12,7 @@ enum DebugCommand {
 }
 
 enum DebugExpression {
-    Var(VarId),
+    Var(Var),
     Deref(Box<Self>),
 }
 
@@ -41,8 +41,8 @@ impl MyDebugger {
             } else {
                 None
             }
-        } else if let Ok(v) = command.parse::<VarId>() {
-            return Some(DebugExpression::Var(v));
+        } else if let Ok(v) = command.parse::<u8>() {
+            return Some(DebugExpression::Var(Var(v)));
         } else {
             None
         }
@@ -67,9 +67,8 @@ impl crate::vm::VMDebugger for MyDebugger {
     fn inspect(&self, vm: &VM, vm_state: &mut VMState) {
         let current_module = &vm
             .module_loader
-            .get_by_id(vm_state.interpreter_state.module)
-            .expect("missing module")
-            .expect("missing impl");
+            .get_module_by_id(vm_state.interpreter_state.module)
+            .expect("missing module impl");
 
         let current_instruction = vm
             .interpreter

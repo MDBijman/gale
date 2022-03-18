@@ -82,25 +82,26 @@ impl VM {
 
         let main_id = main_module.find_function_id("main").expect("function");
         let main_fn = main_module.get_function_by_name("main").expect("function");
-        let bytecode = main_fn.bytecode_impl().expect("bytecode impl");
+        let ast = main_fn.ast_impl().expect("ast impl");
         let main_type = main_module
             .get_type_by_id(main_fn.type_id)
             .expect("main function type idx");
 
         let expected_main_type: Type = Type::fun(
-            Type::tuple(vec![Type::tuple(vec![
-                Type::Unit,
-                Type::ptr(Type::unsized_array(Type::ptr(Type::Str(Size::Unsized)))),
-            ])]),
+            Type::tuple(vec![Type::ptr(Type::unsized_array(Type::ptr(Type::Str(
+                Size::Unsized,
+            ))))]),
             Type::U64,
-        ); 
+        );
 
         if main_type != &expected_main_type {
-            println!("main type {:?}", main_type);
-            panic!("Invalid main type");
+            panic!(
+                "main type was {}, expected {}",
+                main_type, expected_main_type
+            );
         }
 
-        let main_frame_size = bytecode.varcount;
+        let main_frame_size = ast.varcount;
 
         if self.debug {
             println!("Jit enabled: {}", jit);

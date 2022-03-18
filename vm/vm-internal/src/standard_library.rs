@@ -1,4 +1,4 @@
-use crate::bytecode::{Function, Module, Size, Type, TypeDecl};
+use crate::bytecode::{Function, Module, Size, Type, TypeDecl, TypeId};
 use crate::memory::{Pointer, STRING_HEADER_SIZE};
 use crate::vm::VMState;
 use std::ffi;
@@ -79,28 +79,28 @@ pub fn std_module() -> Module {
             vec![
                 Function::new_native(
                     String::from("parse_ui64"),
-                    0,
+                    TypeId(0),
                     std::mem::transmute::<_, extern "C" fn() -> ()>(
                         parse_ui64 as extern "C" fn(_, _) -> _,
                     ),
                 ),
                 Function::new_native(
                     String::from("print_ui64"),
-                    1,
+                    TypeId(1),
                     std::mem::transmute::<_, extern "C" fn() -> ()>(
                         print_ui64 as extern "C" fn(_, _) -> _,
                     ),
                 ),
                 Function::new_native(
                     String::from("print_str"),
-                    2,
+                    TypeId(2),
                     std::mem::transmute::<_, extern "C" fn() -> ()>(
                         print_str as extern "C" fn(_, _) -> _,
                     ),
                 ),
                 Function::new_native(
                     String::from("flush"),
-                    3,
+                    TypeId(3),
                     std::mem::transmute::<_, extern "C" fn() -> ()>(
                         flush as extern "C" fn(_, _) -> _,
                     ),

@@ -1,4 +1,8 @@
-use crate::bytecode::{ControlFlowGraph as BytecodeCFG, Function, InstrLbl, Instruction, VarId};
+use crate::cfg::ControlFlowGraph as BytecodeCFG;
+use crate::{
+    bytecode::{Function, InstrLbl},
+    dialect::{Instruction, Var},
+};
 use dataflow::{
     solve, Analysis, AnalysisDirection, ControlFlowGraph, Lattice, MaySet, TransferFunction,
 };
@@ -66,7 +70,7 @@ impl From<&BytecodeCFG> for CFG {
 
 #[derive(Default)]
 struct LivenessAnalysis {
-    transfer: HashMap<InstrLbl, Box<dyn TransferFunction<InstrLbl, MaySet<VarId>>>>,
+    transfer: HashMap<InstrLbl, Box<dyn TransferFunction<InstrLbl, MaySet<Var>>>>,
 }
 
 impl LivenessAnalysis {
@@ -77,40 +81,41 @@ impl LivenessAnalysis {
     }
 }
 
-impl Analysis<MaySet<VarId>> for LivenessAnalysis {
+impl Analysis<MaySet<Var>> for LivenessAnalysis {
     type Node = InstrLbl;
 
     fn direction(&self) -> AnalysisDirection {
         AnalysisDirection::Backward
     }
 
-    fn bottom(&self) -> MaySet<VarId> {
+    fn bottom(&self) -> MaySet<Var> {
         MaySet {
             values: HashSet::new(),
         }
     }
 
-    fn top(&self) -> MaySet<VarId> {
+    fn top(&self) -> MaySet<Var> {
         unimplemented!("No top value for MaySet")
     }
 
-    fn transfer(&self, tn: &InstrLbl, lat: &MaySet<VarId>) -> MaySet<VarId> {
+    fn transfer(&self, tn: &InstrLbl, lat: &MaySet<Var>) -> MaySet<Var> {
         (self.transfer.get(tn).unwrap()).eval(tn, lat)
     }
 }
 
 struct GenericTransferFunction {
-    instruction: Instruction,
+    instruction: Box<dyn Instruction>,
 }
-impl TransferFunction<InstrLbl, MaySet<VarId>> for GenericTransferFunction {
-    fn eval(&self, _: &InstrLbl, l: &MaySet<VarId>) -> MaySet<VarId> {
+
+impl TransferFunction<InstrLbl, MaySet<Var>> for GenericTransferFunction {
+    fn eval(&self, _: &InstrLbl, l: &MaySet<Var>) -> MaySet<Var> {
         let mut n = (*l).clone();
-        let reads_from = self.instruction.read_variables();
+        let reads_from = self.instruction.reads();
         for var in reads_from {
             n.data_mut().insert(var);
         }
 
-        let writes_to = self.instruction.write_variables();
+        let writes_to = self.instruction.writes();
         for var in writes_to {
             n.data_mut().remove(&var);
         }
@@ -118,10 +123,10 @@ impl TransferFunction<InstrLbl, MaySet<VarId>> for GenericTransferFunction {
     }
 }
 
-pub fn run(cfg: &BytecodeCFG, function: &Function) -> HashMap<InstrLbl, MaySet<VarId>> {
+pub fn run(cfg: &BytecodeCFG, function: &Function) -> HashMap<InstrLbl, MaySet<Var>> {
     let my_cfg = CFG::from(cfg);
     let bytecode = &function
-        .bytecode_impl()
+        .ast_impl()
         .expect("Can only run dataflow on bytecode")
         .instructions;
     let mut liveness = LivenessAnalysis::default();
@@ -130,7 +135,7 @@ pub fn run(cfg: &BytecodeCFG, function: &Function) -> HashMap<InstrLbl, MaySet<V
         liveness.transfer.insert(
             *node,
             Box::from(GenericTransferFunction {
-                instruction: bytecode[*node as usize],
+                instruction: bytecode[*node as usize].clone(),
             }),
         );
     }

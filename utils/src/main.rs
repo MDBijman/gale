@@ -88,8 +88,7 @@ fn vm_print_bin(args: &ArgMatches) {
     let mut module_loader = ModuleLoader::from_module(std_module());
     let id = module_loader.load_module(file_name).unwrap();
     let module = module_loader
-        .get_by_id(id)
-        .expect("missing module")
+        .get_module_by_id(id)
         .expect("missing impl");
     let func = module.get_function_by_name(function_name).unwrap();
     let mut state = JITState::default();
@@ -116,8 +115,7 @@ fn vm_print_asm(args: &ArgMatches) {
     let mut module_loader = ModuleLoader::from_module(std_module());
     let id = module_loader.load_module(file_name).unwrap();
     let module = module_loader
-        .get_by_id(id)
-        .expect("missing module")
+        .get_module_by_id(id)
         .expect("missing impl");
 
     let func = match module.get_function_by_name(function_name) {
@@ -159,8 +157,7 @@ fn vm_print_lifetimes(args: &ArgMatches) {
     let mut module_loader = ModuleLoader::from_module(std_module());
     let id = module_loader.load_module(file_name).unwrap();
     let module = module_loader
-        .get_by_id(id)
-        .expect("missing module")
+        .get_module_by_id(id)
         .expect("missing impl");
     let func = module.get_function_by_name(function_name).unwrap();
     let cfg = ControlFlowGraph::from_function_instructions(func);

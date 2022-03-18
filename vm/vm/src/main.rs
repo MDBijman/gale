@@ -1,19 +1,11 @@
-mod bytecode;
-mod dataflow;
-mod debugger;
-mod interpreter;
-mod jit;
-mod memory;
-mod parser;
-mod standard_library;
-mod vm;
-
 extern crate clap;
-
-use bytecode::ModuleLoader;
-use clap::{App, Arg};
+mod debugger;
+mod standard_dialect;
 use std::time;
-use vm::VM;
+
+use clap::{App, Arg};
+use galevm::{ModuleLoader, VM};
+use vm_internal::*;
 
 fn main() {
     let startup_time = time::SystemTime::now();
@@ -77,6 +69,7 @@ fn main() {
     let use_jit = matches.is_present("enable_jit");
 
     let mut module_loader = ModuleLoader::from_module(standard_library::std_module());
+    module_loader.add_dialect(Box::from(standard_dialect::StandardDialect {}));
     let main_module_id = match module_loader.load_module(input_file_name) {
         Ok(module_id) => module_id,
         Err(pe) => {
@@ -95,8 +88,7 @@ fn main() {
 
     let main_module = vm
         .module_loader
-        .get_by_id(main_module_id)
-        .expect("missing module")
+        .get_module_by_id(main_module_id)
         .expect("missing impl");
 
     if debug_mode {

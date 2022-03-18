@@ -4,7 +4,9 @@ members = [
     "compiler",
     "parser",
     "pipeline",
-    "vm",
+    "vm/vm",
+    "vm/vm-internal",
+    "vm/vm-proc-macros",
     "utils",
     "dataflow"
 ]

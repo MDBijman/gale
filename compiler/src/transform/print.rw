@@ -58,6 +58,7 @@ print_type: TypeHeapArray(t)      -> !concat_str ["&[", !print_type t, "]"];
 print_type: TypeArray(t, s)       -> !concat_str ["[", !print_type t, "; ", !print s, "]"];
 print_type: TypeId("str")         -> "&str";
 print_type: TypeId("ui64")        -> "ui64";
+print_type: AnyType()             -> "_";
 print_type: FnType(i, o)          -> !concat_str ["(", !print_type i, " -> ", !print_type o, ")"];
 print_type: TypeTuple(ts)         -> !concat_str !flatten_some ["(", !intersperse[", "] !map[!print_type] ts, ")"];
 
