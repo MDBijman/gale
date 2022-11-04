@@ -10,6 +10,6 @@ Gale is a research project I created for the purpose of investigating language i
 - `utils/` contains some utilities for working with the compiler and VM, such as dissassembling and printing generated JIT code.
 - `tests/` contains e2e tests and a small test runner written in python.
 
-I am currently reworking the virtual machine to allow for `dialects` (inspired by [MLIR](https://mlir.llvm.org/docs/Dialects/)) such that it can be extended to more succintly support different kind of programming languages.
+I am currently reworking the virtual machine to allow for `dialects` (inspired by [MLIR](https://mlir.llvm.org/docs/Dialects/)) such that it can be extended to more succintly support different kinds of programming languages.
 
 For an idea of what the Gale language looks like, look at some of the `.gale` files in `tests/`

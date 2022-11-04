@@ -11,7 +11,7 @@ use vm_internal::{
     },
     interpreter::{CallInfo, InterpreterStatus, Value},
     jit::FunctionJITState,
-    parser::{InstructionTerm, Term},
+    parser::Term,
     vm::{VMState, VM},
 };
 use vm_proc_macros::FromTerm;
@@ -26,28 +26,42 @@ impl Dialect for StandardDialect {
         &self,
         module_loader: &ModuleLoader,
         module: &mut Module,
-        p: &Term,
+        i: &Term,
     ) -> Result<Box<dyn Instruction>, InstructionParseError> {
-        match p {
-            Term::Instruction(InstructionTerm { name, .. }) => match name.as_str() {
-                "ui32" => Ok(Box::from(
-                    ConstU32::construct(module_loader, module, p).unwrap(),
-                )),
-                "bool" => Ok(Box::from(
-                    ConstBool::construct(module_loader, module, p).unwrap(),
-                )),
-                "ret" => Ok(Box::from(
-                    Return::construct(module_loader, module, p).unwrap(),
-                )),
-                "idx" => Ok(Box::from(
-                    Index::construct(module_loader, module, p).unwrap(),
-                )),
-                "call" => Ok(Box::from(
-                    Call::construct(module_loader, module, p).unwrap(),
-                )),
-                i => panic!("unknown instruction: {}", i),
-            },
+        let p = match i {
+            Term::Instruction(i) => i,
+            Term::LabeledInstruction(_, i) => i,
             _ => panic!(),
+        };
+        match p.name.as_str() {
+            "ui32" => Ok(Box::from(
+                ConstU32::construct(module_loader, module, i).unwrap(),
+            )),
+            "bool" => Ok(Box::from(
+                ConstBool::construct(module_loader, module, i).unwrap(),
+            )),
+            "ret" => Ok(Box::from(
+                Return::construct(module_loader, module, i).unwrap(),
+            )),
+            "idx" => Ok(Box::from(
+                Index::construct(module_loader, module, i).unwrap(),
+            )),
+            "add" => Ok(Box::from(
+                AddVarVar::construct(module_loader, module, i).unwrap(),
+            )),
+            "sub" => Ok(Box::from(
+                SubVarVar::construct(module_loader, module, i).unwrap(),
+            )),
+            "call" => Ok(Box::from(
+                Call::construct(module_loader, module, i).unwrap(),
+            )),
+            "lt" => Ok(Box::from(
+                LtVarVar::construct(module_loader, module, i).unwrap(),
+            )),
+            "jmpifn" => Ok(Box::from(
+                JmpIfNot::construct(module_loader, module, i).unwrap(),
+            )),
+            i => panic!("unknown instruction: {}", i),
         }
     }
 
@@ -67,8 +81,24 @@ impl FromTerm for Name {
     ) -> Result<Self, InstructionParseError> {
         match p {
             Term::Name(n) => Ok(Name(n.clone())),
-            _ => panic!(),
+            t => panic!("Cannot make Name from {:?}", t),
         }
+    }
+}
+
+impl Display for Name {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut i = 0;
+        for n in self.0.iter() {
+            write!(f, "{}", n)?;
+
+            i += 1;
+            if i < self.0.len() {
+                write!(f, ":")?;
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -118,7 +148,7 @@ impl InstrToX64 for ConstU32 {
 
 impl Display for ConstU32 {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
-        write!(f, "ui32 ${}, {}", self.0, self.1)
+        write!(f, "ui32 {}, {}", self.0, self.1)
     }
 }
 
@@ -163,9 +193,9 @@ impl InstrToBytecode for ConstBool {
 impl InstrToX64 for ConstBool {
     fn emit(
         &self,
-        fn_state: &mut FunctionJITState,
-        module: &Module,
-        cur: vm_internal::bytecode::InstrLbl,
+        _fn_state: &mut FunctionJITState,
+        _module: &Module,
+        _cur: vm_internal::bytecode::InstrLbl,
     ) {
         todo!()
     }
@@ -219,9 +249,9 @@ impl InstrToBytecode for Copy {
 impl InstrToX64 for Copy {
     fn emit(
         &self,
-        fn_state: &mut FunctionJITState,
-        module: &Module,
-        cur: vm_internal::bytecode::InstrLbl,
+        _fn_state: &mut FunctionJITState,
+        _module: &Module,
+        _cur: vm_internal::bytecode::InstrLbl,
     ) {
         todo!()
     }
@@ -251,7 +281,7 @@ impl Instruction for CopyAddress {
         r
     }
 
-    fn interpret(&self, vm: &VM, state: &mut VMState) -> bool {
+    fn interpret(&self, _vm: &VM, state: &mut VMState) -> bool {
         state
             .interpreter_state
             .set_stack_var(self.0, Value::CallTarget(todo!()));
@@ -264,7 +294,7 @@ impl InstrToBytecode for CopyAddress {
         std::convert::TryInto::try_into(std::mem::size_of::<Self>()).unwrap()
     }
 
-    fn emplace(&self, bytes: &mut [u8]) {
+    fn emplace(&self, _bytes: &mut [u8]) {
         todo!();
     }
 }
@@ -272,9 +302,9 @@ impl InstrToBytecode for CopyAddress {
 impl InstrToX64 for CopyAddress {
     fn emit(
         &self,
-        fn_state: &mut FunctionJITState,
-        module: &Module,
-        cur: vm_internal::bytecode::InstrLbl,
+        _fn_state: &mut FunctionJITState,
+        _module: &Module,
+        _cur: vm_internal::bytecode::InstrLbl,
     ) {
         todo!()
     }
@@ -282,7 +312,7 @@ impl InstrToX64 for CopyAddress {
 
 impl Display for CopyAddress {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
-        write!(f, "movi ${}, {}", self.0, todo!())
+        write!(f, "movi ${}, {}", self.0, self.1)
     }
 }
 
@@ -306,7 +336,7 @@ impl Instruction for CopyIntoIndex {
         r
     }
 
-    fn interpret(&self, vm: &VM, state: &mut VMState) -> bool {
+    fn interpret(&self, _vm: &VM, _state: &mut VMState) -> bool {
         todo!()
     }
 }
@@ -316,7 +346,7 @@ impl InstrToBytecode for CopyIntoIndex {
         std::convert::TryInto::try_into(std::mem::size_of::<Self>()).unwrap()
     }
 
-    fn emplace(&self, bytes: &mut [u8]) {
+    fn emplace(&self, _bytes: &mut [u8]) {
         todo!();
     }
 }
@@ -324,16 +354,16 @@ impl InstrToBytecode for CopyIntoIndex {
 impl InstrToX64 for CopyIntoIndex {
     fn emit(
         &self,
-        fn_state: &mut FunctionJITState,
-        module: &Module,
-        cur: vm_internal::bytecode::InstrLbl,
+        _fn_state: &mut FunctionJITState,
+        _module: &Module,
+        _cur: vm_internal::bytecode::InstrLbl,
     ) {
         todo!();
     }
 }
 
 impl Display for CopyIntoIndex {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, _f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         todo!()
     }
 }
@@ -354,7 +384,7 @@ impl Instruction for CopyAddressIntoIndex {
         todo!()
     }
 
-    fn interpret(&self, vm: &VM, state: &mut VMState) -> bool {
+    fn interpret(&self, _vm: &VM, _state: &mut VMState) -> bool {
         todo!()
     }
 }
@@ -364,7 +394,7 @@ impl InstrToBytecode for CopyAddressIntoIndex {
         std::convert::TryInto::try_into(std::mem::size_of::<Self>()).unwrap()
     }
 
-    fn emplace(&self, bytes: &mut [u8]) {
+    fn emplace(&self, _bytes: &mut [u8]) {
         todo!();
     }
 }
@@ -372,16 +402,16 @@ impl InstrToBytecode for CopyAddressIntoIndex {
 impl InstrToX64 for CopyAddressIntoIndex {
     fn emit(
         &self,
-        fn_state: &mut FunctionJITState,
-        module: &Module,
-        cur: vm_internal::bytecode::InstrLbl,
+        _fn_state: &mut FunctionJITState,
+        _module: &Module,
+        _cur: vm_internal::bytecode::InstrLbl,
     ) {
         todo!();
     }
 }
 
 impl Display for CopyAddressIntoIndex {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, _f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         todo!()
     }
 }
@@ -407,7 +437,7 @@ impl Instruction for EqVarVar {
         r
     }
 
-    fn interpret(&self, vm: &VM, state: &mut VMState) -> bool {
+    fn interpret(&self, _vm: &VM, _state: &mut VMState) -> bool {
         todo!()
     }
 }
@@ -417,7 +447,7 @@ impl InstrToBytecode for EqVarVar {
         std::convert::TryInto::try_into(std::mem::size_of::<Self>()).unwrap()
     }
 
-    fn emplace(&self, bytes: &mut [u8]) {
+    fn emplace(&self, _bytes: &mut [u8]) {
         todo!();
     }
 }
@@ -425,16 +455,16 @@ impl InstrToBytecode for EqVarVar {
 impl InstrToX64 for EqVarVar {
     fn emit(
         &self,
-        fn_state: &mut FunctionJITState,
-        module: &Module,
-        cur: vm_internal::bytecode::InstrLbl,
+        _fn_state: &mut FunctionJITState,
+        _module: &Module,
+        _cur: vm_internal::bytecode::InstrLbl,
     ) {
         todo!();
     }
 }
 
 impl Display for EqVarVar {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, _f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         todo!()
     }
 }
@@ -460,8 +490,28 @@ impl Instruction for LtVarVar {
         r
     }
 
-    fn interpret(&self, vm: &VM, state: &mut VMState) -> bool {
-        todo!()
+    fn interpret(&self, _vm: &VM, state: &mut VMState) -> bool {
+        let val_a = *state
+            .interpreter_state
+            .get_stack_var(self.1)
+            .as_ui64()
+            .expect("invalid type");
+
+        let val_b = *state
+            .interpreter_state
+            .get_stack_var(self.2)
+            .as_ui64()
+            .expect("invalid type");
+
+        let res = val_a < val_b;
+
+        state
+            .interpreter_state
+            .set_stack_var(self.0, Value::Bool(res));
+
+        state.interpreter_state.ip += 1;
+
+        true
     }
 }
 
@@ -470,7 +520,7 @@ impl InstrToBytecode for LtVarVar {
         std::convert::TryInto::try_into(std::mem::size_of::<Self>()).unwrap()
     }
 
-    fn emplace(&self, bytes: &mut [u8]) {
+    fn emplace(&self, _bytes: &mut [u8]) {
         todo!();
     }
 }
@@ -478,9 +528,9 @@ impl InstrToBytecode for LtVarVar {
 impl InstrToX64 for LtVarVar {
     fn emit(
         &self,
-        fn_state: &mut FunctionJITState,
-        module: &Module,
-        cur: vm_internal::bytecode::InstrLbl,
+        _fn_state: &mut FunctionJITState,
+        _module: &Module,
+        _cur: vm_internal::bytecode::InstrLbl,
     ) {
         todo!();
     }
@@ -488,7 +538,7 @@ impl InstrToX64 for LtVarVar {
 
 impl Display for LtVarVar {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
-        todo!()
+        write!(f, "lt {}, {}, {}", self.0, self.1, self.2)
     }
 }
 
@@ -513,8 +563,25 @@ impl Instruction for SubVarVar {
         r
     }
 
-    fn interpret(&self, vm: &VM, state: &mut VMState) -> bool {
-        todo!()
+    fn interpret(&self, _vm: &VM, state: &mut VMState) -> bool {
+        let val_a = *state
+            .interpreter_state
+            .get_stack_var(self.1)
+            .as_ui64()
+            .expect("invalid type");
+        let val_b = *state
+            .interpreter_state
+            .get_stack_var(self.2)
+            .as_ui64()
+            .expect("invalid type");
+        let res = val_a - val_b;
+
+        state
+            .interpreter_state
+            .set_stack_var(self.0, Value::UI64(res));
+        state.interpreter_state.ip += 1;
+
+        true
     }
 }
 
@@ -523,7 +590,7 @@ impl InstrToBytecode for SubVarVar {
         std::convert::TryInto::try_into(std::mem::size_of::<Self>()).unwrap()
     }
 
-    fn emplace(&self, bytes: &mut [u8]) {
+    fn emplace(&self, _bytes: &mut [u8]) {
         todo!();
     }
 }
@@ -531,9 +598,9 @@ impl InstrToBytecode for SubVarVar {
 impl InstrToX64 for SubVarVar {
     fn emit(
         &self,
-        fn_state: &mut FunctionJITState,
-        module: &Module,
-        cur: vm_internal::bytecode::InstrLbl,
+        _fn_state: &mut FunctionJITState,
+        _module: &Module,
+        _cur: vm_internal::bytecode::InstrLbl,
     ) {
         todo!();
     }
@@ -541,7 +608,7 @@ impl InstrToX64 for SubVarVar {
 
 impl Display for SubVarVar {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
-        todo!()
+        write!(f, "sub {}, {}, {}", self.0, self.1, self.2)
     }
 }
 
@@ -566,8 +633,25 @@ impl Instruction for AddVarVar {
         r
     }
 
-    fn interpret(&self, vm: &VM, state: &mut VMState) -> bool {
-        todo!()
+    fn interpret(&self, _vm: &VM, state: &mut VMState) -> bool {
+        let val_a = *state
+            .interpreter_state
+            .get_stack_var(self.1)
+            .as_ui64()
+            .expect("invalid type");
+        let val_b = *state
+            .interpreter_state
+            .get_stack_var(self.2)
+            .as_ui64()
+            .expect("invalid type");
+        let res = val_a + val_b;
+
+        state
+            .interpreter_state
+            .set_stack_var(self.0, Value::UI64(res));
+        state.interpreter_state.ip += 1;
+
+        true
     }
 }
 
@@ -576,7 +660,7 @@ impl InstrToBytecode for AddVarVar {
         std::convert::TryInto::try_into(std::mem::size_of::<Self>()).unwrap()
     }
 
-    fn emplace(&self, bytes: &mut [u8]) {
+    fn emplace(&self, _bytes: &mut [u8]) {
         todo!();
     }
 }
@@ -584,9 +668,9 @@ impl InstrToBytecode for AddVarVar {
 impl InstrToX64 for AddVarVar {
     fn emit(
         &self,
-        fn_state: &mut FunctionJITState,
-        module: &Module,
-        cur: vm_internal::bytecode::InstrLbl,
+        _fn_state: &mut FunctionJITState,
+        _module: &Module,
+        _cur: vm_internal::bytecode::InstrLbl,
     ) {
         todo!();
     }
@@ -594,7 +678,7 @@ impl InstrToX64 for AddVarVar {
 
 impl Display for AddVarVar {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
-        todo!()
+        write!(f, "add {}, {}, {}", self.0, self.1, self.2)
     }
 }
 
@@ -619,7 +703,7 @@ impl Instruction for MulVarVar {
         r
     }
 
-    fn interpret(&self, vm: &VM, state: &mut VMState) -> bool {
+    fn interpret(&self, _vm: &VM, _state: &mut VMState) -> bool {
         todo!()
     }
 }
@@ -629,7 +713,7 @@ impl InstrToBytecode for MulVarVar {
         std::convert::TryInto::try_into(std::mem::size_of::<Self>()).unwrap()
     }
 
-    fn emplace(&self, bytes: &mut [u8]) {
+    fn emplace(&self, _bytes: &mut [u8]) {
         todo!();
     }
 }
@@ -637,16 +721,16 @@ impl InstrToBytecode for MulVarVar {
 impl InstrToX64 for MulVarVar {
     fn emit(
         &self,
-        fn_state: &mut FunctionJITState,
-        module: &Module,
-        cur: vm_internal::bytecode::InstrLbl,
+        _fn_state: &mut FunctionJITState,
+        _module: &Module,
+        _cur: vm_internal::bytecode::InstrLbl,
     ) {
         todo!();
     }
 }
 
 impl Display for MulVarVar {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, _f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         todo!()
     }
 }
@@ -671,7 +755,7 @@ impl Instruction for NotVar {
         r
     }
 
-    fn interpret(&self, vm: &VM, state: &mut VMState) -> bool {
+    fn interpret(&self, _vm: &VM, _state: &mut VMState) -> bool {
         todo!()
     }
 }
@@ -681,7 +765,7 @@ impl InstrToBytecode for NotVar {
         std::convert::TryInto::try_into(std::mem::size_of::<Self>()).unwrap()
     }
 
-    fn emplace(&self, bytes: &mut [u8]) {
+    fn emplace(&self, _bytes: &mut [u8]) {
         todo!();
     }
 }
@@ -689,16 +773,16 @@ impl InstrToBytecode for NotVar {
 impl InstrToX64 for NotVar {
     fn emit(
         &self,
-        fn_state: &mut FunctionJITState,
-        module: &Module,
-        cur: vm_internal::bytecode::InstrLbl,
+        _fn_state: &mut FunctionJITState,
+        _module: &Module,
+        _cur: vm_internal::bytecode::InstrLbl,
     ) {
         todo!();
     }
 }
 
 impl Display for NotVar {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, _f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         todo!()
     }
 }
@@ -736,7 +820,6 @@ impl Instruction for Return {
         state.interpreter_state.func = ci.prev_fn;
         state.interpreter_state.module = ci.prev_mod;
 
-
         state.interpreter_state.stack.dealloc(ci.framesize);
 
         state
@@ -747,8 +830,8 @@ impl Instruction for Return {
         if !ci.called_by_native {
             state.interpreter_state.ip += 1;
         } else {
-            // Check how we return a value to a native function
-            panic!();
+            // Todo: return a value to a native function
+            unimplemented!();
         }
 
         true
@@ -760,7 +843,7 @@ impl InstrToBytecode for Return {
         std::convert::TryInto::try_into(std::mem::size_of::<Self>()).unwrap()
     }
 
-    fn emplace(&self, bytes: &mut [u8]) {
+    fn emplace(&self, _bytes: &mut [u8]) {
         todo!();
     }
 }
@@ -768,9 +851,9 @@ impl InstrToBytecode for Return {
 impl InstrToX64 for Return {
     fn emit(
         &self,
-        fn_state: &mut FunctionJITState,
-        module: &Module,
-        cur: vm_internal::bytecode::InstrLbl,
+        _fn_state: &mut FunctionJITState,
+        _module: &Module,
+        _cur: vm_internal::bytecode::InstrLbl,
     ) {
         todo!();
     }
@@ -778,7 +861,7 @@ impl InstrToX64 for Return {
 
 impl Display for Return {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
-        todo!()
+        write!(f, "ret {}", self.0)
     }
 }
 
@@ -850,20 +933,6 @@ impl Instruction for Index {
                     .interpreter_state
                     .set_stack_var(self.0, Value::Pointer(loaded_value.into()));
             }
-            // Type::U64 => {
-            //     let ptr = *vm_state
-            //         .interpreter_state
-            //         .get_stack_var(*subject)
-            //         .as_pointer()
-            //         .expect("invalid type");
-            //     let new_ptr = vm_state
-            //         .heap
-            //         .index::<u64>(ptr, idx as usize + 1 /* array header */);
-            //     let loaded_value = unsafe { vm_state.heap.load::<u64>(new_ptr) };
-            //     vm_state
-            //         .interpreter_state
-            //         .set_stack_var(*dest, Value::UI64(loaded_value));
-            // }
             _ => panic!("invalid operand"),
         }
 
@@ -878,7 +947,7 @@ impl InstrToBytecode for Index {
         std::convert::TryInto::try_into(std::mem::size_of::<Self>()).unwrap()
     }
 
-    fn emplace(&self, bytes: &mut [u8]) {
+    fn emplace(&self, _bytes: &mut [u8]) {
         todo!();
     }
 }
@@ -886,9 +955,9 @@ impl InstrToBytecode for Index {
 impl InstrToX64 for Index {
     fn emit(
         &self,
-        fn_state: &mut FunctionJITState,
-        module: &Module,
-        cur: vm_internal::bytecode::InstrLbl,
+        _fn_state: &mut FunctionJITState,
+        _module: &Module,
+        _cur: vm_internal::bytecode::InstrLbl,
     ) {
         todo!();
     }
@@ -896,7 +965,7 @@ impl InstrToX64 for Index {
 
 impl Display for Index {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
-        todo!()
+        write!(f, "idx {}, {}, {}, {}", self.0, self.1, self.2, "<?>")
     }
 }
 
@@ -909,8 +978,8 @@ struct CallArgs(Vec<Var>);
 
 impl FromTerm for CallArgs {
     fn construct(
-        module_loader: &ModuleLoader,
-        module: &mut Module,
+        _module_loader: &ModuleLoader,
+        _module: &mut Module,
         p: &Term,
     ) -> Result<Self, InstructionParseError>
     where
@@ -929,6 +998,24 @@ impl FromTerm for CallArgs {
             }
             _ => Err(InstructionParseError {}),
         }
+    }
+}
+
+impl Display for CallArgs {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut i = 0;
+        write!(f, "[")?;
+        for n in self.0.iter() {
+            write!(f, "{}", n)?;
+
+            i += 1;
+            if i < self.0.len() {
+                write!(f, ", ")?;
+            }
+        }
+        write!(f, "]")?;
+
+        Ok(())
     }
 }
 
@@ -1044,7 +1131,7 @@ impl InstrToBytecode for Call {
         std::convert::TryInto::try_into(std::mem::size_of::<Self>()).unwrap()
     }
 
-    fn emplace(&self, bytes: &mut [u8]) {
+    fn emplace(&self, _bytes: &mut [u8]) {
         todo!();
     }
 }
@@ -1052,9 +1139,9 @@ impl InstrToBytecode for Call {
 impl InstrToX64 for Call {
     fn emit(
         &self,
-        fn_state: &mut FunctionJITState,
-        module: &Module,
-        cur: vm_internal::bytecode::InstrLbl,
+        _fn_state: &mut FunctionJITState,
+        _module: &Module,
+        _cur: vm_internal::bytecode::InstrLbl,
     ) {
         todo!();
     }
@@ -1062,6 +1149,74 @@ impl InstrToX64 for Call {
 
 impl Display for Call {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(f, "call {}, {}, {}", self.0, self.1, self.2)
+    }
+}
+
+/*
+* JmpIfNot
+*/
+
+#[derive(FromTerm, Clone, Debug)]
+struct JmpIfNot(Var, Name);
+
+impl Instruction for JmpIfNot {
+    fn reads(&self) -> HashSet<Var> {
+        let mut r = HashSet::new();
+        r.insert(self.0);
+        r
+    }
+
+    fn writes(&self) -> HashSet<Var> {
+        HashSet::new()
+    }
+
+    fn interpret(&self, vm: &VM, state: &mut VMState) -> bool {
+        assert!(self.1 .0.len() == 1);
+        let i = vm
+            .module_loader
+            .get_module_by_id(state.interpreter_state.module)
+            .unwrap()
+            .get_function_by_id(state.interpreter_state.func)
+            .expect("invalid callee")
+            .ast_impl()
+            .unwrap()
+            .labels
+            .get(&self.1 .0[0])
+            .unwrap();
+
+        match state.interpreter_state.get_stack_var(self.0) {
+            Value::Bool(b) => {
+                if *b {
+                    state.interpreter_state.ip += 1;
+                } else {
+                    state.interpreter_state.ip = *i as isize;
+                };
+            }
+            _ => panic!(),
+        }
+        true
+    }
+}
+
+impl InstrToBytecode for JmpIfNot {
+    fn op_size(&self) -> u32 {
+        std::convert::TryInto::try_into(std::mem::size_of::<Self>()).unwrap()
+    }
+
+    fn emplace(&self, _bytes: &mut [u8]) {
+        todo!();
+    }
+}
+
+impl InstrToX64 for JmpIfNot {
+    fn emit(&self, _: &mut FunctionJITState, _: &Module, _: i16) {
         todo!()
+    }
+}
+
+impl Display for JmpIfNot {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(f, "jmpifn {}, @{}", self.0, self.1)
     }
 }

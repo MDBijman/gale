@@ -1,19 +1,19 @@
 mod multi_param
 
-fn first ($0: ui64, $1: ui64) -> ui64
+fn first ($0: ui64, $1: ui64) -> ui64 {
     ret $0
-endfn
+}
  
-fn second ($0: ui64, $1: ui64) -> ui64
+fn second ($0: ui64, $1: ui64) -> ui64 {
     ret $1
-endfn
+}
 
-fn main ($0: &[&str]) -> ui64
+fn main ($0: &[&str]) -> ui64 {
     ui32 $1, 1
     ui32 $2, 2
-    call $3, @first ($1, $2)
-    call $4, @std:print_ui64 ($3)
-    call $3, @second ($1, $2)
-    call $4, @std:print_ui64 ($3)
+    call $3, @first, ($1, $2)
+    call $4, @std:print_ui64, ($3)
+    call $3, @second, ($1, $2)
+    call $4, @std:print_ui64, ($3)
     ret $3
-endfn
+}

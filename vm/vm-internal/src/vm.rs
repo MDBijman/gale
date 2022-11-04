@@ -144,8 +144,9 @@ impl VM {
         }
 
         if self.debug {
-            println!("Execution finished");
-            println!("{}", state.heap.heap_dump());
+            log::debug!("execution finished");
+            log::debug!("return code: {}", state.interpreter_state.result);
+            log::debug!("{}", state.heap.heap_dump());
         }
 
         state

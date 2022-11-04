@@ -1,3 +1,5 @@
+use log::trace;
+
 use crate::bytecode::*;
 use crate::dialect::{Instruction, Var};
 use crate::memory::Pointer;
@@ -219,7 +221,7 @@ impl Interpreter {
     //#[inline(never)] // <- uncomment for profiling with better source <-> asm map
     #[inline]
     pub fn step(&self, vm: &VM, vm_state: &mut VMState) -> bool {
-        assert_eq!(
+       assert_eq!(
             vm_state.interpreter_state.status,
             InterpreterStatus::Running
         );
@@ -233,6 +235,7 @@ impl Interpreter {
 
         vm_state.interpreter_state.instr_counter += 1;
 
+        trace!(target: "interpreter", "{}", current_instruction);
         current_instruction.interpret(vm, vm_state)
 
         // match current_instruction {
@@ -262,70 +265,6 @@ impl Interpreter {
         //             _ => panic!("invalid type"),
         //         }
 
-        //         vm_state.interpreter_state.ip += 1;
-        //     }
-        //     Instruction::EqVarVar(dest, a, b) => {
-        //         let val_a = *vm_state
-        //             .interpreter_state
-        //             .get_stack_var(*a)
-        //             .as_ui64()
-        //             .expect("invalid type");
-        //         let val_b = *vm_state
-        //             .interpreter_state
-        //             .get_stack_var(*b)
-        //             .as_ui64()
-        //             .expect("invalid type");
-        //         vm_state
-        //             .interpreter_state
-        //             .set_stack_var(*dest, Value::Bool(val_a == val_b));
-        //         vm_state.interpreter_state.ip += 1;
-        //     }
-        //     Instruction::LtVarVar(dest, a, b) => {
-        //         let val_a = *vm_state
-        //             .interpreter_state
-        //             .get_stack_var(*a)
-        //             .as_ui64()
-        //             .expect("invalid type");
-        //         let val_b = *vm_state
-        //             .interpreter_state
-        //             .get_stack_var(*b)
-        //             .as_ui64()
-        //             .expect("invalid type");
-        //         vm_state
-        //             .interpreter_state
-        //             .set_stack_var(*dest, Value::Bool(val_a < val_b));
-        //         vm_state.interpreter_state.ip += 1;
-        //     }
-        //     Instruction::SubVarVar(dest, a, b) => {
-        //         let val_a = *vm_state
-        //             .interpreter_state
-        //             .get_stack_var(*a)
-        //             .as_ui64()
-        //             .expect("invalid type");
-        //         let val_b = *vm_state
-        //             .interpreter_state
-        //             .get_stack_var(*b)
-        //             .as_ui64()
-        //             .expect("invalid type");
-        //         vm_state
-        //             .interpreter_state
-        //             .set_stack_var(*dest, Value::UI64(val_a - val_b));
-        //         vm_state.interpreter_state.ip += 1;
-        //     }
-        //     Instruction::AddVarVar(dest, a, b) => {
-        //         let val_a = *vm_state
-        //             .interpreter_state
-        //             .get_stack_var(*a)
-        //             .as_ui64()
-        //             .expect("invalid type");
-        //         let val_b = *vm_state
-        //             .interpreter_state
-        //             .get_stack_var(*b)
-        //             .as_ui64()
-        //             .expect("invalid type");
-        //         vm_state
-        //             .interpreter_state
-        //             .set_stack_var(*dest, Value::UI64(val_a + val_b));
         //         vm_state.interpreter_state.ip += 1;
         //     }
         //     Instruction::MulVarVar(dest, a, b) => {

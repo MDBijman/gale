@@ -3,11 +3,11 @@ use nom::{
     branch::alt,
     bytes::complete::{tag, take_while1},
     character::complete::{char, digit1, multispace0, space0},
-    combinator::{cut, map},
+    combinator::{cut, map, opt},
     error::{convert_error, ParseError, VerboseError},
-    multi::{many0, many1, separated_list0, separated_list1},
+    multi::{many1, separated_list0, separated_list1},
     sequence::{delimited, pair, preceded, separated_pair, tuple},
-    IResult,
+    IResult, Parser,
 };
 use std::{convert::TryInto, fmt::Display, fs};
 
@@ -25,6 +25,20 @@ impl Display for ParserError {
             Self::FileNotFound() => write!(f, "File not found"),
             Self::ParseFailure(message) => write!(f, "{}", message),
         }
+    }
+}
+
+#[allow(dead_code)]
+pub fn dbg_in<'a, O, E: ParseError<&'a str>, F: Parser<&'a str, O, E>>(
+    mut f: F,
+) -> impl Parser<&'a str, O, E>
+where
+    O: std::fmt::Debug,
+    E: std::fmt::Debug,
+{
+    move |input: &'a str| {
+        log::debug!(target: "parser", "{}", input);
+        f.parse(input)
     }
 }
 
@@ -46,7 +60,7 @@ pub struct FunctionTerm {
 
 #[derive(Debug)]
 pub struct InstructionTerm {
-    pub dialect: String,
+    pub dialect: Option<String>,
     pub name: String,
     pub elements: Vec<Term>,
 }
@@ -54,6 +68,7 @@ pub struct InstructionTerm {
 #[derive(Debug)]
 pub enum Term {
     Instruction(InstructionTerm),
+    LabeledInstruction(Vec<String>, InstructionTerm),
     Variable(Var),
     Number(i64),
     Bool(bool),
@@ -117,19 +132,36 @@ pub enum TypeTerm {
 
 pub fn parse_instruction_elem(i: &str) -> MyParseResult<Term> {
     map(
-        pair(parse_instruction_name, parse_instruction_elements),
-        |((dialect, name), elements)| {
-            Term::Instruction(InstructionTerm {
-                dialect,
-                name,
-                elements,
-            })
+        pair(
+            // optional label
+            opt(ws(parse_name_elem)),
+            map(
+                pair(parse_instruction_name, parse_instruction_elements),
+                |((dialect, name), elements)| {
+                    InstructionTerm {
+                        dialect,
+                        name,
+                        elements,
+                    }
+                },
+            ),
+        ),
+        |(lbl, inner)| match lbl {
+            Some(Term::Name(n)) => Term::LabeledInstruction(n, inner),
+            None => Term::Instruction(inner),
+            Some(_) => unreachable!(),
         },
     )(i)
 }
 
-fn parse_instruction_name(i: &str) -> MyParseResult<(String, String)> {
-    separated_pair(parse_identifier, char(':'), parse_identifier)(i)
+fn parse_instruction_name(i: &str) -> MyParseResult<(Option<String>, String)> {
+    alt((
+        map(
+            separated_pair(parse_identifier, char(':'), parse_identifier),
+            |(d, i)| (Some(d), i),
+        ),
+        map(parse_identifier, |i| (None, i)),
+    ))(i)
 }
 
 fn parse_instruction_elements(i: &str) -> MyParseResult<Vec<Term>> {
@@ -218,11 +250,14 @@ fn parse_function_elem(i: &str) -> MyParseResult<FunctionTerm> {
                 cut(parse_identifier),
                 delimited(
                     ws(char('(')),
-                    ws(many0(separated_pair(
-                        parse_variable_elem,
-                        cut(ws(char(':'))),
-                        cut(parse_type_elem),
-                    ))),
+                    ws(separated_list0(
+                        ws(char(',')),
+                        separated_pair(
+                            parse_variable_elem,
+                            cut(ws(char(':'))),
+                            cut(parse_type_elem),
+                        ),
+                    )),
                     ws(char(')')),
                 ),
                 preceded(ws(tag("->")), parse_type_elem),

@@ -9,6 +9,8 @@ edition = "2018"
 vm-internal = { path="../vm-internal", features=["parser"] }
 vm-proc-macros = { path="../vm-proc-macros" }
 clap = { version = "2.33.3" }
+simple_logger = "4.0.0" 
+log = "0.4.17"
 
 [[bin]]
 name = "galevm"

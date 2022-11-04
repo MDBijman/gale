@@ -9,6 +9,7 @@ use std::{convert::TryInto, fmt::Display};
 #[derive(Default)]
 pub struct ModuleLoader {
     dialects: HashMap<&'static str, Box<dyn Dialect>>,
+    default_dialect: Option<&'static str>,
     /*
      * Each module has an accompanying module interface used to resolve calls.
      * An interface can exist without an implementation, to break cycles.
@@ -20,6 +21,11 @@ pub struct ModuleLoader {
 }
 
 impl ModuleLoader {
+    pub fn new() -> ModuleLoader {
+        let mut ml = ModuleLoader::default();
+        ml
+    }
+
     pub fn from_module(m: Module) -> ModuleLoader {
         let mut ml = ModuleLoader::default();
         ml.add_module(m);
@@ -30,6 +36,10 @@ impl ModuleLoader {
         let mut empty_loader = Self::default();
         empty_loader.load_module(filename)?;
         Ok(empty_loader)
+    }
+
+    pub fn set_default_dialect(&mut self, tag: &'static str) {
+        self.default_dialect = Some(tag);
     }
 
     pub fn add_dialect(&mut self, d: Box<dyn Dialect>) {
@@ -104,36 +114,59 @@ impl ModuleLoader {
         module: &mut Module,
         t: &Term,
     ) -> Result<Box<dyn Instruction>, InstructionParseError> {
-        let iterm: &InstructionTerm = t.as_instruction().unwrap();
-        match self.dialects.get(iterm.dialect.as_str()) {
+        let i = match t {
+            Term::Instruction(i) => i,
+            Term::LabeledInstruction(_, i) => i,
+            _ => panic!(),
+        };
+
+        let dialect = i
+            .dialect
+            .clone()
+            .unwrap_or(String::from(self.default_dialect.expect(
+                "Instruction without dialect and no default dialect specified",
+            )));
+
+        match self.dialects.get(dialect.as_str()) {
             Some(dialect) => dialect.make_instruction(self, module, t),
             None => {
-                panic!("Unknown dialect: {}", iterm.dialect);
+                panic!("Unknown dialect: {}", dialect);
             }
         }
     }
 
-    fn make_function_from_term(&self, module: &mut Module, mterm: &FunctionTerm) -> Function {
+    fn make_function_from_term(&self, module: &mut Module, fterm: &FunctionTerm) -> Function {
         let fn_type_id: u16 = module.types.len().try_into().unwrap();
         module.types.push(TypeDecl::new(
             fn_type_id,
-            self.make_type_from_term(&mterm.ty),
+            self.make_type_from_term(&fterm.ty),
         ));
 
-        let mut func = Function::new(mterm.name.clone(), TypeId(fn_type_id));
+        let mut func = Function::new(fterm.name.clone(), TypeId(fn_type_id));
 
+        let mut labels = HashMap::new();
         let mut instructions = Vec::new();
-        for term in &mterm.body {
-            match self.make_instruction_from_term(module, term) {
+        for (i, term) in fterm.body.iter().enumerate() {
+            match term {
+                Term::LabeledInstruction(name, _) => {
+                    assert!(name.len() == 1);
+                    labels.insert(name[0].clone(), i);
+                }
+                _ => {}
+            };
+
+            let r = self.make_instruction_from_term(module, term);
+
+            match r {
                 Ok(i) => instructions.push(i),
                 Err(e) => panic!("{}", e),
             }
         }
 
-        // Quick and dirt, number of vars is maximum over all instruction reads and writes
+        // Quick and dirty, number of vars is maximum over all instruction reads and writes
         // It would be better to do some internal renaming so that gaps between var ids dont lead
         // to wasted memory
-        let varcount = instructions.iter().fold(0, |acc, i| {
+        let varcount_body = instructions.iter().fold(0, |acc, i| {
             u8::max(
                 acc,
                 i.writes()
@@ -145,9 +178,14 @@ impl ModuleLoader {
             )
         }) + 1 /* because 0 indexed */;
 
+        let varcount_params = fterm.params.iter().fold(0, |acc, i| u8::max(acc, i.0)) + 1;
+
+        let varcount = u8::max(varcount_body, varcount_params);
+
         func.implementations.push(FunctionImpl::AST(ASTImpl {
             varcount,
             instructions,
+            labels,
         }));
 
         func
@@ -1113,6 +1151,7 @@ impl FunctionImpl {
 pub struct ASTImpl {
     pub varcount: u8,
     pub instructions: Vec<Box<dyn Instruction>>,
+    pub labels: HashMap<String, usize>,
 }
 
 /// Bytecode implementation of function. This implementation is generated as part of the JIT phase.

@@ -2,7 +2,7 @@ use crate::bytecode::{ModuleLoader, TypeDecl, TypeId};
 use crate::jit::FunctionJITState;
 use crate::{
     bytecode::{InstrLbl, Module},
-    parser::Term,
+    parser::{Term},
     vm::{VMState, VM},
 };
 use std::fmt::Display;
@@ -102,8 +102,8 @@ pub trait FromTerm {
 
 impl FromTerm for u8 {
     fn construct(
-        module_loader: &ModuleLoader,
-        module: &mut Module,
+        _module_loader: &ModuleLoader,
+        _module: &mut Module,
         p: &Term,
     ) -> Result<Self, InstructionParseError>
     where
@@ -118,8 +118,8 @@ impl FromTerm for u8 {
 
 impl FromTerm for u16 {
     fn construct(
-        module_loader: &ModuleLoader,
-        module: &mut Module,
+        _module_loader: &ModuleLoader,
+        _module: &mut Module,
         p: &Term,
     ) -> Result<Self, InstructionParseError>
     where
@@ -134,8 +134,8 @@ impl FromTerm for u16 {
 
 impl FromTerm for u32 {
     fn construct(
-        module_loader: &ModuleLoader,
-        module: &mut Module,
+        _module_loader: &ModuleLoader,
+        _module: &mut Module,
         p: &Term,
     ) -> Result<Self, InstructionParseError>
     where
@@ -150,8 +150,8 @@ impl FromTerm for u32 {
 
 impl FromTerm for bool {
     fn construct(
-        module_loader: &ModuleLoader,
-        module: &mut Module,
+        _module_loader: &ModuleLoader,
+        _module: &mut Module,
         p: &Term,
     ) -> Result<Self, InstructionParseError>
     where
@@ -166,8 +166,8 @@ impl FromTerm for bool {
 
 impl FromTerm for Var {
     fn construct(
-        module_loader: &ModuleLoader,
-        module: &mut Module,
+        _module_loader: &ModuleLoader,
+        _module: &mut Module,
         p: &Term,
     ) -> Result<Self, InstructionParseError>
     where

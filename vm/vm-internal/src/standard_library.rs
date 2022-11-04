@@ -1,9 +1,8 @@
 use crate::bytecode::{Function, Module, Size, Type, TypeDecl, TypeId};
 use crate::memory::{Pointer, STRING_HEADER_SIZE};
 use crate::vm::VMState;
+use log;
 use std::ffi;
-
-const DEBUG_STDLIB: bool = false;
 
 extern "C" fn parse_ui64(state: &mut VMState, ptr: Pointer) -> u64 {
     let str_ptr = unsafe {
@@ -12,11 +11,9 @@ extern "C" fn parse_ui64(state: &mut VMState, ptr: Pointer) -> u64 {
         ffi::CStr::from_ptr(char_ptr)
     };
 
-    if DEBUG_STDLIB {
-        println!("parse_ui64: {}", str_ptr.to_str().unwrap());
-        println!(
-            "parse_ui64: {}",
-            str_ptr.to_str().unwrap().parse::<u64>().unwrap()
+    if log::log_enabled!(target: "stdlib", log::Level::Debug) {
+        log::trace!(target: "stdlib", "parse_ui64(\"{}\") -> {}", str_ptr.to_str().unwrap(),
+        str_ptr.to_str().unwrap().parse::<u64>().unwrap()
         );
     }
 
@@ -41,7 +38,7 @@ extern "C" fn print_str(state: &mut VMState, ptr: Pointer) -> u64 {
     0
 }
 
-extern "C" fn flush(state: &mut VMState, _: u64) -> u64 {
+extern "C" fn flush(_state: &mut VMState, _: u64) -> u64 {
     use std::io::Write;
     std::io::stdout().flush().unwrap();
     0

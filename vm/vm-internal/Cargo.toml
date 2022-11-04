@@ -9,6 +9,8 @@ nom  = { version = "6.0.0", optional = true }
 dynasmrt = { version= "1.1.0" }
 libc = "0.2.103"
 dataflow = { path="../../dataflow", version="0.1.0" }
+simple_logger = "4.0.0"
+log = "0.4.17"
 
 [features]
 default = ["parser"]

@@ -56,14 +56,17 @@ pub fn derive_from_term(input: TokenStream) -> TokenStream {
 
     let res = quote! {
         impl FromTerm for #name {
-            fn construct(module_loader: &::vm_internal::bytecode::ModuleLoader, module: &mut ::vm_internal::bytecode::Module, p: &::vm_internal::parser::Term)
+            fn construct(module_loader: &::vm_internal::bytecode::ModuleLoader, module: &mut ::vm_internal::bytecode::Module, t: &::vm_internal::parser::Term)
             -> Result<Self, ::vm_internal::dialect::InstructionParseError> {
-                match p {
-                    Term::Instruction(InstructionTerm { dialect, name, elements, .. }) => {
-                        #result
-                    },
-                    _ => panic!()
-                }
+                let p = match t {
+                    Term::Instruction(i) => i,
+                    Term::LabeledInstruction(_, i) => i,
+                    _ => panic!("Term must be instruction")
+                };
+                let dialect = &p.dialect;
+                let name = &p.name;
+                let elements = &p.elements;
+                #result
             }
         }
     };

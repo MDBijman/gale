@@ -5,9 +5,13 @@ use std::time;
 
 use clap::{App, Arg};
 use galevm::{ModuleLoader, VM};
-use vm_internal::*;
+use vm_internal::{*, dialect::Dialect};
+
+use log::LevelFilter;
+use simple_logger::SimpleLogger;
 
 fn main() {
+    SimpleLogger::new().with_level(LevelFilter::Off).env().init().unwrap();
     let startup_time = time::SystemTime::now();
 
     let matches = App::new("Gale VM")
@@ -69,7 +73,12 @@ fn main() {
     let use_jit = matches.is_present("enable_jit");
 
     let mut module_loader = ModuleLoader::from_module(standard_library::std_module());
-    module_loader.add_dialect(Box::from(standard_dialect::StandardDialect {}));
+
+    let standard_dialect = Box::from(standard_dialect::StandardDialect {});
+    let standard_dialect_tag = standard_dialect.get_dialect_tag();
+    module_loader.add_dialect(standard_dialect);
+    module_loader.set_default_dialect(standard_dialect_tag);
+
     let main_module_id = match module_loader.load_module(input_file_name) {
         Ok(module_id) => module_id,
         Err(pe) => {
