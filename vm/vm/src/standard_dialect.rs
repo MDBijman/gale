@@ -29,6 +29,10 @@ impl Dialect for StandardDialect {
         module: &mut Module,
         i: &Term,
     ) -> Result<Box<dyn Instruction>, InstructionParseError> {
+        // This takes a &Term instead of &InstructionTerm so
+        // that we can use construct(..) without needing to copy
+        // the instruction term into a Term.
+
         let p = match i {
             Term::Instruction(i) => i,
             Term::LabeledInstruction(_, i) => i,
@@ -104,6 +108,12 @@ impl Display for Name {
 }
 
 /*
+* Below are implementations for each bytecode op in the standard dialect.
+* Each operation needs to implement the Instruction + Display traits.
+* Additionally each operation can implement InstrToBytecode and InstrToX64 traits.
+*/
+
+/*
 * ConstU32
 */
 
@@ -121,11 +131,9 @@ impl Instruction for ConstU32 {
         r
     }
 
-    fn interpret(&self, _: &VM, vm_state: &mut VMState) -> bool {
-        vm_state
-            .interpreter_state
-            .set_stack_var(self.0, Value::UI64(self.1 as u64));
-        vm_state.interpreter_state.ip += 1;
+    fn interpret(&self, _: &VM, state: &mut VMState) -> bool {
+        Self::set_var(state, self.0, Value::UI64(self.1 as u64));
+        Self::inc_ip(state);
         true
     }
 }
@@ -171,11 +179,9 @@ impl Instruction for ConstBool {
         r
     }
 
-    fn interpret(&self, _: &VM, vm_state: &mut VMState) -> bool {
-        vm_state
-            .interpreter_state
-            .set_stack_var(self.0, Value::Bool(self.1));
-        vm_state.interpreter_state.ip += 1;
+    fn interpret(&self, _: &VM, state: &mut VMState) -> bool {
+        Self::set_var(state, self.0, Value::Bool(self.1));
+        Self::inc_ip(state);
         true
     }
 }
@@ -229,9 +235,9 @@ impl Instruction for Copy {
     }
 
     fn interpret(&self, _: &VM, state: &mut VMState) -> bool {
-        let val = state.interpreter_state.get_stack_var(self.1).clone();
-        state.interpreter_state.set_stack_var(self.0, val);
-        state.interpreter_state.ip += 1;
+        let val = Self::clone_var(state, self.0);
+        Self::set_var(state, self.0, val);
+        Self::inc_ip(state);
         true
     }
 }
@@ -283,10 +289,8 @@ impl Instruction for CopyAddress {
     }
 
     fn interpret(&self, _vm: &VM, state: &mut VMState) -> bool {
-        state
-            .interpreter_state
-            .set_stack_var(self.0, Value::CallTarget(todo!()));
-        state.interpreter_state.ip += 1;
+        Self::set_var(state, self.0, Value::CallTarget(todo!()));
+        Self::inc_ip(state);
     }
 }
 
@@ -492,25 +496,19 @@ impl Instruction for LtVarVar {
     }
 
     fn interpret(&self, _vm: &VM, state: &mut VMState) -> bool {
-        let val_a = *state
-            .interpreter_state
-            .get_stack_var(self.1)
+        let lhs = *Self::ref_var(state, self.1)
             .as_ui64()
             .expect("invalid type");
 
-        let val_b = *state
-            .interpreter_state
-            .get_stack_var(self.2)
+        let rhs = *Self::ref_var(state, self.2)
             .as_ui64()
             .expect("invalid type");
 
-        let res = val_a < val_b;
+        let res = lhs < rhs;
 
-        state
-            .interpreter_state
-            .set_stack_var(self.0, Value::Bool(res));
+        Self::set_var(state, self.0, Value::Bool(res));
 
-        state.interpreter_state.ip += 1;
+        Self::inc_ip(state);
 
         true
     }
@@ -565,22 +563,18 @@ impl Instruction for SubVarVar {
     }
 
     fn interpret(&self, _vm: &VM, state: &mut VMState) -> bool {
-        let val_a = *state
-            .interpreter_state
-            .get_stack_var(self.1)
+        let lhs = *Self::ref_var(state, self.1)
             .as_ui64()
             .expect("invalid type");
-        let val_b = *state
-            .interpreter_state
-            .get_stack_var(self.2)
-            .as_ui64()
-            .expect("invalid type");
-        let res = val_a - val_b;
 
-        state
-            .interpreter_state
-            .set_stack_var(self.0, Value::UI64(res));
-        state.interpreter_state.ip += 1;
+        let rhs = *Self::ref_var(state, self.2)
+            .as_ui64()
+            .expect("invalid type");
+
+        let res = lhs - rhs;
+
+        Self::set_var(state, self.0, Value::UI64(res));
+        Self::inc_ip(state);
 
         true
     }
@@ -635,22 +629,18 @@ impl Instruction for AddVarVar {
     }
 
     fn interpret(&self, _vm: &VM, state: &mut VMState) -> bool {
-        let val_a = *state
-            .interpreter_state
-            .get_stack_var(self.1)
+        let lhs = *Self::ref_var(state, self.1)
             .as_ui64()
             .expect("invalid type");
-        let val_b = *state
-            .interpreter_state
-            .get_stack_var(self.2)
-            .as_ui64()
-            .expect("invalid type");
-        let res = val_a + val_b;
 
-        state
-            .interpreter_state
-            .set_stack_var(self.0, Value::UI64(res));
-        state.interpreter_state.ip += 1;
+        let rhs = *Self::ref_var(state, self.2)
+            .as_ui64()
+            .expect("invalid type");
+
+        let res = lhs + rhs;
+
+        Self::set_var(state, self.0, Value::UI64(res));
+        Self::inc_ip(state);
 
         true
     }
@@ -807,7 +797,7 @@ impl Instruction for Return {
     }
 
     fn interpret(&self, _: &VM, state: &mut VMState) -> bool {
-        let val = state.interpreter_state.get_stack_var(self.0).clone();
+        let val = Self::clone_var(state, self.0);
         let ci = state.interpreter_state.call_info.pop().unwrap();
 
         // Finished execution
@@ -823,13 +813,11 @@ impl Instruction for Return {
 
         state.interpreter_state.stack.dealloc(ci.framesize);
 
-        state
-            .interpreter_state
-            .set_stack_var(ci.result_var, val.clone());
+        Self::set_var(state, ci.result_var, val.clone());
 
         // Native function
         if !ci.called_by_native {
-            state.interpreter_state.ip += 1;
+            Self::inc_ip(state);
         } else {
             // Todo: return a value to a native function
             unimplemented!();
@@ -893,9 +881,7 @@ impl Instruction for Index {
             .get_module_by_id(state.interpreter_state.module)
             .unwrap();
 
-        let idx_value = state
-            .interpreter_state
-            .get_stack_var(self.2)
+        let idx_value = Self::ref_var(state, self.2)
             .as_ui64()
             .expect("invalid index");
 
@@ -904,9 +890,7 @@ impl Instruction for Index {
             .expect("invalid type id")
         {
             Type::Tuple(_) => {
-                let tuple_value = state
-                    .interpreter_state
-                    .get_stack_var(self.1)
+                let tuple_value = Self::ref_var(state, self.1)
                     .as_tuple()
                     .expect("value didn't match tuple type");
 
@@ -915,12 +899,10 @@ impl Instruction for Index {
                     .expect("index out of bounds")
                     .clone();
 
-                state.interpreter_state.set_stack_var(self.0, element_value);
+                Self::set_var(state, self.0, element_value);
             }
             Type::Array(t, _) => {
-                let ptr = *state
-                    .interpreter_state
-                    .get_stack_var(self.1)
+                let ptr = Self::ref_var(state, self.1)
                     .as_pointer()
                     .expect("value didn't match pointer type");
 
@@ -930,27 +912,28 @@ impl Instruction for Index {
                 match **t {
                     Type::Pointer(_) => unsafe {
                         let v = state.heap.load::<Pointer>(elem_ptr);
-                        state.interpreter_state.set_stack_var(self.0, Value::Pointer(v));
+                        Self::set_var(state, self.0, Value::Pointer(v));
                     },
                     _ => panic!(),
                 }
             }
             Type::Pointer(_) => {
-                let ptr = *state
-                    .interpreter_state
-                    .get_stack_var(self.1)
+                let ptr = *Self::ref_var(state, self.1)
                     .as_pointer()
                     .expect("value didn't match pointer type");
 
-                state
-                    .interpreter_state
-                    .set_stack_var(self.0, Value::Pointer(ptr.index(*idx_value as usize)));
+                Self::set_var(
+                    state,
+                    self.0,
+                    Value::Pointer(ptr.index(*idx_value as usize)),
+                );
+
                 panic!("should idx also deref?");
             }
             _ => panic!("invalid operand"),
         }
 
-        state.interpreter_state.ip += 1;
+        Self::inc_ip(state);
 
         true
     }
@@ -1083,23 +1066,20 @@ impl Instruction for Call {
                 panic!("native function called with more than 1 arg");
             }
 
-            let arg_value = state.interpreter_state.get_stack_var(self.2 .0[0]).clone();
-
-            let as_ptr = arg_value.as_pointer().unwrap().clone();
+            let arg_value = Self::ref_var(state, self.2 .0[0]).as_pointer().unwrap();
 
             // Signature of native functions is (vm state, arg)
             let res = unsafe {
-                let unsafe_fn_ptr =
-                    std::mem::transmute::<_, extern "C" fn(&mut VMState, Pointer) -> u64>(native_impl.fn_ptr);
-                (unsafe_fn_ptr)(state, as_ptr)
+                let unsafe_fn_ptr = std::mem::transmute::<
+                    _,
+                    extern "C" fn(&mut VMState, Pointer) -> u64,
+                >(native_impl.fn_ptr);
+                (unsafe_fn_ptr)(state, *arg_value)
             };
 
             // Store result
-            state
-                .interpreter_state
-                .set_stack_var(self.0, Value::UI64(res));
-
-            state.interpreter_state.ip += 1;
+            Self::set_var(state, self.0, Value::UI64(res));
+            Self::inc_ip(state);
         } else if callee_function.has_ast_impl() {
             let ast_impl = callee_function.ast_impl().unwrap();
             let stack_size = ast_impl.varcount;
@@ -1121,7 +1101,7 @@ impl Instruction for Call {
 
             // Write arguments into new frame
             for (idx, arg) in self.2 .0.iter().enumerate() {
-                let val = state.interpreter_state.get_stack_var(*arg).clone();
+                let val = Self::clone_var(state, *arg);
                 state
                     .interpreter_state
                     .set_stack_var_raw_index(new_base as usize + Into::<usize>::into(idx), val);
@@ -1197,10 +1177,10 @@ impl Instruction for JmpIfNot {
             .get(&self.1 .0[0])
             .unwrap();
 
-        match state.interpreter_state.get_stack_var(self.0) {
+        match Self::ref_var(state, self.0) {
             Value::Bool(b) => {
                 if *b {
-                    state.interpreter_state.ip += 1;
+                    Self::inc_ip(state);
                 } else {
                     state.interpreter_state.ip = *i as isize;
                 };

@@ -1,8 +1,9 @@
 use crate::bytecode::{ModuleLoader, TypeDecl, TypeId};
+use crate::interpreter::Value;
 use crate::jit::FunctionJITState;
 use crate::{
     bytecode::{InstrLbl, Module},
-    parser::{Term},
+    parser::Term,
     vm::{VMState, VM},
 };
 use std::fmt::Display;
@@ -40,6 +41,38 @@ pub trait Instruction: Debug + Display + InstrToBytecode + InstrClone + InstrToX
     fn reads(&self) -> HashSet<Var>;
     fn writes(&self) -> HashSet<Var>;
     fn interpret(&self, vm: &VM, state: &mut VMState) -> bool;
+
+    /*
+     * Interpreter helpers
+     */
+
+    fn inc_ip(s: &mut VMState)
+    where
+        Self: Sized,
+    {
+        s.interpreter_state.ip += 1;
+    }
+
+    fn ref_var<'a>(s: &'a VMState, i: Var) -> &'a Value
+    where
+        Self: Sized,
+    {
+        s.interpreter_state.get_stack_var(i)
+    }
+
+    fn clone_var(s: &VMState, i: Var) -> Value
+    where
+        Self: Sized,
+    {
+        s.interpreter_state.get_stack_var(i).clone()
+    }
+
+    fn set_var(s: &mut VMState, i: Var, v: Value)
+    where
+        Self: Sized,
+    {
+        s.interpreter_state.set_stack_var(i, v)
+    }
 }
 
 pub trait InstrToX64 {
