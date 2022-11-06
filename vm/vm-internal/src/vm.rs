@@ -103,9 +103,7 @@ impl VM {
 
         let main_frame_size = ast.varcount;
 
-        if self.debug {
-            println!("Jit enabled: {}", jit);
-        }
+        log::info!(target: "config", "JIT: {}", jit);
 
         let mut state = VMState::new(
             CallTarget::new(main_module.id, main_id),
@@ -127,8 +125,8 @@ impl VM {
                 for arg in args.iter() {
                     let str_ptr = state.heap.allocate_type(&Type::Str(Size::Sized(arg.len())));
                     state.heap.store_string(str_ptr, arg.as_str());
-                    *(raw_arr_ptr as *mut u64) = str_ptr.into();
-                    raw_arr_ptr = raw_arr_ptr.add(8);
+                    *(raw_arr_ptr as *mut Pointer) = str_ptr;
+                    raw_arr_ptr = raw_arr_ptr.add(std::mem::size_of::<Pointer>());
                 }
             }
 
@@ -146,7 +144,7 @@ impl VM {
         if self.debug {
             log::debug!("execution finished");
             log::debug!("return code: {}", state.interpreter_state.result);
-            log::debug!("{}", state.heap.heap_dump());
+            log::debug!("heap dump\n{}", state.heap.heap_dump());
         }
 
         state
@@ -174,17 +172,17 @@ impl VM {
             self,
             state,
             CallTarget::new(main_module.id, main_id),
-            args_ptr.into(),
+            args_ptr,
         );
 
         state.result = res;
 
-        if self.debug {
-            println!("jit time: {}ms", start.elapsed().unwrap().as_millis());
-        }
+        log::info!(target: "compiler", "Compiling {} took {}ms", "main", start.elapsed().unwrap().as_millis());
     }
 
     fn run_interp(&self, main_module: &Module, state: &mut VMState, args_ptr: Pointer) {
+        let start = time::SystemTime::now();
+
         let main_id = main_module.find_function_id("main").expect("function");
 
         state
@@ -200,6 +198,11 @@ impl VM {
                 .as_ui64()
                 .expect("invalid result type"),
         );
+
+        let end = start.elapsed().unwrap().as_millis();
+        log::info!(target: "interpreter", "interp time: {}ms", end);
+        log::info!(target: "interpreter", "instructions run: {}",  state.interpreter_state.instr_counter);
+        log::info!(target: "interpreter", "MOp/s: {:.2}", (state.interpreter_state.instr_counter as f64 / end as f64) / 1000 as f64 );
     }
 
     fn run_interp_with_debugger(
@@ -230,14 +233,9 @@ impl VM {
                 .expect("invalid result type"),
         );
 
-        if self.debug {
-            let end = start.elapsed().unwrap().as_millis();
-            println!("interp time: {}ms", end);
-            println!("instrs: {}", state.interpreter_state.instr_counter);
-            println!(
-                "MOp/s: {:.2}",
-                (state.interpreter_state.instr_counter as f64 / end as f64) / 1000 as f64
-            );
-        }
+        let end = start.elapsed().unwrap().as_millis();
+        log::info!(target: "interpreter", "interp time: {}ms", end);
+        log::info!(target: "interpreter", "instructions run: {}",  state.interpreter_state.instr_counter);
+        log::info!(target: "interpreter", "MOp/s: {:.2}", (state.interpreter_state.instr_counter as f64 / end as f64) / 1000 as f64 );
     }
 }

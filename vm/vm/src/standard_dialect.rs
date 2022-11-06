@@ -11,6 +11,7 @@ use vm_internal::{
     },
     interpreter::{CallInfo, InterpreterStatus, Value},
     jit::FunctionJITState,
+    memory::{Pointer, ARRAY_HEADER_SIZE},
     parser::Term,
     vm::{VMState, VM},
 };
@@ -916,6 +917,24 @@ impl Instruction for Index {
 
                 state.interpreter_state.set_stack_var(self.0, element_value);
             }
+            Type::Array(t, _) => {
+                let ptr = *state
+                    .interpreter_state
+                    .get_stack_var(self.1)
+                    .as_pointer()
+                    .expect("value didn't match pointer type");
+
+                // increment ptr
+                let elem_ptr = ptr.index(ARRAY_HEADER_SIZE + t.size() * (*idx_value as usize));
+
+                match **t {
+                    Type::Pointer(_) => unsafe {
+                        let v = state.heap.load::<Pointer>(elem_ptr);
+                        state.interpreter_state.set_stack_var(self.0, Value::Pointer(v));
+                    },
+                    _ => panic!(),
+                }
+            }
             Type::Pointer(_) => {
                 let ptr = *state
                     .interpreter_state
@@ -923,15 +942,10 @@ impl Instruction for Index {
                     .as_pointer()
                     .expect("value didn't match pointer type");
 
-                let new_ptr = state
-                    .heap
-                    .index::<u64>(ptr, *idx_value as usize + 1 /* array header */);
-
-                let loaded_value = unsafe { state.heap.load::<u64>(new_ptr) };
-
                 state
                     .interpreter_state
-                    .set_stack_var(self.0, Value::Pointer(loaded_value.into()));
+                    .set_stack_var(self.0, Value::Pointer(ptr.index(*idx_value as usize)));
+                panic!("should idx also deref?");
             }
             _ => panic!("invalid operand"),
         }
@@ -1069,17 +1083,15 @@ impl Instruction for Call {
                 panic!("native function called with more than 1 arg");
             }
 
-            let arg_value: u64 = state
-                .interpreter_state
-                .get_stack_var(self.2 .0[0])
-                .clone()
-                .into();
+            let arg_value = state.interpreter_state.get_stack_var(self.2 .0[0]).clone();
+
+            let as_ptr = arg_value.as_pointer().unwrap().clone();
 
             // Signature of native functions is (vm state, arg)
             let res = unsafe {
                 let unsafe_fn_ptr =
-                    std::mem::transmute::<_, fn(&mut VMState, u64) -> u64>(native_impl.fn_ptr);
-                (unsafe_fn_ptr)(state, arg_value)
+                    std::mem::transmute::<_, extern "C" fn(&mut VMState, Pointer) -> u64>(native_impl.fn_ptr);
+                (unsafe_fn_ptr)(state, as_ptr)
             };
 
             // Store result

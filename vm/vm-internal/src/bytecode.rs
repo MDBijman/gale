@@ -572,8 +572,8 @@ impl Type {
 
     pub fn size(&self) -> usize {
         match self {
-            Self::U64 => 8,
-            Self::Pointer(_) => 8,
+            Self::U64 => std::mem::size_of::<u64>(),
+            Self::Pointer(_) => std::mem::size_of::<Pointer>(),
             Self::Array(_ty, len) => match len {
                 Size::Unsized => panic!("Cannot get size of unsized array"),
                 Size::Sized(len) => _ty.size() * len + ARRAY_HEADER_SIZE,

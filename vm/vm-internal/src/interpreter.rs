@@ -83,8 +83,8 @@ impl Into<u64> for Value {
         match self {
             Value::UI64(v) => v,
             Value::Bool(b) => b as u64,
-            Value::Pointer(p) => p.into(),
             Value::CallTarget(t) => (((t.function as u32) << 16) | t.module as u32) as u64,
+            Value::Pointer(_) => panic!(),
             Value::Uninit => panic!(),
             Value::Unit => panic!(),
             Value::Tuple(_) => panic!(),
@@ -131,7 +131,7 @@ impl Interpreter {
         vm: &VM,
         state: &mut InterpreterState,
         target: CallTarget,
-        arg: u64,
+        arg: Pointer,
     ) {
         let func = vm
             .module_loader
@@ -162,7 +162,7 @@ impl Interpreter {
 
         state.call_info.push(fun_ci);
 
-        state.set_stack_var(Var(0), Value::UI64(arg));
+        state.set_stack_var(Var(0), Value::Pointer(arg));
 
         state.ip = 0;
         state.func = func.location;

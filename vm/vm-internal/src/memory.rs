@@ -1,5 +1,4 @@
 use crate::bytecode::{Size, Type};
-use std::mem::size_of;
 
 ///
 /// This is the capacity in bytes with which the heap space is initialized.
@@ -14,50 +13,44 @@ const DEBUG_HEAP: bool = false;
 //const HEAP_GROW_FACTOR: usize = 2;
 
 /// Minimum size of an Array on the heap. <size, elements...>
-pub const ARRAY_HEADER_SIZE: usize = std::mem::size_of::<u64>() * 1;
+pub const ARRAY_HEADER_SIZE: usize = std::mem::size_of::<u64>();
 
 /// Minimum size of a String on the heap. <size, bytes...>.
-pub const STRING_HEADER_SIZE: usize = std::mem::size_of::<u64>() * 1;
+pub const STRING_HEADER_SIZE: usize = std::mem::size_of::<u64>();
 
 /// Size of a pointer on the heap. <adress>.
-pub const POINTER_SIZE: usize = std::mem::size_of::<u64>() * 1;
+pub const POINTER_SIZE: usize = std::mem::size_of::<u64>();
 
 #[derive(Debug, Clone)]
 pub struct Heap {
-    heap: Vec<u64>,
-    proxies: Vec<Proxy>,
+    heap: Vec<u8>,
     debug: bool,
 }
 
 impl Heap {
     fn fits_bytes(&self, size: usize) -> bool {
         let spare_slots = self.heap.capacity() - self.heap.len();
-        let spare_bytes = spare_slots * 8;
+        let spare_bytes = spare_slots;
 
         spare_bytes >= size
     }
 
-    fn resize_heap(&mut self) {
+    fn resize_heap(&mut self) -> bool {
         if self.debug {
             println!("resizing heap");
         }
 
-        let heap_ptr: *const u64 = &self.heap[0];
+        let heap_ptr: *const u8 = &self.heap[0];
         self.heap.reserve(self.heap.len() * 2);
-        let heap_ptr_after_realloc: *const u64 = &self.heap[0];
+        let heap_ptr_after_realloc: *const u8 = &self.heap[0];
 
-        if heap_ptr != heap_ptr_after_realloc {
-            let offset = heap_ptr_after_realloc as usize - heap_ptr as usize;
-
-            // Fix proxies
-            for stone in self.proxies.iter_mut() {
-                stone.adress = (stone.adress as usize + offset as usize) as *mut u8;
-            }
-        }
+        heap_ptr != heap_ptr_after_realloc
     }
 
     pub extern "C" fn allocate_type(&mut self, t: &Type) -> Pointer {
         let size = t.size();
+        log::trace!(target: "heap", "allocating {} bytes", size);
+
         let ptr = self.allocate(size);
 
         match t {
@@ -78,58 +71,42 @@ impl Heap {
         ptr
     }
 
+    /*
+     * Allocates size bytes on the heap.
+     */
     fn allocate(&mut self, size: usize) -> Pointer {
         if self.debug {
             println!("allocating {} bytes", size);
         }
 
-        let proxy_index = self.proxies.len();
         let heap_index = self.heap.len();
         if !self.fits_bytes(size) {
             self.resize_heap();
         }
 
-        // Compute the lowest number of u64 elements we need to allocate
-        // to fit 'size' bytes in there
-        let size_as_u64_elements = size / 8 + (size % 8 != 0) as usize;
-        self.heap.resize(self.heap.len() + size_as_u64_elements, 0);
+        self.heap.resize(self.heap.len() + size, 0);
 
-        self.proxies.push(Proxy::new(
-            size,
-            &mut self.heap[heap_index] as *mut u64 as *mut u8,
-        ));
-
-        Pointer::new(proxy_index)
+        Pointer::new(heap_index, size)
     }
 
     pub fn free(&mut self, ptr: Pointer) {
-        if ptr.index == 0 {
+        if ptr.size == 0 {
             panic!("Null pointer dereference");
         }
 
-        let proxy = &mut self.proxies[ptr.index];
-        proxy.size = 0;
-        proxy.adress = 0 as *mut u8;
+        todo!("Freeing memory");
     }
 
     pub fn raw(&mut self, ptr: Pointer) -> *mut u8 {
-        let proxy = &mut self.proxies[ptr.index];
-
-        if proxy.adress == 0 as *mut u8 {
-            panic!("Null proxy dereference");
-        }
-
-        proxy.adress
+        &mut self.heap[ptr.index] as *mut u8
     }
 
     pub unsafe fn raw_as<T>(&mut self, ptr: Pointer) -> *mut T {
-        let proxy = &mut self.proxies[ptr.index];
-
-        if proxy.adress == 0 as *mut u8 {
-            panic!("Null proxy dereference");
+        if ptr.size == 0 {
+            panic!("Null ptr dereference");
         }
 
-        proxy.adress as *mut T
+        &mut self.heap[ptr.index] as *mut u8 as *mut T
     }
 
     pub extern "C" fn index_bytes(&mut self, ptr: Pointer, bytes: usize) -> Pointer {
@@ -137,22 +114,14 @@ impl Heap {
             println!("index {} bytes from {:?}", bytes, ptr);
         }
 
-        let proxy = self.proxies[ptr.index].clone();
-
-        if proxy.adress == 0 as *mut u8 {
-            panic!("Null proxy dereference");
+        if ptr.index < self.heap.len() && ptr.size - bytes <= 0 {
+            panic!("Out of bounds");
         }
 
-        self.proxies.push(Proxy::new(
-            proxy.size - bytes,
-            (proxy.adress as u64 + bytes as u64) as *mut u8,
-        ));
-
-        Pointer::new(self.proxies.len() - 1)
+        Pointer::new(ptr.index + bytes, ptr.size - bytes)
     }
 
-    pub unsafe extern "C" fn load_u64(&mut self, ptr: Pointer) -> u64
-    {
+    pub unsafe extern "C" fn load_u64(&mut self, ptr: Pointer) -> u64 {
         let res = *std::mem::transmute::<_, *mut u64>(self.raw(ptr));
 
         if self.debug {
@@ -161,9 +130,8 @@ impl Heap {
 
         res
     }
-    
-    pub unsafe extern "C" fn store_u64(&mut self, ptr: Pointer, value: u64)
-    {
+
+    pub unsafe extern "C" fn store_u64(&mut self, ptr: Pointer, value: u64) {
         if self.debug {
             println!("store u64 {} to {:?}", value, ptr);
         }
@@ -171,14 +139,18 @@ impl Heap {
         *self.raw_as::<u64>(ptr) = value;
     }
 
-
     pub unsafe fn load<T>(&mut self, ptr: Pointer) -> T
     where
         T: Sized + Copy + std::fmt::Debug,
     {
         let res = *std::mem::transmute::<_, *mut T>(self.raw(ptr));
         if self.debug {
-            println!("load {} bytes from {:?}: {:?}", std::mem::size_of::<T>(), ptr, res);
+            println!(
+                "load {} bytes from {:?}: {:?}",
+                std::mem::size_of::<T>(),
+                ptr,
+                res
+            );
         }
 
         res
@@ -208,23 +180,18 @@ impl Heap {
     }
 
     pub fn heap_dump(&self) -> String {
-        let mut res = String::with_capacity(self.heap.len() * 8 + self.proxies.len() * 8);
+        let mut res = String::with_capacity(self.heap.len() * 8);
         use std::fmt::Write;
 
-        writeln!(res, "proxies").unwrap();
-        for (i, stone) in self.proxies.iter().enumerate() {
-            writeln!(res, "{0} = {2}@{1:?}", i, stone.adress, stone.size).unwrap();
-        }
-
-        writeln!(res, "heap").unwrap();
-        for slot in self.heap.iter() {
+        for (i, slot) in self.heap.iter().enumerate() {
             unsafe {
-                write!(res, "{:?}:", std::mem::transmute::<_, *mut u64>(slot)).unwrap();
-                let bytes: [u8; 8] = std::mem::transmute(*slot);
-                for b in &bytes {
-                    write!(res, " {:02x}", b).unwrap();
+                if i % 8 == 0 {
+                    if i != 0 {
+                        writeln!(res).unwrap();
+                    }
+                    write!(res, "{:?}:", std::mem::transmute::<_, *mut u8>(slot)).unwrap();
                 }
-                writeln!(res).unwrap();
+                write!(res, " {:02x}", *slot).unwrap();
             }
         }
 
@@ -235,22 +202,9 @@ impl Heap {
 impl Default for Heap {
     fn default() -> Self {
         Self {
-            heap: Vec::with_capacity(HEAP_INITIAL_CAPACITY / size_of::<u64>()),
-            proxies: Vec::new(),
-            debug: false || DEBUG_HEAP,
+            heap: Vec::with_capacity(HEAP_INITIAL_CAPACITY),
+            debug: DEBUG_HEAP,
         }
-    }
-}
-
-#[derive(Debug, Clone)]
-struct Proxy {
-    adress: *mut u8,
-    size: usize,
-}
-
-impl Proxy {
-    pub fn new(size: usize, adress: *mut u8) -> Self {
-        Self { adress, size }
     }
 }
 
@@ -258,40 +212,25 @@ impl Proxy {
 #[derive(Clone, Copy, Debug)]
 pub struct Pointer {
     index: usize,
+    size: usize,
 }
 
 impl Pointer {
-    pub fn new(index: usize) -> Self {
-        Self { index }
+    pub fn new(index: usize, size: usize) -> Self {
+        Self { index, size }
     }
 
     pub fn null() -> Self {
-        Self { index: usize::MAX }
-    }
-}
-
-impl Into<u64> for Pointer {
-    fn into(self) -> u64 {
-        self.index as u64
-    }
-}
-
-impl Into<usize> for Pointer {
-    fn into(self) -> usize {
-        self.index
-    }
-}
-
-impl From<u64> for Pointer {
-    fn from(index: u64) -> Self {
         Self {
-            index: index as usize,
+            index: usize::MAX,
+            size: 0,
         }
     }
-}
 
-impl From<usize> for Pointer {
-    fn from(index: usize) -> Self {
-        Self { index }
+    pub fn index(&self, by: usize) -> Self {
+        Self {
+            index: self.index + by,
+            size: self.size - by
+        }
     }
 }

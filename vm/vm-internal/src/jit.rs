@@ -4,6 +4,7 @@ use crate::bytecode::{
 };
 use crate::cfg::{ControlFlowGraph, BasicBlock};
 use crate::dialect::{Instruction, Var};
+use crate::memory::{self, Pointer};
 use crate::vm::{VMState, VM};
 use dynasmrt::x64::Assembler;
 use dynasmrt::{
@@ -199,13 +200,13 @@ pub enum LowInstruction {
 
 pub struct CompiledFn {
     code: ExecutableBuffer,
-    fn_ptr: extern "win64" fn(&VM, &mut VMState, u64) -> u64,
+    fn_ptr: extern "win64" fn(&VM, &mut VMState, Pointer) -> u64,
     _pin: std::marker::PhantomPinned,
 }
 
 impl CompiledFn {
     unsafe fn from(buf: ExecutableBuffer, off: AssemblyOffset) -> CompiledFn {
-        let fn_ptr: extern "win64" fn(&VM, &mut VMState, u64) -> u64 = mem::transmute(buf.ptr(off));
+        let fn_ptr: extern "win64" fn(&VM, &mut VMState, Pointer) -> u64 = mem::transmute(buf.ptr(off));
         CompiledFn {
             code: buf,
             fn_ptr,
@@ -213,7 +214,7 @@ impl CompiledFn {
         }
     }
 
-    pub fn call(&self, vm: &VM, state: &mut VMState, arg: u64) -> u64 {
+    pub fn call(&self, vm: &VM, state: &mut VMState, arg: Pointer) -> u64 {
         (self.fn_ptr)(vm, state, arg)
     }
 }
@@ -264,7 +265,7 @@ impl JITEngine {
         vm: &VM,
         state: &mut VMState,
         target: CallTarget,
-        arg: u64,
+        arg: memory::Pointer,
     ) -> Option<u64> {
         /*
          * We access the compiled function and call it.
@@ -436,7 +437,7 @@ impl JITEngine {
         vm: &VM,
         state: &mut VMState,
         target: CallTarget,
-        arg: u64,
+        arg: Pointer,
     ) -> u64 {
         let func = vm
             .module_loader
@@ -447,7 +448,7 @@ impl JITEngine {
 
         if func.has_native_impl() {
             unsafe {
-                let unsafe_fn_ptr = std::mem::transmute::<_, fn(&mut VMState, u64) -> u64>(
+                let unsafe_fn_ptr = std::mem::transmute::<_, extern "C" fn(&mut VMState, Pointer) -> u64>(
                     func.native_impl().unwrap().fn_ptr,
                 );
                 (unsafe_fn_ptr)(state, arg)
