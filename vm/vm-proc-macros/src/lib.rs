@@ -60,7 +60,6 @@ pub fn derive_from_term(input: TokenStream) -> TokenStream {
             -> Result<Self, ::vm_internal::dialect::InstructionParseError> {
                 let p = match t {
                     Term::Instruction(i) => i,
-                    Term::LabeledInstruction(_, i) => i,
                     _ => panic!("Term must be instruction")
                 };
                 let dialect = &p.dialect;

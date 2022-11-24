@@ -10,6 +10,8 @@ use dynasmrt::x64::Assembler;
 use dynasmrt::{
     dynasm, x64::Rq, AssemblyOffset, DynamicLabel, DynasmApi, DynasmLabelApi, ExecutableBuffer,
 };
+
+#[macro_export]
 macro_rules! x64_asm {
     ($ops:ident $($t:tt)*) => {
         dynasm!($ops
@@ -21,6 +23,7 @@ macro_rules! x64_asm {
     }
 }
 
+#[macro_export]
 macro_rules! x64_asm_resolve_mem {
     /*
     * Uses $src from a register if it is in a register, otherwise loads it from memory.
@@ -28,7 +31,7 @@ macro_rules! x64_asm_resolve_mem {
     ($ops:ident, $mem:ident ; $op:tt $reg:tt, resolve($src:expr)) => {
         match $mem.lookup($src) {
             VarLoc::Register(l) => x64_asm!($ops ; $op $reg, Rq(l as u8)),
-            VarLoc::Stack => x64_asm!($ops ; $op $reg, QWORD [rbp + ($src as i32) * 8]),
+            VarLoc::Stack => x64_asm!($ops ; $op $reg, QWORD [rbp + ($src.0 as i32) * 8]),
         }
     };
     /*
@@ -146,57 +149,6 @@ pub enum LowInstruction {
     Push(Var),
     Pop(u8),
 }
-
-// impl From<Instruction> for LowInstruction {
-//     fn from(i: Instruction) -> Self {
-//         match i {
-//             Instruction::ConstU32(a, b) => LowInstruction::ConstU32(a.into(), b),
-//             Instruction::ConstBool(a, b) => LowInstruction::ConstU32(a.into(), if b { 1 } else { 0 }),
-//             Instruction::Copy(a, b) => LowInstruction::Copy(a.into(), b.into()),
-//             Instruction::EqVarVar(a, b, c) => {
-//                 LowInstruction::EqVarVar(a.into(), b.into(), c.into())
-//             }
-//             Instruction::LtVarVar(a, b, c) => {
-//                 LowInstruction::LtVarVar(a.into(), b.into(), c.into())
-//             }
-//             Instruction::SubVarVar(a, b, c) => {
-//                 LowInstruction::SubVarVar(a.into(), b.into(), c.into())
-//             }
-//             Instruction::AddVarVar(a, b, c) => {
-//                 LowInstruction::AddVarVar(a.into(), b.into(), c.into())
-//             }
-//             Instruction::MulVarVar(a, b, c) => {
-//                 LowInstruction::MulVarVar(a.into(), b.into(), c.into())
-//             }
-//             Instruction::NotVar(a, b) => LowInstruction::NotVar(a.into(), b.into()),
-//             Instruction::Return(a) => LowInstruction::Return(a.into()),
-//             Instruction::Print(a) => LowInstruction::Print(a.into()),
-//             Instruction::CallN(a, b, c, d) => LowInstruction::Call1(a.into(), b.into(), c.into()),
-//             Instruction::ModuleCall(a, b, c) => LowInstruction::ModuleCall(a.into(), b, c.into()),
-//             Instruction::Jmp(a) => LowInstruction::Jmp(a),
-//             Instruction::JmpIf(a, b) => LowInstruction::JmpIf(a, b.into()),
-//             Instruction::JmpIfNot(a, b) => LowInstruction::JmpIfNot(a, b.into()),
-//             Instruction::Alloc(a, b) => LowInstruction::Alloc(a.into(), b),
-//             Instruction::LoadConst(a, b) => LowInstruction::LoadConst(a.into(), b),
-//             Instruction::LoadVar(a, b, c) => LowInstruction::LoadVar(a.into(), b.into(), c.into()),
-//             Instruction::StoreVar(a, b, c) => {
-//                 LowInstruction::StoreVar(a.into(), b.into(), c.into())
-//             }
-//             Instruction::Index(a, b, c, d) => {
-//                 LowInstruction::Index(a.into(), b.into(), c.into(), d)
-//             }
-//             Instruction::Sizeof(a, b) => LowInstruction::Sizeof(a.into(), b.into()),
-//             Instruction::Lbl => LowInstruction::Lbl,
-//             Instruction::Nop => LowInstruction::Nop,
-//             Instruction::Panic => LowInstruction::Panic,
-//             Instruction::VarCallN(_, _, _, _) => todo!(),
-//             Instruction::Tuple(_, _) => todo!(),
-//             Instruction::CopyAddressIntoIndex(_, _, _) => todo!(),
-//             Instruction::CopyIntoIndex(_, _, _) => todo!(),
-//             Instruction::CopyAddress(_, _) => todo!(),
-//         }
-//     }
-// }
 
 pub struct CompiledFn {
     code: ExecutableBuffer,
@@ -512,13 +464,13 @@ pub struct VariableLocations {
 }
 
 impl VariableLocations {
-    fn lookup(&self, var: Var) -> VarLoc {
+    pub fn lookup(&self, var: Var) -> VarLoc {
         self.locations.get(&var).cloned().unwrap_or(VarLoc::Stack)
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Copy)]
-enum VarLoc {
+pub enum VarLoc {
     Register(Rq),
     Stack,
 }
@@ -626,10 +578,10 @@ impl VariableLocations {
 }
 
 pub struct FunctionJITState {
-    ops: Assembler,
-    function_location: FnId,
-    dynamic_labels: HashMap<i16, DynamicLabel>,
-    variable_locations: Option<VariableLocations>,
+    pub ops: Assembler,
+    pub function_location: FnId,
+    pub dynamic_labels: HashMap<i16, DynamicLabel>,
+    pub variable_locations: Option<VariableLocations>,
 }
 
 impl FunctionJITState {
@@ -644,7 +596,7 @@ impl FunctionJITState {
 }
 
 
-fn store_volatiles_except(
+pub fn store_volatiles_except(
     ops: &mut Assembler,
     memory: &VariableLocations,
     var: Option<Var>,
@@ -675,7 +627,7 @@ fn store_volatiles_except(
     stored
 }
 
-fn load_volatiles(ops: &mut Assembler, stored: &Vec<Rq>) {
+pub fn load_volatiles(ops: &mut Assembler, stored: &Vec<Rq>) {
     if stored.len() % 2 == 1 {
         x64_asm!(ops; add rsp, 8);
     }
@@ -691,13 +643,6 @@ fn emit_instr_as_asm<'a>(
     cur: InstrLbl,
     instr: &(dyn Instruction + 'a),
 ) {
-    // Ops cannot be referenced in x64_asm macros if it's inside fn_state
-    let ops = &mut fn_state.ops;
-    let memory = fn_state
-        .variable_locations
-        .as_ref()
-        .expect("Memory actions must be initialized when emitting instructions");
-
     instr.emit(fn_state, module, cur);
 
     // match instr {

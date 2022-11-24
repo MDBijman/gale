@@ -1,12 +1,24 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, f32::consts::E};
 
 use dataflow::Lattice;
 
 use crate::{
     bytecode::{FnId, Function, InstrLbl},
-    dialect::{Instruction, Var},
-    dataflow::run
+    dataflow::run,
+    dialect::{Instruction, Name, Var},
 };
+
+pub enum ControlFlowBehaviour {
+    Linear,
+    // Jumps with list of jump targets
+    Jump(Vec<Name>),
+    ConditionalJump(Vec<Name>),
+    Target,
+}
+
+pub trait InstrControlFlow {
+    fn behaviour(&self) -> ControlFlowBehaviour;
+}
 
 pub struct ControlFlowGraph {
     pub blocks: Vec<BasicBlock>,
@@ -34,6 +46,10 @@ impl BasicBlock {
         self.last += 1;
     }
 
+    pub fn shrink_one(&mut self) {
+        self.last -= 1;
+    }
+
     pub fn add_child(&mut self, idx: usize) {
         self.children.push(idx);
     }
@@ -45,7 +61,7 @@ impl BasicBlock {
 
 impl ControlFlowGraph {
     pub fn from_function_instructions(fun: &Function) -> Self {
-        let implementation = fun.ast_impl().expect("bytecode impl");
+        let implementation = fun.ast_impl().expect("hl impl");
 
         // Create basic blocks
         // and edges between basic blocks
@@ -59,234 +75,73 @@ impl ControlFlowGraph {
         let mut current_block = BasicBlock::starting_from(pc);
 
         for instr in implementation.instructions.iter() {
-            panic!();
-            // match instr {
-            //     Instruction::Return(_) => {
-            //         basic_blocks.push(current_block);
-            //         current_block = BasicBlock::starting_from(pc + 1);
-            //     }
-            //     Instruction::Jmp(_) => {
-            //         basic_blocks.push(current_block);
-            //         current_block = BasicBlock::starting_from(pc + 1);
-            //     }
-            //     Instruction::JmpIf(_, _) => {
-            //         basic_blocks.push(current_block);
-            //         current_block = BasicBlock::starting_from(pc + 1);
-            //     }
-            //     Instruction::JmpIfNot(_, _) => {
-            //         basic_blocks.push(current_block);
-            //         current_block = BasicBlock::starting_from(pc + 1);
-            //     }
-            //     Instruction::Panic => {
-            //         basic_blocks.push(current_block);
-            //         current_block = BasicBlock::starting_from(pc + 1);
-            //     }
-            //     Instruction::Lbl => {
-            //         // If this is not the first in the block, we need to make a new block
-            //         if current_block.first != pc {
-            //             // Remove this label from this current_block
-            //             current_block.last -= 1;
+            match instr.behaviour() {
+                ControlFlowBehaviour::Linear => {
+                    current_block.extend_one();
+                }
+                ControlFlowBehaviour::Jump(_) | ControlFlowBehaviour::ConditionalJump(_) => {
+                    basic_blocks.push(current_block);
+                    current_block = BasicBlock::starting_from(pc + 1);
+                }
+                ControlFlowBehaviour::Target => {
+                    let first_in_block = current_block.first == pc;
 
-            //             // Create a new block starting from this lbl
-            //             // do not replace current_block yet, need to update its children
-            //             let mut new_block = BasicBlock::starting_from(pc);
+                    if first_in_block {
+                        current_block.extend_one();
+                    } else {
+                        // Exclude this instruction from current block
+                        current_block.shrink_one();
+                        // Current BB is successor to last one, because otherwise
+                        // this instruction would be first_in_block
+                        let mut new_block = BasicBlock::starting_from(pc);
+                        current_block.add_child(basic_blocks.len() + 1);
+                        new_block.add_parent(basic_blocks.len());
 
-            //             // We were not the first in the block, so previous instruction
-            //             // was not a jump, so this is child of last block
-            //             // current_block will be at basic_blocks.len, new block adds 1
-            //             current_block.add_child(basic_blocks.len() + 1);
-            //             new_block.add_parent(basic_blocks.len());
+                        basic_blocks.push(current_block);
+                        current_block = new_block;
 
-            //             // Commit the current_block
-            //             basic_blocks.push(current_block);
-
-            //             // Replace the current with the new
-            //             current_block = new_block;
-
-            //             // Extend one
-            //             current_block.extend_one();
-            //         } else {
-            //             current_block.extend_one();
-            //         }
-            //     }
-            //     _ => {
-            //         current_block.extend_one();
-            //     }
-            // }
+                        current_block.extend_one();
+                    }
+                }
+            }
 
             pc += 1;
         }
 
+        // Resolve jumps
         for (pc, instr) in implementation.instructions.iter().enumerate() {
-            panic!();
-            // match instr {
-            //     Instruction::Jmp(l) => {
-            //         let target = l + pc as i16;
-            //         let child =
-            //             ControlFlowGraph::find_basic_block_starting_at(&basic_blocks, target);
-            //         let parent =
-            //             ControlFlowGraph::find_basic_block_ending_at(&basic_blocks, pc as i16);
-            //         basic_blocks[parent].add_child(child);
-            //         basic_blocks[child].add_parent(parent);
-            //     }
-            //     Instruction::JmpIf(l, _) => {
-            //         let target = l + pc as i16;
-            //         let child =
-            //             ControlFlowGraph::find_basic_block_starting_at(&basic_blocks, target);
-            //         let child_no_jump = ControlFlowGraph::find_basic_block_starting_at(
-            //             &basic_blocks,
-            //             pc as i16 + 1,
-            //         );
-            //         let parent =
-            //             ControlFlowGraph::find_basic_block_ending_at(&basic_blocks, pc as i16);
-            //         basic_blocks[parent].add_child(child);
-            //         basic_blocks[parent].add_child(child_no_jump);
-            //         basic_blocks[child].add_parent(parent);
-            //         basic_blocks[child_no_jump].add_parent(parent);
-            //     }
-            //     Instruction::JmpIfNot(l, _) => {
-            //         let target = l + pc as i16;
-            //         let child =
-            //             ControlFlowGraph::find_basic_block_starting_at(&basic_blocks, target);
-            //         let child_no_jump = ControlFlowGraph::find_basic_block_starting_at(
-            //             &basic_blocks,
-            //             pc as i16 + 1,
-            //         );
-            //         let parent =
-            //             ControlFlowGraph::find_basic_block_ending_at(&basic_blocks, pc as i16);
-            //         basic_blocks[parent].add_child(child);
-            //         basic_blocks[parent].add_child(child_no_jump);
-            //         basic_blocks[child].add_parent(parent);
-            //         basic_blocks[child_no_jump].add_parent(parent);
-            //     }
-            //     _ => {}
-            // }
-        }
+            match instr.behaviour() {
+                ControlFlowBehaviour::Jump(targets) => {
+                    let parent =
+                        ControlFlowGraph::find_basic_block_ending_at(&basic_blocks, pc as i16);
 
-        Self {
-            blocks: basic_blocks,
-            from_fn: fun.location,
-        }
-    }
+                    for t in targets {
+                        let target_instr = fun.ast_impl().unwrap().labels.get(&t.0[0]).unwrap();
+                        let child =
+                            ControlFlowGraph::find_basic_block_starting_at(&basic_blocks, *target_instr as i16);
+                        basic_blocks[parent].add_child(child);
+                        basic_blocks[child].add_parent(parent);
+                    }
+                }
+                ControlFlowBehaviour::ConditionalJump(targets) => {
+                    let parent =
+                        ControlFlowGraph::find_basic_block_ending_at(&basic_blocks, pc as i16);
 
-    pub fn from_function_low_instructions(fun: &Function) -> Self {
-        let implementation = fun.ast_impl().expect("bytecode impl");
-
-        // Create basic blocks
-        // and edges between basic blocks
-        // Greedily eat instructions and push into current basic block
-        // When encountering a jump or label:
-        //   create new basic block and repeat
-        // Link up basic blocks - how?/
-
-        let mut basic_blocks = Vec::new();
-
-        let mut pc = 0;
-        let mut current_block = BasicBlock::starting_from(pc);
-
-        for instr in implementation.instructions.iter() {
-            panic!();
-            // match instr {
-            //     Instruction::Return(_) => {
-            //         basic_blocks.push(current_block);
-            //         current_block = BasicBlock::starting_from(pc + 1);
-            //     }
-            //     Instruction::Jmp(_) => {
-            //         basic_blocks.push(current_block);
-            //         current_block = BasicBlock::starting_from(pc + 1);
-            //     }
-            //     Instruction::JmpIf(_, _) => {
-            //         basic_blocks.push(current_block);
-            //         current_block = BasicBlock::starting_from(pc + 1);
-            //     }
-            //     Instruction::JmpIfNot(_, _) => {
-            //         basic_blocks.push(current_block);
-            //         current_block = BasicBlock::starting_from(pc + 1);
-            //     }
-            //     Instruction::Panic => {
-            //         basic_blocks.push(current_block);
-            //         current_block = BasicBlock::starting_from(pc + 1);
-            //     }
-            //     Instruction::Lbl => {
-            //         // If this is not the first in the block, we need to make a new block
-            //         if current_block.first != pc {
-            //             // Remove this label from this current_block
-            //             current_block.last -= 1;
-
-            //             // Create a new block starting from this lbl
-            //             // do not replace current_block yet, need to update its children
-            //             let mut new_block = BasicBlock::starting_from(pc);
-
-            //             // We were not the first in the block, so previous instruction
-            //             // was not a jump, so this is child of last block
-            //             // current_block will be at basic_blocks.len, new block adds 1
-            //             current_block.add_child(basic_blocks.len() + 1);
-            //             new_block.add_parent(basic_blocks.len());
-
-            //             // Commit the current_block
-            //             basic_blocks.push(current_block);
-
-            //             // Replace the current with the new
-            //             current_block = new_block;
-
-            //             // Extend one
-            //             current_block.extend_one();
-            //         } else {
-            //             current_block.extend_one();
-            //         }
-            //     }
-            //     _ => {
-            //         current_block.extend_one();
-            //     }
-            // }
-
-            pc += 1;
-        }
-
-        for (pc, instr) in implementation.instructions.iter().enumerate() {
-            panic!();
-            // match instr {
-            //     Instruction::Jmp(l) => {
-            //         let target = l + pc as i16;
-            //         let child =
-            //             ControlFlowGraph::find_basic_block_starting_at(&basic_blocks, target);
-            //         let parent =
-            //             ControlFlowGraph::find_basic_block_ending_at(&basic_blocks, pc as i16);
-            //         basic_blocks[parent].add_child(child);
-            //         basic_blocks[child].add_parent(parent);
-            //     }
-            //     Instruction::JmpIf(l, _) => {
-            //         let target = l + pc as i16;
-            //         let child =
-            //             ControlFlowGraph::find_basic_block_starting_at(&basic_blocks, target);
-            //         let child_no_jump = ControlFlowGraph::find_basic_block_starting_at(
-            //             &basic_blocks,
-            //             pc as i16 + 1,
-            //         );
-            //         let parent =
-            //             ControlFlowGraph::find_basic_block_ending_at(&basic_blocks, pc as i16);
-            //         basic_blocks[parent].add_child(child);
-            //         basic_blocks[parent].add_child(child_no_jump);
-            //         basic_blocks[child].add_parent(parent);
-            //         basic_blocks[child_no_jump].add_parent(parent);
-            //     }
-            //     Instruction::JmpIfNot(l, _) => {
-            //         let target = l + pc as i16;
-            //         let child =
-            //             ControlFlowGraph::find_basic_block_starting_at(&basic_blocks, target);
-            //         let child_no_jump = ControlFlowGraph::find_basic_block_starting_at(
-            //             &basic_blocks,
-            //             pc as i16 + 1,
-            //         );
-            //         let parent =
-            //             ControlFlowGraph::find_basic_block_ending_at(&basic_blocks, pc as i16);
-            //         basic_blocks[parent].add_child(child);
-            //         basic_blocks[parent].add_child(child_no_jump);
-            //         basic_blocks[child].add_parent(parent);
-            //         basic_blocks[child_no_jump].add_parent(parent);
-            //     }
-            //     _ => {}
-            // }
+                    for t in targets {
+                        let target_instr = fun.ast_impl().unwrap().labels.get(&t.0[0]).unwrap();
+                        let child =
+                            ControlFlowGraph::find_basic_block_starting_at(&basic_blocks, *target_instr as i16);
+                        basic_blocks[parent].add_child(child);
+                        basic_blocks[child].add_parent(parent);
+                    }
+ 
+                    let fallthrough_child =
+                        ControlFlowGraph::find_basic_block_ending_at(&basic_blocks, pc as i16 + 1);
+                        basic_blocks[parent].add_child(fallthrough_child);
+                        basic_blocks[fallthrough_child].add_parent(parent);
+                }
+                _ => {}
+            }
         }
 
         Self {
@@ -319,6 +174,9 @@ impl ControlFlowGraph {
         intervals
     }
 
+    /*
+     * TODO optimize
+     */
     fn find_basic_block_starting_at(blocks: &Vec<BasicBlock>, pc: i16) -> usize {
         blocks
             .iter()
@@ -326,6 +184,9 @@ impl ControlFlowGraph {
             .expect("Basic block doesn't exist")
     }
 
+    /*
+     * TODO optimize
+     */
     fn find_basic_block_ending_at(blocks: &Vec<BasicBlock>, pc: i16) -> usize {
         blocks
             .iter()

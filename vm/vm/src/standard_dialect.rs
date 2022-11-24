@@ -4,16 +4,20 @@ use std::{
     fmt::{Display, Formatter},
 };
 
+use dynasmrt::{dynasm, DynasmApi};
 use vm_internal::{
     bytecode::{Module, ModuleLoader, Type, TypeId},
+    cfg::{ControlFlowBehaviour, InstrControlFlow},
     dialect::{
-        Dialect, FromTerm, InstrToBytecode, InstrToX64, Instruction, InstructionParseError, Var,
+        Dialect, FromTerm, InstrToBytecode, InstrToX64, Instruction, InstructionParseError, Name,
+        Var,
     },
     interpreter::{CallInfo, InterpreterStatus, Value},
-    jit::FunctionJITState,
-    memory::{Pointer, ARRAY_HEADER_SIZE},
+    jit::{FunctionJITState, VarLoc, VariableLocations, store_volatiles_except, load_volatiles},
+    memory::{Pointer, ARRAY_HEADER_SIZE, Heap},
     parser::Term,
     vm::{VMState, VM},
+    x64_asm, x64_asm_resolve_mem,
 };
 use vm_proc_macros::FromTerm;
 
@@ -35,7 +39,6 @@ impl Dialect for StandardDialect {
 
         let p = match i {
             Term::Instruction(i) => i,
-            Term::LabeledInstruction(_, i) => i,
             _ => panic!(),
         };
         match p.name.as_str() {
@@ -72,38 +75,6 @@ impl Dialect for StandardDialect {
 
     fn get_dialect_tag(&self) -> &'static str {
         "std"
-    }
-}
-
-#[derive(Clone, Debug)]
-struct Name(Vec<String>);
-
-impl FromTerm for Name {
-    fn construct(
-        _: &ModuleLoader,
-        _: &mut Module,
-        p: &Term,
-    ) -> Result<Self, InstructionParseError> {
-        match p {
-            Term::Name(n) => Ok(Name(n.clone())),
-            t => panic!("Cannot make Name from {:?}", t),
-        }
-    }
-}
-
-impl Display for Name {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let mut i = 0;
-        for n in self.0.iter() {
-            write!(f, "{}", n)?;
-
-            i += 1;
-            if i < self.0.len() {
-                write!(f, ":")?;
-            }
-        }
-
-        Ok(())
     }
 }
 
@@ -150,8 +121,23 @@ impl InstrToBytecode for ConstU32 {
 }
 
 impl InstrToX64 for ConstU32 {
-    fn emit(&self, _: &mut FunctionJITState, _: &Module, _: i16) {
-        todo!()
+    fn emit(&self, fun: &mut FunctionJITState, _: &Module, _: i16) {
+        // Ops cannot be referenced in x64_asm macros if it's inside fn_state
+        let ops = &mut fun.ops;
+        let memory = fun
+            .variable_locations
+            .as_ref()
+            .expect("Memory actions must be initialized when emitting instructions");
+
+        let r = self.0;
+        let c: i32 = self.1 as i32;
+        x64_asm_resolve_mem!(ops, memory; mov resolve(r), c);
+    }
+}
+
+impl InstrControlFlow for ConstU32 {
+    fn behaviour(&self) -> ControlFlowBehaviour {
+        ControlFlowBehaviour::Linear
     }
 }
 
@@ -205,6 +191,12 @@ impl InstrToX64 for ConstBool {
         _cur: vm_internal::bytecode::InstrLbl,
     ) {
         todo!()
+    }
+}
+
+impl InstrControlFlow for ConstBool {
+    fn behaviour(&self) -> ControlFlowBehaviour {
+        ControlFlowBehaviour::Linear
     }
 }
 
@@ -264,6 +256,12 @@ impl InstrToX64 for Copy {
     }
 }
 
+impl InstrControlFlow for Copy {
+    fn behaviour(&self) -> ControlFlowBehaviour {
+        ControlFlowBehaviour::Linear
+    }
+}
+
 impl Display for Copy {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         write!(f, "mov ${}, {}", self.0, self.1)
@@ -312,6 +310,12 @@ impl InstrToX64 for CopyAddress {
         _cur: vm_internal::bytecode::InstrLbl,
     ) {
         todo!()
+    }
+}
+
+impl InstrControlFlow for CopyAddress {
+    fn behaviour(&self) -> ControlFlowBehaviour {
+        ControlFlowBehaviour::Linear
     }
 }
 
@@ -367,6 +371,12 @@ impl InstrToX64 for CopyIntoIndex {
     }
 }
 
+impl InstrControlFlow for CopyIntoIndex {
+    fn behaviour(&self) -> ControlFlowBehaviour {
+        ControlFlowBehaviour::Linear
+    }
+}
+
 impl Display for CopyIntoIndex {
     fn fmt(&self, _f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         todo!()
@@ -412,6 +422,12 @@ impl InstrToX64 for CopyAddressIntoIndex {
         _cur: vm_internal::bytecode::InstrLbl,
     ) {
         todo!();
+    }
+}
+
+impl InstrControlFlow for CopyAddressIntoIndex {
+    fn behaviour(&self) -> ControlFlowBehaviour {
+        ControlFlowBehaviour::Linear
     }
 }
 
@@ -465,6 +481,12 @@ impl InstrToX64 for EqVarVar {
         _cur: vm_internal::bytecode::InstrLbl,
     ) {
         todo!();
+    }
+}
+
+impl InstrControlFlow for EqVarVar {
+    fn behaviour(&self) -> ControlFlowBehaviour {
+        ControlFlowBehaviour::Linear
     }
 }
 
@@ -535,6 +557,12 @@ impl InstrToX64 for LtVarVar {
     }
 }
 
+impl InstrControlFlow for LtVarVar {
+    fn behaviour(&self) -> ControlFlowBehaviour {
+        ControlFlowBehaviour::Linear
+    }
+}
+
 impl Display for LtVarVar {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         write!(f, "lt {}, {}, {}", self.0, self.1, self.2)
@@ -598,6 +626,12 @@ impl InstrToX64 for SubVarVar {
         _cur: vm_internal::bytecode::InstrLbl,
     ) {
         todo!();
+    }
+}
+
+impl InstrControlFlow for SubVarVar {
+    fn behaviour(&self) -> ControlFlowBehaviour {
+        ControlFlowBehaviour::Linear
     }
 }
 
@@ -667,6 +701,12 @@ impl InstrToX64 for AddVarVar {
     }
 }
 
+impl InstrControlFlow for AddVarVar {
+    fn behaviour(&self) -> ControlFlowBehaviour {
+        ControlFlowBehaviour::Linear
+    }
+}
+
 impl Display for AddVarVar {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         write!(f, "add {}, {}, {}", self.0, self.1, self.2)
@@ -720,6 +760,12 @@ impl InstrToX64 for MulVarVar {
     }
 }
 
+impl InstrControlFlow for MulVarVar {
+    fn behaviour(&self) -> ControlFlowBehaviour {
+        ControlFlowBehaviour::Linear
+    }
+}
+
 impl Display for MulVarVar {
     fn fmt(&self, _f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         todo!()
@@ -769,6 +815,12 @@ impl InstrToX64 for NotVar {
         _cur: vm_internal::bytecode::InstrLbl,
     ) {
         todo!();
+    }
+}
+
+impl InstrControlFlow for NotVar {
+    fn behaviour(&self) -> ControlFlowBehaviour {
+        ControlFlowBehaviour::Linear
     }
 }
 
@@ -851,6 +903,12 @@ impl InstrToX64 for Return {
 impl Display for Return {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         write!(f, "ret {}", self.0)
+    }
+}
+
+impl InstrControlFlow for Return {
+    fn behaviour(&self) -> ControlFlowBehaviour {
+        ControlFlowBehaviour::Jump(vec![])
     }
 }
 
@@ -952,11 +1010,88 @@ impl InstrToBytecode for Index {
 impl InstrToX64 for Index {
     fn emit(
         &self,
-        _fn_state: &mut FunctionJITState,
-        _module: &Module,
+        state: &mut FunctionJITState,
+        module: &Module,
         _cur: vm_internal::bytecode::InstrLbl,
     ) {
-        todo!();
+        let mut ops = &mut state.ops;
+        let memory = state.variable_locations.as_ref().unwrap();
+
+        let get_heap_address = unsafe {
+            std::mem::transmute::<_, i64>(
+                VMState::heap_mut as unsafe extern "C" fn(&mut VMState) -> &mut Heap,
+            )
+        };
+
+        let index_bytes_address = unsafe {
+            std::mem::transmute::<_, i64>(
+                Heap::index_bytes as unsafe extern "C" fn(&mut Heap, Pointer, usize) -> Pointer,
+            )
+        };
+
+        let index_bytes: i32 = match module.get_type_by_id(self.3).expect("type idx") {
+            Type::U64 | Type::Pointer(_) => 8,
+            ty => panic!("Illegal index operand: {:?}", ty),
+        };
+
+        let load_8_bytes_address = unsafe {
+            std::mem::transmute::<_, i64>(
+                Heap::load::<u64> as unsafe extern "C" fn(&mut Heap, Pointer) -> u64,
+            )
+        };
+
+        // call get_heap_address to get heap ptr
+        // load idx, multiply with element size in bytes
+        // load src
+        // call heap.index_bytes on src value with idx
+        // write res
+
+        let saved = store_volatiles_except(&mut ops, &memory, Some(self.0));
+        let stack_space = 0x20;
+        x64_asm!(ops
+            // Load first because they might be overriden
+            ;; x64_asm_resolve_mem!(ops, memory; mov r14, resolve(self.1))
+            ;; x64_asm_resolve_mem!(ops, memory; mov r15, resolve(self.2))
+
+            ; mov rcx, _vm_state
+            ; sub rsp, BYTE stack_space
+            ; mov r10, QWORD get_heap_address
+            ; call r10
+            ; add rsp, BYTE stack_space
+            // rax contains pointer to heap, mov into rcx (first arg)
+            ; mov rcx, rax
+            ; mov rdi, rax // store in non-vol register for later
+            // compute idx and put into r8
+            ; mov rax, r15
+            ; mov r8, index_bytes
+            ; mul r8
+            ; mov r8, rax
+            // Offset for array header
+            ; add r8, 8
+            // put src into rdx
+            ; mov rdx, r14
+            ; sub rsp, BYTE stack_space
+            ; mov r10, QWORD index_bytes_address
+            ; call r10
+            ; add rsp, BYTE stack_space
+            // rax contains proxy
+            // load value
+            ; mov rcx, rdi
+            ; mov rdx, rax
+            ; sub rsp, BYTE stack_space
+            ; mov r10, QWORD load_8_bytes_address
+            ; call r10
+            ; add rsp, BYTE stack_space
+            ;; x64_asm_resolve_mem!(ops, memory; mov resolve(self.0), rax)
+        );
+
+        load_volatiles(&mut ops, &saved);
+    }
+}
+
+impl InstrControlFlow for Index {
+    fn behaviour(&self) -> ControlFlowBehaviour {
+        ControlFlowBehaviour::Linear
     }
 }
 
@@ -1145,6 +1280,12 @@ impl Display for Call {
     }
 }
 
+impl InstrControlFlow for Call {
+    fn behaviour(&self) -> ControlFlowBehaviour {
+        ControlFlowBehaviour::Linear
+    }
+}
+
 /*
 * JmpIfNot
 */
@@ -1210,5 +1351,11 @@ impl InstrToX64 for JmpIfNot {
 impl Display for JmpIfNot {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         write!(f, "jmpifn {}, @{}", self.0, self.1)
+    }
+}
+
+impl InstrControlFlow for JmpIfNot {
+    fn behaviour(&self) -> ControlFlowBehaviour {
+        ControlFlowBehaviour::ConditionalJump(vec![self.1.clone()])
     }
 }

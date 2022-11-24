@@ -5,8 +5,6 @@ use crate::bytecode::{Size, Type};
 ///
 const HEAP_INITIAL_CAPACITY: usize = 1000 * 1000 * 1000;
 
-const DEBUG_HEAP: bool = false;
-
 /*
 * This is the factor by which the heap grows when memory is needed.
 */
@@ -24,7 +22,6 @@ pub const POINTER_SIZE: usize = std::mem::size_of::<u64>();
 #[derive(Debug, Clone)]
 pub struct Heap {
     heap: Vec<u8>,
-    debug: bool,
 }
 
 impl Heap {
@@ -36,15 +33,18 @@ impl Heap {
     }
 
     fn resize_heap(&mut self) -> bool {
-        if self.debug {
-            println!("resizing heap");
-        }
 
         let heap_ptr: *const u8 = &self.heap[0];
         self.heap.reserve(self.heap.len() * 2);
         let heap_ptr_after_realloc: *const u8 = &self.heap[0];
 
-        heap_ptr != heap_ptr_after_realloc
+        let resized = heap_ptr != heap_ptr_after_realloc;
+
+        if resized {
+            log::debug!(target: "memory", "resized heap to size {}", self.heap.capacity());
+        }
+
+        resized
     }
 
     pub extern "C" fn allocate_type(&mut self, t: &Type) -> Pointer {
@@ -75,9 +75,7 @@ impl Heap {
      * Allocates size bytes on the heap.
      */
     fn allocate(&mut self, size: usize) -> Pointer {
-        if self.debug {
-            println!("allocating {} bytes", size);
-        }
+        log::debug!(target: "memory", "allocating {} bytes", size);
 
         let heap_index = self.heap.len();
         if !self.fits_bytes(size) {
@@ -110,9 +108,9 @@ impl Heap {
     }
 
     pub extern "C" fn index_bytes(&mut self, ptr: Pointer, bytes: usize) -> Pointer {
-        if self.debug {
-            println!("index {} bytes from {:?}", bytes, ptr);
-        }
+        log::debug!(target: "memory",
+            "index {} bytes from {:?}",
+            bytes, ptr);
 
         if ptr.index < self.heap.len() && ptr.size - bytes <= 0 {
             panic!("Out of bounds");
@@ -121,37 +119,16 @@ impl Heap {
         Pointer::new(ptr.index + bytes, ptr.size - bytes)
     }
 
-    pub unsafe extern "C" fn load_u64(&mut self, ptr: Pointer) -> u64 {
-        let res = *std::mem::transmute::<_, *mut u64>(self.raw(ptr));
-
-        if self.debug {
-            println!("load u64 from {:?}: {}", ptr, res);
-        }
-
-        res
-    }
-
-    pub unsafe extern "C" fn store_u64(&mut self, ptr: Pointer, value: u64) {
-        if self.debug {
-            println!("store u64 {} to {:?}", value, ptr);
-        }
-
-        *self.raw_as::<u64>(ptr) = value;
-    }
-
-    pub unsafe fn load<T>(&mut self, ptr: Pointer) -> T
+    pub unsafe extern "C" fn load<T>(&mut self, ptr: Pointer) -> T
     where
         T: Sized + Copy + std::fmt::Debug,
     {
         let res = *std::mem::transmute::<_, *mut T>(self.raw(ptr));
-        if self.debug {
-            println!(
-                "load {} bytes from {:?}: {:?}",
-                std::mem::size_of::<T>(),
-                ptr,
-                res
-            );
-        }
+        log::debug!(target: "memory",
+            "load {} bytes from {:?}: {:?}",
+            std::mem::size_of::<T>(),
+            ptr,
+            res);
 
         res
     }
@@ -203,7 +180,6 @@ impl Default for Heap {
     fn default() -> Self {
         Self {
             heap: Vec::with_capacity(HEAP_INITIAL_CAPACITY),
-            debug: DEBUG_HEAP,
         }
     }
 }
@@ -230,7 +206,7 @@ impl Pointer {
     pub fn index(&self, by: usize) -> Self {
         Self {
             index: self.index + by,
-            size: self.size - by
+            size: self.size - by,
         }
     }
 }

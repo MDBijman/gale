@@ -141,11 +141,9 @@ impl VM {
             self.run_interp_with_debugger(main_module, &mut state, args_ptr, debug.unwrap());
         }
 
-        if self.debug {
-            log::debug!("execution finished");
-            log::debug!("return code: {}", state.interpreter_state.result);
-            log::debug!("heap dump\n{}", state.heap.heap_dump());
-        }
+        log::debug!(target: "vm", "execution finished");
+        log::debug!(target: "vm", "return code: {}", state.interpreter_state.result);
+        log::debug!(target: "vm", "heap dump\n{}", state.heap.heap_dump());
 
         state
     }

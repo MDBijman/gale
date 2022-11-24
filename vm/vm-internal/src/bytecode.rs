@@ -1,7 +1,7 @@
-use crate::dialect::{Dialect, Instruction, InstructionBuffer, InstructionParseError, Var};
+use crate::dialect::{Dialect, Instruction, InstructionBuffer, InstructionParseError, Var, LabelInstruction};
 use crate::memory::{Heap, Pointer, ARRAY_HEADER_SIZE, STRING_HEADER_SIZE};
 use crate::parser::{
-    parse_bytecode_file_new, FunctionTerm, InstructionTerm, ModuleTerm, ParserError, Term, TypeTerm,
+    parse_bytecode_file_new, FunctionTerm, ModuleTerm, ParserError, Term, TypeTerm,
 };
 use std::collections::{HashMap, HashSet};
 use std::{convert::TryInto, fmt::Display};
@@ -116,8 +116,10 @@ impl ModuleLoader {
     ) -> Result<Box<dyn Instruction>, InstructionParseError> {
         let i = match t {
             Term::Instruction(i) => i,
-            Term::LabeledInstruction(_, i) => i,
-            _ => panic!(),
+            Term::Label(n) => {
+               return Ok(Box::from(LabelInstruction(n.clone())));
+            },
+            t => panic!("unexpected {:?}", t),
         };
 
         let dialect = i
@@ -148,9 +150,9 @@ impl ModuleLoader {
         let mut instructions = Vec::new();
         for (i, term) in fterm.body.iter().enumerate() {
             match term {
-                Term::LabeledInstruction(name, _) => {
-                    assert!(name.len() == 1);
-                    labels.insert(name[0].clone(), i);
+                Term::Label(n) => {
+                    assert!(n.len() == 1);
+                    labels.insert(n[0].clone(), i);
                 }
                 _ => {}
             };
@@ -751,51 +753,6 @@ impl CallTarget {
 //     }
 // }
 
-// impl Display for Instruction {
-//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-//         use Instruction::*;
-//         match self {
-//             ConstU32(a, b) => write!(f, "ui32 ${}, {}", a, b),
-//             ConstBool(a, b) => write!(f, "bool ${}, {}", a, b),
-//             Copy(a, b) => write!(f, "mov ${}, ${}", a, b),
-//             EqVarVar(a, b, c) => write!(f, "eq ${}, ${}, ${}", a, b, c),
-//             LtVarVar(a, b, c) => write!(f, "lt ${}, ${}, ${}", a, b, c),
-//             SubVarVar(a, b, c) => write!(f, "sub ${}, ${}, ${}", a, b, c),
-//             AddVarVar(a, b, c) => write!(f, "add ${}, ${}, ${}", a, b, c),
-//             MulVarVar(a, b, c) => write!(f, "mul ${}, ${}, ${}", a, b, c),
-//             Sizeof(a, b) => write!(f, "sizeof ${}, ${}", a, b),
-//             NotVar(a, b) => write!(f, "neg ${}, ${}", a, b),
-//             Return(a) => write!(f, "ret ${}", a),
-//             Print(r) => write!(f, "print ${}", r),
-//             CallN(a, b, c, d) => write!(f, "call ${}, @{} (${}..${})", a, b, c, d + c),
-//             ModuleCall(a, b, c) => {
-//                 write!(f, "call ${}, @{}:{} (${})", a, b.module, b.function, c)
-//             }
-//             Jmp(l) => write!(f, "jmp @{}", l),
-//             JmpIf(l, c) => write!(f, "jmpif ${} @{}", c, l),
-//             JmpIfNot(l, c) => write!(f, "jmpifn ${} @{}", c, l),
-//             LoadConst(_, _) => todo!(),
-//             LoadVar(a, b, c) => write!(f, "load ${}, ${}, %{}", a, b, c),
-//             StoreVar(a, b, c) => write!(f, "store ${}, ${}, %{}", a, b, c),
-//             Index(a, b, c, d) => write!(f, "idx ${}, ${}, ${}, %{}", a, b, c, d),
-//             Alloc(a, b) => write!(f, "alloc ${}, %{}", a, b),
-//             Panic => write!(f, "panic!"),
-//             Lbl => write!(f, "label:"),
-//             Nop => todo!(),
-//             VarCallN(a, b, c, d) => write!(f, "call ${}, ${} (${}..${})", a, b, c, d + c),
-//             Tuple(a, b) => write!(f, "tup ${}, ${}", a, b),
-//             CopyAddressIntoIndex(a, b, c) => match c.module {
-//                 ModuleId::MAX => write!(f, "movi ${}, {}, @{}", a, b, c.function),
-//                 _ => write!(f, "movi ${}, {}, @{}:{}", a, b, c.module, c.function),
-//             },
-//             CopyIntoIndex(a, b, c) => write!(f, "mov ${}, {}, ${}", a, b, c),
-//             CopyAddress(a, b) => match b.module {
-//                 ModuleId::MAX => write!(f, "mov ${}, @{}", a, b.function),
-//                 _ => write!(f, "mov ${}, @{}:{}", a, b.module, b.function),
-//             },
-//         }
-//     }
-// }
 
 #[derive(Debug, Clone)]
 pub struct Function {

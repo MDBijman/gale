@@ -186,6 +186,7 @@ name = "galevm"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "dynasmrt",
  "log",
  "simple_logger 4.0.0",
  "vm-internal",

@@ -1,4 +1,5 @@
 use crate::bytecode::{ModuleLoader, TypeDecl, TypeId};
+use crate::cfg::{InstrControlFlow, ControlFlowBehaviour};
 use crate::interpreter::Value;
 use crate::jit::FunctionJITState;
 use crate::{
@@ -6,7 +7,7 @@ use crate::{
     parser::Term,
     vm::{VMState, VM},
 };
-use std::fmt::Display;
+use std::fmt::{Display, Formatter};
 use std::{collections::HashSet, convert::TryInto, fmt::Debug};
 extern crate proc_macro;
 
@@ -37,7 +38,9 @@ const DIALECT_TAG_SIZE: u8 = 1;
 /*
 * The Instruction trait indicates a term can be executed.
 */
-pub trait Instruction: Debug + Display + InstrToBytecode + InstrClone + InstrToX64 {
+pub trait Instruction:
+    Debug + Display + InstrToBytecode + InstrClone + InstrToX64 + InstrControlFlow
+{
     fn reads(&self) -> HashSet<Var>;
     fn writes(&self) -> HashSet<Var>;
     fn interpret(&self, vm: &VM, state: &mut VMState) -> bool;
@@ -116,6 +119,25 @@ impl Display for Var {
 impl Into<usize> for Var {
     fn into(self) -> usize {
         return self.0 as usize;
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Name(pub Vec<String>);
+
+impl Display for Name {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut i = 0;
+        for n in self.0.iter() {
+            write!(f, "{}", n)?;
+
+            i += 1;
+            if i < self.0.len() {
+                write!(f, ":")?;
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -235,6 +257,20 @@ impl FromTerm for TypeId {
     }
 }
 
+impl FromTerm for Name {
+    fn construct(
+        _: &ModuleLoader,
+        _: &mut Module,
+        p: &Term,
+    ) -> Result<Self, InstructionParseError> {
+        match p {
+            Term::Name(n) => Ok(Name(n.clone())),
+            t => panic!("Cannot make Name from {:?}", t),
+        }
+    }
+}
+
+
 #[derive(Debug)]
 pub struct InstructionParseError {}
 
@@ -264,5 +300,58 @@ impl InstructionBuffer {
         let last_idx = self.buffer.len();
         instr.emplace(&mut self.buffer[idx..last_idx]);
         InstructionOffset(idx)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct LabelInstruction(pub Vec<String>);
+
+impl Instruction for LabelInstruction {
+    fn reads(&self) -> HashSet<Var> {
+        HashSet::new()
+    }
+
+    fn writes(&self) -> HashSet<Var> {
+        HashSet::new()
+    }
+
+    fn interpret(&self, _vm: &VM, _state: &mut VMState) -> bool {
+        true
+    }
+}
+
+impl InstrToBytecode for LabelInstruction {
+    fn op_size(&self) -> u32 {
+        todo!()
+    }
+
+    fn emplace(&self, bytes: &mut [u8]) {
+        todo!()
+    }
+}
+
+impl InstrToX64 for LabelInstruction {
+    fn emit(&self, fn_state: &mut FunctionJITState, module: &Module, cur: InstrLbl) {
+        todo!()
+    }
+}
+
+impl InstrControlFlow for LabelInstruction {
+    fn behaviour(&self) -> ControlFlowBehaviour {
+        ControlFlowBehaviour::Target
+    }
+}
+
+impl Display for LabelInstruction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "@")?;
+        for (i, n) in self.0.iter().enumerate() {
+            if i == 0 {
+                write!(f, "{}", n)?;
+            } else {
+                write!(f, ":{}", n)?;
+            }
+        }
+        Ok(())
     }
 }

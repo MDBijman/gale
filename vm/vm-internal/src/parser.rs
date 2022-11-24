@@ -3,7 +3,7 @@ use nom::{
     branch::alt,
     bytes::complete::{tag, take_while1},
     character::complete::{char, digit1, multispace0, space0},
-    combinator::{cut, map, opt},
+    combinator::{cut, map},
     error::{convert_error, ParseError, VerboseError},
     multi::{many1, separated_list0, separated_list1},
     sequence::{delimited, pair, preceded, separated_pair, tuple},
@@ -68,7 +68,7 @@ pub struct InstructionTerm {
 #[derive(Debug)]
 pub enum Term {
     Instruction(InstructionTerm),
-    LabeledInstruction(Vec<String>, InstructionTerm),
+    Label(Vec<String>),
     Variable(Var),
     Number(i64),
     Bool(bool),
@@ -131,27 +131,20 @@ pub enum TypeTerm {
 }
 
 pub fn parse_instruction_elem(i: &str) -> MyParseResult<Term> {
-    map(
-        pair(
-            // optional label
-            opt(ws(parse_name_elem)),
-            map(
-                pair(parse_instruction_name, parse_instruction_elements),
-                |((dialect, name), elements)| {
-                    InstructionTerm {
-                        dialect,
-                        name,
-                        elements,
-                    }
-                },
-            ),
+    alt((
+        // optional label
+        ws(map(parse_name, |ns| Term::Label(ns))),
+        map(
+            pair(parse_instruction_name, parse_instruction_elements),
+            |((dialect, name), elements)| {
+                Term::Instruction(InstructionTerm {
+                    dialect,
+                    name,
+                    elements,
+                })
+            },
         ),
-        |(lbl, inner)| match lbl {
-            Some(Term::Name(n)) => Term::LabeledInstruction(n, inner),
-            None => Term::Instruction(inner),
-            Some(_) => unreachable!(),
-        },
-    )(i)
+    ))(i)
 }
 
 fn parse_instruction_name(i: &str) -> MyParseResult<(Option<String>, String)> {
@@ -170,34 +163,35 @@ fn parse_instruction_elements(i: &str) -> MyParseResult<Vec<Term>> {
 
 fn parse_instruction_element(i: &str) -> MyParseResult<Term> {
     alt((
-        parse_variable_elem,
-        parse_number_elem,
-        parse_bool_elem,
-        parse_name_elem,
+        parse_variable_term,
+        parse_number_term,
+        parse_bool_term,
+        parse_name_term,
         map(parse_type_elem, |t| Term::Type(t)),
         parse_tuple_elem,
     ))(i)
 }
 
-fn parse_variable_elem(i: &str) -> MyParseResult<Term> {
+fn parse_variable_term(i: &str) -> MyParseResult<Term> {
     map(preceded(char('$'), cut(parse_u8)), |v| {
         Term::Variable(Var(v))
     })(i)
 }
 
-fn parse_number_elem(i: &str) -> MyParseResult<Term> {
+fn parse_number_term(i: &str) -> MyParseResult<Term> {
     map(parse_u64, |n| Term::Number(n.try_into().unwrap()))(i)
 }
 
-fn parse_bool_elem(i: &str) -> MyParseResult<Term> {
+fn parse_bool_term(i: &str) -> MyParseResult<Term> {
     map(parse_bool, |b| Term::Bool(b))(i)
 }
 
-fn parse_name_elem(i: &str) -> MyParseResult<Term> {
-    map(
-        preceded(char('@'), separated_list1(char(':'), parse_identifier)),
-        |ns| Term::Name(ns),
-    )(i)
+fn parse_name_term(i: &str) -> MyParseResult<Term> {
+    map(parse_name, |ns| Term::Name(ns))(i)
+}
+
+fn parse_name(i: &str) -> MyParseResult<Vec<String>> {
+    preceded(char('@'), separated_list1(char(':'), parse_identifier))(i)
 }
 
 fn parse_type_elem(i: &str) -> MyParseResult<TypeTerm> {
@@ -253,7 +247,7 @@ fn parse_function_elem(i: &str) -> MyParseResult<FunctionTerm> {
                     ws(separated_list0(
                         ws(char(',')),
                         separated_pair(
-                            parse_variable_elem,
+                            parse_variable_term,
                             cut(ws(char(':'))),
                             cut(parse_type_elem),
                         ),
