@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fmt::Display};
 
 use crate::{
-    bytecode::{Function, Module},
+    bytecode::{Function, Module, FunctionLocation},
     dialect::Var,
     memory::{Pointer, ARRAY_HEADER_SIZE, STRING_HEADER_SIZE},
     vm::VM,
@@ -134,13 +134,14 @@ impl TypeEnvironment {
     }
 }
 
-pub fn typecheck(vm: &VM, m: &Module, f: &mut Function) -> Result<(), TypeError> {
+pub fn typecheck(vm: &VM, fun: FunctionLocation) -> Result<(), TypeError> {
     let mut t = TypeEnvironment::default();
+    let (module, function) = vm.module_loader.lookup(fun).unwrap();
 
-    let ast =  f.ast_impl().unwrap();
+    let ast =  function.ast_impl().unwrap();
 
     for instr in ast.instructions.iter() {
-        let r = instr.typecheck(vm, m, f, &mut t);
+        let r = instr.typecheck(vm, module, function, &mut t);
         if r.is_err() {
             return r;
         }
@@ -149,6 +150,7 @@ pub fn typecheck(vm: &VM, m: &Module, f: &mut Function) -> Result<(), TypeError>
     Ok(())
 }
 
+#[derive(Debug)]
 pub enum TypeError {
     Mismatch { expected: Type, was: Type, var: Var },
     Missing { var: Var }

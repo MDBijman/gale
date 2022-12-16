@@ -92,7 +92,7 @@ fn vm_print_bin(args: &ArgMatches) {
     let module = vm.module_loader.get_module_by_id(id).expect("missing impl");
     let func = module.get_function_by_name(function_name).unwrap();
     let mut state = galejit::JITState::default();
-    galejit::compile(&vm, &module, &mut func, &mut state);
+    galejit::compile(&vm, func.location(), &mut state);
     let hex_string = galejit::to_hex_string(&mut state, func);
     print!("{}", hex_string);
 }
@@ -124,7 +124,7 @@ fn vm_print_asm(args: &ArgMatches) {
     };
 
     let mut state = galejit::JITState::default();
-    galejit::compile(&vm, &module, &mut func, &mut state);
+    galejit::compile(&vm, func.location(), &mut state);
     let bytes = galejit::get_function_bytes(&mut state, func);
 
     // Use iced_x86 to decompile

@@ -94,7 +94,7 @@ fn main() {
     };
     let verbosity_level = matches.occurrences_of("verbosity");
 
-    let vm = if verbosity_level == 0 {
+    let mut vm = if verbosity_level == 0 {
         VM::new(module_loader)
     } else {
         println!("verbosity: {} - enabling debug output", verbosity_level);
@@ -105,12 +105,13 @@ fn main() {
         .module_loader
         .get_module_by_id(main_module_id)
         .expect("missing impl");
+    let main_function_location = main_module.get_function_by_name("main").unwrap().location();
 
     if debug_mode {
         let debugger = crate::debugger::MyDebugger {};
-        vm.run_with_debugger(main_module, arguments, Some(&debugger), use_jit)
+        vm.run_with_debugger(main_function_location, arguments, Some(&debugger), use_jit)
     } else {
-        vm.run(main_module, arguments, use_jit)
+        vm.run(main_function_location, arguments, use_jit)
     };
 
     let finish_time = startup_time.elapsed().unwrap().as_nanos();

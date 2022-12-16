@@ -49,11 +49,11 @@ impl ModuleLoader {
     pub fn add_module(&mut self, mut m: Module) -> ModuleId {
         assert!(self.interfaces.len() != u16::MAX.into());
 
-        m.id = self
+        m.set_id(self
             .implementations
             .len()
             .try_into()
-            .expect("too many modules");
+            .expect("too many modules"));
 
         let id = m.id;
 
@@ -70,6 +70,13 @@ impl ModuleLoader {
         }
     }
 
+    pub fn get_module_by_id_mut(&mut self, id: ModuleId) -> Option<&mut Module> {
+        match self.implementations.get_mut(id as usize).map(|o| o.as_mut()) {
+            Some(Some(m)) => Some(m),
+            _ => None,
+        }
+    }
+
     pub fn get_module_by_name(&self, name: &str) -> Option<&Module> {
         match self
             .implementations
@@ -80,6 +87,46 @@ impl ModuleLoader {
             _ => None,
         }
     }
+
+    pub fn get_module_by_name_mut(&mut self, name: &str) -> Option<&mut Module> {
+        match self
+            .implementations
+            .iter_mut()
+            .find(|m| m.is_some() && m.as_ref().unwrap().name.as_str() == name)
+        {
+            Some(Some(m)) => Some(m),
+            _ => None,
+        }
+    }
+
+    pub fn lookup(&self, location: FunctionLocation) -> Option<(&Module, &Function)> {
+        if let Some(module) = self.get_module_by_id(location.module) {
+            if let Some(function) = module.get_function_by_id(location.function) {
+                return Some((module, function));
+            }
+        }
+
+        None
+    }
+
+    pub fn lookup_module_mut(&mut self, location: FunctionLocation) -> Option<&mut Module> {
+        if let Some(module) = self.get_module_by_id_mut(location.module) {
+            return Some(module)
+        }
+
+        None
+    }
+
+    pub fn lookup_function_mut(&mut self, location: FunctionLocation) -> Option<&mut Function> {
+        if let Some(module) = self.get_module_by_id_mut(location.module) {
+            if let Some(function) = module.get_function_by_id_mut(location.function) {
+                return Some(function);
+            }
+        }
+
+        None
+    }
+
 
     pub fn make_type_from_term(&self, tterm: &TypeTerm) -> Type {
         match tterm {
@@ -240,7 +287,7 @@ impl From<&Module> for ModuleInterface {
 #[derive(Debug, Clone)]
 pub struct Module {
     pub name: String,
-    pub id: ModuleId,
+    id: ModuleId,
     pub types: Vec<TypeDecl>,
     pub constants: Vec<ConstDecl>,
     pub functions: Vec<Function>,
@@ -273,6 +320,17 @@ impl Module {
         module.types = types;
 
         module
+    }
+
+    pub fn set_id(&mut self, id: ModuleId) {
+        self.id = id;
+        for func in self.functions.iter_mut() {
+            func.module = id;
+        }
+    }
+
+    pub fn id(&self) -> ModuleId {
+        self.id
     }
 
     pub extern "C" fn write_constant_to_heap(
@@ -320,6 +378,10 @@ impl Module {
         Some(&self.functions[lbl as usize])
     }
 
+    pub fn get_function_by_id_mut(&mut self, lbl: FnId) -> Option<&mut Function> {
+        Some(&mut self.functions[lbl as usize])
+    }
+
     pub fn get_type_by_id(&self, lbl: TypeId) -> Option<&Type> {
         Some(
             self.types
@@ -365,7 +427,11 @@ impl TypeDecl {
     }
 }
 
-
+#[derive(Clone, Copy)]
+pub struct FunctionLocation {
+    pub(crate) module: ModuleId,
+    pub(crate) function: FnId,
+}
 
 /*
 * Compact representations of the larger datatypes for interpretation and compilation
@@ -395,14 +461,15 @@ pub struct CallTarget {
 }
 
 impl CallTarget {
-    pub fn new(module: ModuleId, function: FnId) -> Self {
-        Self { module, function }
+    pub fn new(location: FunctionLocation) -> Self {
+        Self { module: location.module, function: location.function }
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct Function {
     pub name: String,
+    pub module: ModuleId,
     pub location: FnId,
     pub type_id: TypeId,
     pub variable_types: Option<TypeEnvironment>,
@@ -413,6 +480,7 @@ impl Function {
     pub fn new(name: String, type_id: TypeId) -> Function {
         Function {
             name,
+            module: ModuleId::MAX,
             location: FnId::MAX,
             type_id,
             variable_types: None,
@@ -423,11 +491,16 @@ impl Function {
     pub fn new_native(name: String, type_id: TypeId, native: extern "C" fn() -> ()) -> Function {
         Function {
             name,
+            module: ModuleId::MAX,
             location: FnId::MAX,
             type_id,
             variable_types: None,
             implementations: vec![FunctionImpl::Native(NativeImpl { fn_ptr: native })],
         }
+    }
+
+    pub fn location(&self) -> FunctionLocation {
+        FunctionLocation { module: self.module, function: self.location }
     }
 
     pub fn has_ast_impl(&self) -> bool {

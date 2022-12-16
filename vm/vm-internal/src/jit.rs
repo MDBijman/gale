@@ -1,4 +1,4 @@
-use crate::bytecode::{ASTImpl, CallTarget, ConstId, FnId, Function, InstrLbl, Module, TypeId};
+use crate::bytecode::{ASTImpl, CallTarget, ConstId, FnId, Function, InstrLbl, Module, TypeId, FunctionLocation};
 use crate::cfg::{BasicBlock, ControlFlowGraph};
 use crate::dialect::{Instruction, Var};
 use crate::memory::{self, Pointer};
@@ -265,7 +265,11 @@ pub fn to_hex_string(state: &mut JITState, func: &Function) -> String {
     out
 }
 
-pub fn compile(vm: &VM, module: &Module, func: &mut Function, state: &mut JITState) {
+pub fn compile(vm: &VM, func: FunctionLocation, state: &mut JITState) {
+    typecheck(vm, func).unwrap();
+
+    let (module, func) = vm.module_loader.lookup(func).unwrap();
+
     let implementation = func
         .ast_impl()
         .expect("Can only JIT function with bytecode implementation");
@@ -274,7 +278,6 @@ pub fn compile(vm: &VM, module: &Module, func: &mut Function, state: &mut JITSta
         .variable_types()
         .expect("Can only JIT function that has been typechecked");
 
-    typecheck(vm, module, func);
     let cfg = ControlFlowGraph::from_function_instructions(func);
     let mut fn_state = FunctionJITState::new(func.location);
     let native_fn_loc = fn_state.ops.offset();

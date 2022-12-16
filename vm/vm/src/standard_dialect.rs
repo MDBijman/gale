@@ -1330,19 +1330,13 @@ impl Call {
     fn resolve<'a>(&self, vm: &'a VM, current_module: u16) -> (&'a Module, &'a Function) {
         let (callee_module, callee_function) = if self.1 .0.len() == 2 {
             let module = vm.module_loader.get_module_by_name(&self.1 .0[0]).unwrap();
-            let callee = vm
-                .module_loader
-                .get_module_by_id(module.id)
-                .unwrap()
+            let callee = module
                 .get_function_by_name(self.1 .0[1].as_str())
                 .expect("invalid callee");
             (module, callee)
         } else if self.1 .0.len() == 1 {
             let module = vm.module_loader.get_module_by_id(current_module).unwrap();
-            let callee = vm
-                .module_loader
-                .get_module_by_id(current_module)
-                .unwrap()
+            let callee = module
                 .get_function_by_name(self.1 .0[0].as_str())
                 .expect("invalid callee");
             (module, callee)
@@ -1422,7 +1416,7 @@ impl Instruction for Call {
             state.interpreter_state.call_info.push(new_ci);
             state.interpreter_state.ip = 0;
             state.interpreter_state.func = callee_function.location;
-            state.interpreter_state.module = callee_module.id;
+            state.interpreter_state.module = callee_module.id();
         } else {
             panic!("no available implementation");
         }
@@ -1443,9 +1437,9 @@ impl InstrToBytecode for Call {
 impl InstrToX64 for Call {
     fn emit(&self, vm: &VM, module: &Module, state: &mut FunctionJITState, _: InstrLbl) {
         assert!(self.2 .0.len() == 1);
-        let (_, resolved_function) = self.resolve(vm, module.id);
+        let (_, resolved_function) = self.resolve(vm, module.id());
         let memory = state.variable_locations.as_ref().unwrap();
-        let module = module.id;
+        let module = module.id();
         let res = self.0;
         let arg = self.2 .0[0];
         let ops = &mut state.ops;

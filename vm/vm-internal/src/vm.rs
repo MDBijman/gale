@@ -1,4 +1,4 @@
-use crate::bytecode::{CallTarget, Function, Module, ModuleLoader};
+use crate::bytecode::{CallTarget, FunctionLocation, Module, ModuleLoader};
 use crate::interpreter::{Interpreter, InterpreterState};
 use crate::jit::{self, JITState};
 use crate::memory::{Heap, Pointer, ARRAY_HEADER_SIZE};
@@ -62,13 +62,14 @@ impl VM {
         }
     }
 
-    pub fn run(&self, main_module: &mut Module, args: Vec<String>, jit: bool) -> VMState {
-        self.run_with_debugger(main_module, args, None, jit)
+
+    pub fn run(&mut self, location: FunctionLocation, args: Vec<String>, jit: bool) -> VMState {
+        self.run_with_debugger(location, args, None, jit)
     }
 
     pub fn run_with_debugger(
-        &self,
-        main_module: &mut Module,
+        &mut self,
+        location: FunctionLocation,
         args: Vec<String>,
         debug: Option<&dyn VMDebugger>,
         jit: bool,
@@ -77,11 +78,10 @@ impl VM {
             panic!("Cannot debug jitting VM instance yet");
         }
 
-        let main_id = main_module.find_function_id("main").expect("function");
-        let main_fn = main_module.get_function_by_name("main").expect("function");
-        let ast = main_fn.ast_impl().expect("ast impl");
-        let main_type = main_module
-            .get_type_by_id(main_fn.type_id)
+        let (module, function) = self.module_loader.lookup(location).unwrap();
+        let ast = function.ast_impl().expect("ast impl");
+        let main_type = module
+            .get_type_by_id(function.type_id)
             .expect("main function type idx");
 
         let expected_main_type: Type = Type::fun(
@@ -103,7 +103,7 @@ impl VM {
         log::info!(target: "config", "JIT: {}", jit);
 
         let mut state = VMState::new(
-            CallTarget::new(main_module.id, main_id),
+            CallTarget::new(function.location()),
             main_frame_size.into(),
             self.debug,
         );
@@ -132,22 +132,15 @@ impl VM {
 
         if jit {
             /* Compile the fib function */
-            match main_module.get_function_by_name_mut("fib") {
-                Some(fib_fn) => {
-                    jit::compile(&self, &main_module, &mut fib_fn, &mut state.jit_state);
-                }
-                _ => {}
+            if let Some(function) = module.get_function_by_name("fib") {
+                jit::compile(&self, function.location(), &mut state.jit_state);
             }
 
-            let main_fn = main_module
-                .get_function_by_name_mut("main")
-                .expect("function");
-
-            self.run_jit(main_module, main_fn, &mut state, args_ptr);
+            self.run_jit(location, &mut state, args_ptr);
         } else if debug.is_none() {
-            self.run_interp(main_module, &mut state, args_ptr);
+            self.run_interp(module, &mut state, args_ptr);
         } else if debug.is_some() {
-            self.run_interp_with_debugger(main_module, &mut state, args_ptr, debug.unwrap());
+            self.run_interp_with_debugger(module, &mut state, args_ptr, debug.unwrap());
         }
 
         log::debug!(target: "vm", "execution finished");
@@ -159,21 +152,20 @@ impl VM {
 
     fn run_jit(
         &self,
-        main_module: &Module,
-        function: &mut Function,
+        target: FunctionLocation,
         state: &mut VMState,
         args_ptr: Pointer,
     ) {
         let start = time::SystemTime::now();
 
         /* Compile the main function */
-        jit::compile(&self, &main_module, function, &mut state.jit_state);
+        jit::compile(&self, target, &mut state.jit_state);
 
         /* Run the main function in compiled mode */
         let res = jit::call_if_compiled(
             self,
             state,
-            CallTarget::new(main_module.id, function.location),
+            CallTarget::new(target),
             args_ptr,
         );
 
@@ -185,11 +177,11 @@ impl VM {
     fn run_interp(&self, main_module: &Module, state: &mut VMState, args_ptr: Pointer) {
         let start = time::SystemTime::now();
 
-        let main_id = main_module.find_function_id("main").expect("function");
+        let main = main_module.get_function_by_name("main").expect("function");
 
         state
             .interpreter_state
-            .init(CallTarget::new(main_module.id, main_id), args_ptr);
+            .init(CallTarget::new(main.location()), args_ptr);
 
         while self.interpreter.step(self, state) {}
 
@@ -216,11 +208,11 @@ impl VM {
     ) {
         let start = time::SystemTime::now();
 
-        let main_id = main_module.find_function_id("main").expect("function");
+        let main = main_module.get_function_by_name("main").expect("function");
 
         state
             .interpreter_state
-            .init(CallTarget::new(main_module.id, main_id), args_ptr);
+            .init(CallTarget::new(main.location()), args_ptr);
 
         /* Run the program in interpreted mode */
         while self.interpreter.step(self, state) {

@@ -41,12 +41,15 @@ fn run_testcase(testcase: TestCase, jit: bool) {
         .collect::<Vec<String>>();
     let ret = testcase.ret.unwrap_or(0);
 
-    let vm = VM::new(testcase.module_loader);
+    let mut vm = VM::new(testcase.module_loader);
     print!("Running {} ...", testcase.name);
     let state = vm.run(
         vm.module_loader
             .get_module_by_id(testcase.main_module_id)
-            .expect("missing module impl"),
+            .expect("missing module impl")
+            .get_function_by_name("main")
+            .unwrap()
+            .location(),
         args,
         jit,
     );
