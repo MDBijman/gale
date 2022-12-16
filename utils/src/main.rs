@@ -76,7 +76,7 @@ fn main() {
 /// The function is specified by the `function` command line argument.
 /// The module is specified by the `bytecode` command line argument.
 ///
-/// Arguments: 
+/// Arguments:
 /// * `args`: Command line arguments
 fn vm_print_bin(args: &ArgMatches) {
     let function_name = args.value_of("function").unwrap();
@@ -85,15 +85,15 @@ fn vm_print_bin(args: &ArgMatches) {
         todo!("print-bin arch option")
     }
 
-    let mut module_loader = ModuleLoader::from_module(std_module());
-    let id = module_loader.load_module(file_name).unwrap();
-    let module = module_loader
-        .get_module_by_id(id)
-        .expect("missing impl");
+    let mut vm = VM::new(ModuleLoader::from_module(std_module()));
+    vm.module_loader.add_dialect(Box::from(standard_dialect::StandardDialect {}));
+    vm.module_loader.set_default_dialect("std");
+    let id = vm.module_loader.load_module(file_name).unwrap();
+    let module = vm.module_loader.get_module_by_id(id).expect("missing impl");
     let func = module.get_function_by_name(function_name).unwrap();
-    let mut state = JITState::default();
-    JITEngine::compile(&mut state, &module, func);
-    let hex_string = JITEngine::to_hex_string(&mut state, func);
+    let mut state = galejit::JITState::default();
+    galejit::compile(&vm, &module, &mut func, &mut state);
+    let hex_string = galejit::to_hex_string(&mut state, func);
     print!("{}", hex_string);
 }
 
@@ -102,7 +102,7 @@ fn vm_print_bin(args: &ArgMatches) {
 /// The function is specified by the `function` command line argument.
 /// The module is specified by the `bytecode` command line argument.
 ///
-/// Arguments: 
+/// Arguments:
 /// * `args`: Command line arguments
 fn vm_print_asm(args: &ArgMatches) {
     let function_name = args.value_of("function").unwrap();
@@ -112,20 +112,20 @@ fn vm_print_asm(args: &ArgMatches) {
         todo!("print-asm arch option")
     }
 
-    let mut module_loader = ModuleLoader::from_module(std_module());
-    let id = module_loader.load_module(file_name).unwrap();
-    let module = module_loader
-        .get_module_by_id(id)
-        .expect("missing impl");
+    let mut vm = VM::new(ModuleLoader::from_module(std_module()));
+    vm.module_loader.add_dialect(Box::from(standard_dialect::StandardDialect {}));
+    vm.module_loader.set_default_dialect("std");
+    let id = vm.module_loader.load_module(file_name).unwrap();
+    let module = vm.module_loader.get_module_by_id(id).expect("missing impl");
 
     let func = match module.get_function_by_name(function_name) {
         Some(r) => r,
-        None => panic!("No such function: {}", function_name)
+        None => panic!("No such function: {}", function_name),
     };
 
-    let mut state = JITState::default();
-    JITEngine::compile(&mut state, &module, func);
-    let bytes = JITEngine::get_function_bytes(&mut state, func);
+    let mut state = galejit::JITState::default();
+    galejit::compile(&vm, &module, &mut func, &mut state);
+    let bytes = galejit::get_function_bytes(&mut state, func);
 
     // Use iced_x86 to decompile
     use iced_x86::{Decoder, Formatter, Instruction, NasmFormatter};
@@ -148,17 +148,17 @@ fn vm_print_asm(args: &ArgMatches) {
 /// The function is specified by the `function` command line argument.
 /// The module is specified by the `bytecode` command line argument.
 ///
-/// Arguments: 
+/// Arguments:
 /// * `args`: Command line arguments
 fn vm_print_lifetimes(args: &ArgMatches) {
     let function_name = args.value_of("function").unwrap();
     let file_name = args.value_of("bytecode").unwrap();
 
     let mut module_loader = ModuleLoader::from_module(std_module());
+    module_loader.add_dialect(Box::from(standard_dialect::StandardDialect {}));
+    module_loader.set_default_dialect("std");
     let id = module_loader.load_module(file_name).unwrap();
-    let module = module_loader
-        .get_module_by_id(id)
-        .expect("missing impl");
+    let module = module_loader.get_module_by_id(id).expect("missing impl");
     let func = module.get_function_by_name(function_name).unwrap();
     let cfg = ControlFlowGraph::from_function_instructions(func);
     let intervals = &cfg.liveness_intervals(func);

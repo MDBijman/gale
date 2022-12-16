@@ -1,4 +1,4 @@
-use crate::bytecode::{Size, Type};
+use crate::typechecker::{Size, Type};
 
 ///
 /// This is the capacity in bytes with which the heap space is initialized.

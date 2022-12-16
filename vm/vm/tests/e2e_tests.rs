@@ -21,6 +21,7 @@ fn make_test_case(name: &str, stdin: &str, out: u64) -> TestCase {
 
     let mut ml = ModuleLoader::from_module(std_module());
     ml.add_dialect(Box::from(standard_dialect::StandardDialect {}));
+    ml.set_default_dialect("std");
     let main_module_id = ml.load_module(bytecode_path.to_str().unwrap()).unwrap();
 
     TestCase {

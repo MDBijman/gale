@@ -1,10 +1,11 @@
 use crate::dialect::{Dialect, Instruction, InstructionBuffer, InstructionParseError, Var, LabelInstruction};
-use crate::memory::{Heap, Pointer, ARRAY_HEADER_SIZE, STRING_HEADER_SIZE};
+use crate::memory::{Heap, Pointer};
 use crate::parser::{
     parse_bytecode_file_new, FunctionTerm, ModuleTerm, ParserError, Term, TypeTerm,
 };
+use crate::typechecker::{TypeEnvironment, Type, Size};
 use std::collections::{HashMap, HashSet};
-use std::{convert::TryInto, fmt::Display};
+use std::{convert::TryInto};
 
 #[derive(Default)]
 pub struct ModuleLoader {
@@ -22,8 +23,7 @@ pub struct ModuleLoader {
 
 impl ModuleLoader {
     pub fn new() -> ModuleLoader {
-        let mut ml = ModuleLoader::default();
-        ml
+        ModuleLoader::default()
     }
 
     pub fn from_module(m: Module) -> ModuleLoader {
@@ -275,41 +275,6 @@ impl Module {
         module
     }
 
-    // pub fn from_long_functions(
-    //     module_loader: &ModuleLoader,
-    //     name: String,
-    //     mut types: Vec<TypeDecl>,
-    //     consts: Vec<ConstDecl>,
-    //     fns: Vec<LongFunction>,
-    // ) -> Module {
-    //     let mut compact_fns = Vec::new();
-
-    //     let mut mapping = HashMap::new();
-    //     for (idx, f) in fns.iter().enumerate() {
-    //         mapping.insert(f.name.clone(), idx as u16);
-    //     }
-
-    //     for f in fns.into_iter() {
-    //         compact_fns.push(Function::from_long_instr(
-    //             f,
-    //             module_loader,
-    //             &mapping,
-    //             &mut types,
-    //         ));
-    //     }
-
-    //     let mut compact_consts = Vec::new();
-    //     for c in consts.into_iter() {
-    //         compact_consts.push(ConstDecl {
-    //             idx: c.idx,
-    //             type_: c.type_,
-    //             value: c.value,
-    //         });
-    //     }
-
-    //     Module::from(name, types, compact_consts, compact_fns)
-    // }
-
     pub extern "C" fn write_constant_to_heap(
         heap: &mut Heap,
         ty: &Type,
@@ -347,6 +312,10 @@ impl Module {
         Some(self.functions.iter().find(|f| f.name == name)?)
     }
 
+    pub fn get_function_by_name_mut(&mut self, name: &str) -> Option<&mut Function> {
+        Some(self.functions.iter_mut().find(|f| f.name == name)?)
+    }
+
     pub fn get_function_by_id(&self, lbl: FnId) -> Option<&Function> {
         Some(&self.functions[lbl as usize])
     }
@@ -364,102 +333,6 @@ impl Module {
         Some(self.constants.iter().find(|f| f.idx == lbl)?)
     }
 }
-
-/*
-* Long datatypes that are parsed from files.
-*/
-
-// #[derive(Debug, Clone)]
-// pub enum LongInstruction {
-//     ConstU32(VarId, u32),
-//     ConstBool(VarId, bool),
-//     Copy(VarId, VarId),
-//     CopyAddress(VarId, Option<String>, String),
-//     CopyIntoIndex(VarId, u8, VarId),
-//     CopyAddressIntoIndex(VarId, u8, Option<String>, String),
-//     EqVarVar(VarId, VarId, VarId),
-//     LtVarVar(VarId, VarId, VarId),
-//     SubVarVar(VarId, VarId, VarId),
-//     AddVarVar(VarId, VarId, VarId),
-//     MulVarVar(VarId, VarId, VarId),
-//     NotVar(VarId, VarId),
-
-//     Return(VarId),
-//     Print(VarId),
-
-//     Call(VarId, String, Vec<VarId>),
-//     ModuleCall(VarId, String, String, Vec<VarId>),
-//     VarCall(VarId, VarId, Vec<VarId>),
-
-//     Jmp(String),
-//     JmpIf(String, VarId),
-//     JmpIfNot(String, VarId),
-
-//     Alloc(VarId, Type),
-//     LoadConst(VarId, ConstId),
-//     Sizeof(VarId, VarId),
-//     LoadVar(VarId, VarId, Type),
-//     StoreVar(VarId, VarId, Type),
-//     Index(VarId, VarId, VarId, Type),
-//     Tuple(VarId, u8),
-
-//     Lbl(String),
-//     Panic,
-// }
-
-// impl Into<Instruction> for LongInstruction {
-//     fn into(self) -> Instruction {
-//         use LongInstruction::*;
-
-//         match self {
-//             ConstU32(a, b) => Instruction::ConstU32(a, b),
-//             ConstBool(a, b) => Instruction::ConstBool(a, b),
-//             Copy(a, b) => Instruction::Copy(a, b),
-//             EqVarVar(a, b, c) => Instruction::EqVarVar(a, b, c),
-//             LtVarVar(a, b, c) => Instruction::LtVarVar(a, b, c),
-//             SubVarVar(a, b, c) => Instruction::SubVarVar(a, b, c),
-//             AddVarVar(a, b, c) => Instruction::AddVarVar(a, b, c),
-//             MulVarVar(a, b, c) => Instruction::MulVarVar(a, b, c),
-//             NotVar(a, b) => Instruction::NotVar(a, b),
-//             Return(v) => Instruction::Return(v),
-//             Print(v) => Instruction::Print(v),
-//             Panic => Instruction::Panic,
-//             Sizeof(a, b) => Instruction::Sizeof(a, b),
-//             LoadConst(a, b) => Instruction::LoadConst(a, b),
-//             Tuple(a, b) => Instruction::Tuple(a, b),
-//             CopyIntoIndex(a, b, c) => Instruction::CopyIntoIndex(a, b, c),
-
-//             s => panic!(
-//                 "This instruction variant cannot be converted automatically: {:?}",
-//                 s
-//             ),
-//         }
-//     }
-// }
-
-// #[derive(Debug, Clone)]
-// pub struct LongFunction {
-//     pub name: String,
-//     pub varcount: u8,
-//     pub instructions: Vec<LongInstruction>,
-//     pub type_: Type,
-// }
-
-// impl LongFunction {
-//     pub fn new(
-//         name: String,
-//         varcount: u8,
-//         instructions: Vec<LongInstruction>,
-//         type_: Type,
-//     ) -> Self {
-//         Self {
-//             name,
-//             varcount,
-//             instructions,
-//             type_,
-//         }
-//     }
-// }
 
 #[derive(Debug, Clone)]
 pub struct Param {
@@ -492,103 +365,7 @@ impl TypeDecl {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum Size {
-    Unsized,
-    Sized(usize),
-}
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum Type {
-    U64,
-    Any,
-    Array(Box<Type>, Size),
-    Tuple(Vec<Type>),
-    Pointer(Box<Type>),
-    Fn(Box<Type>, Box<Type>),
-    Str(Size),
-    Unit,
-}
-
-impl Display for Type {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Type::U64 => write!(f, "ui64"),
-            Type::Str(_) => write!(f, "str"),
-            Type::Any => write!(f, "?"),
-            Type::Tuple(t) => {
-                write!(f, "(")?;
-                let mut i = t.iter();
-                match i.next() {
-                    Some(e) => {
-                        write!(f, "{}", e)?;
-                        for e in i {
-                            write!(f, ", {}", e)?;
-                        }
-                    }
-                    None => {}
-                }
-                write!(f, ")")
-            }
-            Type::Fn(i, o) => write!(f, "{} -> {}", i, o),
-            Type::Pointer(r) => write!(f, "&{}", r),
-            Type::Array(e, s) => match s {
-                Size::Sized(size) => {
-                    write!(f, "[{}; {}]", e, size)
-                }
-                Size::Unsized => write!(f, "[{}]", e),
-            },
-            Type::Unit => write!(f, "()"),
-        }
-    }
-}
-
-impl Type {
-    pub fn sized_array(type_: Type, len: usize) -> Type {
-        Type::Array(Box::from(type_), Size::Sized(len))
-    }
-
-    pub fn unsized_array(type_: Type) -> Type {
-        Type::Array(Box::from(type_), Size::Unsized)
-    }
-
-    pub fn unsized_string() -> Type {
-        Type::Str(Size::Unsized)
-    }
-
-    pub fn tuple(types: Vec<Type>) -> Type {
-        Type::Tuple(types)
-    }
-
-    pub fn fun_n(from: Vec<Type>, to: Type) -> Type {
-        Type::Fn(Box::from(Type::Tuple(from)), Box::from(to))
-    }
-
-    pub fn fun(from: Type, to: Type) -> Type {
-        Type::Fn(Box::from(from), Box::from(to))
-    }
-
-    pub fn ptr(inner: Type) -> Type {
-        Type::Pointer(Box::from(inner))
-    }
-
-    pub fn size(&self) -> usize {
-        match self {
-            Self::U64 => std::mem::size_of::<u64>(),
-            Self::Pointer(_) => std::mem::size_of::<Pointer>(),
-            Self::Array(_ty, len) => match len {
-                Size::Unsized => panic!("Cannot get size of unsized array"),
-                Size::Sized(len) => _ty.size() * len + ARRAY_HEADER_SIZE,
-            },
-            Self::Tuple(_tys) => _tys.iter().map(|t| t.size()).sum(),
-            Self::Str(len) => match len {
-                Size::Unsized => panic!("Cannot get size of unsized string"),
-                Size::Sized(len) => len + STRING_HEADER_SIZE + 1, /* \0 byte */
-            },
-            _ => panic!("No such size"),
-        }
-    }
-}
 
 /*
 * Compact representations of the larger datatypes for interpretation and compilation
@@ -623,142 +400,12 @@ impl CallTarget {
     }
 }
 
-// #[derive(Debug, Clone, Copy)]
-// pub enum Instruction {
-//     ConstU32(VarId, u32),
-//     ConstBool(VarId, bool),
-//     Copy(VarId, VarId),
-//     CopyAddress(VarId, CallTarget),
-//     CopyIntoIndex(VarId, u8, VarId),
-//     CopyAddressIntoIndex(VarId, u8, CallTarget),
-//     EqVarVar(VarId, VarId, VarId),
-//     LtVarVar(VarId, VarId, VarId),
-//     SubVarVar(VarId, VarId, VarId),
-//     AddVarVar(VarId, VarId, VarId),
-//     MulVarVar(VarId, VarId, VarId),
-//     NotVar(VarId, VarId),
-
-//     Return(VarId),
-//     Print(VarId),
-//     CallN(VarId, FnId, VarId, u8),
-//     ModuleCall(VarId, CallTarget, VarId),
-//     VarCallN(VarId, VarId, VarId, u8),
-//     Jmp(InstrLbl),
-//     JmpIf(InstrLbl, VarId),
-//     JmpIfNot(InstrLbl, VarId),
-
-//     Tuple(VarId, u8),
-//     Alloc(VarId, TypeId),
-//     LoadConst(VarId, ConstId),
-//     LoadVar(VarId, VarId, TypeId),
-//     StoreVar(VarId, VarId, TypeId),
-//     Index(VarId, VarId, VarId, TypeId),
-//     Sizeof(VarId, VarId),
-//     Lbl,
-//     Nop,
-//     Panic,
-// }
-
-// impl Instruction {
-//     pub fn write_variables(&self) -> Vec<VarId> {
-//         use Instruction::*;
-//         match self {
-//             ConstU32(r, _)
-//             | ConstBool(r, _)
-//             | LtVarVar(r, _, _)
-//             | EqVarVar(r, _, _)
-//             | Copy(r, _)
-//             | CopyAddress(r, _)
-//             | CopyIntoIndex(r, _, _)
-//             | CopyAddressIntoIndex(r, _, _)
-//             | SubVarVar(r, _, _)
-//             | AddVarVar(r, _, _)
-//             | MulVarVar(r, _, _)
-//             | Alloc(r, _)
-//             | LoadVar(r, _, _)
-//             | NotVar(r, _)
-//             | CallN(r, _, _, _)
-//             | VarCallN(r, _, _, _)
-//             | Index(r, _, _, _)
-//             | LoadConst(r, _)
-//             | Sizeof(r, _)
-//             | Tuple(r, _)
-//             | ModuleCall(r, _, _) => vec![*r],
-//             JmpIfNot(_, _)
-//             | JmpIf(_, _)
-//             | Jmp(_)
-//             | Return(_)
-//             | Print(_)
-//             | Nop
-//             | Panic
-//             | StoreVar(_, _, _)
-//             | Lbl => vec![],
-//         }
-//     }
-
-//     pub fn read_variables(&self) -> Vec<VarId> {
-//         use Instruction::*;
-//         match self {
-//             LtVarVar(_, b, c)
-//             | EqVarVar(_, b, c)
-//             | SubVarVar(_, b, c)
-//             | MulVarVar(_, b, c)
-//             | StoreVar(b, c, _)
-//             | Index(_, b, c, _)
-//             | AddVarVar(_, b, c) => vec![*b, *c],
-//             JmpIfNot(_, a)
-//             | NotVar(_, a)
-//             | ModuleCall(_, _, a)
-//             | Return(a)
-//             | Print(a)
-//             | Sizeof(_, a)
-//             | JmpIf(_, a)
-//             | LoadVar(_, a, _)
-//             | CopyIntoIndex(_, _, a)
-//             | Copy(_, a) => vec![*a],
-//             Lbl
-//             | ConstU32(_, _)
-//             | ConstBool(_, _)
-//             | Jmp(_)
-//             | Alloc(_, _)
-//             | LoadConst(_, _)
-//             | Tuple(_, _)
-//             | Nop
-//             | CopyAddress(_, _)
-//             | CopyAddressIntoIndex(_, _, _)
-//             | Panic => vec![],
-//             CallN(_, _, a, b) => (*a..=(a + *b)).collect(),
-//             VarCallN(_, t, a, b) => (*a..=(a + *b)).chain(vec![*t].into_iter()).collect(),
-//         }
-//     }
-
-//     pub fn get_call_target(
-//         &self,
-//         state: &crate::interpreter::InterpreterState,
-//         default_mod: ModuleId,
-//     ) -> Option<CallTarget> {
-//         use Instruction::*;
-//         match self {
-//             CallN(_, loc, _, _) => Some(CallTarget::new(default_mod, *loc)),
-//             ModuleCall(_, ct, _) => Some(*ct),
-//             VarCallN(_, loc, _, _) => Some(
-//                 state
-//                     .get_stack_var(*loc)
-//                     .as_call_target()
-//                     .expect("invalid type")
-//                     .clone(),
-//             ),
-//             _ => None,
-//         }
-//     }
-// }
-
-
 #[derive(Debug, Clone)]
 pub struct Function {
     pub name: String,
     pub location: FnId,
     pub type_id: TypeId,
+    pub variable_types: Option<TypeEnvironment>,
     pub implementations: Vec<FunctionImpl>,
 }
 
@@ -768,6 +415,7 @@ impl Function {
             name,
             location: FnId::MAX,
             type_id,
+            variable_types: None,
             implementations: vec![],
         }
     }
@@ -777,6 +425,7 @@ impl Function {
             name,
             location: FnId::MAX,
             type_id,
+            variable_types: None,
             implementations: vec![FunctionImpl::Native(NativeImpl { fn_ptr: native })],
         }
     }
@@ -820,182 +469,13 @@ impl Function {
             .map(|x| x.as_native().unwrap())
     }
 
-    // /// Creates a new Function from the output of the bytecode parser,
-    // /// converting long instructions to short (8 byte) instructions.
-    // /// This loses some information in the process.
-    // pub fn from_long_instr(
-    //     long_fn: LongFunction,
-    //     module_loader: &ModuleLoader,
-    //     fns: &HashMap<String, FnId>,
-    //     type_decls: &mut Vec<TypeDecl>,
-    // ) -> Function {
-    //     let mut jump_table: HashMap<String, usize> = HashMap::new();
-    //     let mut pc: usize = 0;
-    //     for instr in long_fn.instructions.iter() {
-    //         match instr {
-    //             LongInstruction::Lbl(name) => {
-    //                 jump_table.insert(name.clone(), pc);
-    //             }
-    //             _ => {}
-    //         }
+    pub fn is_typechecked(&self) -> bool {
+        self.variable_types.is_some()
+    }
 
-    //         pc += 1;
-    //     }
-
-    //     let fn_type_id: u16 = type_decls.len().try_into().unwrap();
-    //     type_decls.push(TypeDecl::new(fn_type_id, long_fn.type_.clone()));
-
-    //     let mut compact_instructions = Vec::new();
-    //     pc = 0;
-    //     for instr in long_fn.instructions.iter() {
-    //         match instr {
-    //             LongInstruction::Jmp(n) => {
-    //                 compact_instructions.push(Instruction::Jmp(
-    //                     (jump_table[n] as isize - pc as isize).try_into().unwrap(),
-    //                 ));
-    //             }
-    //             LongInstruction::JmpIf(n, e) => {
-    //                 compact_instructions.push(Instruction::JmpIf(
-    //                     (jump_table[n] as isize - pc as isize).try_into().unwrap(),
-    //                     e.clone(),
-    //                 ));
-    //             }
-    //             LongInstruction::JmpIfNot(n, e) => {
-    //                 compact_instructions.push(Instruction::JmpIfNot(
-    //                     (jump_table[n] as isize - pc as isize).try_into().unwrap(),
-    //                     e.clone(),
-    //                 ));
-    //             }
-    //             LongInstruction::Lbl(_) => {
-    //                 compact_instructions.push(Instruction::Lbl);
-    //             }
-    //             LongInstruction::Call(res, n, vars) => {
-    //                 let mut iter = vars.iter();
-
-    //                 if let Some(mut prev) = iter.next() {
-    //                     for i in iter {
-    //                         assert!(*i == prev + 1);
-    //                         prev = i;
-    //                     }
-    //                 }
-
-    //                 compact_instructions.push(Instruction::CallN(
-    //                     res.clone(),
-    //                     fns[n].try_into().unwrap(),
-    //                     *vars.get(0).unwrap_or(&0),
-    //                     vars.len()
-    //                         .try_into()
-    //                         .expect(format!("too many arguments, max is {}", u8::MAX).as_str()),
-    //                 ))
-    //             }
-    //             LongInstruction::VarCall(res, function, vars) => {
-    //                 let mut iter = vars.iter();
-    //                 if let Some(mut prev) = iter.next() {
-    //                     for i in iter {
-    //                         assert!(*i == prev + 1);
-    //                         prev = i;
-    //                     }
-    //                 }
-
-    //                 compact_instructions.push(Instruction::VarCallN(
-    //                     res.clone(),
-    //                     *function,
-    //                     *vars.get(0).unwrap_or(&0),
-    //                     vars.len()
-    //                         .try_into()
-    //                         .expect(format!("too many arguments, max is {}", u8::MAX).as_str()),
-    //                 ))
-    //             }
-    //             LongInstruction::ModuleCall(res, module_name, function, vars) => {
-    //                 let module = module_loader
-    //                     .get_module_by_name(module_name.as_str())
-    //                     .expect("missing module impl");
-
-    //                 let function_id = module
-    //                     .find_function_id(function.as_str())
-    //                     .expect("missing fn");
-
-    //                 compact_instructions.push(Instruction::ModuleCall(
-    //                     res.clone(),
-    //                     CallTarget::new(module.id, function_id),
-    //                     vars[0],
-    //                 ));
-    //             }
-    //             LongInstruction::LoadVar(res, v, ty) => {
-    //                 let idx: u16 = type_decls.len().try_into().unwrap();
-    //                 type_decls.push(TypeDecl::new(idx, ty.clone()));
-    //                 compact_instructions.push(Instruction::LoadVar(*res, *v, idx));
-    //             }
-    //             LongInstruction::Alloc(res, ty) => {
-    //                 let idx: u16 = type_decls.len().try_into().unwrap();
-    //                 type_decls.push(TypeDecl::new(idx, ty.clone()));
-    //                 compact_instructions.push(Instruction::Alloc(*res, idx));
-    //             }
-    //             LongInstruction::StoreVar(res_ptr, src, ty) => {
-    //                 let idx: u16 = type_decls.len().try_into().unwrap();
-    //                 type_decls.push(TypeDecl::new(idx, ty.clone()));
-    //                 compact_instructions.push(Instruction::StoreVar(*res_ptr, *src, idx));
-    //             }
-    //             LongInstruction::Index(a, b, c, ty) => {
-    //                 let idx: u16 = type_decls.len().try_into().unwrap();
-    //                 type_decls.push(TypeDecl::new(idx, ty.clone()));
-    //                 compact_instructions.push(Instruction::Index(*a, *b, *c, idx));
-    //             }
-    //             LongInstruction::CopyAddress(res, module_name, function_name) => {
-    //                 let (module, function) = match module_name {
-    //                     Some(module_name) => {
-    //                         let module = module_loader
-    //                             .get_module_by_name(module_name.as_str())
-    //                             .expect("missing module impl");
-    //                         let function = module
-    //                             .find_function_id(function_name.as_str())
-    //                             .expect("missing fn");
-
-    //                         (module.id, function)
-    //                     }
-    //                     _ => (ModuleId::MAX, fns[function_name].try_into().unwrap()),
-    //                 };
-
-    //                 compact_instructions.push(Instruction::CopyAddress(
-    //                     res.clone(),
-    //                     CallTarget::new(module, function),
-    //                 ));
-    //             }
-    //             LongInstruction::CopyAddressIntoIndex(res, idx, module_name, function_name) => {
-    //                 let (module, function) = match module_name {
-    //                     Some(module_name) => {
-    //                         let module = module_loader
-    //                             .get_module_by_name(module_name.as_str())
-    //                             .expect("missing module impl");
-    //                         let function = module
-    //                             .find_function_id(function_name.as_str())
-    //                             .expect("missing fn");
-
-    //                         (module.id, function)
-    //                     }
-    //                     _ => (ModuleId::MAX, fns[function_name].try_into().unwrap()),
-    //                 };
-
-    //                 compact_instructions.push(Instruction::CopyAddressIntoIndex(
-    //                     res.clone(),
-    //                     *idx,
-    //                     CallTarget::new(module, function),
-    //                 ));
-    //             }
-    //             instr => compact_instructions.push(instr.clone().into()),
-    //         }
-    //         pc += 1;
-    //     }
-
-    //     assert_eq!(compact_instructions.len(), long_fn.instructions.len());
-
-    //     Function::new(
-    //         long_fn.name,
-    //         long_fn.varcount,
-    //         compact_instructions,
-    //         fn_type_id,
-    //     )
-    // }
+    pub fn variable_types(&self) -> Option<&TypeEnvironment> {
+        self.variable_types.as_ref()
+    }
 
     /// Takes a map of liveness intervals and prints them neatly next to the instructions of this function.
     pub fn print_liveness(&self, intervals: &HashMap<Var, (InstrLbl, InstrLbl)>) {

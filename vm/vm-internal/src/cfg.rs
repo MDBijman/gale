@@ -136,7 +136,7 @@ impl ControlFlowGraph {
                     }
  
                     let fallthrough_child =
-                        ControlFlowGraph::find_basic_block_ending_at(&basic_blocks, pc as i16 + 1);
+                        ControlFlowGraph::find_basic_block_starting_at(&basic_blocks, pc as i16 + 1);
                         basic_blocks[parent].add_child(fallthrough_child);
                         basic_blocks[fallthrough_child].add_parent(parent);
                 }

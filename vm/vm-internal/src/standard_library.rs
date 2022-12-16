@@ -1,4 +1,5 @@
-use crate::bytecode::{Function, Module, Size, Type, TypeDecl, TypeId};
+use crate::bytecode::{Function, Module, TypeDecl, TypeId};
+use crate::typechecker::{Size, Type};
 use crate::memory::{Pointer, STRING_HEADER_SIZE};
 use crate::vm::VMState;
 use log;

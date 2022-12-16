@@ -1,11 +1,11 @@
 extern crate clap;
 mod debugger;
 mod standard_dialect;
-use std::time;
+use std::{time, io::{self, Write}};
 
 use clap::{App, Arg};
 use galevm::{ModuleLoader, VM};
-use vm_internal::{*, dialect::Dialect};
+use vm_internal::{*, dialect::Dialect, parser::ParserError};
 
 use log::LevelFilter;
 use simple_logger::SimpleLogger;
@@ -66,7 +66,7 @@ fn main() {
     // Arguments
     let measure_time = matches.is_present("measure_time");
     let debug_mode = matches.is_present("enable_debugger");
-    let input_file_name = matches.value_of("input_file").unwrap();
+    let input_file_name = matches.value_of("input_file").expect("Expected input file");
     let arguments = matches.values_of("arguments").map_or(Vec::new(), |f| {
         f.into_iter().map(|s| String::from(s)).collect()
     });
@@ -81,8 +81,14 @@ fn main() {
 
     let main_module_id = match module_loader.load_module(input_file_name) {
         Ok(module_id) => module_id,
+        Err(ParserError::FileNotFound()) => {
+            eprintln!("Could not open file: {}", input_file_name);
+            io::stderr().flush().unwrap();
+            return;
+        }
         Err(pe) => {
             eprintln!("{}", pe);
+            io::stderr().flush().unwrap();
             return;
         }
     };

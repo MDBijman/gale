@@ -1,12 +1,15 @@
-use crate::bytecode::{ModuleLoader, TypeDecl, TypeId};
-use crate::cfg::{InstrControlFlow, ControlFlowBehaviour};
+use crate::bytecode::{Function, ModuleLoader, TypeDecl, TypeId};
+use crate::cfg::{ControlFlowBehaviour, InstrControlFlow};
 use crate::interpreter::Value;
 use crate::jit::FunctionJITState;
+use crate::typechecker::{InstrTypecheck, TypeEnvironment, TypeError};
+use crate::x64_asm;
 use crate::{
     bytecode::{InstrLbl, Module},
     parser::Term,
     vm::{VMState, VM},
 };
+use dynasmrt::{dynasm, DynasmLabelApi};
 use std::fmt::{Display, Formatter};
 use std::{collections::HashSet, convert::TryInto, fmt::Debug};
 extern crate proc_macro;
@@ -39,7 +42,7 @@ const DIALECT_TAG_SIZE: u8 = 1;
 * The Instruction trait indicates a term can be executed.
 */
 pub trait Instruction:
-    Debug + Display + InstrToBytecode + InstrClone + InstrToX64 + InstrControlFlow
+    Debug + Display + InstrToBytecode + InstrClone + InstrToX64 + InstrControlFlow + InstrTypecheck
 {
     fn reads(&self) -> HashSet<Var>;
     fn writes(&self) -> HashSet<Var>;
@@ -79,7 +82,7 @@ pub trait Instruction:
 }
 
 pub trait InstrToX64 {
-    fn emit(&self, fn_state: &mut FunctionJITState, module: &Module, cur: InstrLbl);
+    fn emit(&self, vm: &VM, module: &Module, fn_state: &mut FunctionJITState, cur: InstrLbl);
 }
 
 pub trait InstrToBytecode {
@@ -270,7 +273,6 @@ impl FromTerm for Name {
     }
 }
 
-
 #[derive(Debug)]
 pub struct InstructionParseError {}
 
@@ -315,7 +317,8 @@ impl Instruction for LabelInstruction {
         HashSet::new()
     }
 
-    fn interpret(&self, _vm: &VM, _state: &mut VMState) -> bool {
+    fn interpret(&self, _vm: &VM, state: &mut VMState) -> bool {
+        state.interpreter_state.ip += 1;
         true
     }
 }
@@ -331,14 +334,33 @@ impl InstrToBytecode for LabelInstruction {
 }
 
 impl InstrToX64 for LabelInstruction {
-    fn emit(&self, fn_state: &mut FunctionJITState, module: &Module, cur: InstrLbl) {
-        todo!()
+    fn emit(&self, vm: &VM, module: &Module, fn_state: &mut FunctionJITState, cur: InstrLbl) {
+        let ops = &mut fn_state.ops;
+        let dyn_lbl = fn_state
+            .dynamic_labels
+            .entry(cur)
+            .or_insert(ops.new_dynamic_label());
+
+        x64_asm!(ops
+                ; =>*dyn_lbl);
     }
 }
 
 impl InstrControlFlow for LabelInstruction {
     fn behaviour(&self) -> ControlFlowBehaviour {
         ControlFlowBehaviour::Target
+    }
+}
+
+impl InstrTypecheck for LabelInstruction {
+    fn typecheck(
+        &self,
+        _: &VM,
+        _: &Module,
+        _: &Function,
+        _: &mut TypeEnvironment,
+    ) -> Result<(), TypeError> {
+        Ok(())
     }
 }
 

@@ -1,7 +1,8 @@
-use crate::bytecode::{CallTarget, Module, ModuleLoader, Size, Type};
+use crate::bytecode::{CallTarget, Function, Module, ModuleLoader};
 use crate::interpreter::{Interpreter, InterpreterState};
-use crate::jit::{JITEngine, JITState};
+use crate::jit::{self, JITState};
 use crate::memory::{Heap, Pointer, ARRAY_HEADER_SIZE};
+use crate::typechecker::{Size, Type};
 use std::time;
 
 pub trait VMDebugger {
@@ -33,7 +34,6 @@ impl VMState {
 pub struct VM {
     pub module_loader: ModuleLoader,
     pub interpreter: Interpreter,
-    pub jit: JITEngine,
     pub debug: bool,
 }
 
@@ -42,7 +42,6 @@ impl VM {
         VM {
             module_loader: ModuleLoader::from_module(m),
             interpreter: Interpreter::default(),
-            jit: JITEngine::default(),
             debug: false,
         }
     }
@@ -51,7 +50,6 @@ impl VM {
         VM {
             module_loader: m,
             interpreter: Interpreter::default(),
-            jit: JITEngine::default(),
             debug: false,
         }
     }
@@ -60,18 +58,17 @@ impl VM {
         VM {
             module_loader: m,
             interpreter: Interpreter::default(),
-            jit: JITEngine::default(),
             debug: true,
         }
     }
 
-    pub fn run(&self, main_module: &Module, args: Vec<String>, jit: bool) -> VMState {
+    pub fn run(&self, main_module: &mut Module, args: Vec<String>, jit: bool) -> VMState {
         self.run_with_debugger(main_module, args, None, jit)
     }
 
     pub fn run_with_debugger(
         &self,
-        main_module: &Module,
+        main_module: &mut Module,
         args: Vec<String>,
         debug: Option<&dyn VMDebugger>,
         jit: bool,
@@ -134,7 +131,19 @@ impl VM {
         };
 
         if jit {
-            self.run_jit(main_module, &mut state, args_ptr);
+            /* Compile the fib function */
+            match main_module.get_function_by_name_mut("fib") {
+                Some(fib_fn) => {
+                    jit::compile(&self, &main_module, &mut fib_fn, &mut state.jit_state);
+                }
+                _ => {}
+            }
+
+            let main_fn = main_module
+                .get_function_by_name_mut("main")
+                .expect("function");
+
+            self.run_jit(main_module, main_fn, &mut state, args_ptr);
         } else if debug.is_none() {
             self.run_interp(main_module, &mut state, args_ptr);
         } else if debug.is_some() {
@@ -148,28 +157,23 @@ impl VM {
         state
     }
 
-    fn run_jit(&self, main_module: &Module, state: &mut VMState, args_ptr: Pointer) {
+    fn run_jit(
+        &self,
+        main_module: &Module,
+        function: &mut Function,
+        state: &mut VMState,
+        args_ptr: Pointer,
+    ) {
         let start = time::SystemTime::now();
 
-        let main_id = main_module.find_function_id("main").expect("function");
-        let main_fn = main_module.get_function_by_name("main").expect("function");
-
         /* Compile the main function */
-        JITEngine::compile(&mut state.jit_state, &main_module, &main_fn);
-
-        /* Compile the fib function */
-        match main_module.get_function_by_name("fib") {
-            Some(fib_fn) => {
-                JITEngine::compile(&mut state.jit_state, &main_module, &fib_fn);
-            }
-            _ => {}
-        }
+        jit::compile(&self, &main_module, function, &mut state.jit_state);
 
         /* Run the main function in compiled mode */
-        let res = JITEngine::call_if_compiled(
+        let res = jit::call_if_compiled(
             self,
             state,
-            CallTarget::new(main_module.id, main_id),
+            CallTarget::new(main_module.id, function.location),
             args_ptr,
         );
 

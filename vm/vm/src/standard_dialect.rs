@@ -4,18 +4,20 @@ use std::{
     fmt::{Display, Formatter},
 };
 
+use dynasmrt::DynasmLabelApi;
 use dynasmrt::{dynasm, DynasmApi};
 use vm_internal::{
-    bytecode::{Module, ModuleLoader, Type, TypeId},
+    bytecode::{CallTarget, Function, InstrLbl, Module, ModuleLoader, TypeId},
     cfg::{ControlFlowBehaviour, InstrControlFlow},
     dialect::{
         Dialect, FromTerm, InstrToBytecode, InstrToX64, Instruction, InstructionParseError, Name,
         Var,
     },
     interpreter::{CallInfo, InterpreterStatus, Value},
-    jit::{FunctionJITState, VarLoc, VariableLocations, store_volatiles_except, load_volatiles},
-    memory::{Pointer, ARRAY_HEADER_SIZE, Heap},
+    jit::{self, load_volatiles, store_volatiles_except, FunctionJITState, VarLoc},
+    memory::{Heap, Pointer, ARRAY_HEADER_SIZE},
     parser::Term,
+    typechecker::{InstrTypecheck, Type, TypeEnvironment, TypeError},
     vm::{VMState, VM},
     x64_asm, x64_asm_resolve_mem,
 };
@@ -121,10 +123,10 @@ impl InstrToBytecode for ConstU32 {
 }
 
 impl InstrToX64 for ConstU32 {
-    fn emit(&self, fun: &mut FunctionJITState, _: &Module, _: i16) {
+    fn emit(&self, _: &VM, _: &Module, fn_state: &mut FunctionJITState, _: InstrLbl) {
         // Ops cannot be referenced in x64_asm macros if it's inside fn_state
-        let ops = &mut fun.ops;
-        let memory = fun
+        let ops = &mut fn_state.ops;
+        let memory = fn_state
             .variable_locations
             .as_ref()
             .expect("Memory actions must be initialized when emitting instructions");
@@ -138,6 +140,26 @@ impl InstrToX64 for ConstU32 {
 impl InstrControlFlow for ConstU32 {
     fn behaviour(&self) -> ControlFlowBehaviour {
         ControlFlowBehaviour::Linear
+    }
+}
+
+impl InstrTypecheck for ConstU32 {
+    fn typecheck(
+        &self,
+        _: &VM,
+        _: &Module,
+        _: &Function,
+        env: &mut TypeEnvironment,
+    ) -> Result<(), TypeError> {
+        if !env.insert_or_check(self.0, Type::U64) {
+            Err(TypeError::Mismatch {
+                was: env.get(self.0).unwrap().clone(),
+                expected: Type::U64,
+                var: self.0,
+            })
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -184,12 +206,7 @@ impl InstrToBytecode for ConstBool {
 }
 
 impl InstrToX64 for ConstBool {
-    fn emit(
-        &self,
-        _fn_state: &mut FunctionJITState,
-        _module: &Module,
-        _cur: vm_internal::bytecode::InstrLbl,
-    ) {
+    fn emit(&self, _: &VM, _: &Module, _: &mut FunctionJITState, _: InstrLbl) {
         todo!()
     }
 }
@@ -197,6 +214,26 @@ impl InstrToX64 for ConstBool {
 impl InstrControlFlow for ConstBool {
     fn behaviour(&self) -> ControlFlowBehaviour {
         ControlFlowBehaviour::Linear
+    }
+}
+
+impl InstrTypecheck for ConstBool {
+    fn typecheck(
+        &self,
+        _: &VM,
+        _: &Module,
+        _: &Function,
+        env: &mut TypeEnvironment,
+    ) -> Result<(), TypeError> {
+        if !env.insert_or_check(self.0, Type::Bool) {
+            Err(TypeError::Mismatch {
+                was: env.get(self.0).unwrap().clone(),
+                expected: Type::Bool,
+                var: self.0,
+            })
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -246,12 +283,7 @@ impl InstrToBytecode for Copy {
 }
 
 impl InstrToX64 for Copy {
-    fn emit(
-        &self,
-        _fn_state: &mut FunctionJITState,
-        _module: &Module,
-        _cur: vm_internal::bytecode::InstrLbl,
-    ) {
+    fn emit(&self, _: &VM, _: &Module, _: &mut FunctionJITState, _: InstrLbl) {
         todo!()
     }
 }
@@ -259,6 +291,30 @@ impl InstrToX64 for Copy {
 impl InstrControlFlow for Copy {
     fn behaviour(&self) -> ControlFlowBehaviour {
         ControlFlowBehaviour::Linear
+    }
+}
+
+impl InstrTypecheck for Copy {
+    fn typecheck(
+        &self,
+        _: &VM,
+        _: &Module,
+        _: &Function,
+        env: &mut TypeEnvironment,
+    ) -> Result<(), TypeError> {
+        let rhs_type = match env.get(self.1) {
+            None => return Err(TypeError::Missing { var: self.1 }),
+            Some(t) => t.clone(),
+        };
+
+        match env.insert_or_check(self.0, rhs_type.clone()) {
+            true => Ok(()),
+            false => Err(TypeError::Mismatch {
+                expected: rhs_type,
+                was: env.get(self.0).unwrap().clone(),
+                var: self.0,
+            }),
+        }
     }
 }
 
@@ -303,12 +359,7 @@ impl InstrToBytecode for CopyAddress {
 }
 
 impl InstrToX64 for CopyAddress {
-    fn emit(
-        &self,
-        _fn_state: &mut FunctionJITState,
-        _module: &Module,
-        _cur: vm_internal::bytecode::InstrLbl,
-    ) {
+    fn emit(&self, _: &VM, _: &Module, _: &mut FunctionJITState, _: InstrLbl) {
         todo!()
     }
 }
@@ -316,6 +367,18 @@ impl InstrToX64 for CopyAddress {
 impl InstrControlFlow for CopyAddress {
     fn behaviour(&self) -> ControlFlowBehaviour {
         ControlFlowBehaviour::Linear
+    }
+}
+
+impl InstrTypecheck for CopyAddress {
+    fn typecheck(
+        &self,
+        _: &VM,
+        _: &Module,
+        _: &Function,
+        env: &mut TypeEnvironment,
+    ) -> Result<(), TypeError> {
+        todo!();
     }
 }
 
@@ -361,12 +424,7 @@ impl InstrToBytecode for CopyIntoIndex {
 }
 
 impl InstrToX64 for CopyIntoIndex {
-    fn emit(
-        &self,
-        _fn_state: &mut FunctionJITState,
-        _module: &Module,
-        _cur: vm_internal::bytecode::InstrLbl,
-    ) {
+    fn emit(&self, _: &VM, _: &Module, _: &mut FunctionJITState, _: InstrLbl) {
         todo!();
     }
 }
@@ -374,6 +432,18 @@ impl InstrToX64 for CopyIntoIndex {
 impl InstrControlFlow for CopyIntoIndex {
     fn behaviour(&self) -> ControlFlowBehaviour {
         ControlFlowBehaviour::Linear
+    }
+}
+
+impl InstrTypecheck for CopyIntoIndex {
+    fn typecheck(
+        &self,
+        _: &VM,
+        _: &Module,
+        _: &Function,
+        env: &mut TypeEnvironment,
+    ) -> Result<(), TypeError> {
+        todo!();
     }
 }
 
@@ -415,12 +485,7 @@ impl InstrToBytecode for CopyAddressIntoIndex {
 }
 
 impl InstrToX64 for CopyAddressIntoIndex {
-    fn emit(
-        &self,
-        _fn_state: &mut FunctionJITState,
-        _module: &Module,
-        _cur: vm_internal::bytecode::InstrLbl,
-    ) {
+    fn emit(&self, _: &VM, _: &Module, _: &mut FunctionJITState, _: InstrLbl) {
         todo!();
     }
 }
@@ -428,6 +493,18 @@ impl InstrToX64 for CopyAddressIntoIndex {
 impl InstrControlFlow for CopyAddressIntoIndex {
     fn behaviour(&self) -> ControlFlowBehaviour {
         ControlFlowBehaviour::Linear
+    }
+}
+
+impl InstrTypecheck for CopyAddressIntoIndex {
+    fn typecheck(
+        &self,
+        _: &VM,
+        _: &Module,
+        _: &Function,
+        env: &mut TypeEnvironment,
+    ) -> Result<(), TypeError> {
+        todo!();
     }
 }
 
@@ -474,12 +551,7 @@ impl InstrToBytecode for EqVarVar {
 }
 
 impl InstrToX64 for EqVarVar {
-    fn emit(
-        &self,
-        _fn_state: &mut FunctionJITState,
-        _module: &Module,
-        _cur: vm_internal::bytecode::InstrLbl,
-    ) {
+    fn emit(&self, _: &VM, _: &Module, _: &mut FunctionJITState, _: InstrLbl) {
         todo!();
     }
 }
@@ -487,6 +559,18 @@ impl InstrToX64 for EqVarVar {
 impl InstrControlFlow for EqVarVar {
     fn behaviour(&self) -> ControlFlowBehaviour {
         ControlFlowBehaviour::Linear
+    }
+}
+
+impl InstrTypecheck for EqVarVar {
+    fn typecheck(
+        &self,
+        _: &VM,
+        _: &Module,
+        _: &Function,
+        env: &mut TypeEnvironment,
+    ) -> Result<(), TypeError> {
+        todo!();
     }
 }
 
@@ -547,19 +631,33 @@ impl InstrToBytecode for LtVarVar {
 }
 
 impl InstrToX64 for LtVarVar {
-    fn emit(
-        &self,
-        _fn_state: &mut FunctionJITState,
-        _module: &Module,
-        _cur: vm_internal::bytecode::InstrLbl,
-    ) {
-        todo!();
+    fn emit(&self, _: &VM, _: &Module, state: &mut FunctionJITState, _: InstrLbl) {
+        let res_reg = *state.lookup(self.0).unwrap().as_register().unwrap();
+        let ops = &mut state.ops;
+        let memory = state.variable_locations.as_ref().unwrap();
+        x64_asm!(ops
+                ;; x64_asm_resolve_mem!(ops, memory; cmp resolve(self.1), resolve(self.2))
+                ;; x64_asm_resolve_mem!(ops, memory; mov resolve(self.0), 0)
+                ; mov rdi, 1
+                ; cmovl Rq(res_reg as u8), rdi);
     }
 }
 
 impl InstrControlFlow for LtVarVar {
     fn behaviour(&self) -> ControlFlowBehaviour {
         ControlFlowBehaviour::Linear
+    }
+}
+
+impl InstrTypecheck for LtVarVar {
+    fn typecheck(
+        &self,
+        _: &VM,
+        _: &Module,
+        _: &Function,
+        env: &mut TypeEnvironment,
+    ) -> Result<(), TypeError> {
+        todo!();
     }
 }
 
@@ -619,19 +717,30 @@ impl InstrToBytecode for SubVarVar {
 }
 
 impl InstrToX64 for SubVarVar {
-    fn emit(
-        &self,
-        _fn_state: &mut FunctionJITState,
-        _module: &Module,
-        _cur: vm_internal::bytecode::InstrLbl,
-    ) {
-        todo!();
+    fn emit(&self, _: &VM, _: &Module, state: &mut FunctionJITState, _: InstrLbl) {
+        let ops = &mut state.ops;
+        let memory = state.variable_locations.as_ref().unwrap();
+        x64_asm_resolve_mem!(ops, memory; mov rsi, resolve(self.1));
+        x64_asm_resolve_mem!(ops, memory; sub rsi, resolve(self.2));
+        x64_asm_resolve_mem!(ops, memory; mov resolve(self.0), rsi);
     }
 }
 
 impl InstrControlFlow for SubVarVar {
     fn behaviour(&self) -> ControlFlowBehaviour {
         ControlFlowBehaviour::Linear
+    }
+}
+
+impl InstrTypecheck for SubVarVar {
+    fn typecheck(
+        &self,
+        _: &VM,
+        _: &Module,
+        _: &Function,
+        env: &mut TypeEnvironment,
+    ) -> Result<(), TypeError> {
+        todo!();
     }
 }
 
@@ -691,19 +800,30 @@ impl InstrToBytecode for AddVarVar {
 }
 
 impl InstrToX64 for AddVarVar {
-    fn emit(
-        &self,
-        _fn_state: &mut FunctionJITState,
-        _module: &Module,
-        _cur: vm_internal::bytecode::InstrLbl,
-    ) {
-        todo!();
+    fn emit(&self, _: &VM, _: &Module, state: &mut FunctionJITState, _: InstrLbl) {
+        let ops = &mut state.ops;
+        let memory = state.variable_locations.as_ref().unwrap();
+        x64_asm_resolve_mem!(ops, memory; mov rsi, resolve(self.1));
+        x64_asm_resolve_mem!(ops, memory; add rsi, resolve(self.2));
+        x64_asm_resolve_mem!(ops, memory; mov resolve(self.0), rsi);
     }
 }
 
 impl InstrControlFlow for AddVarVar {
     fn behaviour(&self) -> ControlFlowBehaviour {
         ControlFlowBehaviour::Linear
+    }
+}
+
+impl InstrTypecheck for AddVarVar {
+    fn typecheck(
+        &self,
+        _: &VM,
+        _: &Module,
+        _: &Function,
+        env: &mut TypeEnvironment,
+    ) -> Result<(), TypeError> {
+        todo!();
     }
 }
 
@@ -750,12 +870,7 @@ impl InstrToBytecode for MulVarVar {
 }
 
 impl InstrToX64 for MulVarVar {
-    fn emit(
-        &self,
-        _fn_state: &mut FunctionJITState,
-        _module: &Module,
-        _cur: vm_internal::bytecode::InstrLbl,
-    ) {
+    fn emit(&self, _: &VM, _: &Module, _: &mut FunctionJITState, _: InstrLbl) {
         todo!();
     }
 }
@@ -763,6 +878,18 @@ impl InstrToX64 for MulVarVar {
 impl InstrControlFlow for MulVarVar {
     fn behaviour(&self) -> ControlFlowBehaviour {
         ControlFlowBehaviour::Linear
+    }
+}
+
+impl InstrTypecheck for MulVarVar {
+    fn typecheck(
+        &self,
+        _: &VM,
+        _: &Module,
+        _: &Function,
+        env: &mut TypeEnvironment,
+    ) -> Result<(), TypeError> {
+        todo!();
     }
 }
 
@@ -808,12 +935,7 @@ impl InstrToBytecode for NotVar {
 }
 
 impl InstrToX64 for NotVar {
-    fn emit(
-        &self,
-        _fn_state: &mut FunctionJITState,
-        _module: &Module,
-        _cur: vm_internal::bytecode::InstrLbl,
-    ) {
+    fn emit(&self, _: &VM, _: &Module, _: &mut FunctionJITState, _: InstrLbl) {
         todo!();
     }
 }
@@ -821,6 +943,18 @@ impl InstrToX64 for NotVar {
 impl InstrControlFlow for NotVar {
     fn behaviour(&self) -> ControlFlowBehaviour {
         ControlFlowBehaviour::Linear
+    }
+}
+
+impl InstrTypecheck for NotVar {
+    fn typecheck(
+        &self,
+        _: &VM,
+        _: &Module,
+        _: &Function,
+        env: &mut TypeEnvironment,
+    ) -> Result<(), TypeError> {
+        todo!();
     }
 }
 
@@ -890,12 +1024,29 @@ impl InstrToBytecode for Return {
 }
 
 impl InstrToX64 for Return {
-    fn emit(
+    fn emit(&self, _: &VM, _: &Module, state: &mut FunctionJITState, _: InstrLbl) {
+        let ops = &mut state.ops;
+        let memory = state.variable_locations.as_ref().unwrap();
+        x64_asm!(ops
+                ;; x64_asm_resolve_mem!(ops, memory; mov rax, resolve(self.0))
+                ; jmp ->_cleanup)
+    }
+}
+
+impl InstrControlFlow for Return {
+    fn behaviour(&self) -> ControlFlowBehaviour {
+        ControlFlowBehaviour::Jump(vec![])
+    }
+}
+
+impl InstrTypecheck for Return {
+    fn typecheck(
         &self,
-        _fn_state: &mut FunctionJITState,
-        _module: &Module,
-        _cur: vm_internal::bytecode::InstrLbl,
-    ) {
+        _: &VM,
+        _: &Module,
+        _: &Function,
+        env: &mut TypeEnvironment,
+    ) -> Result<(), TypeError> {
         todo!();
     }
 }
@@ -903,12 +1054,6 @@ impl InstrToX64 for Return {
 impl Display for Return {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         write!(f, "ret {}", self.0)
-    }
-}
-
-impl InstrControlFlow for Return {
-    fn behaviour(&self) -> ControlFlowBehaviour {
-        ControlFlowBehaviour::Jump(vec![])
     }
 }
 
@@ -1008,12 +1153,7 @@ impl InstrToBytecode for Index {
 }
 
 impl InstrToX64 for Index {
-    fn emit(
-        &self,
-        state: &mut FunctionJITState,
-        module: &Module,
-        _cur: vm_internal::bytecode::InstrLbl,
-    ) {
+    fn emit(&self, _: &VM, module: &Module, state: &mut FunctionJITState, _: InstrLbl) {
         let mut ops = &mut state.ops;
         let memory = state.variable_locations.as_ref().unwrap();
 
@@ -1030,7 +1170,7 @@ impl InstrToX64 for Index {
         };
 
         let index_bytes: i32 = match module.get_type_by_id(self.3).expect("type idx") {
-            Type::U64 | Type::Pointer(_) => 8,
+            Type::Array(element_type, _) => element_type.size() as i32,
             ty => panic!("Illegal index operand: {:?}", ty),
         };
 
@@ -1046,6 +1186,8 @@ impl InstrToX64 for Index {
         // call heap.index_bytes on src value with idx
         // write res
 
+        let sizeof_pointer = std::mem::size_of::<Pointer>();
+
         let saved = store_volatiles_except(&mut ops, &memory, Some(self.0));
         let stack_space = 0x20;
         x64_asm!(ops
@@ -1058,18 +1200,36 @@ impl InstrToX64 for Index {
             ; mov r10, QWORD get_heap_address
             ; call r10
             ; add rsp, BYTE stack_space
-            // rax contains pointer to heap, mov into rcx (first arg)
-            ; mov rcx, rax
-            ; mov rdi, rax // store in non-vol register for later
-            // compute idx and put into r8
+
+            /*
+            * index_bytes
+            * rcx: pointer to Pointer, return value
+            * rdx: pointer to Heap
+            * r8: pointer to Pointer
+            * r9: usize
+            */
+            // 1) Allocate space for return Pointer and put pointer into rcx
+            ; sub rsp, sizeof_pointer.try_into().unwrap()
+            ; mov rcx, rsp
+            // 2) Move pointer to Heap from rax into rdx
+            ; mov rdx, rax
+            // store in non-vol register for later
+            ; mov rdi, rax
+            // 3) Allocate space for arg Pointer and put pointer into r8
+            ; sub rsp, sizeof_pointer.try_into().unwrap()
+            // compute idx
             ; mov rax, r15
             ; mov r8, index_bytes
             ; mul r8
             ; mov r8, rax
             // Offset for array header
             ; add r8, 8
-            // put src into rdx
-            ; mov rdx, r14
+            ; mov [rsp], r8
+            // TODO second element of Pointer
+            ; mov r8, rsp
+            // 4) Move usize into r9
+            ; mov r9, r14
+            // Call
             ; sub rsp, BYTE stack_space
             ; mov r10, QWORD index_bytes_address
             ; call r10
@@ -1092,6 +1252,18 @@ impl InstrToX64 for Index {
 impl InstrControlFlow for Index {
     fn behaviour(&self) -> ControlFlowBehaviour {
         ControlFlowBehaviour::Linear
+    }
+}
+
+impl InstrTypecheck for Index {
+    fn typecheck(
+        &self,
+        _: &VM,
+        _: &Module,
+        _: &Function,
+        env: &mut TypeEnvironment,
+    ) -> Result<(), TypeError> {
+        todo!();
     }
 }
 
@@ -1154,6 +1326,34 @@ impl Display for CallArgs {
 #[derive(Debug, Clone, FromTerm)]
 struct Call(Var, Name, CallArgs);
 
+impl Call {
+    fn resolve<'a>(&self, vm: &'a VM, current_module: u16) -> (&'a Module, &'a Function) {
+        let (callee_module, callee_function) = if self.1 .0.len() == 2 {
+            let module = vm.module_loader.get_module_by_name(&self.1 .0[0]).unwrap();
+            let callee = vm
+                .module_loader
+                .get_module_by_id(module.id)
+                .unwrap()
+                .get_function_by_name(self.1 .0[1].as_str())
+                .expect("invalid callee");
+            (module, callee)
+        } else if self.1 .0.len() == 1 {
+            let module = vm.module_loader.get_module_by_id(current_module).unwrap();
+            let callee = vm
+                .module_loader
+                .get_module_by_id(current_module)
+                .unwrap()
+                .get_function_by_name(self.1 .0[0].as_str())
+                .expect("invalid callee");
+            (module, callee)
+        } else {
+            panic!("unsupported");
+        };
+
+        (callee_module, callee_function)
+    }
+}
+
 impl Instruction for Call {
     fn reads(&self) -> HashSet<Var> {
         let mut r = HashSet::new();
@@ -1168,30 +1368,7 @@ impl Instruction for Call {
     }
 
     fn interpret(&self, vm: &VM, state: &mut VMState) -> bool {
-        let (callee_module, callee_function) = if self.1 .0.len() == 2 {
-            let module = vm.module_loader.get_module_by_name(&self.1 .0[0]).unwrap();
-            let callee = vm
-                .module_loader
-                .get_module_by_id(module.id)
-                .unwrap()
-                .get_function_by_name(self.1 .0[1].as_str())
-                .expect("invalid callee");
-            (module, callee)
-        } else if self.1 .0.len() == 1 {
-            let module = vm
-                .module_loader
-                .get_module_by_id(state.interpreter_state.module)
-                .unwrap();
-            let callee = vm
-                .module_loader
-                .get_module_by_id(state.interpreter_state.module)
-                .unwrap()
-                .get_function_by_name(self.1 .0[0].as_str())
-                .expect("invalid callee");
-            (module, callee)
-        } else {
-            panic!("unsupported");
-        };
+        let (callee_module, callee_function) = self.resolve(vm, state.interpreter_state.module);
 
         if callee_function.has_native_impl() {
             let native_impl = callee_function.native_impl().unwrap();
@@ -1264,25 +1441,75 @@ impl InstrToBytecode for Call {
 }
 
 impl InstrToX64 for Call {
-    fn emit(
-        &self,
-        _fn_state: &mut FunctionJITState,
-        _module: &Module,
-        _cur: vm_internal::bytecode::InstrLbl,
-    ) {
-        todo!();
+    fn emit(&self, vm: &VM, module: &Module, state: &mut FunctionJITState, _: InstrLbl) {
+        assert!(self.2 .0.len() == 1);
+        let (_, resolved_function) = self.resolve(vm, module.id);
+        let memory = state.variable_locations.as_ref().unwrap();
+        let module = module.id;
+        let res = self.0;
+        let arg = self.2 .0[0];
+        let ops = &mut state.ops;
+
+        let trampoline_address: i64 = unsafe {
+            std::mem::transmute::<_, i64>(
+                jit::trampoline as extern "win64" fn(&VM, &mut VMState, CallTarget, Pointer) -> u64,
+            )
+        };
+
+        // Recursive call
+        // We know we can call the native impl. directly
+        if resolved_function.location == state.function_location {
+            let stack_space = 0x20;
+            x64_asm!(ops
+                ; mov rcx, _vm
+                ; mov rdx, _vm_state
+                ;; x64_asm_resolve_mem!(ops, memory; mov r8, resolve(arg))
+                ; sub rsp, BYTE stack_space
+                ; call ->_self
+                ; add rsp, BYTE stack_space
+                ;; x64_asm_resolve_mem!(ops, memory; mov resolve(res), rax));
+        }
+        // Unknown target
+        // Conservatively call trampoline
+        else {
+            let stack_space = 0x20;
+            x64_asm!(ops
+                ; mov rcx, _vm
+                ; mov rdx, _vm_state
+                ; mov r8w, resolved_function.location as i16
+                ; shl r8, 16
+                ; mov r8w, module as i16
+                ;; x64_asm_resolve_mem!(ops, memory; mov r9, resolve(arg))
+                ; sub rsp, BYTE stack_space
+                ; mov r10, QWORD trampoline_address
+                ; call r10
+                ; add rsp, BYTE stack_space
+                ;; x64_asm_resolve_mem!(ops, memory; mov resolve(res), rax));
+        }
     }
 }
 
-impl Display for Call {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
-        write!(f, "call {}, {}, {}", self.0, self.1, self.2)
+impl InstrTypecheck for Call {
+    fn typecheck(
+        &self,
+        _: &VM,
+        _: &Module,
+        _: &Function,
+        env: &mut TypeEnvironment,
+    ) -> Result<(), TypeError> {
+        todo!();
     }
 }
 
 impl InstrControlFlow for Call {
     fn behaviour(&self) -> ControlFlowBehaviour {
         ControlFlowBehaviour::Linear
+    }
+}
+
+impl Display for Call {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(f, "call {}, {}, {}", self.0, self.1, self.2)
     }
 }
 
@@ -1343,19 +1570,50 @@ impl InstrToBytecode for JmpIfNot {
 }
 
 impl InstrToX64 for JmpIfNot {
-    fn emit(&self, _: &mut FunctionJITState, _: &Module, _: i16) {
-        todo!()
-    }
-}
+    fn emit(&self, _: &VM, module: &Module, state: &mut FunctionJITState, _: InstrLbl) {
+        let ops = &mut state.ops;
+        let memory = state.variable_locations.as_ref().unwrap();
 
-impl Display for JmpIfNot {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
-        write!(f, "jmpifn {}, @{}", self.0, self.1)
+        let jmp_target = *module
+            .get_function_by_id(state.function_location)
+            .unwrap()
+            .ast_impl()
+            .unwrap()
+            .labels
+            .get(&self.1 .0[0])
+            .unwrap();
+
+        let dyn_lbl = state
+            .dynamic_labels
+            .entry(jmp_target as InstrLbl)
+            .or_insert(ops.new_dynamic_label());
+
+        x64_asm!(ops
+                ;; x64_asm_resolve_mem!(ops, memory ; cmp resolve(self.0), 0)
+                ; je =>*dyn_lbl);
     }
 }
 
 impl InstrControlFlow for JmpIfNot {
     fn behaviour(&self) -> ControlFlowBehaviour {
         ControlFlowBehaviour::ConditionalJump(vec![self.1.clone()])
+    }
+}
+
+impl InstrTypecheck for JmpIfNot {
+    fn typecheck(
+        &self,
+        _: &VM,
+        _: &Module,
+        _: &Function,
+        env: &mut TypeEnvironment,
+    ) -> Result<(), TypeError> {
+        todo!();
+    }
+}
+
+impl Display for JmpIfNot {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(f, "jmpifn {}, @{}", self.0, self.1)
     }
 }
