@@ -1,3 +1,5 @@
+use std::convert::TryInto;
+
 use crate::typechecker::{Size, Type};
 
 ///
@@ -33,7 +35,6 @@ impl Heap {
     }
 
     fn resize_heap(&mut self) -> bool {
-
         let heap_ptr: *const u8 = &self.heap[0];
         self.heap.reserve(self.heap.len() * 2);
         let heap_ptr_after_realloc: *const u8 = &self.heap[0];
@@ -44,7 +45,9 @@ impl Heap {
             log::debug!(target: "memory", "resized heap to size {}", self.heap.capacity());
         }
 
-        resized
+        panic!("cannot resize");
+
+        // resized
     }
 
     pub extern "C" fn allocate_type(&mut self, t: &Type) -> Pointer {
@@ -55,13 +58,11 @@ impl Heap {
 
         match t {
             Type::Array(_, Size::Sized(len)) => unsafe {
-                *(self.raw(ptr) as usize as *mut u64) = *len as u64;
+                *(ptr.raw as usize as *mut u64) = *len as u64;
             },
             Type::Str(Size::Sized(len)) => unsafe {
-                *(self.raw(ptr) as usize as *mut u64) = *len as u64;
-                *(self
-                    .raw(ptr)
-                    .offset(STRING_HEADER_SIZE as isize + *len as isize) as usize
+                *(ptr.raw as usize as *mut u64) = *len as u64;
+                *(ptr.raw.offset(STRING_HEADER_SIZE as isize + *len as isize) as usize
                     as *mut u8) = '\0' as u8;
             },
             Type::Str(_) | Type::Array(_, _) => panic!("Cannot alloc unsized types"),
@@ -77,34 +78,18 @@ impl Heap {
     fn allocate(&mut self, size: usize) -> Pointer {
         log::debug!(target: "memory", "allocating {} bytes", size);
 
-        let heap_index = self.heap.len();
+        let first = self.heap.as_mut_ptr() as *const u8;
         if !self.fits_bytes(size) {
             self.resize_heap();
         }
 
         self.heap.resize(self.heap.len() + size, 0);
 
-        Pointer::new(heap_index, size)
+        unsafe { Pointer::new(first.offset(self.heap.len() as isize)) }
     }
 
-    pub fn free(&mut self, ptr: Pointer) {
-        if ptr.size == 0 {
-            panic!("Null pointer dereference");
-        }
-
+    pub fn free(&mut self, _ptr: Pointer) {
         todo!("Freeing memory");
-    }
-
-    pub fn raw(&mut self, ptr: Pointer) -> *mut u8 {
-        &mut self.heap[ptr.index] as *mut u8
-    }
-
-    pub unsafe fn raw_as<T>(&mut self, ptr: Pointer) -> *mut T {
-        if ptr.size == 0 {
-            panic!("Null ptr dereference");
-        }
-
-        &mut self.heap[ptr.index] as *mut u8 as *mut T
     }
 
     pub extern "C" fn index_bytes(&mut self, ptr: Pointer, bytes: usize) -> Pointer {
@@ -112,18 +97,22 @@ impl Heap {
             "index {} bytes from {:?}",
             bytes, ptr);
 
-        if ptr.index < self.heap.len() && ptr.size - bytes <= 0 {
+        let last = self.heap.last().unwrap() as *const u8;
+        let first = self.heap.first().unwrap() as *const u8;
+
+        if ptr.raw < first || ptr.raw > last {
             panic!("Out of bounds");
         }
 
-        Pointer::new(ptr.index + bytes, ptr.size - bytes)
+        ptr.index(bytes)
     }
 
     pub unsafe extern "C" fn load<T>(&mut self, ptr: Pointer) -> T
     where
-        T: Sized + Copy + std::fmt::Debug,
+        T: Copy + std::fmt::Debug,
     {
-        let res = *std::mem::transmute::<_, *mut T>(self.raw(ptr));
+        let res = std::mem::transmute::<_, *mut T>(ptr.raw).read_unaligned();
+
         log::debug!(target: "memory",
             "load {} bytes from {:?}: {:?}",
             std::mem::size_of::<T>(),
@@ -137,11 +126,11 @@ impl Heap {
     where
         T: Sized,
     {
-        *self.raw_as::<T>(ptr) = value;
+        *std::mem::transmute::<_, *mut T>(ptr.raw) = value;
     }
 
     pub unsafe fn store_string(&mut self, ptr: Pointer, value: &str) {
-        let mut raw_str_ptr: *mut u8 = self.raw(ptr).offset(8);
+        let mut raw_str_ptr = std::mem::transmute::<_, *mut u8>(ptr.raw.offset(8));
 
         for b in value.as_bytes() {
             *raw_str_ptr = *b;
@@ -187,26 +176,26 @@ impl Default for Heap {
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
 pub struct Pointer {
-    index: usize,
-    size: usize,
+    pub(crate) raw: *const u8,
 }
 
 impl Pointer {
-    pub fn new(index: usize, size: usize) -> Self {
-        Self { index, size }
+    pub fn new(raw: *const u8) -> Self {
+        Self { raw }
     }
 
     pub fn null() -> Self {
         Self {
-            index: usize::MAX,
-            size: 0,
+            raw: std::ptr::null(),
         }
     }
 
     pub fn index(&self, by: usize) -> Self {
-        Self {
-            index: self.index + by,
-            size: self.size - by,
+        let as_isize: isize = by.try_into().unwrap();
+        unsafe {
+            Self {
+                raw: self.raw.offset(as_isize),
+            }
         }
     }
 }

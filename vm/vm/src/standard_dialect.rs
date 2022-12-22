@@ -6,6 +6,7 @@ use std::{
 
 use dynasmrt::DynasmLabelApi;
 use dynasmrt::{dynasm, DynasmApi};
+use memoffset::offset_of;
 use vm_internal::{
     bytecode::{CallTarget, Function, InstrLbl, Module, ModuleLoader, TypeId},
     cfg::{ControlFlowBehaviour, InstrControlFlow},
@@ -14,9 +15,9 @@ use vm_internal::{
         Var,
     },
     interpreter::{CallInfo, InterpreterStatus, Value},
-    jit::{self, load_volatiles, store_volatiles_except, FunctionJITState, VarLoc},
-    memory::{Heap, Pointer, ARRAY_HEADER_SIZE},
-    parser::Term,
+    jit::{self, FunctionJITState, VarLoc, load_volatiles, store_volatiles_except},
+    memory::{Heap, Pointer},
+    parser::{Term, TypeTerm},
     typechecker::{InstrTypecheck, Type, TypeEnvironment, TypeError},
     vm::{VMState, VM},
     x64_asm, x64_asm_resolve_mem,
@@ -53,8 +54,11 @@ impl Dialect for StandardDialect {
             "ret" => Ok(Box::from(
                 Return::construct(module_loader, module, i).unwrap(),
             )),
-            "idx" => Ok(Box::from(
-                Index::construct(module_loader, module, i).unwrap(),
+            "cadr" => Ok(Box::from(
+                ComputeAddress::construct(module_loader, module, i).unwrap(),
+            )),
+            "load" => Ok(Box::from(
+                Load::construct(module_loader, module, i).unwrap(),
             )),
             "add" => Ok(Box::from(
                 AddVarVar::construct(module_loader, module, i).unwrap(),
@@ -376,7 +380,7 @@ impl InstrTypecheck for CopyAddress {
         _: &VM,
         _: &Module,
         _: &Function,
-        env: &mut TypeEnvironment,
+        _: &mut TypeEnvironment,
     ) -> Result<(), TypeError> {
         todo!();
     }
@@ -441,7 +445,7 @@ impl InstrTypecheck for CopyIntoIndex {
         _: &VM,
         _: &Module,
         _: &Function,
-        env: &mut TypeEnvironment,
+        _: &mut TypeEnvironment,
     ) -> Result<(), TypeError> {
         todo!();
     }
@@ -502,7 +506,7 @@ impl InstrTypecheck for CopyAddressIntoIndex {
         _: &VM,
         _: &Module,
         _: &Function,
-        env: &mut TypeEnvironment,
+        _: &mut TypeEnvironment,
     ) -> Result<(), TypeError> {
         todo!();
     }
@@ -568,7 +572,7 @@ impl InstrTypecheck for EqVarVar {
         _: &VM,
         _: &Module,
         _: &Function,
-        env: &mut TypeEnvironment,
+        _: &mut TypeEnvironment,
     ) -> Result<(), TypeError> {
         todo!();
     }
@@ -657,7 +661,41 @@ impl InstrTypecheck for LtVarVar {
         _: &Function,
         env: &mut TypeEnvironment,
     ) -> Result<(), TypeError> {
-        todo!();
+        let lhs_type = match env.get(self.1) {
+            Some(lhs) => lhs,
+            None => return Err(TypeError::Missing { var: self.1 }),
+        };
+
+        let rhs_type = match env.get(self.2) {
+            Some(rhs) => rhs,
+            None => return Err(TypeError::Missing { var: self.2 }),
+        };
+
+        if *lhs_type != Type::U64 {
+            return Err(TypeError::Mismatch {
+                expected: Type::U64,
+                was: lhs_type.clone(),
+                var: self.1,
+            });
+        }
+
+        if *rhs_type != Type::U64 {
+            return Err(TypeError::Mismatch {
+                expected: Type::U64,
+                was: rhs_type.clone(),
+                var: self.2,
+            });
+        }
+
+        if !env.insert_or_check(self.0, Type::Bool) {
+            return Err(TypeError::Mismatch {
+                expected: Type::Bool,
+                was: env.get(self.0).unwrap().clone(),
+                var: self.0,
+            });
+        }
+
+        Ok(())
     }
 }
 
@@ -740,7 +778,41 @@ impl InstrTypecheck for SubVarVar {
         _: &Function,
         env: &mut TypeEnvironment,
     ) -> Result<(), TypeError> {
-        todo!();
+        let lhs_type = match env.get(self.1) {
+            Some(lhs) => lhs,
+            None => return Err(TypeError::Missing { var: self.1 }),
+        };
+
+        let rhs_type = match env.get(self.2) {
+            Some(rhs) => rhs,
+            None => return Err(TypeError::Missing { var: self.2 }),
+        };
+
+        if *lhs_type != Type::U64 {
+            return Err(TypeError::Mismatch {
+                expected: Type::U64,
+                was: lhs_type.clone(),
+                var: self.1,
+            });
+        }
+
+        if *rhs_type != Type::U64 {
+            return Err(TypeError::Mismatch {
+                expected: Type::U64,
+                was: rhs_type.clone(),
+                var: self.2,
+            });
+        }
+
+        if !env.insert_or_check(self.0, Type::U64) {
+            return Err(TypeError::Mismatch {
+                expected: Type::U64,
+                was: env.get(self.0).unwrap().clone(),
+                var: self.0,
+            });
+        }
+
+        Ok(())
     }
 }
 
@@ -823,7 +895,41 @@ impl InstrTypecheck for AddVarVar {
         _: &Function,
         env: &mut TypeEnvironment,
     ) -> Result<(), TypeError> {
-        todo!();
+        let lhs_type = match env.get(self.1) {
+            Some(lhs) => lhs,
+            None => return Err(TypeError::Missing { var: self.1 }),
+        };
+
+        let rhs_type = match env.get(self.2) {
+            Some(rhs) => rhs,
+            None => return Err(TypeError::Missing { var: self.2 }),
+        };
+
+        if *lhs_type != Type::U64 {
+            return Err(TypeError::Mismatch {
+                expected: Type::U64,
+                was: lhs_type.clone(),
+                var: self.1,
+            });
+        }
+
+        if *rhs_type != Type::U64 {
+            return Err(TypeError::Mismatch {
+                expected: Type::U64,
+                was: rhs_type.clone(),
+                var: self.2,
+            });
+        }
+
+        if !env.insert_or_check(self.0, Type::U64) {
+            return Err(TypeError::Mismatch {
+                expected: Type::U64,
+                was: env.get(self.0).unwrap().clone(),
+                var: self.0,
+            });
+        }
+
+        Ok(())
     }
 }
 
@@ -887,7 +993,7 @@ impl InstrTypecheck for MulVarVar {
         _: &VM,
         _: &Module,
         _: &Function,
-        env: &mut TypeEnvironment,
+        _: &mut TypeEnvironment,
     ) -> Result<(), TypeError> {
         todo!();
     }
@@ -952,7 +1058,7 @@ impl InstrTypecheck for NotVar {
         _: &VM,
         _: &Module,
         _: &Function,
-        env: &mut TypeEnvironment,
+        _: &mut TypeEnvironment,
     ) -> Result<(), TypeError> {
         todo!();
     }
@@ -1043,11 +1149,29 @@ impl InstrTypecheck for Return {
     fn typecheck(
         &self,
         _: &VM,
-        _: &Module,
-        _: &Function,
+        m: &Module,
+        f: &Function,
         env: &mut TypeEnvironment,
     ) -> Result<(), TypeError> {
-        todo!();
+        match m.get_type_by_id(f.type_id) {
+            Some(Type::Fn(_, to)) => {
+                if let Some(variable_type) = env.get(self.0) {
+                    if **to == *variable_type {
+                        Ok(())
+                    } else {
+                        Err(TypeError::Mismatch {
+                            expected: *to.clone(),
+                            was: variable_type.clone(),
+                            var: self.0,
+                        })
+                    }
+                } else {
+                    panic!()
+                }
+            }
+            Some(_) => panic!(),
+            None => panic!(),
+        }
     }
 }
 
@@ -1058,17 +1182,17 @@ impl Display for Return {
 }
 
 /*
-* Index
+* ComputeAddress
 */
 
 #[derive(FromTerm, Debug, Clone)]
-struct Index(Var, Var, Var, TypeId);
+struct ComputeAddress(Var, Var, TypeId, Var);
 
-impl Instruction for Index {
+impl Instruction for ComputeAddress {
     fn reads(&self) -> HashSet<Var> {
         let mut r = HashSet::new();
         r.insert(self.1);
-        r.insert(self.2);
+        r.insert(self.3);
         r
     }
 
@@ -1084,57 +1208,40 @@ impl Instruction for Index {
             .get_module_by_id(state.interpreter_state.module)
             .unwrap();
 
-        let idx_value = Self::ref_var(state, self.2)
+        let idx_value = Self::ref_var(state, self.3)
             .as_ui64()
             .expect("invalid index");
 
-        match current_module
-            .get_type_by_id(self.3)
+        let res = match current_module
+            .get_type_by_id(self.2)
             .expect("invalid type id")
         {
-            Type::Tuple(_) => {
-                let tuple_value = Self::ref_var(state, self.1)
-                    .as_tuple()
-                    .expect("value didn't match tuple type");
+            Type::Pointer(referenced_type) => match &**referenced_type {
+                Type::Tuple(inner_types) => {
+                    let mut offset = 0;
+                    assert!(*idx_value < inner_types.len() as u64);
 
-                let element_value = tuple_value
-                    .get(*idx_value as usize)
-                    .expect("index out of bounds")
-                    .clone();
+                    for i in 0..*idx_value {
+                        offset += inner_types[i as usize].size();
+                    }
 
-                Self::set_var(state, self.0, element_value);
-            }
-            Type::Array(t, _) => {
-                let ptr = Self::ref_var(state, self.1)
-                    .as_pointer()
-                    .expect("value didn't match pointer type");
+                    let p: Pointer = *Self::ref_var(state, self.1).as_pointer().unwrap();
 
-                // increment ptr
-                let elem_ptr = ptr.index(ARRAY_HEADER_SIZE + t.size() * (*idx_value as usize));
-
-                match **t {
-                    Type::Pointer(_) => unsafe {
-                        let v = state.heap.load::<Pointer>(elem_ptr);
-                        Self::set_var(state, self.0, Value::Pointer(v));
-                    },
-                    _ => panic!(),
+                    p.index(offset)
                 }
-            }
-            Type::Pointer(_) => {
-                let ptr = *Self::ref_var(state, self.1)
-                    .as_pointer()
-                    .expect("value didn't match pointer type");
+                Type::Array(t, _) => {
+                    let offset = t.size() * (*idx_value as usize);
 
-                Self::set_var(
-                    state,
-                    self.0,
-                    Value::Pointer(ptr.index(*idx_value as usize)),
-                );
+                    let p: Pointer = *Self::ref_var(state, self.1).as_pointer().unwrap();
 
-                panic!("should idx also deref?");
-            }
+                    p.index(offset)
+                }
+                _ => panic!("invalid operand"),
+            },
             _ => panic!("invalid operand"),
-        }
+        };
+
+        Self::set_var(state, self.0, Value::Pointer(res));
 
         Self::inc_ip(state);
 
@@ -1142,7 +1249,7 @@ impl Instruction for Index {
     }
 }
 
-impl InstrToBytecode for Index {
+impl InstrToBytecode for ComputeAddress {
     fn op_size(&self) -> u32 {
         std::convert::TryInto::try_into(std::mem::size_of::<Self>()).unwrap()
     }
@@ -1152,124 +1259,265 @@ impl InstrToBytecode for Index {
     }
 }
 
-impl InstrToX64 for Index {
+impl InstrToX64 for ComputeAddress {
     fn emit(&self, _: &VM, module: &Module, state: &mut FunctionJITState, _: InstrLbl) {
-        let mut ops = &mut state.ops;
+        let ops = &mut state.ops;
         let memory = state.variable_locations.as_ref().unwrap();
 
-        let get_heap_address = unsafe {
-            std::mem::transmute::<_, i64>(
-                VMState::heap_mut as unsafe extern "C" fn(&mut VMState) -> &mut Heap,
-            )
+        let element_size: i32 = match module.get_type_by_id(self.2).expect("type idx") {
+            Type::Pointer(inner_type) => match &**inner_type {
+                Type::Array(element_type, _) => element_type.size() as i32,
+                _ => panic!("Illegal cadr operand: {:?}", inner_type),
+            },
+            ty => panic!("Illegal cadr operand: {:?}", ty),
         };
 
-        let index_bytes_address = unsafe {
-            std::mem::transmute::<_, i64>(
-                Heap::index_bytes as unsafe extern "C" fn(&mut Heap, Pointer, usize) -> Pointer,
-            )
-        };
+        let saved = store_volatiles_except(ops, memory, Some(self.0));
 
-        let index_bytes: i32 = match module.get_type_by_id(self.3).expect("type idx") {
-            Type::Array(element_type, _) => element_type.size() as i32,
-            ty => panic!("Illegal index operand: {:?}", ty),
-        };
-
-        let load_8_bytes_address = unsafe {
-            std::mem::transmute::<_, i64>(
-                Heap::load::<u64> as unsafe extern "C" fn(&mut Heap, Pointer) -> u64,
-            )
-        };
-
-        // call get_heap_address to get heap ptr
-        // load idx, multiply with element size in bytes
-        // load src
-        // call heap.index_bytes on src value with idx
-        // write res
-
-        let sizeof_pointer = std::mem::size_of::<Pointer>();
-
-        let saved = store_volatiles_except(&mut ops, &memory, Some(self.0));
-        let stack_space = 0x20;
         x64_asm!(ops
             // Load first because they might be overriden
             ;; x64_asm_resolve_mem!(ops, memory; mov r14, resolve(self.1))
-            ;; x64_asm_resolve_mem!(ops, memory; mov r15, resolve(self.2))
+            ;; x64_asm_resolve_mem!(ops, memory; mov r15, resolve(self.3))
 
-            ; mov rcx, _vm_state
-            ; sub rsp, BYTE stack_space
-            ; mov r10, QWORD get_heap_address
-            ; call r10
-            ; add rsp, BYTE stack_space
-
-            /*
-            * index_bytes
-            * rcx: pointer to Pointer, return value
-            * rdx: pointer to Heap
-            * r8: pointer to Pointer
-            * r9: usize
-            */
-            // 1) Allocate space for return Pointer and put pointer into rcx
-            ; sub rsp, sizeof_pointer.try_into().unwrap()
-            ; mov rcx, rsp
-            // 2) Move pointer to Heap from rax into rdx
-            ; mov rdx, rax
-            // store in non-vol register for later
-            ; mov rdi, rax
-            // 3) Allocate space for arg Pointer and put pointer into r8
-            ; sub rsp, sizeof_pointer.try_into().unwrap()
-            // compute idx
-            ; mov rax, r15
-            ; mov r8, index_bytes
+            // 2) compute pointer to element
+            // base + element_size * index (r15) + 8 (array header)
+            ; mov rax, element_size
+            ; mov r8, r15
             ; mul r8
-            ; mov r8, rax
             // Offset for array header
-            ; add r8, 8
-            ; mov [rsp], r8
-            // TODO second element of Pointer
-            ; mov r8, rsp
-            // 4) Move usize into r9
-            ; mov r9, r14
-            // Call
-            ; sub rsp, BYTE stack_space
-            ; mov r10, QWORD index_bytes_address
-            ; call r10
-            ; add rsp, BYTE stack_space
-            // rax contains proxy
-            // load value
-            ; mov rcx, rdi
-            ; mov rdx, rax
-            ; sub rsp, BYTE stack_space
-            ; mov r10, QWORD load_8_bytes_address
-            ; call r10
-            ; add rsp, BYTE stack_space
+            ; add rax, 8
+            // Offset with base pointer
+            ; add rax, r14
+
             ;; x64_asm_resolve_mem!(ops, memory; mov resolve(self.0), rax)
         );
 
-        load_volatiles(&mut ops, &saved);
+        load_volatiles(ops, &saved);
     }
 }
 
-impl InstrControlFlow for Index {
+impl InstrControlFlow for ComputeAddress {
     fn behaviour(&self) -> ControlFlowBehaviour {
         ControlFlowBehaviour::Linear
     }
 }
 
-impl InstrTypecheck for Index {
+impl InstrTypecheck for ComputeAddress {
     fn typecheck(
         &self,
         _: &VM,
-        _: &Module,
+        m: &Module,
         _: &Function,
         env: &mut TypeEnvironment,
     ) -> Result<(), TypeError> {
+        let specified_type = m.get_type_by_id(self.2).unwrap();
+
+        if let Some(t) = env.get(self.1) {
+            if t != specified_type {
+                return Err(TypeError::Mismatch {
+                    expected: specified_type.clone(),
+                    was: t.clone(),
+                    var: self.1,
+                });
+            }
+        } else {
+            return Err(TypeError::Missing { var: self.1 });
+        }
+
+        if let Some(t) = env.get(self.3) {
+            if *t != Type::U64 {
+                return Err(TypeError::Mismatch {
+                    expected: Type::U64,
+                    was: t.clone(),
+                    var: self.1,
+                });
+            }
+        } else {
+            return Err(TypeError::Missing { var: self.3 });
+        }
+
+        let result_type = match specified_type {
+            Type::Pointer(t) => match &**t {
+                Type::Array(t, _) => Type::Pointer(t.clone()),
+                _ => panic!(),
+            },
+            t => {
+                return Err(TypeError::Mismatch {
+                    expected: Type::Unit,
+                    was: t.clone(),
+                    var: self.1,
+                })
+            }
+        };
+
+        if !env.insert_or_check(self.0, result_type.clone()) {
+            return Err(TypeError::Mismatch {
+                expected: result_type.clone(),
+                was: env.get(self.0).unwrap().clone(),
+                var: self.0,
+            });
+        }
+
+        Ok(())
+    }
+}
+
+impl Display for ComputeAddress {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(f, "cadr {}, {}, {}, {}", self.0, self.1, "<?>", self.3)
+    }
+}
+
+/*
+* Load
+*/
+
+#[derive(FromTerm, Debug, Clone)]
+struct Load(Var, Var, TypeId);
+
+impl Instruction for Load {
+    fn reads(&self) -> HashSet<Var> {
+        let mut r = HashSet::new();
+        r.insert(self.1);
+        r
+    }
+
+    fn writes(&self) -> HashSet<Var> {
+        let mut r = HashSet::new();
+        r.insert(self.0);
+        r
+    }
+
+    fn interpret(&self, vm: &VM, state: &mut VMState) -> bool {
+        let current_module = vm
+            .module_loader
+            .get_module_by_id(state.interpreter_state.module)
+            .unwrap();
+
+        let ptr = *Self::ref_var(state, self.1)
+            .as_pointer()
+            .expect("invalid pointer");
+
+        match current_module
+            .get_type_by_id(self.2)
+            .expect("invalid type id")
+        {
+            Type::Pointer(inner_type) => match &**inner_type {
+                Type::U64 => unsafe {
+                    let val = state.heap.load::<u64>(ptr);
+                    Self::set_var(state, self.0, Value::UI64(val));
+                },
+                Type::Bool => todo!(),
+                Type::Pointer(_) => todo!(),
+                _ => panic!(),
+            },
+            _ => panic!(),
+        }
+
+        Self::inc_ip(state);
+
+        true
+    }
+}
+
+impl InstrToBytecode for Load {
+    fn op_size(&self) -> u32 {
+        std::convert::TryInto::try_into(std::mem::size_of::<Self>()).unwrap()
+    }
+
+    fn emplace(&self, _bytes: &mut [u8]) {
         todo!();
     }
 }
 
-impl Display for Index {
+impl InstrToX64 for Load {
+    fn emit(&self, _: &VM, _: &Module, state: &mut FunctionJITState, _: InstrLbl) {
+        let ops = &mut state.ops;
+        let memory = state.variable_locations.as_ref().unwrap();
+
+        let load_fn_address: i64 = unsafe {
+            std::mem::transmute::<_, i64>(
+                Heap::load::<u64> as unsafe extern "C" fn(&mut Heap, Pointer) -> u64,
+            )
+        };
+
+        let heap_offset_in_vm_state: i32 = offset_of!(VMState, heap).try_into().unwrap();
+        let stack_space = 0x20;
+
+        let saved = store_volatiles_except(ops, memory, Some(self.0));
+
+        x64_asm!(ops
+        // Pointer to value in rdx (do this first to avoid invalidation)
+        ;; x64_asm_resolve_mem!(ops, memory; mov rdx, resolve(self.1))
+        // Pointer to heap in rcx
+        ; mov rcx, _vm_state
+        ; add rcx, heap_offset_in_vm_state
+        ; mov rcx, [rcx]
+        ; sub rsp, BYTE stack_space
+        ; mov r10, QWORD load_fn_address
+        ; call r10
+        ; add rsp, BYTE stack_space
+        ;; x64_asm_resolve_mem!(ops, memory; mov resolve(self.0), rax)
+        );
+
+        load_volatiles(ops, &saved);
+    }
+}
+
+impl InstrControlFlow for Load {
+    fn behaviour(&self) -> ControlFlowBehaviour {
+        ControlFlowBehaviour::Linear
+    }
+}
+
+impl InstrTypecheck for Load {
+    fn typecheck(
+        &self,
+        _: &VM,
+        m: &Module,
+        _: &Function,
+        env: &mut TypeEnvironment,
+    ) -> Result<(), TypeError> {
+        let value_type = m.get_type_by_id(self.2).unwrap();
+
+        match env.get(self.1) {
+            None => return Err(TypeError::Missing { var: self.1 }),
+            Some(t) => {
+                if t != value_type {
+                    return Err(TypeError::Mismatch {
+                        expected: value_type.clone(),
+                        was: t.clone(),
+                        var: self.1,
+                    });
+                }
+            }
+        }
+        match value_type {
+            Type::Pointer(inner) => {
+                if !env.insert_or_check(self.0, (**inner).clone()) {
+                    return Err(TypeError::Mismatch {
+                        expected: *inner.clone(),
+                        was: env.get(self.0).unwrap().clone(),
+                        var: self.0,
+                    });
+                }
+
+                Ok(())
+            }
+            _ => {
+                return Err(TypeError::Mismatch {
+                    expected: Type::Pointer(Box::from(Type::Any)),
+                    was: value_type.clone(),
+                    var: self.1,
+                })
+            }
+        }
+    }
+}
+
+impl Display for Load {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
-        write!(f, "idx {}, {}, {}, {}", self.0, self.1, self.2, "<?>")
+        write!(f, "load {}, {}, {}", self.0, self.1, "<?>")
     }
 }
 
@@ -1300,6 +1548,8 @@ impl FromTerm for CallArgs {
                 }
                 Ok(Self(args))
             }
+            // hack to make parsing work here - should be fixed in bytecode parser
+            Term::Type(TypeTerm::Unit) => Ok(Self(vec![])),
             _ => Err(InstructionParseError {}),
         }
     }
@@ -1436,12 +1686,12 @@ impl InstrToBytecode for Call {
 
 impl InstrToX64 for Call {
     fn emit(&self, vm: &VM, module: &Module, state: &mut FunctionJITState, _: InstrLbl) {
-        assert!(self.2 .0.len() == 1);
-        let (_, resolved_function) = self.resolve(vm, module.id());
+        assert!(self.2 .0.len() == 1 || self.2 .0.len() == 0);
+        let (resolved_module, resolved_function) = self.resolve(vm, module.id());
         let memory = state.variable_locations.as_ref().unwrap();
-        let module = module.id();
+        let current_module_id = module.id();
+        let resolved_module_id = resolved_module.id();
         let res = self.0;
-        let arg = self.2 .0[0];
         let ops = &mut state.ops;
 
         let trampoline_address: i64 = unsafe {
@@ -1450,48 +1700,137 @@ impl InstrToX64 for Call {
             )
         };
 
+        let saved = store_volatiles_except(ops, memory, Some(self.0));
+
+        let has_arg = self.2 .0.len() == 1;
+
         // Recursive call
         // We know we can call the native impl. directly
-        if resolved_function.location == state.function_location {
-            let stack_space = 0x20;
+        if resolved_module.id() == current_module_id
+            && resolved_function.location == state.function_location
+        {
+            let mut stack_space = 0x20;
+
+            if has_arg {
+                let arg = self.2 .0[0];
+                x64_asm_resolve_mem!(ops, memory; mov r8, resolve(arg));
+                x64_asm!(ops; push r8; mov r8, rsp);
+                // align
+                stack_space += 8;
+            } else {
+                // nullptr for no-arg functions
+                x64_asm!(ops; mov r8, 0);
+            }
+
             x64_asm!(ops
-                ; mov rcx, _vm
-                ; mov rdx, _vm_state
-                ;; x64_asm_resolve_mem!(ops, memory; mov r8, resolve(arg))
-                ; sub rsp, BYTE stack_space
-                ; call ->_self
-                ; add rsp, BYTE stack_space
-                ;; x64_asm_resolve_mem!(ops, memory; mov resolve(res), rax));
+                    ; mov rcx, _vm
+                    ; mov rdx, _vm_state
+                    ; sub rsp, BYTE stack_space
+                    ; call ->_self
+                    ; add rsp, BYTE stack_space
+                    ; add rsp, 8
+                    ;; x64_asm_resolve_mem!(ops, memory; mov resolve(res), rax));
         }
         // Unknown target
         // Conservatively call trampoline
         else {
-            let stack_space = 0x20;
+            let mut stack_space = 0x20;
+
+            if has_arg {
+                let arg = self.2 .0[0];
+                x64_asm_resolve_mem!(ops, memory; mov r9, resolve(arg));
+                x64_asm!(ops
+                ; push r9
+                ; mov r9, rsp);
+
+                // Align because we are pushing r9 onto stack
+                stack_space += 0x8;
+            } else {
+                x64_asm!(ops; mov r9, 0);
+            }
+
             x64_asm!(ops
                 ; mov rcx, _vm
                 ; mov rdx, _vm_state
                 ; mov r8w, resolved_function.location as i16
                 ; shl r8, 16
-                ; mov r8w, module as i16
-                ;; x64_asm_resolve_mem!(ops, memory; mov r9, resolve(arg))
+                ; mov r8w, resolved_module_id as i16
                 ; sub rsp, BYTE stack_space
                 ; mov r10, QWORD trampoline_address
                 ; call r10
                 ; add rsp, BYTE stack_space
                 ;; x64_asm_resolve_mem!(ops, memory; mov resolve(res), rax));
+
+            if has_arg {
+                x64_asm!(ops; add rsp, 8);
+            }
         }
+
+        load_volatiles(ops, &saved);
     }
 }
 
 impl InstrTypecheck for Call {
     fn typecheck(
         &self,
-        _: &VM,
-        _: &Module,
+        vm: &VM,
+        m: &Module,
         _: &Function,
         env: &mut TypeEnvironment,
     ) -> Result<(), TypeError> {
-        todo!();
+        let (module, function) = self.resolve(vm, m.id());
+        let callee_type = module.get_type_by_id(function.type_id);
+
+        match callee_type {
+            Some(Type::Fn(from, to)) => {
+                if !env.insert_or_check(self.0, *to.clone()) {
+                    return Err(TypeError::Mismatch {
+                        expected: *to.clone(),
+                        was: env.get(self.0).unwrap().clone(),
+                        var: self.0,
+                    });
+                }
+
+                if let Type::Tuple(params) = &**from {
+                    for (param, arg) in params.iter().zip(self.2 .0.iter()) {
+                        if !env.insert_or_check(*arg, param.clone()) {
+                            return Err(TypeError::Mismatch {
+                                expected: param.clone(),
+                                was: env.get(*arg).unwrap().clone(),
+                                var: *arg,
+                            });
+                        }
+                    }
+                } else {
+                    // this is a hacky because signatures don't map 1-1 to arguments
+
+                    if self.2 .0.len() == 1 {
+                        let arg: Var = self.2 .0[0];
+
+                        if !env.insert_or_check(arg, (**from).clone()) {
+                            return Err(TypeError::Mismatch {
+                                expected: (**from).clone(),
+                                was: env.get(arg).unwrap().clone(),
+                                var: arg,
+                            });
+                        }
+                    } else if self.2 .0.len() == 0 {
+                        match &**from {
+                            Type::Unit => {
+                                return Ok(());
+                            }
+                            _ => panic!(),
+                        }
+                    } else {
+                        panic!("{:?}", from);
+                    }
+                }
+
+                Ok(())
+            }
+            Some(_) => panic!(),
+            None => todo!(),
+        }
     }
 }
 
@@ -1602,7 +1941,15 @@ impl InstrTypecheck for JmpIfNot {
         _: &Function,
         env: &mut TypeEnvironment,
     ) -> Result<(), TypeError> {
-        todo!();
+        match env.get(self.0) {
+            Some(Type::Bool) => Ok(()),
+            Some(t) => Err(TypeError::Mismatch {
+                expected: Type::Bool,
+                was: t.clone(),
+                var: self.0,
+            }),
+            None => Err(TypeError::Missing { var: self.0 }),
+        }
     }
 }
 

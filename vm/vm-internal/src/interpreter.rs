@@ -162,6 +162,7 @@ impl Interpreter {
 
         state.call_info.push(fun_ci);
 
+        panic!("Need to deref this var");
         state.set_stack_var(Var(0), Value::Pointer(arg));
 
         state.ip = 0;

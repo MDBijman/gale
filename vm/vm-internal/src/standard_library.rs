@@ -5,14 +5,15 @@ use crate::vm::VMState;
 use log;
 use std::ffi;
 
-extern "C" fn parse_ui64(state: &mut VMState, ptr: Pointer) -> u64 {
+extern "C" fn parse_ui64(_: &mut VMState, ptr: Pointer) -> u64 {
     let str_ptr = unsafe {
+        let val = (ptr.raw as *const Pointer).read_unaligned();
         let char_ptr =
-            state.heap.raw(ptr).offset(STRING_HEADER_SIZE as isize) as *const libc::c_char;
+            val.raw.offset(STRING_HEADER_SIZE as isize) as *const libc::c_char;
         ffi::CStr::from_ptr(char_ptr)
     };
 
-    if log::log_enabled!(target: "stdlib", log::Level::Debug) {
+    if log::log_enabled!(target: "stdlib", log::Level::Trace) {
         log::trace!(target: "stdlib", "parse_ui64(\"{}\") -> {}", str_ptr.to_str().unwrap(),
         str_ptr.to_str().unwrap().parse::<u64>().unwrap()
         );
@@ -21,20 +22,27 @@ extern "C" fn parse_ui64(state: &mut VMState, ptr: Pointer) -> u64 {
     str_ptr.to_str().unwrap().parse::<u64>().unwrap()
 }
 
-extern "C" fn print_ui64(_: &mut VMState, val: u64) -> u64 {
-    print!("{}", val);
+extern "C" fn print_ui64(_: &mut VMState, ptr: Pointer) -> u64 {
+    unsafe {
+        let val = (ptr.raw as *const u64).read_unaligned();
+        print!("{}", val);
+
+        use std::io::Write;
+        std::io::stdout().flush().unwrap();
+    }
     0
 }
 
-extern "C" fn print_str(state: &mut VMState, ptr: Pointer) -> u64 {
+extern "C" fn print_str(_: &mut VMState, ptr: Pointer) -> u64 {
+    use std::io::Write;
+    
     let str_ptr = unsafe {
         let char_ptr =
-            state.heap.raw(ptr).offset(STRING_HEADER_SIZE as isize) as *const libc::c_char;
+            ptr.raw.offset(STRING_HEADER_SIZE as isize) as *const libc::c_char;
         ffi::CStr::from_ptr(char_ptr)
     };
 
     print!("{}", str_ptr.to_str().unwrap());
-    use std::io::Write;
     std::io::stdout().flush().unwrap();
     0
 }

@@ -265,9 +265,10 @@ pub fn to_hex_string(state: &mut JITState, func: &Function) -> String {
     out
 }
 
-pub fn compile(vm: &VM, func: FunctionLocation, state: &mut JITState) {
-    typecheck(vm, func).unwrap();
+pub fn compile(vm: &mut VM, func: FunctionLocation, state: &mut JITState) {
+    let tenv = typecheck(vm, func).unwrap();
 
+    vm.module_loader.lookup_function_mut(func).unwrap().variable_types = Some(tenv);
     let (module, func) = vm.module_loader.lookup(func).unwrap();
 
     let implementation = func
@@ -288,7 +289,7 @@ pub fn compile(vm: &VM, func: FunctionLocation, state: &mut JITState) {
 
     // RCX contains &VM
     // RDX contains &VMState
-    // R8 contains arg
+    // R8 contains arg ptr
 
     let mut space_for_variables = implementation.varcount as i32 * 8;
 
@@ -316,7 +317,8 @@ pub fn compile(vm: &VM, func: FunctionLocation, state: &mut JITState) {
                 ; sub rsp, space_for_variables.into()
                 ; mov rbp, rsp
                 ; mov _vm, rcx
-                ; mov _vm_state, rdx);
+                ; mov _vm_state, rdx
+                ; mov r8, [r8]);
 
         // Move argument into expected location
         // FIXME: hardcoded that argument = var $0
@@ -385,6 +387,7 @@ pub extern "win64" fn trampoline(
     target: CallTarget,
     arg: Pointer,
 ) -> u64 {
+    // println!("trampoline {:?} {:?}", target, arg);
     let func = vm
         .module_loader
         .get_module_by_id(target.module)
@@ -392,6 +395,7 @@ pub extern "win64" fn trampoline(
         .get_function_by_id(target.function)
         .expect("function id");
 
+    // println!("{}",func.name);
     if func.has_native_impl() {
         unsafe {
             let unsafe_fn_ptr = std::mem::transmute::<_, extern "C" fn(&mut VMState, Pointer) -> u64>(

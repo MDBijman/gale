@@ -86,14 +86,17 @@ fn vm_print_bin(args: &ArgMatches) {
     }
 
     let mut vm = VM::new(ModuleLoader::from_module(std_module()));
-    vm.module_loader.add_dialect(Box::from(standard_dialect::StandardDialect {}));
+    vm.module_loader
+        .add_dialect(Box::from(standard_dialect::StandardDialect {}));
     vm.module_loader.set_default_dialect("std");
     let id = vm.module_loader.load_module(file_name).unwrap();
     let module = vm.module_loader.get_module_by_id(id).expect("missing impl");
     let func = module.get_function_by_name(function_name).unwrap();
     let mut state = galejit::JITState::default();
-    galejit::compile(&vm, func.location(), &mut state);
-    let hex_string = galejit::to_hex_string(&mut state, func);
+    let location = func.location();
+    galejit::compile(&mut vm, location, &mut state);
+    let hex_string =
+        galejit::to_hex_string(&mut state, vm.module_loader.lookup(location).unwrap().1);
     print!("{}", hex_string);
 }
 
@@ -113,7 +116,8 @@ fn vm_print_asm(args: &ArgMatches) {
     }
 
     let mut vm = VM::new(ModuleLoader::from_module(std_module()));
-    vm.module_loader.add_dialect(Box::from(standard_dialect::StandardDialect {}));
+    vm.module_loader
+        .add_dialect(Box::from(standard_dialect::StandardDialect {}));
     vm.module_loader.set_default_dialect("std");
     let id = vm.module_loader.load_module(file_name).unwrap();
     let module = vm.module_loader.get_module_by_id(id).expect("missing impl");
@@ -124,8 +128,10 @@ fn vm_print_asm(args: &ArgMatches) {
     };
 
     let mut state = galejit::JITState::default();
-    galejit::compile(&vm, func.location(), &mut state);
-    let bytes = galejit::get_function_bytes(&mut state, func);
+    let location = func.location();
+    galejit::compile(&mut vm, location, &mut state);
+    let bytes =
+        galejit::get_function_bytes(&mut state, vm.module_loader.lookup(location).unwrap().1);
 
     // Use iced_x86 to decompile
     use iced_x86::{Decoder, Formatter, Instruction, NasmFormatter};

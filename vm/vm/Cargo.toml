@@ -11,7 +11,8 @@ vm-proc-macros = { path="../vm-proc-macros" }
 clap = { version = "2.33.3" }
 simple_logger = "4.0.0" 
 log = "0.4.17"
-dynasmrt = { version= "1.1.0" }
+dynasmrt = { version = "1.1.0" }
+memoffset = { version = "0.8.0" }
 
 [[bin]]
 name = "galevm"

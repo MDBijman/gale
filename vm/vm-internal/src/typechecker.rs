@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fmt::Display};
 
 use crate::{
-    bytecode::{Function, Module, FunctionLocation},
+    bytecode::{Function, FunctionLocation, Module},
     dialect::Var,
     memory::{Pointer, ARRAY_HEADER_SIZE, STRING_HEADER_SIZE},
     vm::VM,
@@ -124,36 +124,56 @@ impl TypeEnvironment {
     pub fn insert_or_check(&mut self, v: Var, t: Type) -> bool {
         match self.get(v) {
             Some(y) => {
-                return t == *y;
+                t == *y
             }
             None => {
                 self.insert(v, t);
-                return true;
+                true
             }
         }
     }
 }
 
-pub fn typecheck(vm: &VM, fun: FunctionLocation) -> Result<(), TypeError> {
-    let mut t = TypeEnvironment::default();
-    let (module, function) = vm.module_loader.lookup(fun).unwrap();
+fn prepare_type_environment(m: &Module, f: &Function) -> TypeEnvironment {
+    let mut tenv = TypeEnvironment::default();
 
-    let ast =  function.ast_impl().unwrap();
+    // Insert param types into type environment
+    match m.get_type_by_id(f.type_id).unwrap() {
+        Type::Fn(from, _) => {
+            if let Type::Tuple(from) = &**from {
+                for (i, t) in from.iter().enumerate() {
+                    tenv.insert(Var(i as u8), t.clone());
+                }
+            } else {
+                panic!()
+            }
+
+        }
+        _ => panic!(),
+    }
+
+    return tenv;
+}
+
+pub fn typecheck(vm: &VM, fun: FunctionLocation) -> Result<TypeEnvironment, TypeError> {
+    let (module, function) = vm.module_loader.lookup(fun).unwrap();
+    let mut tenv = prepare_type_environment(module, function);
+    let ast = function.ast_impl().unwrap();
 
     for instr in ast.instructions.iter() {
-        let r = instr.typecheck(vm, module, function, &mut t);
+        let r = instr.typecheck(vm, module, function, &mut tenv);
         if r.is_err() {
-            return r;
+            return Err(r.err().unwrap());
         }
     }
 
-    Ok(())
+    Ok(tenv)
 }
 
 #[derive(Debug)]
 pub enum TypeError {
     Mismatch { expected: Type, was: Type, var: Var },
-    Missing { var: Var }
+    Missing { var: Var },
 }
 
 pub trait InstrTypecheck {

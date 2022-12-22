@@ -117,7 +117,7 @@ impl VM {
                 args.len(),
             ));
             unsafe {
-                let mut raw_arr_ptr = state.heap.raw(arr_ptr).offset(ARRAY_HEADER_SIZE as isize);
+                let mut raw_arr_ptr = arr_ptr.raw.offset(ARRAY_HEADER_SIZE as isize);
 
                 for arg in args.iter() {
                     let str_ptr = state.heap.allocate_type(&Type::Str(Size::Sized(arg.len())));
@@ -133,7 +133,7 @@ impl VM {
         if jit {
             /* Compile the fib function */
             if let Some(function) = module.get_function_by_name("fib") {
-                jit::compile(&self, function.location(), &mut state.jit_state);
+                jit::compile( self, function.location(), &mut state.jit_state);
             }
 
             self.run_jit(location, &mut state, args_ptr);
@@ -151,7 +151,7 @@ impl VM {
     }
 
     fn run_jit(
-        &self,
+        &mut self,
         target: FunctionLocation,
         state: &mut VMState,
         args_ptr: Pointer,
@@ -159,14 +159,17 @@ impl VM {
         let start = time::SystemTime::now();
 
         /* Compile the main function */
-        jit::compile(&self, target, &mut state.jit_state);
+        jit::compile(self, target, &mut state.jit_state);
+
+        
+        let indirect_args_ptr = unsafe { std::mem::transmute::<_, Pointer>(&args_ptr) };
 
         /* Run the main function in compiled mode */
         let res = jit::call_if_compiled(
             self,
             state,
             CallTarget::new(target),
-            args_ptr,
+            indirect_args_ptr,
         );
 
         state.result = res;
