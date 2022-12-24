@@ -1,4 +1,4 @@
-use std::convert::TryInto;
+use std::{convert::TryInto, fmt::Display};
 
 use crate::typechecker::{Size, Type};
 
@@ -19,7 +19,7 @@ pub const ARRAY_HEADER_SIZE: usize = std::mem::size_of::<u64>();
 pub const STRING_HEADER_SIZE: usize = std::mem::size_of::<u64>();
 
 /// Size of a pointer on the heap. <adress>.
-pub const POINTER_SIZE: usize = std::mem::size_of::<u64>();
+pub const POINTER_SIZE: usize = std::mem::size_of::<Pointer>();
 
 #[derive(Debug, Clone)]
 pub struct Heap {
@@ -109,14 +109,14 @@ impl Heap {
 
     pub unsafe extern "C" fn load<T>(&mut self, ptr: Pointer) -> T
     where
-        T: Copy + std::fmt::Debug,
+        T: Copy + std::fmt::Display,
     {
         let res = std::mem::transmute::<_, *mut T>(ptr.raw).read_unaligned();
 
         log::debug!(target: "memory",
-            "load {} bytes from {:?}: {:?}",
+            "load {} bytes from {:#x}: {}",
             std::mem::size_of::<T>(),
-            ptr,
+            ptr.raw as usize,
             res);
 
         res
@@ -177,6 +177,12 @@ impl Default for Heap {
 #[derive(Clone, Copy, Debug)]
 pub struct Pointer {
     pub(crate) raw: *const u8,
+}
+
+impl Display for Pointer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:#x}", self.raw as usize)
+    }
 }
 
 impl Pointer {

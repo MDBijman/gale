@@ -1,11 +1,13 @@
-use crate::dialect::{Dialect, Instruction, InstructionBuffer, InstructionParseError, Var, LabelInstruction};
+use crate::dialect::{
+    Dialect, Instruction, InstructionBuffer, InstructionParseError, LabelInstruction, Var,
+};
 use crate::memory::{Heap, Pointer};
 use crate::parser::{
     parse_bytecode_file_new, FunctionTerm, ModuleTerm, ParserError, Term, TypeTerm,
 };
-use crate::typechecker::{TypeEnvironment, Type, Size};
+use crate::typechecker::{Size, Type, TypeEnvironment};
 use std::collections::{HashMap, HashSet};
-use std::{convert::TryInto};
+use std::convert::TryInto;
 
 #[derive(Default)]
 pub struct ModuleLoader {
@@ -46,14 +48,19 @@ impl ModuleLoader {
         self.dialects.insert(d.get_dialect_tag(), d);
     }
 
+    pub fn get_dialect(&self, d: &'static str) -> Option<&dyn Dialect> {
+        self.dialects.get(d).map(|b| &**b)
+    }
+
     pub fn add_module(&mut self, mut m: Module) -> ModuleId {
         assert!(self.interfaces.len() != u16::MAX.into());
 
-        m.set_id(self
-            .implementations
-            .len()
-            .try_into()
-            .expect("too many modules"));
+        m.set_id(
+            self.implementations
+                .len()
+                .try_into()
+                .expect("too many modules"),
+        );
 
         let id = m.id;
 
@@ -63,7 +70,7 @@ impl ModuleLoader {
         id
     }
 
-    pub fn get_module_by_id(&self, id: ModuleId) -> Option<&Module> {
+    pub fn get_module_by_id<'a>(&'a self, id: ModuleId) -> Option<&'a Module> {
         match self.implementations.get(id as usize).map(|o| o.as_ref()) {
             Some(Some(m)) => Some(m),
             _ => None,
@@ -71,7 +78,11 @@ impl ModuleLoader {
     }
 
     pub fn get_module_by_id_mut(&mut self, id: ModuleId) -> Option<&mut Module> {
-        match self.implementations.get_mut(id as usize).map(|o| o.as_mut()) {
+        match self
+            .implementations
+            .get_mut(id as usize)
+            .map(|o| o.as_mut())
+        {
             Some(Some(m)) => Some(m),
             _ => None,
         }
@@ -111,7 +122,7 @@ impl ModuleLoader {
 
     pub fn lookup_module_mut(&mut self, location: FunctionLocation) -> Option<&mut Module> {
         if let Some(module) = self.get_module_by_id_mut(location.module) {
-            return Some(module)
+            return Some(module);
         }
 
         None
@@ -126,7 +137,6 @@ impl ModuleLoader {
 
         None
     }
-
 
     pub fn make_type_from_term(&self, tterm: &TypeTerm) -> Type {
         match tterm {
@@ -164,8 +174,8 @@ impl ModuleLoader {
         let i = match t {
             Term::Instruction(i) => i,
             Term::Label(n) => {
-               return Ok(Box::from(LabelInstruction(n.clone())));
-            },
+                return Ok(Box::from(LabelInstruction(n.clone())));
+            }
             t => panic!("unexpected {:?}", t),
         };
 
@@ -462,7 +472,10 @@ pub struct CallTarget {
 
 impl CallTarget {
     pub fn new(location: FunctionLocation) -> Self {
-        Self { module: location.module, function: location.function }
+        Self {
+            module: location.module,
+            function: location.function,
+        }
     }
 }
 
@@ -495,12 +508,15 @@ impl Function {
             location: FnId::MAX,
             type_id,
             variable_types: None,
-            implementations: vec![FunctionImpl::Native(NativeImpl { fn_ptr: native })],
+            implementations: vec![FunctionImpl::Intrinsic(IntrinsicImpl { fn_ptr: native })],
         }
     }
 
     pub fn location(&self) -> FunctionLocation {
-        FunctionLocation { module: self.module, function: self.location }
+        FunctionLocation {
+            module: self.module,
+            function: self.location,
+        }
     }
 
     pub fn has_ast_impl(&self) -> bool {
@@ -514,10 +530,10 @@ impl Function {
             .is_some()
     }
 
-    pub fn has_native_impl(&self) -> bool {
+    pub fn has_intrinsic_impl(&self) -> bool {
         self.implementations
             .iter()
-            .find(|x| x.is_native())
+            .find(|x| x.is_intrinsic())
             .is_some()
     }
 
@@ -535,11 +551,11 @@ impl Function {
             .map(|x| x.as_bytecode().unwrap())
     }
 
-    pub fn native_impl(&self) -> Option<&NativeImpl> {
+    pub fn intrinsic_impl(&self) -> Option<&IntrinsicImpl> {
         self.implementations
             .iter()
-            .find(|x| x.is_native())
-            .map(|x| x.as_native().unwrap())
+            .find(|x| x.is_intrinsic())
+            .map(|x| x.as_instrinsic().unwrap())
     }
 
     pub fn is_typechecked(&self) -> bool {
@@ -574,11 +590,11 @@ impl Function {
 
             // Print locations of variables at current instruction
             let s = format!("{:<3} {}", idx, instr);
-            print!("{:<30}", s);
+            print!("{:<40}", s);
 
             for v in current_vars.iter() {
                 if v.is_some() {
-                    print!("{:^4}", v.unwrap());
+                    print!("{:^4} ", v.unwrap());
                 } else {
                     print!("    ");
                 }
@@ -606,19 +622,19 @@ impl Function {
 pub enum FunctionImpl {
     AST(ASTImpl),
     Bytecode(BytecodeImpl),
-    Native(NativeImpl),
+    Intrinsic(IntrinsicImpl),
 }
 
 impl FunctionImpl {
-    /// Returns `true` if the function impl is [`Native`].
+    /// Returns `true` if the function impl is [`Instrinsic`].
     ///
-    /// [`Native`]: FunctionImpl::Native
-    pub fn is_native(&self) -> bool {
-        matches!(self, Self::Native(..))
+    /// [`Instrinsic`]: FunctionImpl::Intrinsic
+    pub fn is_intrinsic(&self) -> bool {
+        matches!(self, Self::Intrinsic(..))
     }
 
-    pub fn as_native(&self) -> Option<&NativeImpl> {
-        if let Self::Native(v) = self {
+    pub fn as_instrinsic(&self) -> Option<&IntrinsicImpl> {
+        if let Self::Intrinsic(v) = self {
             Some(v)
         } else {
             None
@@ -675,7 +691,7 @@ pub struct BytecodeImpl {
 /// Native implementation. This implementation can be used to implement built-in (i.e. Rust) implementations
 /// of functions. It is not the implementation generated by the JIT.
 #[derive(Debug, Clone)]
-pub struct NativeImpl {
+pub struct IntrinsicImpl {
     // We'll use transmute when calling so the in-out types don't matter
     // But maybe there is a better way to represent this?
     pub fn_ptr: extern "C" fn() -> (),

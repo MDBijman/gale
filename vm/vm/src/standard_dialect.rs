@@ -4,32 +4,91 @@ use std::{
     fmt::{Display, Formatter},
 };
 
-use dynasmrt::DynasmLabelApi;
 use dynasmrt::{dynasm, DynasmApi};
+use dynasmrt::{x64::Rq, DynasmLabelApi};
 use memoffset::offset_of;
 use vm_internal::{
     bytecode::{CallTarget, Function, InstrLbl, Module, ModuleLoader, TypeId},
     cfg::{ControlFlowBehaviour, InstrControlFlow},
+    define_instr_common,
     dialect::{
-        Dialect, FromTerm, InstrToBytecode, InstrToX64, Instruction, InstructionParseError, Name,
-        Var,
+        Dialect, FromTerm, InstrInterpret, InstrToBytecode, InstrToX64, Instruction,
+        InstructionParseError, LabelInstruction, Name, Var,
     },
     interpreter::{CallInfo, InterpreterStatus, Value},
-    jit::{self, FunctionJITState, VarLoc, load_volatiles, store_volatiles_except},
-    memory::{Heap, Pointer},
+    jit::{
+        self, load_registers, store_registers, store_volatiles_except, FunctionJITState, VarLoc,
+    },
+    memory::{Heap, Pointer, ARRAY_HEADER_SIZE},
     parser::{Term, TypeTerm},
     typechecker::{InstrTypecheck, Type, TypeEnvironment, TypeError},
     vm::{VMState, VM},
-    x64_asm, x64_asm_resolve_mem,
+    x64_asm, x64_asm_resolve_mem, x64_reg,
 };
 use vm_proc_macros::FromTerm;
+
+macro_rules! construct {
+    ($module_loader:expr, $module:expr, $i:expr, $e:expr, $(($l:literal, $t:ty)),+) => {
+        match $e {
+            $($l => Ok(Box::from(
+                <$t>::construct($module_loader, $module, $i).unwrap(),
+            )),)+
+            _ => panic!()
+        }
+    }
+}
+
+macro_rules! emit_x64 {
+    ($vm:expr, $module:expr, $jit_state:expr, $instr_lbl:expr, $instr:expr, $(($d:literal, $l:literal, $t:ty)),+) => {
+        match ($instr.dialect(), $instr.tag()) {
+            $(($d, $l) =>
+                $instr
+                    .as_any()
+                    .downcast_ref::<$t>()
+                    .unwrap()
+                    .emit($vm, $module, $jit_state, $instr_lbl),
+            )+
+            (d, l) => panic!("Don't know how to compile instruction {}:{}", d, l)
+        }
+    }
+}
 
 /*
 * The standard dialect defines commonly used instructions.
 */
 pub struct StandardDialect {}
 
+impl StandardDialect {}
+
 impl Dialect for StandardDialect {
+    fn compile(
+        &self,
+        vm: &VM,
+        module: &Module,
+        state: &mut FunctionJITState,
+        instr: &dyn Instruction,
+        instr_lbl: InstrLbl,
+    ) {
+        emit_x64!(
+            vm,
+            module,
+            state,
+            instr_lbl,
+            instr,
+            ("std", "ui32", ConstU32),
+            ("std", "bool", ConstBool),
+            ("std", "ret", Return),
+            ("std", "cadr", ComputeAddress),
+            ("std", "load", Load),
+            ("std", "add", AddVarVar),
+            ("std", "sub", SubVarVar),
+            ("std", "call", Call),
+            ("std", "lt", LtVarVar),
+            ("std", "jmpifn", JmpIfNot),
+            ("core", "lbl", LabelInstruction)
+        );
+    }
+
     fn make_instruction(
         &self,
         module_loader: &ModuleLoader,
@@ -44,39 +103,23 @@ impl Dialect for StandardDialect {
             Term::Instruction(i) => i,
             _ => panic!(),
         };
-        match p.name.as_str() {
-            "ui32" => Ok(Box::from(
-                ConstU32::construct(module_loader, module, i).unwrap(),
-            )),
-            "bool" => Ok(Box::from(
-                ConstBool::construct(module_loader, module, i).unwrap(),
-            )),
-            "ret" => Ok(Box::from(
-                Return::construct(module_loader, module, i).unwrap(),
-            )),
-            "cadr" => Ok(Box::from(
-                ComputeAddress::construct(module_loader, module, i).unwrap(),
-            )),
-            "load" => Ok(Box::from(
-                Load::construct(module_loader, module, i).unwrap(),
-            )),
-            "add" => Ok(Box::from(
-                AddVarVar::construct(module_loader, module, i).unwrap(),
-            )),
-            "sub" => Ok(Box::from(
-                SubVarVar::construct(module_loader, module, i).unwrap(),
-            )),
-            "call" => Ok(Box::from(
-                Call::construct(module_loader, module, i).unwrap(),
-            )),
-            "lt" => Ok(Box::from(
-                LtVarVar::construct(module_loader, module, i).unwrap(),
-            )),
-            "jmpifn" => Ok(Box::from(
-                JmpIfNot::construct(module_loader, module, i).unwrap(),
-            )),
-            i => panic!("unknown instruction: {}", i),
-        }
+
+        construct!(
+            module_loader,
+            module,
+            i,
+            p.name.as_str(),
+            ("ui32", ConstU32),
+            ("bool", ConstBool),
+            ("ret", Return),
+            ("cadr", ComputeAddress),
+            ("load", Load),
+            ("add", AddVarVar),
+            ("sub", SubVarVar),
+            ("call", Call),
+            ("lt", LtVarVar),
+            ("jmpifn", JmpIfNot)
+        )
     }
 
     fn get_dialect_tag(&self) -> &'static str {
@@ -98,6 +141,8 @@ impl Dialect for StandardDialect {
 struct ConstU32(Var, u32);
 
 impl Instruction for ConstU32 {
+    define_instr_common!("std", "ui32");
+
     fn reads(&self) -> HashSet<Var> {
         HashSet::default()
     }
@@ -107,7 +152,9 @@ impl Instruction for ConstU32 {
         r.insert(self.0);
         r
     }
+}
 
+impl InstrInterpret for ConstU32 {
     fn interpret(&self, _: &VM, state: &mut VMState) -> bool {
         Self::set_var(state, self.0, Value::UI64(self.1 as u64));
         Self::inc_ip(state);
@@ -137,7 +184,7 @@ impl InstrToX64 for ConstU32 {
 
         let r = self.0;
         let c: i32 = self.1 as i32;
-        x64_asm_resolve_mem!(ops, memory; mov resolve(r), c);
+        x64_asm_resolve_mem!(ops, memory; mov v(r), e(c));
     }
 }
 
@@ -181,6 +228,8 @@ impl Display for ConstU32 {
 struct ConstBool(Var, bool);
 
 impl Instruction for ConstBool {
+    define_instr_common!("std", "bool");
+
     fn reads(&self) -> HashSet<Var> {
         HashSet::default()
     }
@@ -190,7 +239,9 @@ impl Instruction for ConstBool {
         r.insert(self.0);
         r
     }
+}
 
+impl InstrInterpret for ConstBool {
     fn interpret(&self, _: &VM, state: &mut VMState) -> bool {
         Self::set_var(state, self.0, Value::Bool(self.1));
         Self::inc_ip(state);
@@ -255,6 +306,8 @@ impl Display for ConstBool {
 struct Copy(Var, Var);
 
 impl Instruction for Copy {
+    define_instr_common!("std", "mov");
+
     fn reads(&self) -> HashSet<Var> {
         let mut r = HashSet::new();
         r.insert(self.1);
@@ -266,7 +319,9 @@ impl Instruction for Copy {
         r.insert(self.0);
         r
     }
+}
 
+impl InstrInterpret for Copy {
     fn interpret(&self, _: &VM, state: &mut VMState) -> bool {
         let val = Self::clone_var(state, self.0);
         Self::set_var(state, self.0, val);
@@ -329,196 +384,6 @@ impl Display for Copy {
 }
 
 /*
-* CopyAddress
-*/
-
-#[derive(FromTerm, Clone, Debug)]
-struct CopyAddress(Var, Name);
-
-impl Instruction for CopyAddress {
-    fn reads(&self) -> HashSet<Var> {
-        HashSet::new()
-    }
-
-    fn writes(&self) -> HashSet<Var> {
-        let mut r = HashSet::new();
-        r.insert(self.0);
-        r
-    }
-
-    fn interpret(&self, _vm: &VM, state: &mut VMState) -> bool {
-        Self::set_var(state, self.0, Value::CallTarget(todo!()));
-        Self::inc_ip(state);
-    }
-}
-
-impl InstrToBytecode for CopyAddress {
-    fn op_size(&self) -> u32 {
-        std::convert::TryInto::try_into(std::mem::size_of::<Self>()).unwrap()
-    }
-
-    fn emplace(&self, _bytes: &mut [u8]) {
-        todo!();
-    }
-}
-
-impl InstrToX64 for CopyAddress {
-    fn emit(&self, _: &VM, _: &Module, _: &mut FunctionJITState, _: InstrLbl) {
-        todo!()
-    }
-}
-
-impl InstrControlFlow for CopyAddress {
-    fn behaviour(&self) -> ControlFlowBehaviour {
-        ControlFlowBehaviour::Linear
-    }
-}
-
-impl InstrTypecheck for CopyAddress {
-    fn typecheck(
-        &self,
-        _: &VM,
-        _: &Module,
-        _: &Function,
-        _: &mut TypeEnvironment,
-    ) -> Result<(), TypeError> {
-        todo!();
-    }
-}
-
-impl Display for CopyAddress {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
-        write!(f, "movi ${}, {}", self.0, self.1)
-    }
-}
-
-/*
-* CopyIntoIndex
-*/
-
-#[derive(FromTerm, Debug, Clone)]
-struct CopyIntoIndex(Var, u8, Var);
-
-impl Instruction for CopyIntoIndex {
-    fn reads(&self) -> HashSet<Var> {
-        let mut r = HashSet::new();
-        r.insert(self.2);
-        r
-    }
-
-    fn writes(&self) -> HashSet<Var> {
-        let mut r = HashSet::new();
-        r.insert(self.0);
-        r
-    }
-
-    fn interpret(&self, _vm: &VM, _state: &mut VMState) -> bool {
-        todo!()
-    }
-}
-
-impl InstrToBytecode for CopyIntoIndex {
-    fn op_size(&self) -> u32 {
-        std::convert::TryInto::try_into(std::mem::size_of::<Self>()).unwrap()
-    }
-
-    fn emplace(&self, _bytes: &mut [u8]) {
-        todo!();
-    }
-}
-
-impl InstrToX64 for CopyIntoIndex {
-    fn emit(&self, _: &VM, _: &Module, _: &mut FunctionJITState, _: InstrLbl) {
-        todo!();
-    }
-}
-
-impl InstrControlFlow for CopyIntoIndex {
-    fn behaviour(&self) -> ControlFlowBehaviour {
-        ControlFlowBehaviour::Linear
-    }
-}
-
-impl InstrTypecheck for CopyIntoIndex {
-    fn typecheck(
-        &self,
-        _: &VM,
-        _: &Module,
-        _: &Function,
-        _: &mut TypeEnvironment,
-    ) -> Result<(), TypeError> {
-        todo!();
-    }
-}
-
-impl Display for CopyIntoIndex {
-    fn fmt(&self, _f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
-        todo!()
-    }
-}
-
-/*
-* CopyAddressIntoIndex
-*/
-
-#[derive(FromTerm, Debug, Clone)]
-struct CopyAddressIntoIndex(Var, u8, Name);
-
-impl Instruction for CopyAddressIntoIndex {
-    fn reads(&self) -> HashSet<Var> {
-        todo!()
-    }
-
-    fn writes(&self) -> HashSet<Var> {
-        todo!()
-    }
-
-    fn interpret(&self, _vm: &VM, _state: &mut VMState) -> bool {
-        todo!()
-    }
-}
-
-impl InstrToBytecode for CopyAddressIntoIndex {
-    fn op_size(&self) -> u32 {
-        std::convert::TryInto::try_into(std::mem::size_of::<Self>()).unwrap()
-    }
-
-    fn emplace(&self, _bytes: &mut [u8]) {
-        todo!();
-    }
-}
-
-impl InstrToX64 for CopyAddressIntoIndex {
-    fn emit(&self, _: &VM, _: &Module, _: &mut FunctionJITState, _: InstrLbl) {
-        todo!();
-    }
-}
-
-impl InstrControlFlow for CopyAddressIntoIndex {
-    fn behaviour(&self) -> ControlFlowBehaviour {
-        ControlFlowBehaviour::Linear
-    }
-}
-
-impl InstrTypecheck for CopyAddressIntoIndex {
-    fn typecheck(
-        &self,
-        _: &VM,
-        _: &Module,
-        _: &Function,
-        _: &mut TypeEnvironment,
-    ) -> Result<(), TypeError> {
-        todo!();
-    }
-}
-
-impl Display for CopyAddressIntoIndex {
-    fn fmt(&self, _f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
-        todo!()
-    }
-}
-
-/*
 * EqVarVar
 */
 
@@ -526,6 +391,8 @@ impl Display for CopyAddressIntoIndex {
 struct EqVarVar(Var, Var, Var);
 
 impl Instruction for EqVarVar {
+    define_instr_common!("std", "eq");
+
     fn reads(&self) -> HashSet<Var> {
         let mut r = HashSet::new();
         r.insert(self.1);
@@ -538,7 +405,9 @@ impl Instruction for EqVarVar {
         r.insert(self.0);
         r
     }
+}
 
+impl InstrInterpret for EqVarVar {
     fn interpret(&self, _vm: &VM, _state: &mut VMState) -> bool {
         todo!()
     }
@@ -592,6 +461,8 @@ impl Display for EqVarVar {
 struct LtVarVar(Var, Var, Var);
 
 impl Instruction for LtVarVar {
+    define_instr_common!("std", "lt");
+
     fn reads(&self) -> HashSet<Var> {
         let mut r = HashSet::new();
         r.insert(self.1);
@@ -604,7 +475,9 @@ impl Instruction for LtVarVar {
         r.insert(self.0);
         r
     }
+}
 
+impl InstrInterpret for LtVarVar {
     fn interpret(&self, _vm: &VM, state: &mut VMState) -> bool {
         let lhs = *Self::ref_var(state, self.1)
             .as_ui64()
@@ -640,8 +513,8 @@ impl InstrToX64 for LtVarVar {
         let ops = &mut state.ops;
         let memory = state.variable_locations.as_ref().unwrap();
         x64_asm!(ops
-                ;; x64_asm_resolve_mem!(ops, memory; cmp resolve(self.1), resolve(self.2))
-                ;; x64_asm_resolve_mem!(ops, memory; mov resolve(self.0), 0)
+                ;; x64_asm_resolve_mem!(ops, memory; cmp v(self.1), v(self.2))
+                ;; x64_asm_resolve_mem!(ops, memory; mov v(self.0), e(0))
                 ; mov rdi, 1
                 ; cmovl Rq(res_reg as u8), rdi);
     }
@@ -713,6 +586,8 @@ impl Display for LtVarVar {
 struct SubVarVar(Var, Var, Var);
 
 impl Instruction for SubVarVar {
+    define_instr_common!("std", "sub");
+
     fn reads(&self) -> HashSet<Var> {
         let mut r = HashSet::new();
         r.insert(self.1);
@@ -725,7 +600,9 @@ impl Instruction for SubVarVar {
         r.insert(self.0);
         r
     }
+}
 
+impl InstrInterpret for SubVarVar {
     fn interpret(&self, _vm: &VM, state: &mut VMState) -> bool {
         let lhs = *Self::ref_var(state, self.1)
             .as_ui64()
@@ -758,9 +635,9 @@ impl InstrToX64 for SubVarVar {
     fn emit(&self, _: &VM, _: &Module, state: &mut FunctionJITState, _: InstrLbl) {
         let ops = &mut state.ops;
         let memory = state.variable_locations.as_ref().unwrap();
-        x64_asm_resolve_mem!(ops, memory; mov rsi, resolve(self.1));
-        x64_asm_resolve_mem!(ops, memory; sub rsi, resolve(self.2));
-        x64_asm_resolve_mem!(ops, memory; mov resolve(self.0), rsi);
+        x64_asm_resolve_mem!(ops, memory; mov r(rsi), v(self.1));
+        x64_asm_resolve_mem!(ops, memory; sub r(rsi), v(self.2));
+        x64_asm_resolve_mem!(ops, memory; mov v(self.0), r(rsi));
     }
 }
 
@@ -830,6 +707,8 @@ impl Display for SubVarVar {
 struct AddVarVar(Var, Var, Var);
 
 impl Instruction for AddVarVar {
+    define_instr_common!("std", "add");
+
     fn reads(&self) -> HashSet<Var> {
         let mut r = HashSet::new();
         r.insert(self.1);
@@ -842,7 +721,9 @@ impl Instruction for AddVarVar {
         r.insert(self.0);
         r
     }
+}
 
+impl InstrInterpret for AddVarVar {
     fn interpret(&self, _vm: &VM, state: &mut VMState) -> bool {
         let lhs = *Self::ref_var(state, self.1)
             .as_ui64()
@@ -875,9 +756,9 @@ impl InstrToX64 for AddVarVar {
     fn emit(&self, _: &VM, _: &Module, state: &mut FunctionJITState, _: InstrLbl) {
         let ops = &mut state.ops;
         let memory = state.variable_locations.as_ref().unwrap();
-        x64_asm_resolve_mem!(ops, memory; mov rsi, resolve(self.1));
-        x64_asm_resolve_mem!(ops, memory; add rsi, resolve(self.2));
-        x64_asm_resolve_mem!(ops, memory; mov resolve(self.0), rsi);
+        x64_asm_resolve_mem!(ops, memory; mov r(rsi), v(self.1));
+        x64_asm_resolve_mem!(ops, memory; add r(rsi), v(self.2));
+        x64_asm_resolve_mem!(ops, memory; mov v(self.0), r(rsi));
     }
 }
 
@@ -947,6 +828,8 @@ impl Display for AddVarVar {
 struct MulVarVar(Var, Var, Var);
 
 impl Instruction for MulVarVar {
+    define_instr_common!("std", "mul");
+
     fn reads(&self) -> HashSet<Var> {
         let mut r = HashSet::new();
         r.insert(self.1);
@@ -959,7 +842,9 @@ impl Instruction for MulVarVar {
         r.insert(self.0);
         r
     }
+}
 
+impl InstrInterpret for MulVarVar {
     fn interpret(&self, _vm: &VM, _state: &mut VMState) -> bool {
         todo!()
     }
@@ -1013,6 +898,8 @@ impl Display for MulVarVar {
 struct NotVar(Var, Var);
 
 impl Instruction for NotVar {
+    define_instr_common!("std", "not");
+
     fn reads(&self) -> HashSet<Var> {
         let mut r = HashSet::new();
         r.insert(self.1);
@@ -1024,7 +911,9 @@ impl Instruction for NotVar {
         r.insert(self.0);
         r
     }
+}
 
+impl InstrInterpret for NotVar {
     fn interpret(&self, _vm: &VM, _state: &mut VMState) -> bool {
         todo!()
     }
@@ -1078,6 +967,8 @@ impl Display for NotVar {
 struct Return(Var);
 
 impl Instruction for Return {
+    define_instr_common!("std", "ret");
+
     fn reads(&self) -> HashSet<Var> {
         let mut r = HashSet::new();
         r.insert(self.0);
@@ -1087,7 +978,9 @@ impl Instruction for Return {
     fn writes(&self) -> HashSet<Var> {
         HashSet::default()
     }
+}
 
+impl InstrInterpret for Return {
     fn interpret(&self, _: &VM, state: &mut VMState) -> bool {
         let val = Self::clone_var(state, self.0);
         let ci = state.interpreter_state.call_info.pop().unwrap();
@@ -1134,7 +1027,7 @@ impl InstrToX64 for Return {
         let ops = &mut state.ops;
         let memory = state.variable_locations.as_ref().unwrap();
         x64_asm!(ops
-                ;; x64_asm_resolve_mem!(ops, memory; mov rax, resolve(self.0))
+                ;; x64_asm_resolve_mem!(ops, memory; mov r(rax), v(self.0))
                 ; jmp ->_cleanup)
     }
 }
@@ -1189,6 +1082,8 @@ impl Display for Return {
 struct ComputeAddress(Var, Var, TypeId, Var);
 
 impl Instruction for ComputeAddress {
+    define_instr_common!("std", "cadr");
+
     fn reads(&self) -> HashSet<Var> {
         let mut r = HashSet::new();
         r.insert(self.1);
@@ -1201,7 +1096,9 @@ impl Instruction for ComputeAddress {
         r.insert(self.0);
         r
     }
+}
 
+impl InstrInterpret for ComputeAddress {
     fn interpret(&self, vm: &VM, state: &mut VMState) -> bool {
         let current_module = vm
             .module_loader
@@ -1230,7 +1127,7 @@ impl Instruction for ComputeAddress {
                     p.index(offset)
                 }
                 Type::Array(t, _) => {
-                    let offset = t.size() * (*idx_value as usize);
+                    let offset = t.size() * (*idx_value as usize) + ARRAY_HEADER_SIZE;
 
                     let p: Pointer = *Self::ref_var(state, self.1).as_pointer().unwrap();
 
@@ -1260,7 +1157,7 @@ impl InstrToBytecode for ComputeAddress {
 }
 
 impl InstrToX64 for ComputeAddress {
-    fn emit(&self, _: &VM, module: &Module, state: &mut FunctionJITState, _: InstrLbl) {
+    fn emit(&self, _: &VM, module: &Module, state: &mut FunctionJITState, lbl: InstrLbl) {
         let ops = &mut state.ops;
         let memory = state.variable_locations.as_ref().unwrap();
 
@@ -1272,27 +1169,33 @@ impl InstrToX64 for ComputeAddress {
             ty => panic!("Illegal cadr operand: {:?}", ty),
         };
 
-        let saved = store_volatiles_except(ops, memory, Some(self.0));
+        let saved = store_registers(
+            ops,
+            memory,
+            &vec![Rq::RAX, Rq::RCX, Rq::R8],
+            &vec![self.0],
+            lbl,
+            false,
+        );
 
         x64_asm!(ops
             // Load first because they might be overriden
-            ;; x64_asm_resolve_mem!(ops, memory; mov r14, resolve(self.1))
-            ;; x64_asm_resolve_mem!(ops, memory; mov r15, resolve(self.3))
+            ;; x64_asm_resolve_mem!(ops, memory; mov r(r8), v(self.1))
+            ;; x64_asm_resolve_mem!(ops, memory; mov r(rcx), v(self.3))
 
             // 2) compute pointer to element
-            // base + element_size * index (r15) + 8 (array header)
+            // base (self.1 in r8) + element_size * index (rcx) + 8 (array header)
             ; mov rax, element_size
-            ; mov r8, r15
-            ; mul r8
+            ; mul rcx
             // Offset for array header
             ; add rax, 8
             // Offset with base pointer
-            ; add rax, r14
+            ; add rax, r8
 
-            ;; x64_asm_resolve_mem!(ops, memory; mov resolve(self.0), rax)
+            ;; x64_asm_resolve_mem!(ops, memory; mov v(self.0), r(rax))
         );
 
-        load_volatiles(ops, &saved);
+        load_registers(ops, &saved, false);
     }
 }
 
@@ -1376,6 +1279,8 @@ impl Display for ComputeAddress {
 struct Load(Var, Var, TypeId);
 
 impl Instruction for Load {
+    define_instr_common!("std", "load");
+
     fn reads(&self) -> HashSet<Var> {
         let mut r = HashSet::new();
         r.insert(self.1);
@@ -1387,7 +1292,9 @@ impl Instruction for Load {
         r.insert(self.0);
         r
     }
+}
 
+impl InstrInterpret for Load {
     fn interpret(&self, vm: &VM, state: &mut VMState) -> bool {
         let current_module = vm
             .module_loader
@@ -1408,8 +1315,11 @@ impl Instruction for Load {
                     Self::set_var(state, self.0, Value::UI64(val));
                 },
                 Type::Bool => todo!(),
-                Type::Pointer(_) => todo!(),
-                _ => panic!(),
+                Type::Pointer(_) => unsafe {
+                    let val = state.heap.load::<Pointer>(ptr);
+                    Self::set_var(state, self.0, Value::Pointer(val));
+                },
+                t => panic!("{:?}", t),
             },
             _ => panic!(),
         }
@@ -1444,11 +1354,11 @@ impl InstrToX64 for Load {
         let heap_offset_in_vm_state: i32 = offset_of!(VMState, heap).try_into().unwrap();
         let stack_space = 0x20;
 
-        let saved = store_volatiles_except(ops, memory, Some(self.0));
+        let saved = store_volatiles_except(ops, memory, Some(self.0), true);
 
         x64_asm!(ops
         // Pointer to value in rdx (do this first to avoid invalidation)
-        ;; x64_asm_resolve_mem!(ops, memory; mov rdx, resolve(self.1))
+        ;; x64_asm_resolve_mem!(ops, memory; mov r(rdx), v(self.1))
         // Pointer to heap in rcx
         ; mov rcx, _vm_state
         ; add rcx, heap_offset_in_vm_state
@@ -1457,10 +1367,10 @@ impl InstrToX64 for Load {
         ; mov r10, QWORD load_fn_address
         ; call r10
         ; add rsp, BYTE stack_space
-        ;; x64_asm_resolve_mem!(ops, memory; mov resolve(self.0), rax)
+        ;; x64_asm_resolve_mem!(ops, memory; mov v(self.0), r(rax))
         );
 
-        load_volatiles(ops, &saved);
+        load_registers(ops, &saved, true);
     }
 }
 
@@ -1574,20 +1484,28 @@ impl Display for CallArgs {
 }
 
 #[derive(Debug, Clone, FromTerm)]
-struct Call(Var, Name, CallArgs);
+//struct Call(Var, Name, CallArgs);
+struct Call {
+    result: Var,
+    target: Name,
+    args: CallArgs,
+}
 
 impl Call {
     fn resolve<'a>(&self, vm: &'a VM, current_module: u16) -> (&'a Module, &'a Function) {
-        let (callee_module, callee_function) = if self.1 .0.len() == 2 {
-            let module = vm.module_loader.get_module_by_name(&self.1 .0[0]).unwrap();
+        let (callee_module, callee_function) = if self.target.0.len() == 2 {
+            let module = vm
+                .module_loader
+                .get_module_by_name(&self.target.0[0])
+                .unwrap();
             let callee = module
-                .get_function_by_name(self.1 .0[1].as_str())
+                .get_function_by_name(self.target.0[1].as_str())
                 .expect("invalid callee");
             (module, callee)
-        } else if self.1 .0.len() == 1 {
+        } else if self.target.0.len() == 1 {
             let module = vm.module_loader.get_module_by_id(current_module).unwrap();
             let callee = module
-                .get_function_by_name(self.1 .0[0].as_str())
+                .get_function_by_name(self.target.0[0].as_str())
                 .expect("invalid callee");
             (module, callee)
         } else {
@@ -1599,42 +1517,47 @@ impl Call {
 }
 
 impl Instruction for Call {
+    define_instr_common!("std", "call");
+
     fn reads(&self) -> HashSet<Var> {
         let mut r = HashSet::new();
-        r.extend(self.2 .0.iter());
+        r.extend(self.args.0.iter());
         r
     }
 
     fn writes(&self) -> HashSet<Var> {
         let mut r = HashSet::new();
-        r.insert(self.0);
+        r.insert(self.result);
         r
     }
+}
 
+impl InstrInterpret for Call {
     fn interpret(&self, vm: &VM, state: &mut VMState) -> bool {
         let (callee_module, callee_function) = self.resolve(vm, state.interpreter_state.module);
 
-        if callee_function.has_native_impl() {
-            let native_impl = callee_function.native_impl().unwrap();
+        if callee_function.has_intrinsic_impl() {
+            let native_impl = callee_function.intrinsic_impl().unwrap();
 
             // Native functions currently only have one 64 bit argument
-            if self.2 .0.len() > 1 {
+            if self.target.0.len() > 1 {
                 panic!("native function called with more than 1 arg");
             }
 
-            let arg_value = Self::ref_var(state, self.2 .0[0]).as_pointer().unwrap();
+            let arg_value = unsafe { Self::ref_var(state, self.args.0[0]).value_pointer() };
+            let arg_value_pointer = unsafe { std::mem::transmute::<_, Pointer>(arg_value) };
 
-            // Signature of native functions is (vm state, arg)
+            // Signature of native functions is (vm state, pointer to arg)
             let res = unsafe {
                 let unsafe_fn_ptr = std::mem::transmute::<
                     _,
                     extern "C" fn(&mut VMState, Pointer) -> u64,
                 >(native_impl.fn_ptr);
-                (unsafe_fn_ptr)(state, *arg_value)
+                (unsafe_fn_ptr)(state, arg_value_pointer)
             };
 
             // Store result
-            Self::set_var(state, self.0, Value::UI64(res));
+            Self::set_var(state, self.result, Value::UI64(res));
             Self::inc_ip(state);
         } else if callee_function.has_ast_impl() {
             let ast_impl = callee_function.ast_impl().unwrap();
@@ -1648,7 +1571,7 @@ impl Instruction for Call {
             let new_ci = CallInfo {
                 called_by_native: false,
                 var_base: new_base.try_into().unwrap(),
-                result_var: self.0,
+                result_var: self.result,
                 framesize: stack_size as usize,
                 prev_ip: state.interpreter_state.ip,
                 prev_fn: state.interpreter_state.func,
@@ -1656,7 +1579,7 @@ impl Instruction for Call {
             };
 
             // Write arguments into new frame
-            for (idx, arg) in self.2 .0.iter().enumerate() {
+            for (idx, arg) in self.args.0.iter().enumerate() {
                 let val = Self::clone_var(state, *arg);
                 state
                     .interpreter_state
@@ -1686,12 +1609,12 @@ impl InstrToBytecode for Call {
 
 impl InstrToX64 for Call {
     fn emit(&self, vm: &VM, module: &Module, state: &mut FunctionJITState, _: InstrLbl) {
-        assert!(self.2 .0.len() == 1 || self.2 .0.len() == 0);
+        assert!(self.args.0.len() == 1 || self.args.0.len() == 0);
         let (resolved_module, resolved_function) = self.resolve(vm, module.id());
         let memory = state.variable_locations.as_ref().unwrap();
         let current_module_id = module.id();
         let resolved_module_id = resolved_module.id();
-        let res = self.0;
+        let res = self.result;
         let ops = &mut state.ops;
 
         let trampoline_address: i64 = unsafe {
@@ -1700,9 +1623,9 @@ impl InstrToX64 for Call {
             )
         };
 
-        let saved = store_volatiles_except(ops, memory, Some(self.0));
+        let saved = store_volatiles_except(ops, memory, Some(self.result), true);
 
-        let has_arg = self.2 .0.len() == 1;
+        let has_arg = self.args.0.len() == 1;
 
         // Recursive call
         // We know we can call the native impl. directly
@@ -1712,8 +1635,8 @@ impl InstrToX64 for Call {
             let mut stack_space = 0x20;
 
             if has_arg {
-                let arg = self.2 .0[0];
-                x64_asm_resolve_mem!(ops, memory; mov r8, resolve(arg));
+                let arg = self.args.0[0];
+                x64_asm_resolve_mem!(ops, memory; mov r(r8), v(arg));
                 x64_asm!(ops; push r8; mov r8, rsp);
                 // align
                 stack_space += 8;
@@ -1729,7 +1652,7 @@ impl InstrToX64 for Call {
                     ; call ->_self
                     ; add rsp, BYTE stack_space
                     ; add rsp, 8
-                    ;; x64_asm_resolve_mem!(ops, memory; mov resolve(res), rax));
+                    ;; x64_asm_resolve_mem!(ops, memory; mov v(res), r(rax)));
         }
         // Unknown target
         // Conservatively call trampoline
@@ -1737,8 +1660,8 @@ impl InstrToX64 for Call {
             let mut stack_space = 0x20;
 
             if has_arg {
-                let arg = self.2 .0[0];
-                x64_asm_resolve_mem!(ops, memory; mov r9, resolve(arg));
+                let arg = self.args.0[0];
+                x64_asm_resolve_mem!(ops, memory; mov r(r9), v(arg));
                 x64_asm!(ops
                 ; push r9
                 ; mov r9, rsp);
@@ -1759,14 +1682,14 @@ impl InstrToX64 for Call {
                 ; mov r10, QWORD trampoline_address
                 ; call r10
                 ; add rsp, BYTE stack_space
-                ;; x64_asm_resolve_mem!(ops, memory; mov resolve(res), rax));
+                ;; x64_asm_resolve_mem!(ops, memory; mov v(res), r(rax)));
 
             if has_arg {
                 x64_asm!(ops; add rsp, 8);
             }
         }
 
-        load_volatiles(ops, &saved);
+        load_registers(ops, &saved, true);
     }
 }
 
@@ -1783,16 +1706,16 @@ impl InstrTypecheck for Call {
 
         match callee_type {
             Some(Type::Fn(from, to)) => {
-                if !env.insert_or_check(self.0, *to.clone()) {
+                if !env.insert_or_check(self.result, *to.clone()) {
                     return Err(TypeError::Mismatch {
                         expected: *to.clone(),
-                        was: env.get(self.0).unwrap().clone(),
-                        var: self.0,
+                        was: env.get(self.result).unwrap().clone(),
+                        var: self.result,
                     });
                 }
 
                 if let Type::Tuple(params) = &**from {
-                    for (param, arg) in params.iter().zip(self.2 .0.iter()) {
+                    for (param, arg) in params.iter().zip(self.args.0.iter()) {
                         if !env.insert_or_check(*arg, param.clone()) {
                             return Err(TypeError::Mismatch {
                                 expected: param.clone(),
@@ -1804,8 +1727,8 @@ impl InstrTypecheck for Call {
                 } else {
                     // this is a hacky because signatures don't map 1-1 to arguments
 
-                    if self.2 .0.len() == 1 {
-                        let arg: Var = self.2 .0[0];
+                    if self.args.0.len() == 1 {
+                        let arg: Var = self.args.0[0];
 
                         if !env.insert_or_check(arg, (**from).clone()) {
                             return Err(TypeError::Mismatch {
@@ -1814,7 +1737,7 @@ impl InstrTypecheck for Call {
                                 var: arg,
                             });
                         }
-                    } else if self.2 .0.len() == 0 {
+                    } else if self.args.0.len() == 0 {
                         match &**from {
                             Type::Unit => {
                                 return Ok(());
@@ -1842,7 +1765,7 @@ impl InstrControlFlow for Call {
 
 impl Display for Call {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
-        write!(f, "call {}, {}, {}", self.0, self.1, self.2)
+        write!(f, "call {}, {}, {}", self.result, self.target, self.args)
     }
 }
 
@@ -1854,6 +1777,8 @@ impl Display for Call {
 struct JmpIfNot(Var, Name);
 
 impl Instruction for JmpIfNot {
+    define_instr_common!("std", "jmpifn");
+
     fn reads(&self) -> HashSet<Var> {
         let mut r = HashSet::new();
         r.insert(self.0);
@@ -1863,7 +1788,9 @@ impl Instruction for JmpIfNot {
     fn writes(&self) -> HashSet<Var> {
         HashSet::new()
     }
+}
 
+impl InstrInterpret for JmpIfNot {
     fn interpret(&self, vm: &VM, state: &mut VMState) -> bool {
         assert!(self.1 .0.len() == 1);
         let i = vm
@@ -1922,7 +1849,7 @@ impl InstrToX64 for JmpIfNot {
             .or_insert(ops.new_dynamic_label());
 
         x64_asm!(ops
-                ;; x64_asm_resolve_mem!(ops, memory ; cmp resolve(self.0), 0)
+                ;; x64_asm_resolve_mem!(ops, memory ; cmp v(self.0), e(0))
                 ; je =>*dyn_lbl);
     }
 }
@@ -1958,3 +1885,197 @@ impl Display for JmpIfNot {
         write!(f, "jmpifn {}, @{}", self.0, self.1)
     }
 }
+
+// match instr {
+//     MulVarVar(r, a, b) => {
+//         x64_asm!(ops; push rax);
+//         x64_asm_resolve_mem!(ops, memory; mov rax, resolve(a));
+//         x64_asm_resolve_mem!(ops, memory; mov rsi, resolve(b));
+//         x64_asm!(ops; imul rsi);
+//         x64_asm_resolve_mem!(ops, memory; mov resolve(r), rax);
+//         x64_asm!(ops; pop rax);
+//     }
+//     EqVarVar(r, a, b) => {
+//         x64_asm_resolve_mem!(ops, memory; cmp resolve(a), resolve(b));
+//         x64_asm!(ops
+//             ; mov rsi, 0
+//             ; mov rdi, 1
+//             ; cmove rsi, rdi);
+//         x64_asm_resolve_mem!(ops, memory; mov resolve(r), rsi);
+//     }
+//     NotVar(r, a) => {
+//         x64_asm_resolve_mem!(ops, memory; cmp resolve(a), 0);
+//         x64_asm!(ops
+//             ; mov rsi, 0
+//             ; mov rdi, 1
+//             ; cmove rsi, rdi);
+//         x64_asm_resolve_mem!(ops, memory; mov resolve(r), rsi);
+//     }
+//     Copy(dest, src) => {
+//         x64_asm_resolve_mem!(ops, memory; mov resolve(dest), resolve(src));
+//     }
+//     StoreVar(dst_ptr, src, ty) => {
+//         let get_heap_address = unsafe {
+//             std::mem::transmute::<_, i64>(
+//                 VMState::heap_mut as unsafe extern "C" fn(&mut VMState) -> &mut Heap,
+//             )
+//         };
+
+//         let store_address = unsafe {
+//             std::mem::transmute::<_, i64>(
+//                 Heap::store_u64 as unsafe extern "C" fn(&mut Heap, Pointer, u64),
+//             )
+//         };
+
+//         let size = module.get_type_by_id(ty).unwrap().size() as i32;
+//         assert_eq!(size, 8, "Can only store size 8 for now");
+
+//         let saved = store_volatiles_except(ops, memory, None);
+//         let stack_space = 0x20;
+
+//         x64_asm!(ops
+//             // Load first because they might be overriden
+//             ;; x64_asm_resolve_mem!(ops, memory; mov r14, resolve(dst_ptr))
+//             ;; x64_asm_resolve_mem!(ops, memory; mov r15, resolve(src))
+
+//             ; mov rcx, _vm_state
+//             ; sub rsp, BYTE stack_space
+//             ; mov r10, QWORD get_heap_address
+//             ; call r10
+//             ; add rsp, BYTE stack_space
+
+//             ; mov rcx, rax
+//             ; mov rdx, r14
+//             ; mov r8, r15
+//             ; sub rsp, BYTE stack_space
+//             ; mov r10, QWORD store_address
+//             ; call r10
+//             ; add rsp, BYTE stack_space);
+
+//         load_volatiles(ops, &saved);
+//     }
+//     Alloc(r, t) => {
+//         let saved = store_volatiles_except(ops, memory, Some(r));
+//         let get_heap_address = unsafe {
+//             std::mem::transmute::<_, i64>(
+//                 VMState::heap_mut as unsafe extern "C" fn(&mut VMState) -> &mut Heap,
+//             )
+//         };
+
+//         let alloc_address = unsafe {
+//             std::mem::transmute::<_, i64>(
+//                 Heap::allocate_type as unsafe extern "C" fn(&mut Heap, &Type) -> Pointer,
+//             )
+//         };
+
+//         let ty = module.get_type_by_id(t).expect("type idx");
+
+//         let stack_space = 0x20;
+//         x64_asm!(ops
+//                 ; mov rcx, _vm_state
+//                 ; sub rsp, BYTE stack_space
+//                 ; mov r10, QWORD get_heap_address
+//                 ; call r10
+//                 ; add rsp, BYTE stack_space
+
+//                 ; mov rcx, rax
+//                 ; mov rdx, QWORD ty as *const _ as i64
+//                 ; sub rsp, BYTE stack_space
+//                 ; mov r10, QWORD alloc_address
+//                 ; call r10
+//                 ; add rsp, BYTE stack_space
+
+//                 ;;x64_asm_resolve_mem!(ops, memory; mov resolve(r), rax));
+
+//         load_volatiles(ops, &saved);
+//     }
+//     LoadConst(res, idx) => {
+//         let const_decl = module.get_constant_by_id(idx).unwrap();
+
+//         let get_heap_address = unsafe {
+//             std::mem::transmute::<_, i64>(
+//                 VMState::heap_mut as unsafe extern "C" fn(&mut VMState) -> &mut Heap,
+//             )
+//         };
+
+//         let write_to_heap_address = unsafe {
+//             std::mem::transmute::<_, i64>(
+//                 Module::write_constant_to_heap
+//                     as unsafe extern "C" fn(&mut Heap, &Type, &Constant) -> Pointer,
+//             )
+//         };
+
+//         let saved = store_volatiles_except(ops, memory, Some(res));
+//         let stack_space = 0x20;
+//         x64_asm!(ops
+//             ; mov rcx, _vm_state
+//             ; sub rsp, BYTE stack_space
+//             ; mov r10, QWORD get_heap_address
+//             ; call r10
+//             ; add rsp, BYTE stack_space
+//             ; mov rcx, rax
+//             // TODO investigate, this wont work if the constdecl is moved, dangling ptr
+//             ; mov rdx, QWORD &const_decl.type_ as *const _ as i64
+//             ; mov r8, QWORD &const_decl.value as *const _ as i64
+//             ; sub rsp, BYTE stack_space
+//             ; mov r10, QWORD write_to_heap_address
+//             ; call r10
+//             ; add rsp, BYTE stack_space
+//             ;; x64_asm_resolve_mem!(ops, memory; mov resolve(res), rax)
+//         );
+
+//         load_volatiles(ops, &saved);
+//     }
+//     Sizeof(res, src) => {
+//         let get_heap_address = unsafe {
+//             std::mem::transmute::<_, i64>(
+//                 VMState::heap_mut as unsafe extern "C" fn(&mut VMState) -> &mut Heap,
+//             )
+//         };
+
+//         let load_8_bytes_address = unsafe {
+//             std::mem::transmute::<_, i64>(
+//                 Heap::load_u64 as unsafe extern "C" fn(&mut Heap, Pointer) -> u64,
+//             )
+//         };
+
+//         let saved = store_volatiles_except(ops, memory, Some(res));
+
+//         let stack_space = 0x20;
+//         x64_asm!(ops
+//             // Load first because they might be overriden
+//             ;; x64_asm_resolve_mem!(ops, memory; mov r14, resolve(src))
+
+//             ; mov rcx, _vm_state
+//             ; sub rsp, BYTE stack_space
+//             ; mov r10, QWORD get_heap_address
+//             ; call r10
+//             ; add rsp, BYTE stack_space
+//             // rax contains pointer to heap, mov into rcx (first arg)
+//             ; mov rcx, rax
+//             // load value
+//             ; mov rdx, r14
+//             ; sub rsp, BYTE stack_space
+//             ; mov r10, QWORD load_8_bytes_address
+//             ; call r10
+//             ; add rsp, BYTE stack_space
+//             ;; x64_asm_resolve_mem!(ops, memory; mov resolve(res), rax)
+//         );
+
+//         load_volatiles(ops, &saved);
+//     }
+//     Panic => {
+//         let panic_address: i64 = unsafe {
+//             std::mem::transmute::<_, i64>(
+//                 JITEngine::internal_panic as extern "win64" fn(&VM, &mut VMState),
+//             )
+//         };
+
+//         x64_asm!(ops
+//             ; mov rcx, _vm
+//             ; mov rdx, _vm_state
+//             ; mov r10, QWORD panic_address
+//             ; call r10);
+//     }
+//     instr => panic!("Unknown instr {:?}", instr),
+// }

@@ -1,6 +1,6 @@
 use crate::bytecode::{ASTImpl, CallTarget, ConstId, FnId, Function, InstrLbl, Module, TypeId, FunctionLocation};
 use crate::cfg::{BasicBlock, ControlFlowGraph};
-use crate::dialect::{Instruction, Var};
+use crate::dialect::{Instruction, Var, InstrToX64};
 use crate::memory::{self, Pointer};
 use crate::typechecker::{TypeEnvironment, typecheck};
 use crate::vm::{VMState, VM};
@@ -21,22 +21,66 @@ macro_rules! x64_asm {
 }
 
 #[macro_export]
+macro_rules! x64_reg {
+    (rax) => { Rq::RAX };
+    (rcx) => { Rq::RCX };
+    (rdx) => { Rq::RDX };
+    (rbx) => { Rq::RBX };
+    (rsp) => { Rq::RSP };
+    (rbp) => { Rq::RBP };
+    (rsi) => { Rq::RSI };
+    (rdi) => { Rq::RDI };
+    (r8) => { Rq::R8 };
+    (r9) => { Rq::R9 };
+    (r10) => { Rq::R10 };
+    (r11) => { Rq::R11 };
+    (r12) => { Rq::R12 };
+    (r13) => { Rq::R13 };
+    (r14) => { Rq::R14 };
+    (r15) => { Rq::R15 };
+}
+
+#[macro_export]
 macro_rules! x64_asm_resolve_mem {
     /*
     * Uses $src from a register if it is in a register, otherwise loads it from memory.
     */
-    ($ops:ident, $mem:ident ; $op:tt $reg:tt, resolve($src:expr)) => {
+    ($ops:ident, $mem:ident ; $op:tt e($reg:expr), v($src:expr)) => {
         match $mem.lookup($src) {
-            VarLoc::Register(l) => x64_asm!($ops ; $op $reg, Rq(l as u8)),
+            VarLoc::Register(l) => 
+                    x64_asm!($ops ; $op $reg, Rq(l as u8)),
+            VarLoc::Stack => x64_asm!($ops ; $op $reg, QWORD [rbp + ($src.0 as i32) * 8]),
+        }
+    };
+ 
+    ($ops:ident, $mem:ident ; $op:tt r($reg:tt), v($src:expr)) => {
+        match $mem.lookup($src) {
+            VarLoc::Register(l) => {
+                if l != x64_reg!($reg) {
+                    x64_asm!($ops ; $op $reg, Rq(l as u8));
+                }
+            },
             VarLoc::Stack => x64_asm!($ops ; $op $reg, QWORD [rbp + ($src.0 as i32) * 8]),
         }
     };
     /*
     * Writes to $dst in a register if it is in a register, otherwise writes into its memory location.
     */
-    ($ops:ident, $mem:ident ; $op:tt resolve($dst:expr), $reg:tt) => {
+   ($ops:ident, $mem:ident ; $op:tt v($dst:expr), e($reg:expr)) => {
         match $mem.lookup($dst) {
-            VarLoc::Register(l) => x64_asm!($ops ; $op Rq(l as u8), $reg),
+            VarLoc::Register(l) => 
+                    x64_asm!($ops ; $op Rq(l as u8), $reg),
+            VarLoc::Stack => x64_asm!($ops ; $op QWORD [rbp + ($dst.0 as i32) * 8], $reg),
+        }
+    };
+   
+    ($ops:ident, $mem:ident ; $op:tt v($dst:expr), r($reg:tt)) => {
+        match $mem.lookup($dst) {
+            VarLoc::Register(l) => {
+                if l != x64_reg!($reg) {
+                    x64_asm!($ops ; $op Rq(l as u8), $reg);
+                }
+            },
             VarLoc::Stack => x64_asm!($ops ; $op QWORD [rbp + ($dst.0 as i32) * 8], $reg),
         }
     };
@@ -45,7 +89,7 @@ macro_rules! x64_asm_resolve_mem {
     * If both are in memory, we need to use an intermediary register so RSI is used.
     * This overwrites whatever was in RSI!
     */
-    ($ops:ident, $mem:ident ; $op:tt resolve($dst:expr), resolve($src:expr)) => {
+    ($ops:ident, $mem:ident ; $op:tt v($dst:expr), v($src:expr)) => {
         match ($mem.lookup($dst), $mem.lookup($src)) {
             (VarLoc::Register(reg_dst), VarLoc::Register(reg_src)) => x64_asm!($ops ; $op Rq(reg_dst as u8), Rq(reg_src as u8)),
             (VarLoc::Stack, VarLoc::Register(reg_src)) => x64_asm!($ops ; $op QWORD [rbp + ($dst.0 as i32) * 8], Rq(reg_src as u8)),
@@ -60,7 +104,7 @@ macro_rules! x64_asm_resolve_mem {
     * Resolves the locations of both $src and $dst, using registers whenever possible.
     * This may overwrite whatever was in RSI and RDI, depending on which variables are in memory!
     */
-    ($ops:ident, $mem:ident ; $op:tt QWORD [resolve($dst:expr)], resolve($src:expr)) => {
+    ($ops:ident, $mem:ident ; $op:tt QWORD [v($dst:expr)], v($src:expr)) => {
         match ($mem.lookup($dst), $mem.lookup($src)) {
             (VarLoc::Register(reg_dst), VarLoc::Register(reg_src)) => x64_asm!($ops ; $op QWORD [Rq(reg_dst as u8)], Rq(reg_src as u8)),
             (VarLoc::Stack, VarLoc::Register(reg_src)) => x64_asm!($ops
@@ -80,7 +124,7 @@ macro_rules! x64_asm_resolve_mem {
     * Resolves the locations of both $src and $dst, using registers whenever possible.
     * This may overwrite whatever was in RSI and RDI, depending on which variables are in memory!
     */
-    ($ops:ident, $mem:ident ; $op:tt resolve($dst:expr), QWORD [resolve($src:expr)]) => {
+    ($ops:ident, $mem:ident ; $op:tt v($dst:expr), QWORD [v($src:expr)]) => {
         match ($mem.lookup($dst), $mem.lookup($src)) {
             (Some(reg_dst), Some(reg_src)) => x64_asm!($ops ; $op Rq(reg_dst as u8), QWORD [Rq(reg_src as u8)]),
             (None, Some(reg_src)) => x64_asm!($ops
@@ -98,6 +142,7 @@ macro_rules! x64_asm_resolve_mem {
 }
 
 use nom::AsBytes;
+use std::any::Any;
 use std::marker::PhantomPinned;
 use std::{collections::HashMap, fmt::Debug, mem};
 
@@ -326,7 +371,7 @@ pub fn compile(vm: &mut VM, func: FunctionLocation, state: &mut JITState) {
             .variable_locations
             .as_ref()
             .expect("Memory actions must be initialized when emitting instructions");
-        x64_asm_resolve_mem!(ops, memory; mov resolve(Var(0)), r8);
+        x64_asm_resolve_mem!(ops, memory; mov v(Var(0)), r(r8));
     }
 
     if state.config.debug {
@@ -375,7 +420,7 @@ fn compile_basic_block(
 ) {
     let mut pc = block.first;
     for instr in func.instructions[(block.first as usize)..=(block.last as usize)].iter() {
-        emit_instr_as_asm(vm, module, state, instr.as_ref(), pc as InstrLbl);
+        vm.module_loader.get_dialect("std").unwrap().compile(vm, module, state, &**instr, pc as InstrLbl);
         pc += 1;
     }
 }
@@ -396,10 +441,10 @@ pub extern "win64" fn trampoline(
         .expect("function id");
 
     // println!("{}",func.name);
-    if func.has_native_impl() {
+    if func.has_intrinsic_impl() {
         unsafe {
             let unsafe_fn_ptr = std::mem::transmute::<_, extern "C" fn(&mut VMState, Pointer) -> u64>(
-                func.native_impl().unwrap().fn_ptr,
+                func.intrinsic_impl().unwrap().fn_ptr,
             );
             (unsafe_fn_ptr)(state, arg)
         }
@@ -422,9 +467,26 @@ pub extern "win64" fn trampoline(
     }
 }
 
-pub extern "win64" fn internal_panic(vm: &VM, state: &mut VMState) {
-    panic!("Panic while executing");
+/*
+* The calling convention allows us to abstract code generation over the calling conventions used.
+*/
+trait CallingConvention {
+
 }
+
+struct Win64CallingConvention {}
+
+impl CallingConvention for Win64CallingConvention {
+
+}
+
+struct InterpreterCallingConvention {}
+
+impl CallingConvention for InterpreterCallingConvention {
+
+}
+
+// Register allocation business below
 
 #[derive(Clone, Copy, Debug)]
 struct Interval {
@@ -438,28 +500,33 @@ struct LivenessInterval {
     interval: Interval,
 }
 
-#[derive(Debug, Clone)]
-struct Spill {
-    location: InstrLbl,
-    var: Var,
-    reg: Rq,
-}
-
-#[derive(Debug, Clone)]
-struct Load {
-    location: InstrLbl,
-    var: Var,
-    reg: Rq,
-}
-
 #[derive(Clone)]
 pub struct VariableLocations {
     locations: HashMap<Var, VarLoc>,
+    liveness_intervals: HashMap<Var, (InstrLbl, InstrLbl)>,
 }
 
 impl VariableLocations {
     pub fn lookup(&self, var: Var) -> VarLoc {
         self.locations.get(&var).cloned().unwrap_or(VarLoc::Stack)
+    }
+
+    // TODO fix complexity of this
+    pub fn is_register_used_at(&self, register: Rq, location: InstrLbl) -> Option<Var> {
+        for (var, interval) in self.liveness_intervals.iter() {
+            if location < interval.0 || location > interval.1 {
+                continue;
+            }
+
+            match self.locations.get(var) {
+                Some(VarLoc::Register(r)) => if *r == register {
+                    return Some(*var);
+                },
+                _ => continue,
+            }
+        }
+
+        None
     }
 }
 
@@ -580,6 +647,7 @@ impl VariableLocations {
 
         VariableLocations {
             locations: variable_locations,
+            liveness_intervals: intervals.clone()
         }
     }
 }
@@ -624,10 +692,46 @@ impl FunctionJITState {
     }
 }
 
+pub fn store_registers(
+    ops: &mut Assembler,
+    memory: &VariableLocations,
+    registers: &Vec<Rq>,
+    except: &Vec<Var>,
+    location: InstrLbl,
+    align: bool
+) -> Vec<Rq> {
+    let mut stored = Vec::new();
+
+    let mut do_register = |reg: Rq| {
+        if let Some(v) = memory.is_register_used_at(reg, location) {
+            if except.contains(&v) {
+                return;
+            }
+        } else {
+            return;
+        }
+
+        x64_asm!(ops; push Rq(reg as u8));
+        stored.push(reg);
+    };
+
+    for r in registers {
+        do_register(*r);
+    }
+
+    if align && stored.len() % 2 == 1 {
+        x64_asm!(ops; sub rsp, 8);
+    }
+
+    stored
+}
+
+
 pub fn store_volatiles_except(
     ops: &mut Assembler,
     memory: &VariableLocations,
     var: Option<Var>,
+    align: bool
 ) -> Vec<Rq> {
     let mut stored = Vec::new();
 
@@ -648,434 +752,19 @@ pub fn store_volatiles_except(
     do_register(Rq::R10);
     do_register(Rq::R11);
 
-    if stored.len() % 2 == 1 {
+    if align && stored.len() % 2 == 1 {
         x64_asm!(ops; sub rsp, 8);
     }
 
     stored
 }
 
-pub fn load_volatiles(ops: &mut Assembler, stored: &Vec<Rq>) {
-    if stored.len() % 2 == 1 {
+pub fn load_registers(ops: &mut Assembler, stored: &Vec<Rq>, aligned: bool) {
+    if aligned &&  stored.len() % 2 == 1 {
         x64_asm!(ops; add rsp, 8);
     }
 
     for reg in stored.iter().rev() {
         x64_asm!(ops; pop Rq(*reg as u8));
     }
-}
-
-fn emit_instr_as_asm<'a>(
-    vm: &VM,
-    module: &'a Module,
-    jit_state: &mut FunctionJITState,
-    instr: &(dyn Instruction + 'a),
-    instr_lbl: InstrLbl,
-) {
-    instr.emit(vm, module, jit_state, instr_lbl);
-
-    // match instr {
-    //     ConstU32(r, c) => {
-    //         let c: i32 = c as i32;
-    //         x64_asm_resolve_mem!(ops, memory; mov resolve(r), c);
-    //     },
-    //     LtVarVar(r, a, b) => {
-    //         x64_asm_resolve_mem!(ops, memory; cmp resolve(a), resolve(b));
-    //         match memory.lookup(r) {
-    //             VarLoc::Register(reg) => x64_asm!(ops
-    //                     ; mov Rq(reg as u8), 0
-    //                     ; mov rdi, 1
-    //                     ; cmovl Rq(reg as u8), rdi),
-    //             _ => x64_asm!(ops
-    //                     ; mov rsi, 0
-    //                     ; mov rdi, 1
-    //                     ; cmovl rsi, rdi
-    //                     ; mov [rbp + (r as i32) * 8], rsi),
-    //         }
-    //     }
-    //     AddVarVar(r, a, b) => {
-    //         x64_asm_resolve_mem!(ops, memory; mov rsi, resolve(a));
-    //         x64_asm_resolve_mem!(ops, memory; add rsi, resolve(b));
-    //         x64_asm_resolve_mem!(ops, memory; mov resolve(r), rsi);
-    //     }
-    //     SubVarVar(r, a, b) => {
-    //         x64_asm_resolve_mem!(ops, memory; mov rsi, resolve(a));
-    //         x64_asm_resolve_mem!(ops, memory; sub rsi, resolve(b));
-    //         x64_asm_resolve_mem!(ops, memory; mov resolve(r), rsi);
-    //     }
-    //     MulVarVar(r, a, b) => {
-    //         x64_asm!(ops; push rax);
-    //         x64_asm_resolve_mem!(ops, memory; mov rax, resolve(a));
-    //         x64_asm_resolve_mem!(ops, memory; mov rsi, resolve(b));
-    //         x64_asm!(ops; imul rsi);
-    //         x64_asm_resolve_mem!(ops, memory; mov resolve(r), rax);
-    //         x64_asm!(ops; pop rax);
-    //     }
-    //     EqVarVar(r, a, b) => {
-    //         x64_asm_resolve_mem!(ops, memory; cmp resolve(a), resolve(b));
-    //         x64_asm!(ops
-    //             ; mov rsi, 0
-    //             ; mov rdi, 1
-    //             ; cmove rsi, rdi);
-    //         x64_asm_resolve_mem!(ops, memory; mov resolve(r), rsi);
-    //     }
-    //     NotVar(r, a) => {
-    //         x64_asm_resolve_mem!(ops, memory; cmp resolve(a), 0);
-    //         x64_asm!(ops
-    //             ; mov rsi, 0
-    //             ; mov rdi, 1
-    //             ; cmove rsi, rdi);
-    //         x64_asm_resolve_mem!(ops, memory; mov resolve(r), rsi);
-    //     }
-    //     Copy(dest, src) => {
-    //         x64_asm_resolve_mem!(ops, memory; mov resolve(dest), resolve(src));
-    //     }
-    //     StoreVar(dst_ptr, src, ty) => {
-    //         let get_heap_address = unsafe {
-    //             std::mem::transmute::<_, i64>(
-    //                 VMState::heap_mut as unsafe extern "C" fn(&mut VMState) -> &mut Heap,
-    //             )
-    //         };
-
-    //         let store_address = unsafe {
-    //             std::mem::transmute::<_, i64>(
-    //                 Heap::store_u64 as unsafe extern "C" fn(&mut Heap, Pointer, u64),
-    //             )
-    //         };
-
-    //         let size = module.get_type_by_id(ty).unwrap().size() as i32;
-    //         assert_eq!(size, 8, "Can only store size 8 for now");
-
-    //         let saved = store_volatiles_except(ops, memory, None);
-    //         let stack_space = 0x20;
-
-    //         x64_asm!(ops
-    //             // Load first because they might be overriden
-    //             ;; x64_asm_resolve_mem!(ops, memory; mov r14, resolve(dst_ptr))
-    //             ;; x64_asm_resolve_mem!(ops, memory; mov r15, resolve(src))
-
-    //             ; mov rcx, _vm_state
-    //             ; sub rsp, BYTE stack_space
-    //             ; mov r10, QWORD get_heap_address
-    //             ; call r10
-    //             ; add rsp, BYTE stack_space
-
-    //             ; mov rcx, rax
-    //             ; mov rdx, r14
-    //             ; mov r8, r15
-    //             ; sub rsp, BYTE stack_space
-    //             ; mov r10, QWORD store_address
-    //             ; call r10
-    //             ; add rsp, BYTE stack_space);
-
-    //         load_volatiles(ops, &saved);
-    //     }
-    //     LoadVar(dst, src_ptr, ty) => {
-    //         let get_heap_address = unsafe {
-    //             std::mem::transmute::<_, i64>(
-    //                 VMState::heap_mut as unsafe extern "C" fn(&mut VMState) -> &mut Heap,
-    //             )
-    //         };
-
-    //         let load_address = unsafe {
-    //             std::mem::transmute::<_, i64>(
-    //                 Heap::load_u64 as unsafe extern "C" fn(&mut Heap, Pointer) -> u64,
-    //             )
-    //         };
-
-    //         let size = module.get_type_by_id(ty).unwrap().size() as i32;
-    //         assert_eq!(size, 8, "Can only store size 8 for now");
-
-    //         let saved = store_volatiles_except(ops, memory, Some(dst));
-    //         let stack_space = 0x20;
-
-    //         x64_asm!(ops
-    //             // Load first because they might be overriden
-    //             ;; x64_asm_resolve_mem!(ops, memory; mov r14, resolve(src_ptr))
-
-    //             ; mov rcx, _vm_state
-    //             ; sub rsp, BYTE stack_space
-    //             ; mov r10, QWORD get_heap_address
-    //             ; call r10
-    //             ; add rsp, BYTE stack_space
-
-    //             ; mov rcx, rax
-    //             ; mov rdx, r14
-    //             ; sub rsp, BYTE stack_space
-    //             ; mov r10, QWORD load_address
-    //             ; call r10
-    //             ; add rsp, BYTE stack_space
-    //             ;; x64_asm_resolve_mem!(ops, memory; mov resolve(dst), rax)
-    //         );
-
-    //         load_volatiles(ops, &saved);
-    //     }
-    //     Alloc(r, t) => {
-    //         let saved = store_volatiles_except(ops, memory, Some(r));
-    //         let get_heap_address = unsafe {
-    //             std::mem::transmute::<_, i64>(
-    //                 VMState::heap_mut as unsafe extern "C" fn(&mut VMState) -> &mut Heap,
-    //             )
-    //         };
-
-    //         let alloc_address = unsafe {
-    //             std::mem::transmute::<_, i64>(
-    //                 Heap::allocate_type as unsafe extern "C" fn(&mut Heap, &Type) -> Pointer,
-    //             )
-    //         };
-
-    //         let ty = module.get_type_by_id(t).expect("type idx");
-
-    //         let stack_space = 0x20;
-    //         x64_asm!(ops
-    //                 ; mov rcx, _vm_state
-    //                 ; sub rsp, BYTE stack_space
-    //                 ; mov r10, QWORD get_heap_address
-    //                 ; call r10
-    //                 ; add rsp, BYTE stack_space
-
-    //                 ; mov rcx, rax
-    //                 ; mov rdx, QWORD ty as *const _ as i64
-    //                 ; sub rsp, BYTE stack_space
-    //                 ; mov r10, QWORD alloc_address
-    //                 ; call r10
-    //                 ; add rsp, BYTE stack_space
-
-    //                 ;;x64_asm_resolve_mem!(ops, memory; mov resolve(r), rax));
-
-    //         load_volatiles(ops, &saved);
-    //     }
-    //     ModuleCall(res, target, arg) => {
-    //         let fn_ref: i64 = unsafe {
-    //             std::mem::transmute::<_, i64>(
-    //                 JITEngine::trampoline
-    //                     as extern "win64" fn(&VM, &mut VMState, CallTarget, u64) -> u64,
-    //             )
-    //         };
-
-    //         let func = target.function;
-    //         let module = target.module;
-
-    //         let saved = store_volatiles_except(ops, memory, Some(res));
-    //         let stack_space = 0x20;
-    //         x64_asm!(ops
-    //                 ;;x64_asm_resolve_mem!(ops, memory; mov r9, resolve(arg))
-    //                 ; mov rcx, _vm
-    //                 ; mov rdx, _vm_state
-    //                 ; mov r8w, func as i16
-    //                 ; shl r8, 16
-    //                 ; mov r8w, module as i16
-    //                 ; sub rsp, BYTE stack_space
-    //                 ; mov r10, QWORD fn_ref
-    //                 ; call r10
-    //                 ; add rsp, BYTE stack_space
-    //                 ;;x64_asm_resolve_mem!(ops, memory; mov resolve(res), rax));
-    //         load_volatiles(ops, &saved);
-    //     }
-    //     Lbl => {
-    //         let dyn_lbl = fn_state
-    //             .dynamic_labels
-    //             .entry(cur)
-    //             .or_insert(ops.new_dynamic_label());
-    //         x64_asm!(ops
-    //             ; =>*dyn_lbl);
-    //     }
-    //     Jmp(l) => {
-    //         let jmp_target = cur as i64 + l as i64;
-    //         let dyn_lbl = fn_state
-    //             .dynamic_labels
-    //             .entry(jmp_target as InstrLbl)
-    //             .or_insert(ops.new_dynamic_label());
-
-    //         x64_asm!(ops
-    //             ; jmp =>*dyn_lbl);
-    //     }
-    //     JmpIfNot(l, c) => {
-    //         let jmp_target = cur as i64 + l as i64;
-    //         let dyn_lbl = fn_state
-    //             .dynamic_labels
-    //             .entry(jmp_target as InstrLbl)
-    //             .or_insert(ops.new_dynamic_label());
-
-    //         x64_asm!(ops
-    //             ;;x64_asm_resolve_mem!(ops, memory ; cmp resolve(c), 0)
-    //             ; je =>*dyn_lbl);
-    //     }
-    //     JmpIf(l, c) => {
-    //         let jmp_target = cur as i64 + l as i64;
-    //         let dyn_lbl = fn_state
-    //             .dynamic_labels
-    //             .entry(jmp_target as InstrLbl)
-    //             .or_insert(ops.new_dynamic_label());
-
-    //         x64_asm!(ops
-    //             ;; x64_asm_resolve_mem!(ops, memory ; cmp resolve(c), 1)
-    //             ; je =>*dyn_lbl);
-    //     }
-    //     Return(r) => {
-    //         x64_asm!(ops
-    //             ;; x64_asm_resolve_mem!(ops, memory; mov rax, resolve(r))
-    //             ; jmp ->_cleanup)
-    //     }
-    //     LoadConst(res, idx) => {
-    //         let const_decl = module.get_constant_by_id(idx).unwrap();
-
-    //         let get_heap_address = unsafe {
-    //             std::mem::transmute::<_, i64>(
-    //                 VMState::heap_mut as unsafe extern "C" fn(&mut VMState) -> &mut Heap,
-    //             )
-    //         };
-
-    //         let write_to_heap_address = unsafe {
-    //             std::mem::transmute::<_, i64>(
-    //                 Module::write_constant_to_heap
-    //                     as unsafe extern "C" fn(&mut Heap, &Type, &Constant) -> Pointer,
-    //             )
-    //         };
-
-    //         let saved = store_volatiles_except(ops, memory, Some(res));
-    //         let stack_space = 0x20;
-    //         x64_asm!(ops
-    //             ; mov rcx, _vm_state
-    //             ; sub rsp, BYTE stack_space
-    //             ; mov r10, QWORD get_heap_address
-    //             ; call r10
-    //             ; add rsp, BYTE stack_space
-    //             ; mov rcx, rax
-    //             // TODO investigate, this wont work if the constdecl is moved, dangling ptr
-    //             ; mov rdx, QWORD &const_decl.type_ as *const _ as i64
-    //             ; mov r8, QWORD &const_decl.value as *const _ as i64
-    //             ; sub rsp, BYTE stack_space
-    //             ; mov r10, QWORD write_to_heap_address
-    //             ; call r10
-    //             ; add rsp, BYTE stack_space
-    //             ;; x64_asm_resolve_mem!(ops, memory; mov resolve(res), rax)
-    //         );
-
-    //         load_volatiles(ops, &saved);
-    //     }
-    //     Index(res, src, idx, ty) => {
-    //         let get_heap_address = unsafe {
-    //             std::mem::transmute::<_, i64>(
-    //                 VMState::heap_mut as unsafe extern "C" fn(&mut VMState) -> &mut Heap,
-    //             )
-    //         };
-
-    //         let index_bytes_address = unsafe {
-    //             std::mem::transmute::<_, i64>(
-    //                 Heap::index_bytes as unsafe extern "C" fn(&mut Heap, Pointer, usize) -> Pointer,
-    //             )
-    //         };
-
-    //         let index_bytes: i32 = match module.get_type_by_id(ty).expect("type idx") {
-    //             Type::U64 | Type::Pointer(_) => 8,
-    //             ty => panic!("Illegal index operand: {:?}", ty),
-    //         };
-
-    //         let load_8_bytes_address = unsafe {
-    //             std::mem::transmute::<_, i64>(
-    //                 Heap::load_u64 as unsafe extern "C" fn(&mut Heap, Pointer) -> u64,
-    //             )
-    //         };
-
-    //         // call get_heap_address to get heap ptr
-    //         // load idx, multiply with element size in bytes
-    //         // load src
-    //         // call heap.index_bytes on src value with idx
-    //         // write res
-
-    //         let saved = store_volatiles_except(ops, memory, Some(res));
-    //         let stack_space = 0x20;
-    //         x64_asm!(ops
-    //             // Load first because they might be overriden
-    //             ;; x64_asm_resolve_mem!(ops, memory; mov r14, resolve(src))
-    //             ;; x64_asm_resolve_mem!(ops, memory; mov r15, resolve(idx))
-
-    //             ; mov rcx, _vm_state
-    //             ; sub rsp, BYTE stack_space
-    //             ; mov r10, QWORD get_heap_address
-    //             ; call r10
-    //             ; add rsp, BYTE stack_space
-    //             // rax contains pointer to heap, mov into rcx (first arg)
-    //             ; mov rcx, rax
-    //             ; mov rdi, rax // store in non-vol register for later
-    //             // compute idx and put into r8
-    //             ; mov rax, r15
-    //             ; mov r8, index_bytes
-    //             ; mul r8
-    //             ; mov r8, rax
-    //             // Offset for array header
-    //             ; add r8, 8
-    //             // put src into rdx
-    //             ; mov rdx, r14
-    //             ; sub rsp, BYTE stack_space
-    //             ; mov r10, QWORD index_bytes_address
-    //             ; call r10
-    //             ; add rsp, BYTE stack_space
-    //             // rax contains proxy
-    //             // load value
-    //             ; mov rcx, rdi
-    //             ; mov rdx, rax
-    //             ; sub rsp, BYTE stack_space
-    //             ; mov r10, QWORD load_8_bytes_address
-    //             ; call r10
-    //             ; add rsp, BYTE stack_space
-    //             ;; x64_asm_resolve_mem!(ops, memory; mov resolve(res), rax)
-    //         );
-
-    //         load_volatiles(ops, &saved);
-    //     }
-    //     Sizeof(res, src) => {
-    //         let get_heap_address = unsafe {
-    //             std::mem::transmute::<_, i64>(
-    //                 VMState::heap_mut as unsafe extern "C" fn(&mut VMState) -> &mut Heap,
-    //             )
-    //         };
-
-    //         let load_8_bytes_address = unsafe {
-    //             std::mem::transmute::<_, i64>(
-    //                 Heap::load_u64 as unsafe extern "C" fn(&mut Heap, Pointer) -> u64,
-    //             )
-    //         };
-
-    //         let saved = store_volatiles_except(ops, memory, Some(res));
-
-    //         let stack_space = 0x20;
-    //         x64_asm!(ops
-    //             // Load first because they might be overriden
-    //             ;; x64_asm_resolve_mem!(ops, memory; mov r14, resolve(src))
-
-    //             ; mov rcx, _vm_state
-    //             ; sub rsp, BYTE stack_space
-    //             ; mov r10, QWORD get_heap_address
-    //             ; call r10
-    //             ; add rsp, BYTE stack_space
-    //             // rax contains pointer to heap, mov into rcx (first arg)
-    //             ; mov rcx, rax
-    //             // load value
-    //             ; mov rdx, r14
-    //             ; sub rsp, BYTE stack_space
-    //             ; mov r10, QWORD load_8_bytes_address
-    //             ; call r10
-    //             ; add rsp, BYTE stack_space
-    //             ;; x64_asm_resolve_mem!(ops, memory; mov resolve(res), rax)
-    //         );
-
-    //         load_volatiles(ops, &saved);
-    //     }
-    //     Panic => {
-    //         let panic_address: i64 = unsafe {
-    //             std::mem::transmute::<_, i64>(
-    //                 JITEngine::internal_panic as extern "win64" fn(&VM, &mut VMState),
-    //             )
-    //         };
-
-    //         x64_asm!(ops
-    //             ; mov rcx, _vm
-    //             ; mov rdx, _vm_state
-    //             ; mov r10, QWORD panic_address
-    //             ; call r10);
-    //     }
-    //     instr => panic!("Unknown instr {:?}", instr),
-    // }
 }

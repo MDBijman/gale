@@ -10,6 +10,7 @@ use crate::{
     vm::{VMState, VM},
 };
 use dynasmrt::{dynasm, DynasmLabelApi};
+use std::any::Any;
 use std::fmt::{Display, Formatter};
 use std::{collections::HashSet, convert::TryInto, fmt::Debug};
 extern crate proc_macro;
@@ -33,6 +34,15 @@ pub trait Dialect {
         module: &mut Module,
         p: &Term,
     ) -> Result<Box<dyn Instruction>, InstructionParseError>;
+
+    fn compile(
+        &self,
+        vm: &VM,
+        module: &Module,
+        state: &mut FunctionJITState,
+        instr: &dyn Instruction,
+        instr_lbl: InstrLbl
+    );
 }
 
 const INSTR_TAG_SIZE: u8 = 1;
@@ -42,14 +52,42 @@ const DIALECT_TAG_SIZE: u8 = 1;
 * The Instruction trait indicates a term can be executed.
 */
 pub trait Instruction:
-    Debug + Display + InstrToBytecode + InstrClone + InstrToX64 + InstrControlFlow + InstrTypecheck
+    Any
+    + Debug
+    + Display
+    + InstrToBytecode
+    + InstrInterpret
+    + InstrClone
+    + InstrControlFlow
+    + InstrTypecheck
 {
+    fn as_any(&self) -> &dyn Any;
+    fn dialect(&self) -> &'static str;
+    fn tag(&self) -> &'static str;
     fn reads(&self) -> HashSet<Var>;
     fn writes(&self) -> HashSet<Var>;
+}
+
+#[macro_export]
+macro_rules! define_instr_common {
+    ($dialect:expr, $name:expr) => {
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
+        fn dialect(&self) -> &'static str {
+            $dialect
+        }
+        fn tag(&self) -> &'static str {
+            $name
+        }
+    }
+}
+
+pub trait InstrInterpret {
     fn interpret(&self, vm: &VM, state: &mut VMState) -> bool;
 
     /*
-     * Interpreter helpers
+     * helpers
      */
 
     fn inc_ip(s: &mut VMState)
@@ -309,6 +347,8 @@ impl InstructionBuffer {
 pub struct LabelInstruction(pub Vec<String>);
 
 impl Instruction for LabelInstruction {
+    define_instr_common!("core", "lbl");
+
     fn reads(&self) -> HashSet<Var> {
         HashSet::new()
     }
@@ -316,9 +356,11 @@ impl Instruction for LabelInstruction {
     fn writes(&self) -> HashSet<Var> {
         HashSet::new()
     }
+}
 
+impl InstrInterpret for LabelInstruction {
     fn interpret(&self, _vm: &VM, state: &mut VMState) -> bool {
-        state.interpreter_state.ip += 1;
+        Self::inc_ip(state);
         true
     }
 }
@@ -328,13 +370,13 @@ impl InstrToBytecode for LabelInstruction {
         todo!()
     }
 
-    fn emplace(&self, bytes: &mut [u8]) {
+    fn emplace(&self, _: &mut [u8]) {
         todo!()
     }
 }
 
 impl InstrToX64 for LabelInstruction {
-    fn emit(&self, vm: &VM, module: &Module, fn_state: &mut FunctionJITState, cur: InstrLbl) {
+    fn emit(&self, _: &VM, _: &Module, fn_state: &mut FunctionJITState, cur: InstrLbl) {
         let ops = &mut fn_state.ops;
         let dyn_lbl = fn_state
             .dynamic_labels
