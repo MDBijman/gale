@@ -1,4 +1,11 @@
-3e27bc9 "-i fib -a 47 -j" 52
-3e27bc9 "-i fib -a 40 -j" 1.8
-e256905 "-i fib -a 47 -j" 52
-e256905 "-i fib -a 40 -j" 1.8
+commit 738aa3073bf60c64a9a3c16d67254d97e361d198
+PS C:\users\matth\dev\gale> hyperfine ".\target\release\galevm.exe -i .\vm\vm\tests\fib.gbc -a 40 -j"
+Benchmark 1: .\target\release\galevm.exe -i .\vm\vm\tests\fib.gbc -a 40 -j
+  Time (mean ± σ):      1.596 s ±  0.047 s    [User: 1.498 s, System: 0.017 s]
+  Range (min … max):    1.556 s …  1.718 s    10 runs
+
+commit d4cdaa8a755c3723089cae871675b94318648c25
+PS C:\users\matth\dev\gale> hyperfine ".\target\release\galevm.exe -i .\vm\vm\tests\fib.gbc -a 40 -j"
+Benchmark 1: .\target\release\galevm.exe -i .\vm\vm\tests\fib.gbc -a 40 -j
+  Time (mean ± σ):      1.925 s ±  0.100 s    [User: 1.849 s, System: 0.016 s]
+  Range (min … max):    1.834 s …  2.126 s    10 runs
