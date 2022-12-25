@@ -1345,32 +1345,11 @@ impl InstrToX64 for Load {
         let ops = &mut state.ops;
         let memory = state.variable_locations.as_ref().unwrap();
 
-        let load_fn_address: i64 = unsafe {
-            std::mem::transmute::<_, i64>(
-                Heap::load::<u64> as unsafe extern "C" fn(&mut Heap, Pointer) -> u64,
-            )
-        };
-
-        let heap_offset_in_vm_state: i32 = offset_of!(VMState, heap).try_into().unwrap();
-        let stack_space = 0x20;
-
-        let saved = store_volatiles_except(ops, memory, Some(self.0), true);
-
         x64_asm!(ops
-        // Pointer to value in rdx (do this first to avoid invalidation)
-        ;; x64_asm_resolve_mem!(ops, memory; mov r(rdx), v(self.1))
-        // Pointer to heap in rcx
-        ; mov rcx, _vm_state
-        ; add rcx, heap_offset_in_vm_state
-        ; mov rcx, [rcx]
-        ; sub rsp, BYTE stack_space
-        ; mov r10, QWORD load_fn_address
-        ; call r10
-        ; add rsp, BYTE stack_space
-        ;; x64_asm_resolve_mem!(ops, memory; mov v(self.0), r(rax))
+        ;; x64_asm_resolve_mem!(ops, memory; mov r(rsi), v(self.1))
+        ; mov rsi, QWORD [rsi]
+        ;; x64_asm_resolve_mem!(ops, memory; mov v(self.0), r(rsi))
         );
-
-        load_registers(ops, &saved, true);
     }
 }
 
@@ -1608,7 +1587,7 @@ impl InstrToBytecode for Call {
 }
 
 impl InstrToX64 for Call {
-    fn emit(&self, vm: &VM, module: &Module, state: &mut FunctionJITState, _: InstrLbl) {
+    fn emit(&self, vm: &VM, module: &Module, state: &mut FunctionJITState, lbl: InstrLbl) {
         assert!(self.args.0.len() == 1 || self.args.0.len() == 0);
         let (resolved_module, resolved_function) = self.resolve(vm, module.id());
         let memory = state.variable_locations.as_ref().unwrap();
@@ -1623,7 +1602,7 @@ impl InstrToX64 for Call {
             )
         };
 
-        let saved = store_volatiles_except(ops, memory, Some(self.result), true);
+        let saved = store_volatiles_except(ops, memory, Some(self.result), true, lbl);
 
         let has_arg = self.args.0.len() == 1;
 

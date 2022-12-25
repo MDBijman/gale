@@ -5,7 +5,7 @@ use dataflow::Lattice;
 use crate::{
     bytecode::{FnId, Function, InstrLbl},
     dataflow::run,
-    dialect::{Instruction, Name, Var},
+    dialect::{Instruction, Name, Var}, jit::Interval,
 };
 
 pub enum ControlFlowBehaviour {
@@ -151,8 +151,8 @@ impl ControlFlowGraph {
     }
 
     /// For each variable, computes the first and last instruction in which it is used (write or read).
-    pub fn liveness_intervals(&self, func: &Function) -> HashMap<Var, (InstrLbl, InstrLbl)> {
-        let mut intervals: HashMap<Var, (InstrLbl, InstrLbl)> = HashMap::new();
+    pub fn liveness_intervals(&self, func: &Function) -> HashMap<Var, Interval> {
+        let mut intervals: HashMap<Var, Interval> = HashMap::new();
 
         let liveness_analysis_results = run(self, func);
 
@@ -161,12 +161,12 @@ impl ControlFlowGraph {
                 // We add one here (and in the first if) since liveness analysis gives results
                 // that indicate if a variables is live _after_ executing a particular instruction
                 // JIT expects the interval to end at the last instruction to use a variable, not 1 before it
-                let v = intervals.entry(*var).or_insert((instr, instr));
-                if instr > v.1 {
-                    v.1 = instr;
+                let v = intervals.entry(*var).or_insert(Interval { begin: instr, end: instr });
+                if instr > v.end {
+                    v.end = instr;
                 };
-                if instr < v.0 {
-                    v.0 = instr;
+                if instr < v.begin {
+                    v.begin = instr;
                 };
             }
         }

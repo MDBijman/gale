@@ -1,6 +1,7 @@
 use crate::dialect::{
     Dialect, Instruction, InstructionBuffer, InstructionParseError, LabelInstruction, Var,
 };
+use crate::jit::Interval;
 use crate::memory::{Heap, Pointer};
 use crate::parser::{
     parse_bytecode_file_new, FunctionTerm, ModuleTerm, ParserError, Term, TypeTerm,
@@ -567,7 +568,7 @@ impl Function {
     }
 
     /// Takes a map of liveness intervals and prints them neatly next to the instructions of this function.
-    pub fn print_liveness(&self, intervals: &HashMap<Var, (InstrLbl, InstrLbl)>) {
+    pub fn print_liveness(&self, intervals: &HashMap<Var, Interval>) {
         let implementation = self.ast_impl().expect("bytecode impl");
 
         let mut current_vars: Vec<Option<Var>> = Vec::new();
@@ -576,7 +577,7 @@ impl Function {
             // Find a location for variables used for the first time
             for entry in intervals.iter() {
                 // First instr where var is live
-                if idx == entry.1 .0 as usize {
+                if idx == entry.1 .begin as usize {
                     let e = current_vars.iter_mut().find(|e| e.is_none());
                     // Put var in spot that is now empty
                     if e.is_some() {
@@ -603,7 +604,7 @@ impl Function {
             // Remove variables that are not live anymore after this instruction
             for entry in intervals.iter() {
                 // Last instr where var is live
-                if idx == entry.1 .1 as usize {
+                if idx == entry.1 .end as usize {
                     let e = current_vars
                         .iter_mut()
                         .find(|v| v.is_some() && v.unwrap().eq(entry.0));

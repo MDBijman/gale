@@ -489,9 +489,15 @@ impl CallingConvention for InterpreterCallingConvention {
 // Register allocation business below
 
 #[derive(Clone, Copy, Debug)]
-struct Interval {
-    begin: InstrLbl,
-    end: InstrLbl,
+pub struct Interval {
+    pub begin: InstrLbl,
+    pub end: InstrLbl,
+}
+
+impl Interval {
+    pub fn contains(&self, l: InstrLbl) -> bool {
+        l >= self.begin && l <= self.end
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -503,7 +509,7 @@ struct LivenessInterval {
 #[derive(Clone)]
 pub struct VariableLocations {
     locations: HashMap<Var, VarLoc>,
-    liveness_intervals: HashMap<Var, (InstrLbl, InstrLbl)>,
+    liveness_intervals: HashMap<Var, Interval>,
 }
 
 impl VariableLocations {
@@ -511,10 +517,14 @@ impl VariableLocations {
         self.locations.get(&var).cloned().unwrap_or(VarLoc::Stack)
     }
 
+    pub fn lookup_liveness_interval(&self, var: Var) -> Interval {
+        *self.liveness_intervals.get(&var).unwrap()
+    }
+
     // TODO fix complexity of this
     pub fn is_register_used_at(&self, register: Rq, location: InstrLbl) -> Option<Var> {
         for (var, interval) in self.liveness_intervals.iter() {
-            if location < interval.0 || location > interval.1 {
+            if location < interval.begin || location > interval.end {
                 continue;
             }
 
@@ -565,16 +575,16 @@ impl Debug for VariableLocations {
 
 impl VariableLocations {
     pub fn from_liveness_intervals(
-        intervals: &HashMap<Var, (InstrLbl, InstrLbl)>,
+        intervals: &HashMap<Var, Interval>,
         types: &TypeEnvironment,
     ) -> Self {
         let mut as_vec: Vec<LivenessInterval> = intervals
             .iter()
-            .map(|(v, (a, b))| LivenessInterval {
+            .map(|(v, interval)| LivenessInterval {
                 var: *v,
                 interval: Interval {
-                    begin: *a,
-                    end: *b + 1,
+                    begin: interval.begin,
+                    end: interval.end + 1,
                 },
             })
             .collect();
@@ -730,13 +740,18 @@ pub fn store_registers(
 pub fn store_volatiles_except(
     ops: &mut Assembler,
     memory: &VariableLocations,
-    var: Option<Var>,
-    align: bool
+    except: Option<Var>,
+    align: bool,
+    lbl: InstrLbl
 ) -> Vec<Rq> {
     let mut stored = Vec::new();
 
     let mut do_register = |reg: Rq| {
-        if var.is_some() && memory.lookup(var.unwrap()) == VarLoc::Register(reg) {
+        if except.is_some() && memory.lookup(except.unwrap()) == VarLoc::Register(reg) {
+            return;
+        }
+
+        if memory.is_register_used_at(reg, lbl).is_none() {
             return;
         }
 
